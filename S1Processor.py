@@ -355,16 +355,14 @@ class Sentinel1PreProcess():
                 out_epsg = 32600+int(out_utm_zone)
                 if not out_utm_northern:
                     out_epsg = out_epsg+100
-
-                conv_result = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)
-                (x_coord, y_coord,dummy) = conv_result[0]
-                conv_result = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)
-                (lrx, lry,dummy) = conv_result[0]
- 
-                if not out_utm_northern and y_coord < 0:
-                    y_coord = y_coord+10000000.
-                    lry = lry+10000000.
-
+                conv_result = Utils.convert_coord([t for t in tile_origin], in_epsg, out_epsg)
+                (x_max, y_max) = (max(conv_result, key = lambda item:item[0])[0], max(conv_result, key = lambda item:item[1])[1])
+                (x_min, y_min) = (min(conv_result, key = lambda item:item[0])[0], min(conv_result, key = lambda item:item[1])[1])
+                
+                if not out_utm_northern and y_max < 0:
+                    y_max = y_max+10000000.
+                    y_min = y_min+10000000.
+                
                 ortho_image_name = current_platform\
                                    +"_"+tile_name\
                                    +"_"+current_polar\
@@ -383,14 +381,14 @@ class Sentinel1PreProcess():
                       +str(self.cfg.out_spatial_res)\
                       +" -outputs.spacingy -"+str(self.cfg.out_spatial_res)\
                       +" -outputs.sizex "\
-                      +str(int(round(abs(lrx-x_coord)/self.cfg.out_spatial_res)))\
+                      +str(int(round(abs(x_max-x_min)/self.cfg.out_spatial_res)))\
                       +" -outputs.sizey "\
-                      +str(int(round(abs(lry-y_coord)/self.cfg.out_spatial_res)))\
+                      +str(int(round(abs(y_max-y_min)/self.cfg.out_spatial_res)))\
                       +" -opt.gridspacing "+str(self.cfg.grid_spacing)\
                       +" -map utm -map.utm.zone "+str(out_utm_zone)\
                       +" -map.utm.northhem "+str(out_utm_northern).lower()\
-                      +" -outputs.ulx "+str(x_coord)\
-                      +" -outputs.uly "+str(y_coord)\
+                      +" -outputs.ulx "+str(x_min)\
+                      +" -outputs.uly "+str(y_max)\
                       +" -elev.dem "+tmp_srtm_dir+" -elev.geoid "+self.cfg.GeoidFile
 
                     all_cmd.append(cmd)
@@ -433,12 +431,12 @@ class Sentinel1PreProcess():
         files_to_remove = []
 
         image_list = [i for i in os.walk(os.path.join(\
-            self.cfg.output_preprocess, tile)).next()[2] if (len(i) == 40 and "xxxxxx" not in i)]
+            self.cfg.output_preprocess, tile)).next()[2] if (len(i) == (35 + len(tile)) and "xxxxxx" not in i)]
         image_list.sort()
-            
+
         while len(image_list) > 1:
 
-            image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
+            image_sublist=[i for i in image_list if (image_list[0][:(24 + len(tile))] in i)]
 
             if len(image_sublist) >1 :
                 images_to_concatenate=[os.path.join(self.cfg.output_preprocess, tile,i) for i in image_sublist]
