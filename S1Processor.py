@@ -39,25 +39,25 @@ from subprocess import Popen
 from s1tiling import S1FileManager
 from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
-import ConfigParser
+import configparser
 import gdal
 import subprocess
 import datetime
 
 def execute(cmd):
     try:
-        print cmd
+        print(cmd)
         subprocess.check_call(cmd, shell = True)
     except subprocess.CalledProcessError as e:
-        print 'WARNING : Erreur dans la commande : '
-        print e.returncode
-        print e.cmd
-        print e.output
+        print('WARNING : Erreur dans la commande : ')
+        print(e.returncode)
+        print(e.cmd)
+        print(e.output)
 
 class Configuration():
     """This class handles the parameters from the cfg file"""
     def __init__(self,configFile):
-        config = ConfigParser.SafeConfigParser(os.environ)
+        config = configparser.ConfigParser(os.environ)
         config.read(configFile)
         self.region=config.get('DEFAULT','region')
         self.output_preprocess=config.get('Paths','Output')
@@ -65,7 +65,7 @@ class Configuration():
         self.srtm=config.get('Paths','SRTM')
         self.tmpdir = config.get('Paths', 'tmp')
         if os.path.exists(self.tmpdir) == False:
-            print "ERROR: "+self.tmpdir+" is a wrong path"
+            print("ERROR: "+self.tmpdir+" is a wrong path")
             exit(1)
         self.GeoidFile=config.get('Paths','GeoidFile')
         self.pepsdownload=config.getboolean('PEPS','Download')
@@ -77,29 +77,29 @@ class Configuration():
         self.mask_cond=config.getboolean('Mask','Generate_border_mask')
         self.calibration_type=config.get('Processing','Calibration')
         self.removethermalnoise=config.getboolean('Processing','Remove_thermal_noise')
-       
+
         self.out_spatial_res=config.getfloat('Processing','OutputSpatialResolution')
-        
+
         self.output_grid=config.get('Processing','TilesShapefile')
         if os.path.exists(self.output_grid) == False:
-            print "ERROR: "+self.output_grid+" is a wrong path"
-            exit(1)        
+            print("ERROR: "+self.output_grid+" is a wrong path")
+            exit(1)
 
         self.SRTMShapefile=config.get('Processing','SRTMShapefile')
         if os.path.exists(self.SRTMShapefile) == False:
-            print "ERROR: "+self.srtm_shapefile+" is a wrong path"
+            print("ERROR: "+self.srtm_shapefile+" is a wrong path")
             exit(1)
         self.grid_spacing=config.getfloat('Processing','Orthorectification_gridspacing')
         self.border_threshold=config.getfloat('Processing','BorderThreshold')
         try:
            tiles_file=config.get('Processing','TilesListInFile')
            self.tiles_list=open(tiles_file,'r').readlines()
-           self.tiles_list = [s.rstrip() for s in self.tiles_list] 
-           print self.tiles_list
+           self.tiles_list = [s.rstrip() for s in self.tiles_list]
+           print(self.tiles_list)
         except:
            tiles=config.get('Processing','Tiles')
            self.tiles_list = [s.strip() for s in tiles.split(", ")]
-        
+
         self.TileToProductOverlapRatio=config.getfloat('Processing','TileToProductOverlapRatio')
         self.Mode=config.get('Processing','Mode')
         self.nb_procs=config.getint('Processing','NbParallelProcesses')
@@ -116,25 +116,25 @@ class Configuration():
             self.stderrfile = open("S1ProcessorErr.log", 'a')
         if "debug" in self.Mode:
             self.stdoutfile = None
-            self.stderrfile = None  
-        
+            self.stderrfile = None
+
         self.cluster=config.getboolean('HPC-Cluster','Parallelize_tiles')
 
         def check_date (self):
             import datetime
             import sys
-    
+
             fd=self.first_date
             ld=self.last_date
 
             try:
                 F_Date = datetime.date(int(fd[0:4]),int(fd[5:7]),int(fd[8:10]))
                 L_Date = datetime.date(int(ld[0:4]),int(ld[5:7]),int(ld[8:10]))
-        
+
             except:
                 print("Error : Unvalid date")
                 sys.exit()
-                
+
 class Sentinel1PreProcess():
     """ This class handles the processing for Sentinel1 ortho-rectification """
     def __init__(self,cfg):
@@ -143,8 +143,8 @@ class Sentinel1PreProcess():
             os.remove("S1ProcessorOut.log")
         except os.error:
             pass
-        self.cfg=cfg      
-        
+        self.cfg=cfg
+
     def generate_border_mask(self, all_ortho):
                 """
                 This method generate the border mask files from the
@@ -156,7 +156,7 @@ class Sentinel1PreProcess():
                 cmd_bandmath = []
                 cmd_morpho = []
                 files_to_remove = []
-                print "Generate Mask ..."
+                print("Generate Mask ...")
                 for current_ortho in all_ortho:
                     if "vv" not in current_ortho:
                         continue
@@ -192,7 +192,7 @@ class Sentinel1PreProcess():
                 for file_it in files_to_remove:
                     if os.path.exists(file_it) == True:
                         os.remove(file_it)
-                print "Generate Mask done"
+                print("Generate Mask done")
 
     def cut_image_cmd(self, raw_raster):
         """
@@ -206,7 +206,7 @@ class Sentinel1PreProcess():
             nbNan = len(np.argwhere(ima==0))
             return nbNan>thr
 
-        print "Cutting ",len(raw_raster)
+        print("Cutting ",len(raw_raster))
 
         for i in range(len(raw_raster)):
             print("    Cutting:"+str(int(float(i)/len(raw_raster)*100.))+"%")
@@ -273,8 +273,8 @@ class Sentinel1PreProcess():
             if os.path.exists(im1_name) == True: os.remove(im1_name)
             if os.path.exists(im2_name) == True: os.remove(im2_name)
 
-        print "Cutting done "
-        
+        print("Cutting done ")
+
 
     def do_calibration_cmd(self, raw_raster):
         """
@@ -284,8 +284,8 @@ class Sentinel1PreProcess():
           raw_raster: list of raw S1 raster file to calibrate
         """
         all_cmd = []
-        print "Calibration ",len(raw_raster)
-        
+        print("Calibration ",len(raw_raster))
+
         for i in range(len(raw_raster)):
 
             # Check if all OrthoReady files have been already generated
@@ -318,9 +318,9 @@ class Sentinel1PreProcess():
                        #os.remove(image)
                        pass
 
-        print "Calibration done"
-        
-        
+        print("Calibration done")
+
+
     def do_ortho_by_tile(self, raster_list, tile_name, tmp_srtm_dir):
         """
         This method performs ortho-rectification of a list of
@@ -332,7 +332,7 @@ class Sentinel1PreProcess():
         """
         all_cmd = []
         output_files_list = []
-        print "Start orthorectification :",tile_name
+        print("Start orthorectification :",tile_name)
         for i in range(len(raster_list)):
             raster, tile_origin = raster_list[i]
             manifest = raster.get_manifest()
@@ -360,7 +360,7 @@ class Sentinel1PreProcess():
                 (x_coord, y_coord,dummy) = conv_result[0]
                 conv_result = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)
                 (lrx, lry,dummy) = conv_result[0]
- 
+
                 if not out_utm_northern and y_coord < 0:
                     y_coord = y_coord+10000000.
                     lry = lry+10000000.
@@ -373,7 +373,7 @@ class Sentinel1PreProcess():
                                    +"_"+current_date\
                                    +".tif"
 
-                if not os.path.exists(os.path.join(working_directory,ortho_image_name)) and not os.path.exists(os.path.join(working_directory,ortho_image_name[:-11]+"txxxxxx.tif")):                    
+                if not os.path.exists(os.path.join(working_directory,ortho_image_name)) and not os.path.exists(os.path.join(working_directory,ortho_image_name[:-11]+"txxxxxx.tif")):
                     cmd = 'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_OrthoRectification -opt.ram "\
                       +str(self.cfg.ram_per_process)\
                       +" -progress false -io.in "+image_ok\
@@ -428,14 +428,14 @@ class Sentinel1PreProcess():
         """
         This method concatenates images sub-swath for all generated tiles.
         """
-        print "Start concatenation :",tile
+        print("Start concatenation :",tile)
         cmd_list = []
         files_to_remove = []
 
         image_list = [i for i in os.walk(os.path.join(\
             self.cfg.output_preprocess, tile)).next()[2] if (len(i) == 40 and "xxxxxx" not in i)]
         image_list.sort()
-            
+
         while len(image_list) > 1:
 
             image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
@@ -455,7 +455,7 @@ class Sentinel1PreProcess():
                                     +' -il '+' '.join(images_to_concatenate)\
                                     +' -out '+output_image\
                                     + ' -exp "'+expression+'"')
-                                    
+
                 if self.cfg.mask_cond:
                     if "vv" in image_list[0]:
                         images_msk_to_concatenate = [i.replace(".tif", "_BorderMask.tif") for i in images_to_concatenate]
@@ -466,11 +466,11 @@ class Sentinel1PreProcess():
                                     +' -out '+output_image.replace(".tif",\
                                                                 "_BorderMask.tif")\
                                     + ' -exp "'+expression+'"')
-                
+
             for i in  image_sublist:
                 image_list.remove(i)
 
-                   
+
         self.run_processing(cmd_list, "Concatenation")
 
         for file_it in files_to_remove:
@@ -496,24 +496,24 @@ class Sentinel1PreProcess():
                 cmd_list.remove(cmd_list[0])
             for i, pid in enumerate(pids):
                 status = pid[0].poll()
-                if status is not None and status <> 0:
-                    print "Error in pid #"+str(i)+" id="+str(pid[0])
-                    print pid[1]
+                if status:
+                    print("Error in pid #"+str(i)+" id="+str(pid[0]))
+                    print(pid[1])
                     del pids[i]
                     break
                     #sys.exit(status)
-                if status == 0:
+                elif status == 0:
                     del pids[i]
-                    print title+"... "+str(int((nb_cmd-(len(cmd_list)\
-                                                +len(pids)))*100./nb_cmd))+"%"
+                    print(title+"... "+str(int((nb_cmd-(len(cmd_list)\
+                                                +len(pids)))*100./nb_cmd))+"%")
                     time.sleep(0.2)
                     break
-        print title+" done"
+        print(title+" done")
 
 # Main code
 
 if len(sys.argv) != 2:
-    print "Usage: "+sys.argv[0]+" config.cfg"
+    print("Usage: "+sys.argv[0]+" config.cfg")
     sys.exit(1)
 
 CFG = sys.argv[1]
@@ -527,14 +527,14 @@ TILES_TO_PROCESS = []
 ALL_REQUESTED = False
 
 for tile_it in Cg_Cfg.tiles_list:
-    print tile_it
+    print(tile_it)
     if tile_it == "ALL":
         ALL_REQUESTED = True
         break
     elif True:  #S1_FILE_MANAGER.tile_exists(tile_it):
         TILES_TO_PROCESS.append(tile_it)
     else:
-        print "Tile "+str(tile_it)+" does not exist, skipping ..."
+        print("Tile "+str(tile_it)+" does not exist, skipping ...")
 
 # We can not require both to process all tiles covered by downloaded products
 # and and download all tiles
@@ -542,18 +542,18 @@ for tile_it in Cg_Cfg.tiles_list:
 
 if ALL_REQUESTED:
     if Cg_Cfg.pepsdownload and "ALL" in Cg_Cfg.roi_by_tiles:
-        print "Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
-            +" Use ROI_by_coordinates or deactivate download instead"
+        print("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
+            +" Use ROI_by_coordinates or deactivate download instead")
         sys.exit(1)
     else:
         TILES_TO_PROCESS = S1_FILE_MANAGER.get_tiles_covered_by_products()
-        print "All tiles for which more than "\
+        print("All tiles for which more than "\
             +str(100*Cg_Cfg.TileToProductOverlapRatio)\
             +"% of the surface is covered by products will be produced: "\
-            +str(TILES_TO_PROCESS)
+            +str(TILES_TO_PROCESS))
 
 if len(TILES_TO_PROCESS) == 0:
-    print "No existing tiles found, exiting ..."
+    print("No existing tiles found, exiting ...")
     sys.exit(1)
 
 # Analyse SRTM coverage for MGRS tiles to be processed
@@ -563,7 +563,7 @@ NEEDED_SRTM_TILES = []
 TILES_TO_PROCESS_CHECKED = []
 # For each MGRS tile to process
 for tile_it in TILES_TO_PROCESS:
-    print "Check SRTM coverage for ",tile_it
+    print("Check SRTM coverage for ",tile_it)
     # Get SRTM tiles coverage statistics
     srtm_tiles = SRTM_TILES_CHECK[tile_it]
     current_coverage = 0
@@ -578,9 +578,9 @@ for tile_it in TILES_TO_PROCESS:
         TILES_TO_PROCESS_CHECKED.append(tile_it)
     else:
         # Skip it
-        print "WARNING: Tile "+str(tile_it)\
+        print("WARNING: Tile "+str(tile_it)\
             +" has insuficient SRTM coverage ("+str(100*current_coverage)\
-            +"%)"
+            +"%)")
         NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
         TILES_TO_PROCESS_CHECKED.append(tile_it)
 
@@ -589,14 +589,14 @@ for tile_it in TILES_TO_PROCESS:
 # Remove duplicates
 NEEDED_SRTM_TILES = list(set(NEEDED_SRTM_TILES))
 
-print str(S1_FILE_MANAGER.nb_images)+" images to process on "\
-    +str(len(TILES_TO_PROCESS_CHECKED))+" tiles"
+print(str(S1_FILE_MANAGER.nb_images)+" images to process on "\
+    +str(len(TILES_TO_PROCESS_CHECKED))+" tiles")
 
 if len(TILES_TO_PROCESS_CHECKED) == 0:
-    print "No tiles to process, exiting ..."
+    print("No tiles to process, exiting ...")
     sys.exit(1)
 
-print "Required SRTM tiles: "+str(NEEDED_SRTM_TILES)
+print("Required SRTM tiles: "+str(NEEDED_SRTM_TILES))
 
 SRTM_OK = True
 
@@ -604,10 +604,10 @@ for srtm_tile in NEEDED_SRTM_TILES:
     tile_path = os.path.join(Cg_Cfg.srtm, srtm_tile)
     if not os.path.exists(tile_path):
         SRTM_OK = False
-        print tile_path+" is missing"
+        print(tile_path+" is missing")
 
 if not SRTM_OK:
-    print "Some SRTM tiles are missing, exiting ..."
+    print("Some SRTM tiles are missing, exiting ...")
     sys.exit(1)
 
 # copy all needed SRTM file in a temp directory for orthorectification processing
@@ -616,29 +616,29 @@ for srtm_tile in NEEDED_SRTM_TILES:
 
 
 if not os.path.exists(Cg_Cfg.GeoidFile):
-    print "Geoid file does not exists ("+Cg_Cfg.GeoidFile+"), exiting ..."
+    print("Geoid file does not exists ("+Cg_Cfg.GeoidFile+"), exiting ...")
     sys.exit(1)
 
 filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
 for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
 
-    print "Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")"
-    
+    print("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
+
     # keep only the 500's newer files
     safeFileList=sorted(glob.glob(os.path.join(Cg_Cfg.raw_directory,"*")),key=os.path.getctime)
     if len(safeFileList)> 1000	:
         for f in safeFileList[:len(safeFileList)-1000]:
-            print "Remove : ",os.path.basename(f)
+            print("Remove : ",os.path.basename(f))
             shutil.rmtree(f,ignore_errors=True)
         S1_FILE_MANAGER.get_s1_img()
 
     S1_FILE_MANAGER.download_images(tiles=tile_it)
 
     intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
-    
+
     if len(intersect_raster_list) == 0:
-        print "No intersections with tile "+str(tile_it)
+        print("No intersections with tile "+str(tile_it))
         continue
 
     S1_CHAIN.do_calibration_cmd(intersect_raster_list)
@@ -647,11 +647,11 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
     raster_tiles_list = S1_CHAIN.do_ortho_by_tile(\
                         intersect_raster_list, tile_it,S1_FILE_MANAGER.tmpsrtmdir)
     if Cg_Cfg.mask_cond:
-        S1_CHAIN.generate_border_mask(raster_tiles_list) 
-    
+        S1_CHAIN.generate_border_mask(raster_tiles_list)
+
     S1_CHAIN.concatenate_images(tile_it)
-    """    
+    """
     if Cg_Cfg.filtering_activated:
-    
+
         filteringProcessor.process(tile_it)
     """

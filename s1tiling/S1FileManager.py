@@ -30,7 +30,7 @@ import sys
 class S1FileManager(object):
     """ Class to manage processed files (downloads, checks) """
     def __init__(self,cfg):
-        
+
         self.cfg=cfg
         self.raw_raster_list = []
         self.nb_images = 0
@@ -62,7 +62,7 @@ class S1FileManager(object):
                     self.roi_by_coordinates\
                         = cfg.ROI_by_coordinates.split()
                 except cfg.NoOptionError:
-                    print "No ROI defined in the config file"
+                    print("No ROI defined in the config file")
                     exit(-1)
 
         try:
@@ -90,7 +90,7 @@ class S1FileManager(object):
                 lonmin = []
                 lonmax = []
                 print(tiles_list)
-                
+
                 driver = ogr.GetDriverByName("ESRI Shapefile")
                 data_source = driver.Open(self.cfg.output_grid, 0)
                 layer = data_source.GetLayer()
@@ -118,7 +118,7 @@ class S1FileManager(object):
                                   +" --latmin "+str(latmin)+" --latmax "\
                                   +str(latmax)+" -w "+self.cfg.raw_directory\
                                   +" --tiledata "+os.path.join(self.cfg.output_preprocess,tiles_list)
-                        print command
+                        print(command)
                         status = -1
                         while status != 0:
                             if self.cfg.cluster:
@@ -137,7 +137,7 @@ class S1FileManager(object):
                           +str(self.roi_by_coordinates[3])+" -w "\
                           +self.raw_directory \
                           +" --tiledata "+os.path.join(self.cfg.output_preprocess,current_tile)
-                print command
+                print(command)
                 status = -1
                 while status != 0:
                     if self.cfg.cluster:
@@ -157,15 +157,15 @@ class S1FileManager(object):
         import zipfile
         for file_it in os.walk(self.cfg.raw_directory).next()[2]:
             if ".zip" in file_it:
-                print "unzipping "+file_it
+                print("unzipping "+file_it)
                 try:
                     zip_ref = zipfile.ZipFile(self.cfg.raw_directory+"/"+\
                                               file_it, 'r')
                     zip_ref.extractall(self.cfg.raw_directory)
                     zip_ref.close()
                 except  zipfile.BadZipfile:
-                    print "WARNING: "+self.cfg.raw_directory+"/"+\
-                        file_it+" is corrupted. This file will be removed"
+                    print("WARNING: "+self.cfg.raw_directory+"/"+\
+                        file_it+" is corrupted. This file will be removed")
                 try:
                     os.remove(self.cfg.raw_directory+"/"+file_it)
                 except:
@@ -193,7 +193,7 @@ class S1FileManager(object):
             safe_dir = os.path.join(self.cfg.raw_directory, current_content)
             if os.path.isdir(safe_dir) == True:
 
-                
+
                 manifest = os.path.join(safe_dir, self.manifest_pattern)
                 acquisition = S1DateAcquisition(manifest, [])
                 vv_images = [f for f in\
@@ -234,7 +234,7 @@ class S1FileManager(object):
                         self.nb_images += 1
 
                 self.raw_raster_list.append(acquisition)
-        
+
     def tile_exists(self, tile_name_field):
         """
         This method check if a given MGRS tiles exists in the database
@@ -250,7 +250,7 @@ class S1FileManager(object):
         layer = data_source.GetLayer()
 
         for current_tile in layer:
-            #print current_tile.GetField('NAME')
+            #print(current_tile.GetField('NAME'))
             if current_tile.GetField('NAME') in tile_name_field:
                 return True
         return False
@@ -315,7 +315,7 @@ class S1FileManager(object):
             if current_tile.GetField('NAME') in tile_name_field:
                 break
         if not current_tile:
-            print "Tile "+str(tile_name_field)+" does not exist"
+            print("Tile "+str(tile_name_field)+" does not exist")
             return intersect_raster
 
         poly = ogr.Geometry(ogr.wkbPolygon)
@@ -323,17 +323,17 @@ class S1FileManager(object):
 
 
         for image in self.raw_raster_list:
-            print image.get_manifest()
-            print image.get_images_list()
+            print(image.get_manifest())
+            print(image.get_images_list())
             if len(image.get_images_list())==0:
-                print "Problem with : "+image.get_manifest()
-                print "Remove the raw data for this SAFE file"
+                print("Problem with : "+image.get_manifest())
+                print("Remove the raw data for this SAFE file")
                 sys.exit(-1)
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
-            
+
             if date_safe in date_exist:
-                continue            
+                continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
 
@@ -396,7 +396,7 @@ class S1FileManager(object):
         needed_srtm_tiles = {}
 
         for tile in tiles_to_process:
-            print "Check SRTM tile for ",tile
+            print("Check SRTM tile for ",tile)
 
             srtm_tiles = []
             mgrs_footprint = self.get_mgrs_tile_geometry_by_name(tile)

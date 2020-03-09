@@ -34,7 +34,7 @@ class S1FilteringProcessor():
     def process(self,tile):
         """Main function for speckle filtering script"""
         directory = os.path.join(self.Cg_Cfg.output_preprocess,tile.upper())
-        print "Start speckle filtering: "+tile.upper()
+        print("Start speckle filtering: "+tile.upper())
         year_outcore_list=["2019","2018"]
         year_filter_list=["2019","2018"]
 
@@ -85,7 +85,7 @@ class S1FilteringProcessor():
             except pickle.PickleError:
                 processed_files = []
 
-        
+
         # Compute the outcores for ASC and DES images
 
 
@@ -95,7 +95,7 @@ class S1FilteringProcessor():
                 filelist_s1asc_updateoutcore.remove(file_it)
             except ValueError:
                 pass
-        
+
         # Build the strings containing the filenames to be processed
         filelist_s1des_updateoutcore_str = " ".join(filelist_s1des_updateoutcore)
         filelist_s1asc_updateoutcore_str = " ".join(filelist_s1asc_updateoutcore)
@@ -140,20 +140,20 @@ class S1FilteringProcessor():
 
         title="Compute outcore"
         nb_cmd=len(pids)
-        print title+"... 0%"
+        print(title+"... 0%")
         while len(pids) > 0:
 
             for i, pid in enumerate(pids):
                 status = pid[0].poll()
-                if status is not None and status <> 0:
-                   print "Error in pid #"+str(i)+" id="+str(pid[0])
-                   print pid[1]
+                if status:
+                   print("Error in pid #"+str(i)+" id="+str(pid[0]))
+                   print(pid[1])
                    del pids[i]
                    break
 
-                if status == 0:
+                elif status == 0:
                    del pids[i]
-                   print title+"... "+str(int((nb_cmd-len(pids))*100./nb_cmd))+"%"
+                   print(title+"... "+str(int((nb_cmd-len(pids))*100./nb_cmd))+"%")
                    time.sleep(0.2)
                    break
             time.sleep(2)
@@ -190,20 +190,20 @@ class S1FilteringProcessor():
 
         title="Compute filtered images"
         nb_cmd=len(pids)
-        print title+"... 0%"
+        print(title+"... 0%")
         while len(pids) > 0:
 
             for i, pid in enumerate(pids):
                 status = pid[0].poll()
-                if status is not None and status <> 0:
-                    print "Error in pid #"+str(i)+" id="+str(pid[0])
-                    print pid[1]
+                if status:
+                    print("Error in pid #"+str(i)+" id="+str(pid[0]))
+                    print(pid[1])
                     del pids[i]
                     break
 
-                if status == 0:
+                elif status == 0:
                     del pids[i]
-                    print title+"... "+str(int((nb_cmd-len(pids))*100./nb_cmd))+"%"
+                    print(title+"... "+str(int((nb_cmd-len(pids))*100./nb_cmd))+"%")
                     time.sleep(0.2)
                     break
             time.sleep(2)
