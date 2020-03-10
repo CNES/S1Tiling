@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #-*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
@@ -155,7 +155,7 @@ class S1FileManager(object):
     def unzip_images(self):
         """This method handles unzipping of product archives"""
         import zipfile
-        for file_it in os.walk(self.cfg.raw_directory).next()[2]:
+        for file_it in os.walk(self.cfg.raw_directory).__next__()[2]:
             if ".zip" in file_it:
                 print("unzipping "+file_it)
                 try:

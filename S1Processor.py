@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #-*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
@@ -433,7 +433,7 @@ class Sentinel1PreProcess():
         files_to_remove = []
 
         image_list = [i for i in os.walk(os.path.join(\
-            self.cfg.output_preprocess, tile)).next()[2] if (len(i) == 40 and "xxxxxx" not in i)]
+            self.cfg.output_preprocess, tile)).__next__()[2] if (len(i) == 40 and "xxxxxx" not in i)]
         image_list.sort()
 
         while len(image_list) > 1:

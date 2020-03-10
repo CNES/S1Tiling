@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #-*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
@@ -171,18 +171,18 @@ def get_platform_from_s1_raster(path_to_raster):
 
 
 
-   
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
