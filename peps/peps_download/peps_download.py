@@ -3,6 +3,7 @@
 import json
 import time
 import os, os.path, optparse,sys
+import subprocess
 from datetime import date
 from math import ceil
 import glob
@@ -222,13 +223,14 @@ if options.collection=='S2ST':
 # read authentification file
 #====================
 try:
-    f=file(options.auth)
-    (email,passwd)=f.readline().split(' ')
-    if passwd.endswith('\n'):
-        passwd=passwd[:-1]
-    f.close()
-except :
-    print("error with password file")
+    with open(options.auth) as f:
+        (email,passwd)=f.readline().split(' ')
+        if passwd.endswith('\n'):
+            passwd=passwd[:-1]
+        print('email: ', email)
+        print('pwd: ', passwd)
+except Exception as inst:
+    print("error with password file:" + str(inst))
     sys.exit(-2)
 
 
@@ -282,8 +284,11 @@ while(enough_product):
                     tmticks=time.time()
                     tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
                     print("\nStage tape product: %s"%prod)
-                    get_product='curl -o {} -k -u {}:{} https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps &>/dev/null'.format(tmpfile,email,passwd,options.collection,download_dict[prod])
-                    os.system(get_product)
+                    get_product=['curl',
+                            '-o', tmpfile, '-k',
+                            '-u', email+':'+passwd,
+                            'https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps &>/dev/null'.format(options.collection,download_dict[prod])]
+                    subprocess.call(get_product)
 
         NbProdsToDownload=len(download_dict.keys())
         enough_product = (NbProdsToDownload==5000)
@@ -310,18 +315,21 @@ while(enough_product):
                 file_exists= file_exists or (date_prod in date_exist)
 
                 if (not(options.no_download) and not(file_exists)):
-                     if storage_dict[prod]=="disk" and not('NRT' in realtime_dict[prod]):
-                         tmticks=time.time()
-                         tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
-                         print("\nDownload of product : %s"%prod)
-                         get_product='curl -o {} -k -u {}:{} https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps'.format(tmpfile,email,passwd,options.collection,download_dict[prod])
-                         # print(get_product)
-                         os.system(get_product)
-                         #check binary product, rename tmp file
-                         if not os.path.exists(("%s/tmp_%s.tmp")%(options.write_dir,tmticks)):
-                             NbProdsToDownload+=1
-                         else:
-                            check_rename(tmpfile,options)
+                    if storage_dict[prod]=="disk" and not('NRT' in realtime_dict[prod]):
+                        tmticks=time.time()
+                        tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
+                        print("\nDownload of product : %s"%prod)
+                        get_product=['curl',
+                                '-o', tmpfile, '-k',
+                                '-u', email+':'+passwd,
+                                'https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps'.format(options.collection,download_dict[prod])]
+                        # print(get_product)
+                        subprocess.call(get_product)
+                        #check binary product, rename tmp file
+                        if not os.path.exists(("%s/tmp_%s.tmp")%(options.write_dir,tmticks)):
+                            NbProdsToDownload+=1
+                        else:
+                           check_rename(tmpfile,options)
 
                 elif file_exists:
                     print("%s already exists"%prod)
@@ -336,9 +344,12 @@ while(enough_product):
                         tmticks=time.time()
                         tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
                         print("\nDownload of product : %s"%prod)
-                        get_product='curl -o {} -k -u {}:{} https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps'.format(tmpfile,email,passwd,options.collection,download_dict[prod])
+                        get_product=['curl',
+                                '-o', tmpfile, '-k',
+                                '-u', email+':'+passwd,
+                                'https://peps.cnes.fr/resto/collections/{}/{}/download/?issuerId=peps'.format(options.collection,download_dict[prod])]
                         #print(get_product)
-                        os.system(get_product)
+                        subprocess.call(get_product)
                         if not os.path.exists(("%s/tmp_%s.tmp")%(options.write_dir,tmticks)):
                              NbProdsToDownload+=1
                         else:
