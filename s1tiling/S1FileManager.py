@@ -27,12 +27,17 @@ import tempfile
 import glob
 import sys
 
-def download(raw_directory, command, tile_name):
+def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_data, tile_name):
     """
     Process with the call to peps_download
     """
     from subprocess import Popen
     import time
+    command = pepscommand\
+            +" --lonmin "+str(lonmin)+" --lonmax "+str(lonmax)\
+            +" --latmin "+str(latmin)+" --latmax "+str(latmax)\
+            +" -w "+raw_directory\
+            +" --tiledata "+tile_data
     print(command)
     status = -1
     while status != 0:
@@ -110,63 +115,40 @@ class S1FileManager(object):
     def download_images(self,tiles=None):
         """ This method downloads the required images if pepsdownload is True"""
         import numpy as np
-        if self.cfg.pepsdownload == True:
+        if not self.cfg.pepsdownload:
+            return
 
-            if self.roi_by_tiles is not None:
-                if tiles is None:
-                    if "ALL" in self.roi_by_tiles:
-                        tiles_list = self.cfg.tiles_list
-                    else:
-                        tiles_list = self.roi_by_tiles
-                else:
-                   tiles_list=tiles
-                latmin = []
-                latmax = []
-                lonmin = []
-                lonmax = []
-                print(tiles_list)
-
-                driver = ogr.GetDriverByName("ESRI Shapefile")
-                data_source = driver.Open(self.cfg.output_grid, 0)
-                layer = data_source.GetLayer()
-                for current_tile in layer:
-
-                    if current_tile.GetField('NAME') in tiles_list:
-                        tile_footprint = current_tile.GetGeometryRef()\
-                                                     .GetGeometryRef(0)
-                        latmin = np.min([p[1] for p in tile_footprint\
-                                         .GetPoints()])
-                        latmax = np.max([p[1] for p in tile_footprint\
-                                         .GetPoints()])
-                        lonmin = np.min([p[0] for p in tile_footprint\
-                                         .GetPoints()])
-                        lonmax = np.max([p[0] for p in tile_footprint\
-                                         .GetPoints()])
-                        """
-                        command = "python "+self.pepscommand+" --lonmin "\
-                                  +str(lonmin)+" --lonmax "+str(lonmax)\
-                                  +" --latmin "+str(latmin)+" --latmax "\
-                                  +str(latmax)+" -w "+self.raw_directory
-                        """
-                        command = self.pepscommand+" --lonmin "\
-                                  +str(lonmin)+" --lonmax "+str(lonmax)\
-                                  +" --latmin "+str(latmin)+" --latmax "\
-                                  +str(latmax)+" -w "+self.cfg.raw_directory\
-                                  +" --tiledata "+os.path.join(self.cfg.output_preprocess,tiles_list)
-                        download(self.cfg.raw_directory, command,
-                                current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
+        if self.roi_by_tiles is not None:
+            if tiles:
+                tiles_list=tiles
+            elif "ALL" in self.roi_by_tiles:
+                tiles_list = self.cfg.tiles_list
             else:
-                command = "python "+self.pepscommand+" --lonmin "\
-                          +str(self.roi_by_coordinates[0])+" --lonmax "\
-                          +str(self.roi_by_coordinates[2])+" --latmin "\
-                          +str(self.roi_by_coordinates[1])+" --latmax "\
-                          +str(self.roi_by_coordinates[3])+" -w "\
-                          +self.cfg.raw_directory \
-                          +" --tiledata "+os.path.join(self.cfg.output_preprocess,current_tile)
-                download(self.cfg.raw_directory, command,
-                        current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
-            unzip_images(self.cfg.raw_directory)
-            self.get_s1_img()
+                tiles_list = self.roi_by_tiles
+            print(tiles_list)
+
+            driver = ogr.GetDriverByName("ESRI Shapefile")
+            data_source = driver.Open(self.cfg.output_grid, 0)
+            layer = data_source.GetLayer()
+            for current_tile in layer:
+                if current_tile.GetField('NAME') in tiles_list:
+                    tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
+                    latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
+                    latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
+                    lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
+                    lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
+                    download(self.cfg.raw_directory, self.pepscommand,
+                            lonmin, lonmax, latmin, latmax,
+                            os.path.join(self.cfg.output_preprocess,tiles_list),
+                            current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
+        else: # roi_by_tiles is None
+            download(self.cfg.raw_directory, self.pepscommand,
+                    self.roi_by_coordinates[0], self.roi_by_coordinates[2],
+                    self.roi_by_coordinates[1], self.roi_by_coordinates[3],
+                    os.path.join(self.cfg.output_preprocess,current_tile),
+                    current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
+        unzip_images(self.cfg.raw_directory)
+        self.get_s1_img()
 
     def get_s1_img(self):
         """
