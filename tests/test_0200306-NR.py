@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import pathlib
+from helpers import otb_compare
 
 def process(cwd):
     '''
@@ -13,13 +14,6 @@ def process(cwd):
     print(args)
     return subprocess.call(args, cwd=cwd)
 
-def otb_compare(baseline, result):
-    """
-    Compare the images produced by the test
-    """
-    args=['otbTestDriver', '--compare-image', '1e-12', baseline, result, 'Execute', 'echo', '"running OTB Compare"', '-testenv']
-    print(args)
-    return subprocess.call(args)
 
 def test_0200306_NR():
     images = ['33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif', '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif']
