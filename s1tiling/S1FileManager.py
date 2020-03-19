@@ -79,10 +79,8 @@ def unzip_images(raw_directory):
         if ".zip" in file_it:
             print("unzipping "+file_it)
             try:
-                zip_ref = zipfile.ZipFile(raw_directory+"/"+\
-                                          file_it, 'r')
-                zip_ref.extractall(raw_directory)
-                zip_ref.close()
+                with zipfile.ZipFile(raw_directory+"/"+file_it, 'r') as zip_ref:
+                    zip_ref.extractall(raw_directory)
             except  zipfile.BadZipfile:
                 print("WARNING: "+raw_directory+"/"+\
                     file_it+" is corrupted. This file will be removed")
