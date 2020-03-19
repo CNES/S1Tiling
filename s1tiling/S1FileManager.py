@@ -27,6 +27,28 @@ import tempfile
 import glob
 import sys
 
+class Layer(object):
+    """
+    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
+    """
+    def __init__(self, grid):
+        self.__grid        = grid
+        self.__driver      = ogr.GetDriverByName("ESRI Shapefile")
+        self.__data_source = self.__driver.Open(self.__grid, 0)
+        self.__layer       = self.__data_source.GetLayer()
+
+    def __iter__(self):
+        return self.__layer.__iter__()
+
+    def ResetReading(self):
+        return self.__layer.ResetReading()
+
+    def find_tile_named(self, tile_name_field):
+        for tile in self.__layer:
+            if tile.GetField('NAME') in tile_name_field:
+                return tile
+        return None
+
 def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_data, tile_name):
     """
     Process with the call to peps_download
@@ -92,8 +114,8 @@ class S1FileManager(object):
             self.fd=cfg.first_date
             self.ld=cfg.last_date
             self.pepscommand = "python ./peps/peps_download/peps_download.py -c S1 -p"+ self.cfg.type_image+\
-            " -a ./peps/peps_download/peps.txt -m IW -d "\
-            +self.cfg.first_date+" -f "+self.cfg.last_date+ " --pol "+self.cfg.polarisation
+                    " -a ./peps/peps_download/peps.txt -m IW -d "\
+                    +self.cfg.first_date+" -f "+self.cfg.last_date+ " --pol "+self.cfg.polarisation
             self.roi_by_coordinates = None
             self.roi_by_tiles = None
 
@@ -127,9 +149,7 @@ class S1FileManager(object):
                 tiles_list = self.roi_by_tiles
             print(tiles_list)
 
-            driver = ogr.GetDriverByName("ESRI Shapefile")
-            data_source = driver.Open(self.cfg.output_grid, 0)
-            layer = data_source.GetLayer()
+            layer = Layer(self.cfg.output_grid)
             for current_tile in layer:
                 if current_tile.GetField('NAME') in tiles_list:
                     tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
@@ -223,9 +243,7 @@ class S1FileManager(object):
         Returns:
           True if the tile exists, False otherwise
         """
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        data_source = driver.Open(self.cfg.output_grid, 0)
-        layer = data_source.GetLayer()
+        layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
             #print(current_tile.GetField('NAME'))
@@ -243,9 +261,7 @@ class S1FileManager(object):
         """
         tiles = []
 
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        data_source = driver.Open(self.cfg.output_grid, 0)
-        layer = data_source.GetLayer()
+        layer = Layer(self.cfg.output_grid)
 
         #Loop on images
         for image in self.raw_raster_list:
@@ -285,20 +301,15 @@ class S1FileManager(object):
         """
         date_exist=[os.path.basename(f)[21:21+8] for f in glob.glob(os.path.join(self.cfg.output_preprocess,tile_name_field,"s1?_*.tif"))]
         intersect_raster = []
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        data_source = driver.Open(self.cfg.output_grid, 0)
-        layer = data_source.GetLayer()
-        current_tile = None
-        for current_tile in layer:
-            if current_tile.GetField('NAME') in tile_name_field:
-                break
+
+        layer = Layer(self.cfg.output_grid)
+        current_tile = layer.find_tile_named(tile_name_field)
         if not current_tile:
             print("Tile "+str(tile_name_field)+" does not exist")
             return intersect_raster
 
         poly = ogr.Geometry(ogr.wkbPolygon)
         tile_footprint = current_tile.GetGeometryRef()
-
 
         for image in self.raw_raster_list:
             print(image.get_manifest())
@@ -344,9 +355,7 @@ class S1FileManager(object):
         Returns:
           The MGRS tile geometry as OGRGeometry or raise ValueError
         """
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        mgrs_ds = driver.Open(self.cfg.output_grid, 0)
-        mgrs_layer = mgrs_ds.GetLayer()
+        mgrs_layer = Layer(self.cfg.output_grid)
 
         for mgrs_tile in mgrs_layer:
             if mgrs_tile.GetField('NAME') == mgrs_tile_name:
@@ -367,9 +376,7 @@ class S1FileManager(object):
           Coverage range is [0,1]
 
         """
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        srtm_ds = driver.Open(self.cfg.SRTMShapefile, 0)
-        srtm_layer = srtm_ds.GetLayer()
+        srtm_layer = Layer(self.cfg.SRTMShapefile)
 
         needed_srtm_tiles = {}
 
@@ -387,6 +394,7 @@ class S1FileManager(object):
                     coverage = intersection.GetArea()/area
                     srtm_tiles.append((srtm_tile.GetField('FILE'), coverage))
             needed_srtm_tiles[tile] = srtm_tiles
+        print("SRTM ok)")
         return needed_srtm_tiles
 
     def record_processed_filenames(self):
