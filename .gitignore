@@ -1,0 +1,35 @@
+# Do not add ExternalData module staging files
+.ExternalData*
+
+# back-up files
+*~
+*.bak
+*.sw*
+*#
+
+# KWStyle hook output
+*.kws
+
+# compiled python files
+*.pyc
+
+# Binary directory
+BUILD*
+build*
+
+#data
+data/Output/*.tif
+*.tif
+*.nc
+*.gtx
+
+# qtcreator
+CMakeLists.txt.user*
+
+# kdevelop
+*.kdev*
+.kdev*
+
+# back-up files when conflicts occur
+*.orig
+*.save
