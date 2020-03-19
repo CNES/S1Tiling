@@ -27,6 +27,43 @@ import tempfile
 import glob
 import sys
 
+def download(raw_directory, command, tile_name):
+    """
+    Process with the call to peps_download
+    """
+    from subprocess import Popen
+    import time
+    print(command)
+    status = -1
+    while status != 0:
+        if tile_name: # <=> self.cfg.cluster is True
+            pid = Popen(command, stdout=open(tile_name,"a"),      stderr=None,shell=True)
+        else:
+            pid = Popen(command, stdout=open("/dev/stdout", 'w'), stderr=open("/dev/stderr", 'w'),shell=True)
+        while pid.poll() is None:
+            unzip_images(raw_directory)
+            time.sleep(20)
+        status = pid.poll()
+
+def unzip_images(raw_directory):
+    """This method handles unzipping of product archives"""
+    import zipfile
+    for file_it in os.walk(raw_directory).__next__()[2]:
+        if ".zip" in file_it:
+            print("unzipping "+file_it)
+            try:
+                zip_ref = zipfile.ZipFile(raw_directory+"/"+\
+                                          file_it, 'r')
+                zip_ref.extractall(raw_directory)
+                zip_ref.close()
+            except  zipfile.BadZipfile:
+                print("WARNING: "+raw_directory+"/"+\
+                    file_it+" is corrupted. This file will be removed")
+            try:
+                os.remove(raw_directory+"/"+file_it)
+            except:
+                pass
+
 class S1FileManager(object):
     """ Class to manage processed files (downloads, checks) """
     def __init__(self,cfg):
@@ -73,8 +110,6 @@ class S1FileManager(object):
     def download_images(self,tiles=None):
         """ This method downloads the required images if pepsdownload is True"""
         import numpy as np
-        from subprocess import Popen
-        import time
         if self.cfg.pepsdownload == True:
 
             if self.roi_by_tiles is not None:
@@ -118,59 +153,20 @@ class S1FileManager(object):
                                   +" --latmin "+str(latmin)+" --latmax "\
                                   +str(latmax)+" -w "+self.cfg.raw_directory\
                                   +" --tiledata "+os.path.join(self.cfg.output_preprocess,tiles_list)
-                        print(command)
-                        status = -1
-                        while status != 0:
-                            if self.cfg.cluster:
-                                pid = Popen(command, stdout=open(current_tile.GetField('NAME')+".txt","a"), stderr=None,shell=True)
-                            else:
-                                pid = Popen(command, stdout=open("/dev/stdout", 'w'), stderr=open("/dev/stderr", 'w'),shell=True)
-                            while pid.poll() is None:
-                                self.unzip_images()
-                                time.sleep(20)
-                            status = pid.poll()
+                        download(self.cfg.raw_directory, command,
+                                current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
             else:
                 command = "python "+self.pepscommand+" --lonmin "\
                           +str(self.roi_by_coordinates[0])+" --lonmax "\
                           +str(self.roi_by_coordinates[2])+" --latmin "\
                           +str(self.roi_by_coordinates[1])+" --latmax "\
                           +str(self.roi_by_coordinates[3])+" -w "\
-                          +self.raw_directory \
+                          +self.cfg.raw_directory \
                           +" --tiledata "+os.path.join(self.cfg.output_preprocess,current_tile)
-                print(command)
-                status = -1
-                while status != 0:
-                    if self.cfg.cluster:
-                        pid = Popen(command, stdout=open(current_tile.GetField('NAME')+".txt","a"), stderr=None,shell=True)
-                    else:
-                        pid = Popen(command, stdout=open("/dev/stdout", 'w'), stderr=open("/dev/stderr", 'w'),shell=True)
-
-                    while pid.poll() is None:
-                        self.unzip_images()
-                        time.sleep(20)
-                    status = pid.poll()
-            self.unzip_images()
+                download(self.cfg.raw_directory, command,
+                        current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
+            unzip_images(self.cfg.raw_directory)
             self.get_s1_img()
-
-    def unzip_images(self):
-        """This method handles unzipping of product archives"""
-        import zipfile
-        for file_it in os.walk(self.cfg.raw_directory).__next__()[2]:
-            if ".zip" in file_it:
-                print("unzipping "+file_it)
-                try:
-                    zip_ref = zipfile.ZipFile(self.cfg.raw_directory+"/"+\
-                                              file_it, 'r')
-                    zip_ref.extractall(self.cfg.raw_directory)
-                    zip_ref.close()
-                except  zipfile.BadZipfile:
-                    print("WARNING: "+self.cfg.raw_directory+"/"+\
-                        file_it+" is corrupted. This file will be removed")
-                try:
-                    os.remove(self.cfg.raw_directory+"/"+file_it)
-                except:
-                    pass
-
 
     def get_s1_img(self):
         """
