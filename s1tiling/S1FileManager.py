@@ -21,11 +21,12 @@
 
 import os
 import ogr
-from s1tiling.Utils import get_origin
+from s1tiling.Utils import get_origin, list_files, list_dirs
 from s1tiling.S1DateAcquisition import S1DateAcquisition
 import tempfile
-import glob
+import fnmatch, glob
 import sys
+import logging
 
 class Layer(object):
     """
@@ -75,19 +76,30 @@ def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_da
 def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
     import zipfile
-    for file_it in os.walk(raw_directory).__next__()[2]:
-        if ".zip" in file_it:
-            print("unzipping "+file_it)
-            try:
-                with zipfile.ZipFile(raw_directory+"/"+file_it, 'r') as zip_ref:
-                    zip_ref.extractall(raw_directory)
-            except  zipfile.BadZipfile:
-                print("WARNING: "+raw_directory+"/"+\
-                    file_it+" is corrupted. This file will be removed")
-            try:
-                os.remove(raw_directory+"/"+file_it)
-            except:
-                pass
+    for file_it in list_files(raw_directory, '*.zip'):
+        print("unzipping "+file_it.name)
+        try:
+            with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
+                zip_ref.extractall(raw_directory)
+        except  zipfile.BadZipfile:
+            print("WARNING: "+file_it.path+" is corrupted. This file will be removed")
+        try:
+            os.remove(file_it.path)
+        except:
+            pass
+
+def filter_images_or_ortho(kind, all_images):
+    pattern = "*"+kind+"*-???.tiff"
+    ortho_pattern = "*"+kind+"*-???_OrthoReady.tiff"
+    # fnmatch cannot be used with patterns like 'dir/*.foo'
+    # => As the directory as been filtered with glob(), just work without the directory part
+    images = fnmatch.filter(all_images, pattern)
+    logging.debug("  * %s images: %s", kind, images)
+    if not images:
+        images = [f.replace("_OrthoReady.tiff",".tiff") for f in fnmatch.filter(all_images, ortho_pattern)]
+        logging.debug("    %s images from Ortho: %s", kind, images)
+    return images
+
 
 class S1FileManager(object):
     """ Class to manage processed files (downloads, checks) """
@@ -99,6 +111,7 @@ class S1FileManager(object):
 
         self.tmpsrtmdir=tempfile.mkdtemp(dir=cfg.tmpdir)
 
+        self.tiff_pattern = "measurement/*.tiff"
         self.vh_pattern = "measurement/*vh*-???.tiff"
         self.vv_pattern = "measurement/*vv*-???.tiff"
         self.hh_pattern = "measurement/*hh*-???.tiff"
@@ -115,14 +128,13 @@ class S1FileManager(object):
                     " -a ./peps/peps_download/peps.txt -m IW -d "\
                     +self.cfg.first_date+" -f "+self.cfg.last_date+ " --pol "+self.cfg.polarisation
             self.roi_by_coordinates = None
-            self.roi_by_tiles = None
+            self.roi_by_tiles       = None
 
             try:
                 self.roi_by_tiles = self.cfg.ROI_by_tiles
             except cfg.NoOptionError:
                 try:
-                    self.roi_by_coordinates\
-                        = cfg.ROI_by_coordinates.split()
+                    self.roi_by_coordinates = cfg.ROI_by_coordinates.split()
                 except cfg.NoOptionError:
                     print("No ROI defined in the config file")
                     exit(-1)
@@ -177,59 +189,32 @@ class S1FileManager(object):
            the list of S1 images available as instances
            of S1DateAcquisition class
         """
-        import glob
 
         self.raw_raster_list=[]
         if os.path.exists(self.cfg.raw_directory) == False:
             os.makedirs(self.cfg.raw_directory)
             return
-        content = os.listdir(self.cfg.raw_directory)
+        content = list_dirs(self.cfg.raw_directory)
 
         for current_content in content:
-            safe_dir = os.path.join(self.cfg.raw_directory, current_content)
-            if os.path.isdir(safe_dir) == True:
+            safe_dir = current_content.path
+            manifest = os.path.join(safe_dir, self.manifest_pattern)
+            acquisition = S1DateAcquisition(manifest, [])
+            all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
+            logging.debug("# Safe dir: %s", safe_dir)
+            logging.debug("  all tiffs: %s", list(all_tiffs))
 
+            vv_images = filter_images_or_ortho('vv', all_tiffs)
+            vh_images = filter_images_or_ortho('vh', all_tiffs)
+            hv_images = filter_images_or_ortho('hv', all_tiffs)
+            hh_images = filter_images_or_ortho('hh', all_tiffs)
 
-                manifest = os.path.join(safe_dir, self.manifest_pattern)
-                acquisition = S1DateAcquisition(manifest, [])
-                vv_images = [f for f in\
-                             glob.glob(os.path.join(safe_dir, self.vv_pattern))]
-                if vv_images == []:
-                    vv_images = [f.replace("_OrthoReady.tiff",".tiff") for f in\
-                             glob.glob(os.path.join(safe_dir, self.vv_pattern.replace(".tiff","_OrthoReady.tiff")))]
-                for vv_image in vv_images:
-                    if vv_image not in self.processed_filenames:
-                        acquisition.add_image(vv_image)
-                        self.nb_images += 1
-                vh_images = [f for f in\
-                             glob.glob(os.path.join(safe_dir, self.vh_pattern))]
-                if vh_images == []:
-                    vh_images = [f.replace("_OrthoReady.tiff",".tiff") for f in\
-                             glob.glob(os.path.join(safe_dir, self.vh_pattern.replace(".tiff","_OrthoReady.tiff")))]
-                for vh_image in vh_images:
-                    if vh_image not in self.processed_filenames:
-                        acquisition.add_image(vh_image)
-                        self.nb_images += 1
-                hh_images = [f for f in\
-                             glob.glob(os.path.join(safe_dir, self.hh_pattern))]
-                if hh_images == []:
-                    hh_images = [f.replace("_OrthoReady.tiff",".tiff") for f in\
-                             glob.glob(os.path.join(safe_dir, self.hh_pattern.replace(".tiff","_OrthoReady.tiff")))]
-                for hh_image in hh_images:
-                    if hh_image not in self.processed_filenames:
-                        acquisition.add_image(hh_image)
-                        self.nb_images += 1
-                hv_images = [f for f in\
-                             glob.glob(os.path.join(safe_dir, self.hv_pattern))]
-                if hv_images == []:
-                    hv_images = [f.replace("_OrthoReady.tiff",".tiff") for f in\
-                             glob.glob(os.path.join(safe_dir, self.hv_pattern.replace(".tiff","_OrthoReady.tiff")))]
-                for hv_image in hv_images:
-                    if hv_image not in self.processed_filenames:
-                        acquisition.add_image(hv_image)
-                        self.nb_images += 1
+            for image in vv_images + vh_images + hv_images + hh_images:
+                if image not in self.processed_filenames:
+                    acquisition.add_image(image)
+                    self.nb_images += 1
 
-                self.raw_raster_list.append(acquisition)
+            self.raw_raster_list.append(acquisition)
 
     def tile_exists(self, tile_name_field):
         """

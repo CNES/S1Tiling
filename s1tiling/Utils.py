@@ -13,7 +13,9 @@
 #
 # =========================================================================
 #
-# Authors: Thierry KOLECK (CNES)
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CS Group)
 #
 # =========================================================================
 
@@ -22,6 +24,10 @@
 import ogr
 from osgeo import osr
 import xml.etree.ElementTree as ET
+from timeit import default_timer as timer
+import logging
+import os
+import fnmatch
 
 
 def get_relative_orbit(manifest):
@@ -169,20 +175,57 @@ def get_platform_from_s1_raster(path_to_raster):
     """
     return path_to_raster.split("/")[-1].split("-")[0]
 
+class ExecutionTimer(object):
+    """Context manager to help measure execution times
 
+    Example:
+    with ExecutionTimer("the code", True) as t:
+        Code_to_measure()
+    """
+    def __init__(self, text, do_measure):
+        self._text       = text
+        self._do_measure = do_measure
+    def __enter__(self):
+        self._start = timer()
+        return self
+    def __exit__(self, type, value, traceback):
+        if self._do_measure:
+            end = timer()
+            logging.info("%s took %ssec", self._text, end-self._start)
+        return False
 
+def list_files(directory, pattern = None):
+    """
+    Efficient listing of files in current directory.
 
+    This version shall be faster than glob to isolate files only as it keeps in "memory" the kind of the entry without needing to stat() the entry
+    again.
 
+    Requires Python 3.5
+    """
+    if pattern:
+        filter = lambda path : path.is_file() and fnmatch.fnmatch(path, pattern)
+    else:
+        filter = lambda path : path.is_file()
 
+    with os.scandir(directory) as list:
+        res = [entry for entry in list if filter(entry)]
+    return res
 
+def list_dirs(directory, pattern = None):
+    """
+    Efficient listing of sub-directories in current directory.
 
+    This version shall be faster than glob to isolate directories only as it keeps in "memory" the kind of the entry without needing to stat() the
+    entry again.
 
+    Requires Python 3.5
+    """
+    if pattern:
+        filter = lambda path : path.is_dir() and fnmatch.fnmatch(path, pattern)
+    else:
+        filter = lambda path : path.is_dir()
 
-
-
-
-
-
-
-
-
+    with os.scandir(directory) as list:
+        res = [entry for entry in list if filter(entry)]
+    return res

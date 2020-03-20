@@ -43,6 +43,7 @@ import configparser
 import gdal
 import subprocess
 import datetime
+import logging
 
 def execute(cmd):
     try:
@@ -109,14 +110,20 @@ class Configuration():
         self.Reset_outcore=config.getboolean('Filtering','Reset_outcore')
         self.Window_radius=config.getint('Filtering','Window_radius')
 
+        # Logs
         self.stdoutfile = open("/dev/null", 'w')
         self.stderrfile = open("S1ProcessorErr.log", 'a')
-        if "logging" in self.Mode:
-            self.stdoutfile = open("S1ProcessorOut.log", 'a')
-            self.stderrfile = open("S1ProcessorErr.log", 'a')
         if "debug" in self.Mode:
             self.stdoutfile = None
             self.stderrfile = None
+            logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+        else:
+            logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+
+        if "logging" in self.Mode:
+            self.stdoutfile = open("S1ProcessorOut.log", 'a')
+            self.stderrfile = open("S1ProcessorErr.log", 'a')
 
         self.cluster=config.getboolean('HPC-Cluster','Parallelize_tiles')
 
@@ -432,8 +439,8 @@ class Sentinel1PreProcess():
         cmd_list = []
         files_to_remove = []
 
-        image_list = [i for i in os.walk(os.path.join(\
-            self.cfg.output_preprocess, tile)).__next__()[2] if (len(i) == 40 and "xxxxxx" not in i)]
+        image_list = [i.name for i in Utils.list_files(os.path.join(self.cfg.output_preprocess, tile))
+                if (len(i.name) == 40 and "xxxxxx" not in i.name)]
         image_list.sort()
 
         while len(image_list) > 1:
