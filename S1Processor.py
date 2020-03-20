@@ -55,6 +55,15 @@ def execute(cmd):
         print(e.cmd)
         print(e.output)
 
+def remove_files(files):
+    """
+    Removes the files from the disk
+    """
+    logging.debug("Remove %s", files)
+    for file_it in files:
+        if os.path.exists(file_it):
+            os.remove(file_it)
+
 class Configuration():
     """This class handles the parameters from the cfg file"""
     def __init__(self,configFile):
@@ -167,38 +176,32 @@ class Sentinel1PreProcess():
                 for current_ortho in all_ortho:
                     if "vv" not in current_ortho:
                         continue
-                    working_directory = os.path.split(current_ortho)[0]
-                    name_border_mask = os.path.split(current_ortho)[1]\
-                                              .replace(".tif", "_BorderMask.tif")
-                    name_border_mask_tmp = os.path.split(current_ortho)[1]\
-                                                .replace(".tif", "_BorderMask_TMP.tif")
-                    files_to_remove.append(os.path.join(working_directory,\
-                                                        name_border_mask_tmp))
+                    working_directory, basename = os.path.split(current_ortho)
+                    name_border_mask            = basename.replace(".tif", "_BorderMask.tif")
+                    name_border_mask_tmp        = basename.replace(".tif", "_BorderMask_TMP.tif")
+                    pathname_border_mask_tmp    = os.path.join(working_directory, name_border_mask_tmp)
+
+                    files_to_remove.append(pathname_border_mask_tmp)
                     cmd_bandmath.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
                                         +str(self.cfg.ram_per_process)\
                                         +' -il '+current_ortho\
-                                        +' -out '+os.path.join(working_directory,\
-                                                               name_border_mask_tmp)\
+                                        +' -out '+pathname_border_mask_tmp\
                                         +' uint8 -exp "im1b1==0?0:1"')
 
                     #due to threshold approximation
 
                     cmd_morpho.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
                                       +str(self.cfg.ram_per_process)+" -progress false -in "\
-                                      +os.path.join(working_directory,\
-                                                    name_border_mask_tmp)\
+                                      +pathname_border_mask_tmp\
                                       +" -out "\
-                                      +os.path.join(working_directory,\
-                                                    name_border_mask)\
+                                      +os.path.join(working_directory, name_border_mask)\
                                       +" uint8 -structype ball"\
                                       +" -structype.ball.xradius 5"\
                                       +" -structype.ball.yradius 5 -filter opening")
 
                 self.run_processing(cmd_bandmath, title="   Mask building")
-                self.run_processing(cmd_morpho, title="   Mask smoothing")
-                for file_it in files_to_remove:
-                    if os.path.exists(file_it) == True:
-                        os.remove(file_it)
+                self.run_processing(cmd_morpho,   title="   Mask smoothing")
+                remove_files(files_to_remove)
                 print("Generate Mask done")
 
     def cut_image_cmd(self, raw_raster):
@@ -218,12 +221,13 @@ class Sentinel1PreProcess():
         for i in range(len(raw_raster)):
             print("    Cutting:"+str(int(float(i)/len(raw_raster)*100.))+"%")
             # Check if all OrthoReady files have been already generated
+            images = raw_raster[i][0].get_images_list()
             completed=True
-            for image in raw_raster[i][0].get_images_list():
+            for image in images:
                 completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
             if completed: continue
 
-            image=raw_raster[i][0].get_images_list()[0]
+            image=images[0]
             image = image.replace(".tiff","_calOk.tiff")
             image_ok = image.replace("_calOk.tiff", "_OrthoReady.tiff")
             image_mask=image.replace("_calOk.tiff","_mask.tiff")
@@ -258,27 +262,22 @@ class Sentinel1PreProcess():
             outdata.FlushCache() ##saves to disk!!
             outdata = None
 
+            files_to_remove = [image_mask, im1_name, im2_name]
             all_cmd=[]
-            for image in raw_raster[i][0].get_images_list():
-                image = image.replace(".tiff","_calOk.tiff")
-                image_ok = image.replace("_calOk.tiff", "_OrthoReady.tiff")
+            for image in images:
+                im_calok = image.replace(".tiff", "_calOk.tiff")
+                im_ortho = image.replace(".tiff", "_OrthoReady.tiff")
                 cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath ' \
                                +"-ram "+str(self.cfg.ram_per_process)\
                                +" -progress false " \
-                               +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(image,image_mask,image_ok)
-
-
+                               +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(im_calok, image_mask,im_ortho)
                 all_cmd.append(cmd)
+                files_to_remove += [image, im_calok]
 
             self.run_processing(all_cmd, title="Cutting: Apply mask")
 
-            for image in raw_raster[i][0].get_images_list():
-                if os.path.exists(image) == True: os.remove(image)
-                if os.path.exists(image.replace(".tiff","_calOk.tiff")) == True: os.remove(image.replace(".tiff","_calOk.tiff"))
-
-            if os.path.exists(image_mask) == True: os.remove(image_mask)
-            if os.path.exists(im1_name) == True: os.remove(im1_name)
-            if os.path.exists(im2_name) == True: os.remove(im2_name)
+            # TODO: add geoms
+            remove_files(files_to_remove)
 
         print("Cutting done ")
 
@@ -290,22 +289,24 @@ class Sentinel1PreProcess():
         Args:
           raw_raster: list of raw S1 raster file to calibrate
         """
+        files_to_remove = []
         all_cmd = []
         print("Calibration ",len(raw_raster))
 
         for i in range(len(raw_raster)):
 
             # Check if all OrthoReady files have been already generated
+            images = raw_raster[i][0].get_images_list()
             completed=True
-            for image in raw_raster[i][0].get_images_list():
+            for image in images:
                 print(image)
                 completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
             if completed: continue
 
-            for image in raw_raster[i][0].get_images_list():
+            for image in images:
                 image_ok = image.replace(".tiff", "_calOk.tiff")
-                imageortho_ok = image.replace(".tiff", "_OrthoReady.tiff")
-
+                #UNCOMMENT TO DELETE RAW DATA
+                # files_to_remove += [image]
                 all_cmd.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_SARCalibration"\
                                +" -ram "+str(self.cfg.ram_per_process)\
                                +" -progress false -in "+image\
@@ -314,19 +315,10 @@ class Sentinel1PreProcess():
 
         self.run_processing(all_cmd, title="   Calibration "+self.cfg.calibration_type)
 
-        for i in range(len(raw_raster)):
-            for image in raw_raster[i][0].get_images_list():
-                if os.path.exists(image.replace(".tiff", "_calOk.tiff")) == True:
-                   #if os.path.exists(image_ok.replace(".tiff", ".geom")) == True:
-                       #os.remove(image_ok.replace(".tiff", ".geom"))
-
-                   #UNCOMMENT TO DELETE RAW DATA
-                   if os.path.exists(image) == True:
-                       #os.remove(image)
-                       pass
+        # TODO: add geoms
+        remove_files(files_to_remove)
 
         print("Calibration done")
-
 
     def do_ortho_by_tile(self, raster_list, tile_name, tmp_srtm_dir):
         """
@@ -346,15 +338,14 @@ class Sentinel1PreProcess():
 
             for image in raster.get_images_list():
                 image_ok = image.replace(".tiff", "_OrthoReady.tiff")
-                current_date = Utils.get_date_from_s1_raster(image)
-                current_polar = Utils.get_polar_from_s1_raster(image)
-                current_platform = Utils.get_platform_from_s1_raster(image)
+                current_date            = Utils.get_date_from_s1_raster(image)
+                current_polar           = Utils.get_polar_from_s1_raster(image)
+                current_platform        = Utils.get_platform_from_s1_raster(image)
                 current_orbit_direction = Utils.get_orbit_direction(manifest)
-                current_relative_orbit = Utils.get_relative_orbit(manifest)
-                out_utm_zone = tile_name[0:2]
-                out_utm_northern = (tile_name[2] >= 'N')
-                working_directory = os.path.join(self.cfg.output_preprocess,\
-                                                 tile_name)
+                current_relative_orbit  = Utils.get_relative_orbit(manifest)
+                out_utm_zone            = tile_name[0:2]
+                out_utm_northern        = (tile_name[2] >= 'N')
+                working_directory       = os.path.join(self.cfg.output_preprocess, tile_name)
                 if os.path.exists(working_directory) == False:
                     os.makedirs(working_directory)
 
@@ -380,12 +371,12 @@ class Sentinel1PreProcess():
                                    +"_"+current_date\
                                    +".tif"
 
-                if not os.path.exists(os.path.join(working_directory,ortho_image_name)) and not os.path.exists(os.path.join(working_directory,ortho_image_name[:-11]+"txxxxxx.tif")):
+                ortho_image_pathname = os.path.join(working_directory, ortho_image_name)
+                if not os.path.exists(ortho_image_pathname) and not os.path.exists(os.path.join(working_directory,ortho_image_name[:-11]+"txxxxxx.tif")):
                     cmd = 'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_OrthoRectification -opt.ram "\
                       +str(self.cfg.ram_per_process)\
                       +" -progress false -io.in "+image_ok\
-                      +" -io.out \""+os.path.join(working_directory,\
-                                                  ortho_image_name)\
+                      +" -io.out \""+ortho_image_pathname\
                       +"?&writegeom=false&gdal:co:COMPRESS=DEFLATE\" -interpolator nn -outputs.spacingx "\
                       +str(self.cfg.out_spatial_res)\
                       +" -outputs.spacingy -"+str(self.cfg.out_spatial_res)\
@@ -401,8 +392,7 @@ class Sentinel1PreProcess():
                       +" -elev.dem "+tmp_srtm_dir+" -elev.geoid "+self.cfg.GeoidFile
 
                     all_cmd.append(cmd)
-                    output_files_list.append(os.path.join(working_directory,\
-                                                      ortho_image_name))
+                    output_files_list.append(ortho_image_pathname)
 
         self.run_processing(all_cmd, title="Orthorectification")
 
@@ -444,12 +434,11 @@ class Sentinel1PreProcess():
         image_list.sort()
 
         while len(image_list) > 1:
-
             image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
 
             if len(image_sublist) >1 :
                 images_to_concatenate=[os.path.join(self.cfg.output_preprocess, tile,i) for i in image_sublist]
-                files_to_remove=files_to_remove+images_to_concatenate
+                files_to_remove += images_to_concatenate
                 output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
 
                 # build the expression for BandMath for concanetation of many images
@@ -466,7 +455,7 @@ class Sentinel1PreProcess():
                 if self.cfg.mask_cond:
                     if "vv" in image_list[0]:
                         images_msk_to_concatenate = [i.replace(".tif", "_BorderMask.tif") for i in images_to_concatenate]
-                        files_to_remove=files_to_remove+images_msk_to_concatenate
+                        files_to_remove += images_msk_to_concatenate
                         cmd_list.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
                                     +str(self.cfg.ram_per_process)\
                                     +' -il '+' '.join(images_msk_to_concatenate)\
@@ -474,15 +463,12 @@ class Sentinel1PreProcess():
                                                                 "_BorderMask.tif")\
                                     + ' -exp "'+expression+'"')
 
-            for i in  image_sublist:
+            for i in image_sublist:
                 image_list.remove(i)
-
 
         self.run_processing(cmd_list, "Concatenation")
 
-        for file_it in files_to_remove:
-            if os.path.exists(file_it):
-                os.remove(file_it)
+        remove_files(files_to_remove)
 
 
     def run_processing(self, cmd_list, title=""):
