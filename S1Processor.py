@@ -14,6 +14,7 @@
 # =========================================================================
 #
 # Authors: Thierry KOLECK (CNES)
+#          Luc HERMITTE (CS Group)
 #
 # =========================================================================
 """
@@ -30,12 +31,14 @@ It performs the following steps:
 """
 
 import os
+import pathlib
 import sys
 import glob
 import shutil
 import numpy as np
 from PIL import Image
 from subprocess import Popen
+import multiprocessing
 from s1tiling import S1FileManager
 from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
@@ -44,16 +47,21 @@ import gdal
 import subprocess
 import datetime
 import logging
+import logging.handlers
+from contextlib import redirect_stdout
 
 def execute(cmd):
     try:
-        print(cmd)
-        subprocess.check_call(cmd, shell = True)
+        logging.debug(cmd)
+        logger = logging.getLogger('root')
+        logger.write = lambda msg: logger.info(msg) if msg != '\n' else None
+        with redirect_stdout(logger):
+            subprocess.check_call(cmd, shell = True)
     except subprocess.CalledProcessError as e:
-        print('WARNING : Erreur dans la commande : ')
-        print(e.returncode)
-        print(e.cmd)
-        print(e.output)
+        logging.warning('WARNING : Erreur dans la commande : ')
+        logging.warning(e.returncode)
+        logging.warning(e.cmd)
+        logging.warning(e.output)
 
 def remove_files(files):
     """
@@ -120,19 +128,22 @@ class Configuration():
         self.Window_radius=config.getint('Filtering','Window_radius')
 
         # Logs
-        self.stdoutfile = open("/dev/null", 'w')
-        self.stderrfile = open("S1ProcessorErr.log", 'a')
+        self.log_queue, self.log_queue_listener = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         if "debug" in self.Mode:
-            self.stdoutfile = None
-            self.stderrfile = None
-            logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
-        else:
-            logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+        ##self.stdoutfile = open("/dev/null", 'w')
+        ##self.stderrfile = open("S1ProcessorErr.log", 'a')
+        ##if "debug" in self.Mode:
+        ##    self.stdoutfile = None
+        ##    self.stderrfile = None
+        ##    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ##    os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+        ##else:
+        ##    logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 
-        if "logging" in self.Mode:
-            self.stdoutfile = open("S1ProcessorOut.log", 'a')
-            self.stderrfile = open("S1ProcessorErr.log", 'a')
+        ##if "logging" in self.Mode:
+        ##    self.stdoutfile = open("S1ProcessorOut.log", 'a')
+        ##    self.stderrfile = open("S1ProcessorErr.log", 'a')
 
         self.cluster=config.getboolean('HPC-Cluster','Parallelize_tiles')
 
@@ -146,9 +157,8 @@ class Configuration():
             try:
                 F_Date = datetime.date(int(fd[0:4]),int(fd[5:7]),int(fd[8:10]))
                 L_Date = datetime.date(int(ld[0:4]),int(ld[5:7]),int(ld[8:10]))
-
             except:
-                print("Error : Unvalid date")
+                logging.critical("Invalid date")
                 sys.exit()
 
 class Sentinel1PreProcess():
@@ -172,7 +182,7 @@ class Sentinel1PreProcess():
                 cmd_bandmath = []
                 cmd_morpho = []
                 files_to_remove = []
-                print("Generate Mask ...")
+                logging.info("Generate Mask ...")
                 for current_ortho in all_ortho:
                     if "vv" not in current_ortho:
                         continue
@@ -202,7 +212,7 @@ class Sentinel1PreProcess():
                 self.run_processing(cmd_bandmath, title="   Mask building")
                 self.run_processing(cmd_morpho,   title="   Mask smoothing")
                 remove_files(files_to_remove)
-                print("Generate Mask done")
+                logging.info("Generate Mask done")
 
     def cut_image_cmd(self, raw_raster):
         """
@@ -216,16 +226,18 @@ class Sentinel1PreProcess():
             nbNan = len(np.argwhere(ima==0))
             return nbNan>thr
 
-        print("Cutting ",len(raw_raster))
+        logging.info("Cutting %s", raw_raster)
 
         for i in range(len(raw_raster)):
-            print("    Cutting:"+str(int(float(i)/len(raw_raster)*100.))+"%")
+            logging.debug("    Cutting:"+str(int(float(i)/len(raw_raster)*100.))+"%")
             # Check if all OrthoReady files have been already generated
             images = raw_raster[i][0].get_images_list()
             completed=True
             for image in images:
                 completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
-            if completed: continue
+            if completed:
+                logging.debug('    Cutting step not required => abort')
+                continue
 
             image=images[0]
             image = image.replace(".tiff","_calOk.tiff")
@@ -279,7 +291,7 @@ class Sentinel1PreProcess():
             # TODO: add geoms
             remove_files(files_to_remove)
 
-        print("Cutting done ")
+        logging.info("Cutting done ")
 
     def do_calibration_cmd(self, raw_raster):
         """
@@ -290,7 +302,7 @@ class Sentinel1PreProcess():
         """
         files_to_remove = []
         all_cmd = []
-        print("Calibration ",len(raw_raster))
+        logging.info("Calibration %s",raw_raster)
 
         for i in range(len(raw_raster)):
 
@@ -298,9 +310,11 @@ class Sentinel1PreProcess():
             images = raw_raster[i][0].get_images_list()
             completed=True
             for image in images:
-                print(image)
+                logging.debug('* Check calibration for %s', image)
                 completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
-            if completed: continue
+            if completed:
+                logging.debug('    Calibration step not required => abort')
+                continue
 
             for image in images:
                 image_ok = image.replace(".tiff", "_calOk.tiff")
@@ -317,7 +331,7 @@ class Sentinel1PreProcess():
         # TODO: add geoms
         remove_files(files_to_remove)
 
-        print("Calibration done")
+        logging.info("Calibration done")
 
     def do_ortho_by_tile(self, raster_list, tile_name, tmp_srtm_dir):
         """
@@ -330,7 +344,7 @@ class Sentinel1PreProcess():
         """
         all_cmd = []
         output_files_list = []
-        print("Start orthorectification :",tile_name)
+        logging.info("Start orthorectification of %s",tile_name)
         for i in range(len(raster_list)):
             raster, tile_origin = raster_list[i]
             manifest = raster.get_manifest()
@@ -424,7 +438,7 @@ class Sentinel1PreProcess():
         """
         This method concatenates images sub-swath for all generated tiles.
         """
-        print("Start concatenation :",tile)
+        logging.info("Start concatenation of %s",tile)
         cmd_list = []
         files_to_remove = []
 
@@ -482,24 +496,75 @@ class Sentinel1PreProcess():
 
         while len(cmd_list) > 0 or len(pids) > 0:
             if (len(pids) < self.cfg.nb_procs) and (len(cmd_list) > 0):
-                pids.append([Popen(cmd_list[0], stdout=self.cfg.stdoutfile,\
-                                  stderr=self.cfg.stderrfile, shell=True),cmd_list[0]])
+                # in case of an error, let's redirect everything to logger.error. logger.info/debug will be used otherwise
+                logging.debug('%s # Starting %s', title, cmd_list[0])
+                pids.append([Popen(cmd_list[0], stdout=subprocess.PIPE, shell=True),cmd_list[0]])
                 cmd_list.remove(cmd_list[0])
             for i, pid in enumerate(pids):
                 status = pid[0].poll()
                 if status:
-                    print("Error in pid #"+str(i)+" id="+str(pid[0]))
-                    print(pid[1])
+                    logging.warning("Error in pid #%s id=%s", i, pid[0])
+                    logging.warning(pid[1])
+                    # out, _ = pid[0].communicate()
+                    logging.error(out)
                     del pids[i]
                     break
                     #sys.exit(status)
                 elif status == 0:
+                    logging.info('%s... %%', title,
+                            (int((nb_cmd-(len(cmd_list)+len(pids)))*100./nb_cmd)))
+                    out, _ = pid[0].communicate()
+                    logging.debug(out)
                     del pids[i]
-                    print(title+"... "+str(int((nb_cmd-(len(cmd_list)\
-                                                +len(pids)))*100./nb_cmd))+"%")
                     time.sleep(0.2)
                     break
-        print(title+" done")
+            time.sleep(0.5) # 0.5 seconds between two calls to poll
+
+        logging.info("%s done", title)
+
+def init_logger(mode, paths):
+    import logging.config
+    import yaml
+    # Add the dirname where the current script is
+    paths += [pathlib.Path(__file__).parent.absolute()]
+    paths = [p/'logging.conf.yaml' for p in paths]
+    cfgpaths = [p for p in paths if p.is_file()]
+    # print("from %s, keep %s" % (paths, cfgpaths))
+
+    verbose   = 'debug'   in mode
+    log2files = 'logging' in mode
+    if cfgpaths:
+        with open(cfgpaths[0], 'r') as stream:
+            # FullLoader requires yaml 5.1
+            # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+            if hasattr(yaml, 'FullLoader'):
+                config = yaml.load(stream, Loader=yaml.FullLoader)
+            else:
+                print("WARNING - upgrade pyyaml to version 5.1 at least!!")
+                config = yaml.load(stream)
+        if verbose:
+            # Control the maximum global verbosity level
+            config["root"]["level"] = "DEBUG"
+
+            # Control the local console verbosity level
+            config["handlers"]["console"]["level"] = "DEBUG"
+        if log2files:
+            if not 'file' in config["root"]["handlers"]:
+                config["root"]["handlers"] += ['file']
+            if not 'important' in config["root"]["handlers"]:
+                config["root"]["handlers"] += ['important']
+        logging.config.dictConfig(config)
+    else:
+        # This situation should not happen
+        if verbose:
+            logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+        else:
+            logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+    queue = multiprocessing.Queue()
+    queue_listener = logging.handlers.QueueListener(queue)
+    return queue, queue_listener
+
 
 # Main code
 
@@ -518,14 +583,14 @@ TILES_TO_PROCESS = []
 ALL_REQUESTED = False
 
 for tile_it in Cg_Cfg.tiles_list:
-    print(tile_it)
+    logging.info('Requesting to process tile %s', tile_it)
     if tile_it == "ALL":
         ALL_REQUESTED = True
         break
     elif True:  #S1_FILE_MANAGER.tile_exists(tile_it):
         TILES_TO_PROCESS.append(tile_it)
     else:
-        print("Tile "+str(tile_it)+" does not exist, skipping ...")
+        logging.info("Tile %s does not exist, skipping ...", tile_it)
 
 # We can not require both to process all tiles covered by downloaded products
 # and and download all tiles
@@ -533,18 +598,18 @@ for tile_it in Cg_Cfg.tiles_list:
 
 if ALL_REQUESTED:
     if Cg_Cfg.pepsdownload and "ALL" in Cg_Cfg.roi_by_tiles:
-        print("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
+        logging.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
             +" Use ROI_by_coordinates or deactivate download instead")
         sys.exit(1)
     else:
         TILES_TO_PROCESS = S1_FILE_MANAGER.get_tiles_covered_by_products()
-        print("All tiles for which more than "\
+        logging.info("All tiles for which more than "\
             +str(100*Cg_Cfg.TileToProductOverlapRatio)\
             +"% of the surface is covered by products will be produced: "\
             +str(TILES_TO_PROCESS))
 
 if len(TILES_TO_PROCESS) == 0:
-    print("No existing tiles found, exiting ...")
+    logging.critical("No existing tiles found, exiting ...")
     sys.exit(1)
 
 # Analyse SRTM coverage for MGRS tiles to be processed
@@ -554,7 +619,7 @@ NEEDED_SRTM_TILES = []
 TILES_TO_PROCESS_CHECKED = []
 # For each MGRS tile to process
 for tile_it in TILES_TO_PROCESS:
-    print("Check SRTM coverage for ",tile_it)
+    logging.info("Check SRTM coverage for %s",tile_it)
     # Get SRTM tiles coverage statistics
     srtm_tiles = SRTM_TILES_CHECK[tile_it]
     current_coverage = 0
@@ -569,25 +634,23 @@ for tile_it in TILES_TO_PROCESS:
         TILES_TO_PROCESS_CHECKED.append(tile_it)
     else:
         # Skip it
-        print("WARNING: Tile "+str(tile_it)\
-            +" has insuficient SRTM coverage ("+str(100*current_coverage)\
-            +"%)")
+        logging.warning("Tile %s has insuficient SRTM coverage (%s%%)",
+                tile_it, 100*current_coverage)
         NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
         TILES_TO_PROCESS_CHECKED.append(tile_it)
-
 
 
 # Remove duplicates
 NEEDED_SRTM_TILES = list(set(NEEDED_SRTM_TILES))
 
-print(str(S1_FILE_MANAGER.nb_images)+" images to process on "\
-    +str(len(TILES_TO_PROCESS_CHECKED))+" tiles")
+logging.info("%s images to process on %s tiles",
+        S1_FILE_MANAGER.nb_images, TILES_TO_PROCESS_CHECKED)
 
 if len(TILES_TO_PROCESS_CHECKED) == 0:
-    print("No tiles to process, exiting ...")
+    logging.critical("No tiles to process, exiting ...")
     sys.exit(1)
 
-print("Required SRTM tiles: "+str(NEEDED_SRTM_TILES))
+logging.info("Required SRTM tiles: %s", NEEDED_SRTM_TILES)
 
 SRTM_OK = True
 
@@ -595,10 +658,10 @@ for srtm_tile in NEEDED_SRTM_TILES:
     tile_path = os.path.join(Cg_Cfg.srtm, srtm_tile)
     if not os.path.exists(tile_path):
         SRTM_OK = False
-        print(tile_path+" is missing")
+        logging.critical(tile_path+" is missing")
 
 if not SRTM_OK:
-    print("Some SRTM tiles are missing, exiting ...")
+    logging.critical("Some SRTM tiles are missing, exiting ...")
     sys.exit(1)
 
 # copy all needed SRTM file in a temp directory for orthorectification processing
@@ -607,31 +670,31 @@ for srtm_tile in NEEDED_SRTM_TILES:
 
 
 if not os.path.exists(Cg_Cfg.GeoidFile):
-    print("Geoid file does not exists ("+Cg_Cfg.GeoidFile+"), exiting ...")
+    logging.critical("Geoid file does not exists (%s), exiting ...", Cg_Cfg.GeoidFile)
     sys.exit(1)
 
 filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
 for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
 
-    print("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
+    logging.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
 
     # keep only the 500's newer files
     safeFileList=sorted(glob.glob(os.path.join(Cg_Cfg.raw_directory,"*")),key=os.path.getctime)
     if len(safeFileList)> 1000	:
         for f in safeFileList[:len(safeFileList)-1000]:
-            print("Remove : ",os.path.basename(f))
+            logging.debug("Remove : ",os.path.basename(f))
             shutil.rmtree(f,ignore_errors=True)
         S1_FILE_MANAGER.get_s1_img()
 
-    with Utils.ExecutionTimer("Download tiles", True) as t:
+    with Utils.ExecutionTimer("Downloading tiles", True) as t:
         S1_FILE_MANAGER.download_images(tiles=tile_it)
 
-    with Utils.ExecutionTimer("Intersect raster list", True) as t:
+    with Utils.ExecutionTimer("Intersecting raster list", True) as t:
         intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
 
     if len(intersect_raster_list) == 0:
-        print("No intersections with tile "+str(tile_it))
+        logging.info("No intersections with tile %s",tile_it)
         continue
 
     with Utils.ExecutionTimer("Calibration", True) as t:

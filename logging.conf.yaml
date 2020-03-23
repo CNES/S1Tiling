@@ -1,0 +1,46 @@
+version: 1
+disable_existing_loggers: true
+formatters:
+    brief:
+        format: '%(message)s'
+    simple:
+        format: '%(levelname)s - %(message)s'
+    full:
+        format: '%(asctime)s - %(name)-15s - %(levelname)-8s - %(message)s'
+
+handlers:
+    console:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: simple
+        stream: ext://sys.stdout
+    file:
+        class: logging.FileHandler
+        level: DEBUG
+        formatter: full
+        filename: S1Processor.debug.log
+        mode: w # 'w' disable 'a'ppend
+    important:
+        class: logging.FileHandler
+        level: WARNING
+        formatter: full
+        filename: S1Processor.warning.log
+        mode: w # 'w' disable 'a'ppend
+    # email:
+    #     class: logging.handlers.SMTPHandler
+    #     mailhost: localhost
+    #     fromaddr: my_app@domain.tld
+    #     toaddrs:
+    #         - support_team@domain.tld
+    #         - dev_team@domain.tld
+    #     subject: Houston, we have a problem.
+
+loggers:
+    simpleExample:
+        level: DEBUG
+        handlers: [console]
+        propagate: no
+root:
+    level: INFO
+    handlers: [console,file, important]
+

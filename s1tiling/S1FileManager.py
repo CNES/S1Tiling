@@ -61,7 +61,7 @@ def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_da
             +" --latmin "+str(latmin)+" --latmax "+str(latmax)\
             +" -w "+raw_directory\
             +" --tiledata "+tile_data
-    print(command)
+    logging.debug('Download with %s', command)
     status = -1
     while status != 0:
         if tile_name: # <=> self.cfg.cluster is True
@@ -77,12 +77,12 @@ def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
     import zipfile
     for file_it in list_files(raw_directory, '*.zip'):
-        print("unzipping "+file_it.name)
+        logging.debug("unzipping %s",file_it.name)
         try:
             with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
                 zip_ref.extractall(raw_directory)
         except  zipfile.BadZipfile:
-            print("WARNING: "+file_it.path+" is corrupted. This file will be removed")
+            logging.warning("%s is corrupted. This file will be removed", file_it.path)
         try:
             os.remove(file_it.path)
         except:
@@ -136,7 +136,7 @@ class S1FileManager(object):
                 try:
                     self.roi_by_coordinates = cfg.ROI_by_coordinates.split()
                 except cfg.NoOptionError:
-                    print("No ROI defined in the config file")
+                    logging.critical("No ROI defined in the config file")
                     exit(-1)
 
         try:
@@ -157,7 +157,7 @@ class S1FileManager(object):
                 tiles_list = self.cfg.tiles_list
             else:
                 tiles_list = self.roi_by_tiles
-            print(tiles_list)
+            logging.debug("Tiles requested to download: %s", tiles_list)
 
             layer = Layer(self.cfg.output_grid)
             for current_tile in layer:
@@ -229,7 +229,7 @@ class S1FileManager(object):
         layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
-            #print(current_tile.GetField('NAME'))
+            #logging.debug("%s", current_tile.GetField('NAME'))
             if current_tile.GetField('NAME') in tile_name_field:
                 return True
         return False
@@ -288,18 +288,18 @@ class S1FileManager(object):
         layer = Layer(self.cfg.output_grid)
         current_tile = layer.find_tile_named(tile_name_field)
         if not current_tile:
-            print("Tile "+str(tile_name_field)+" does not exist")
+            logging.info("Tile %s does not exist", tile_name_field)
             return intersect_raster
 
         poly = ogr.Geometry(ogr.wkbPolygon)
         tile_footprint = current_tile.GetGeometryRef()
 
         for image in self.raw_raster_list:
-            print(image.get_manifest())
-            print(image.get_images_list())
+            logging.debug('Manifest: %s', image.get_manifest())
+            logging.debug('Image list: %s', image.get_images_list())
             if len(image.get_images_list())==0:
-                print("Problem with : "+image.get_manifest())
-                print("Remove the raw data for this SAFE file")
+                logging.critical("Problem with %s",image.get_manifest())
+                logging.critical("Please remove the raw data for this SAFE file")
                 sys.exit(-1)
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
@@ -364,7 +364,7 @@ class S1FileManager(object):
         needed_srtm_tiles = {}
 
         for tile in tiles_to_process:
-            print("Check SRTM tile for ",tile)
+            logging.debug("Check SRTM tile for %s",tile)
 
             srtm_tiles = []
             mgrs_footprint = self.get_mgrs_tile_geometry_by_name(tile)
@@ -377,7 +377,7 @@ class S1FileManager(object):
                     coverage = intersection.GetArea()/area
                     srtm_tiles.append((srtm_tile.GetField('FILE'), coverage))
             needed_srtm_tiles[tile] = srtm_tiles
-        print("SRTM ok)")
+        logging.info("SRTM ok")
         return needed_srtm_tiles
 
     def record_processed_filenames(self):
