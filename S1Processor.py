@@ -274,13 +274,12 @@ class Sentinel1PreProcess():
                 all_cmd.append(cmd)
                 files_to_remove += [image, im_calok]
 
-            self.run_processing(all_cmd, title="Cutting: Apply mask")
+            self.run_processing(all_cmd, title="   Cutting: Apply mask")
 
             # TODO: add geoms
             remove_files(files_to_remove)
 
         print("Cutting done ")
-
 
     def do_calibration_cmd(self, raw_raster):
         """
@@ -394,7 +393,7 @@ class Sentinel1PreProcess():
                     all_cmd.append(cmd)
                     output_files_list.append(ortho_image_pathname)
 
-        self.run_processing(all_cmd, title="Orthorectification")
+        self.run_processing(all_cmd, title="   Orthorectification")
 
         # Writing the metadata
         for f in os.listdir(working_directory):
@@ -466,10 +465,9 @@ class Sentinel1PreProcess():
             for i in image_sublist:
                 image_list.remove(i)
 
-        self.run_processing(cmd_list, "Concatenation")
+        self.run_processing(cmd_list, "   Concatenation")
 
         remove_files(files_to_remove)
-
 
     def run_processing(self, cmd_list, title=""):
         """
@@ -626,25 +624,33 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
             shutil.rmtree(f,ignore_errors=True)
         S1_FILE_MANAGER.get_s1_img()
 
-    S1_FILE_MANAGER.download_images(tiles=tile_it)
+    with Utils.ExecutionTimer("Download tiles", True) as t:
+        S1_FILE_MANAGER.download_images(tiles=tile_it)
 
-    intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
+    with Utils.ExecutionTimer("Intersect raster list", True) as t:
+        intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
 
     if len(intersect_raster_list) == 0:
         print("No intersections with tile "+str(tile_it))
         continue
 
-    S1_CHAIN.do_calibration_cmd(intersect_raster_list)
-    S1_CHAIN.cut_image_cmd(intersect_raster_list)
+    with Utils.ExecutionTimer("Calibration", True) as t:
+        S1_CHAIN.do_calibration_cmd(intersect_raster_list)
+    with Utils.ExecutionTimer("Cut Images", True) as t:
+        S1_CHAIN.cut_image_cmd(intersect_raster_list)
 
-    raster_tiles_list = S1_CHAIN.do_ortho_by_tile(\
-                        intersect_raster_list, tile_it,S1_FILE_MANAGER.tmpsrtmdir)
+    with Utils.ExecutionTimer("Ortho", True) as t:
+        raster_tiles_list = S1_CHAIN.do_ortho_by_tile(\
+                intersect_raster_list, tile_it,S1_FILE_MANAGER.tmpsrtmdir)
     if Cg_Cfg.mask_cond:
-        S1_CHAIN.generate_border_mask(raster_tiles_list)
+        with Utils.ExecutionTimer("Generate Border Mask", True) as t:
+            S1_CHAIN.generate_border_mask(raster_tiles_list)
 
-    S1_CHAIN.concatenate_images(tile_it)
+    with Utils.ExecutionTimer("Concatenate", True) as t:
+        S1_CHAIN.concatenate_images(tile_it)
+
     """
     if Cg_Cfg.filtering_activated:
-
-        filteringProcessor.process(tile_it)
+        with Utils.ExecutionTimer("MultiTemp Filter", True) as t:
+            filteringProcessor.process(tile_it)
     """
