@@ -63,6 +63,28 @@ def execute(cmd):
         logging.warning(e.cmd)
         logging.warning(e.output)
 
+def log_success(r):
+    logging.debug("%s correctly finished", r)
+    #logging.info('%s... %%', title,
+    #        (int((nb_cmd-(len(cmd_list)+len(pids)))*100./nb_cmd)))
+
+def log_failure(r):
+    logging.error("%s execution failed", r )
+
+def worker_config(q):
+    qh = logging.handlers.QueueHandler(q)
+    logger = logging.getLogger()
+    logger.addHandler(qh)
+
+def execute_command(title, cmd):
+    logging.debug('%s # Starting %s', title, cmd)
+    proc = Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    log, _ = proc.communicate()
+    level = logging.ERROR if proc.returncode else logging.DEBUG
+    for line in log.decode().split('\n'):
+        logging.log(level, line)
+    return title
+
 def remove_files(files):
     """
     Removes the files from the disk
@@ -494,31 +516,13 @@ class Sentinel1PreProcess():
         nb_cmd = len(cmd_list)
         pids = []
 
-        while len(cmd_list) > 0 or len(pids) > 0:
-            if (len(pids) < self.cfg.nb_procs) and (len(cmd_list) > 0):
-                # in case of an error, let's redirect everything to logger.error. logger.info/debug will be used otherwise
-                logging.debug('%s # Starting %s', title, cmd_list[0])
-                pids.append([Popen(cmd_list[0], stdout=subprocess.PIPE, shell=True),cmd_list[0]])
-                cmd_list.remove(cmd_list[0])
-            for i, pid in enumerate(pids):
-                status = pid[0].poll()
-                if status:
-                    logging.warning("Error in pid #%s id=%s", i, pid[0])
-                    logging.warning(pid[1])
-                    # out, _ = pid[0].communicate()
-                    logging.error(out)
-                    del pids[i]
-                    break
-                    #sys.exit(status)
-                elif status == 0:
-                    logging.info('%s... %%', title,
-                            (int((nb_cmd-(len(cmd_list)+len(pids)))*100./nb_cmd)))
-                    out, _ = pid[0].communicate()
-                    logging.debug(out)
-                    del pids[i]
-                    time.sleep(0.2)
-                    break
-            time.sleep(0.5) # 0.5 seconds between two calls to poll
+        with multiprocessing.Pool(self.cfg.nb_procs, worker_config, [self.cfg.log_queue]) as pool:
+            self.cfg.log_queue_listener.start()
+            for cmd in cmd_list:
+                pool.apply_async(execute_command, (title, cmd), callback=log_success, error_callback=log_failure)
+            pool.close()
+            pool.join()
+            self.cfg.log_queue_listener.stop()
 
         logging.info("%s done", title)
 
