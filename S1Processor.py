@@ -63,20 +63,27 @@ def execute(cmd):
         logging.warning(e.cmd)
         logging.warning(e.output)
 
-def log_success(r):
-    logging.debug("%s correctly finished", r)
-    #logging.info('%s... %%', title,
-    #        (int((nb_cmd-(len(cmd_list)+len(pids)))*100./nb_cmd)))
-
-def log_failure(r):
-    logging.error("%s execution failed", r )
-
 def worker_config(q):
+    """
+    Worker configuration function called by Pool().
+
+    It takes care of initializing the queue handler in the subprocess.
+
+    Params:
+        q: multiprocessing.Queue used for passing logging messages from worker to main process.
+    """
     qh = logging.handlers.QueueHandler(q)
     logger = logging.getLogger()
     logger.addHandler(qh)
 
-def execute_command(title, cmd):
+def execute_command(params):
+    """
+    Main worker function executed by Sentinel1PreProcess.run_processing()
+
+    Params:
+        p: list of two subparameters: job title + command to execute
+    """
+    title, cmd = params
     logging.debug('%s # Starting %s', title, cmd)
     proc = Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     log, _ = proc.communicate()
@@ -214,22 +221,24 @@ class Sentinel1PreProcess():
                     pathname_border_mask_tmp    = os.path.join(working_directory, name_border_mask_tmp)
 
                     files_to_remove.append(pathname_border_mask_tmp)
-                    cmd_bandmath.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
-                                        +str(self.cfg.ram_per_process)\
-                                        +' -il '+current_ortho\
-                                        +' -out '+pathname_border_mask_tmp\
-                                        +' uint8 -exp "im1b1==0?0:1"')
+                    cmd_bandmath.append(['    Mask building of '+name_border_mask_tmp,
+                        'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
+                        +str(self.cfg.ram_per_process)\
+                        +' -il '+current_ortho\
+                        +' -out '+pathname_border_mask_tmp\
+                        +' uint8 -exp "im1b1==0?0:1"'])
 
                     #due to threshold approximation
 
-                    cmd_morpho.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
-                                      +str(self.cfg.ram_per_process)+" -progress false -in "\
-                                      +pathname_border_mask_tmp\
-                                      +" -out "\
-                                      +os.path.join(working_directory, name_border_mask)\
-                                      +" uint8 -structype ball"\
-                                      +" -structype.ball.xradius 5"\
-                                      +" -structype.ball.yradius 5 -filter opening")
+                    cmd_morpho.append(['    Mask smoothing of '+name_border_mask,
+                        'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
+                        +str(self.cfg.ram_per_process)+" -progress false -in "\
+                        +pathname_border_mask_tmp\
+                        +" -out "\
+                        +os.path.join(working_directory, name_border_mask)\
+                        +" uint8 -structype ball"\
+                        +" -structype.ball.xradius 5"\
+                        +" -structype.ball.yradius 5 -filter opening"])
 
                 self.run_processing(cmd_bandmath, title="   Mask building")
                 self.run_processing(cmd_morpho,   title="   Mask smoothing")
@@ -305,7 +314,7 @@ class Sentinel1PreProcess():
                                +"-ram "+str(self.cfg.ram_per_process)\
                                +" -progress false " \
                                +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(im_calok, image_mask,im_ortho)
-                all_cmd.append(cmd)
+                all_cmd.append(['    Cutting of '+im_ortho, cmd])
                 files_to_remove += [image, im_calok]
 
             self.run_processing(all_cmd, title="   Cutting: Apply mask")
@@ -342,11 +351,12 @@ class Sentinel1PreProcess():
                 image_ok = image.replace(".tiff", "_calOk.tiff")
                 #UNCOMMENT TO DELETE RAW DATA
                 # files_to_remove += [image]
-                all_cmd.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_SARCalibration"\
-                               +" -ram "+str(self.cfg.ram_per_process)\
-                               +" -progress false -in "+image\
-                               +" -out "+image_ok+' -lut '+self.cfg.calibration_type \
-                               +" -noise "+str(self.cfg.removethermalnoise).lower())
+                all_cmd.append(['    Calibration of '+image,
+                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_SARCalibration"\
+                    +" -ram "+str(self.cfg.ram_per_process)\
+                    +" -progress false -in "+image\
+                    +" -out "+image_ok+' -lut '+self.cfg.calibration_type \
+                    +" -noise "+str(self.cfg.removethermalnoise).lower()])
 
         self.run_processing(all_cmd, title="   Calibration "+self.cfg.calibration_type)
 
@@ -426,7 +436,7 @@ class Sentinel1PreProcess():
                       +" -outputs.uly "+str(y_coord)\
                       +" -elev.dem "+tmp_srtm_dir+" -elev.geoid "+self.cfg.GeoidFile
 
-                    all_cmd.append(cmd)
+                    all_cmd.append(['    Orthorectification of '+ortho_image_name, cmd])
                     output_files_list.append(ortho_image_pathname)
 
         self.run_processing(all_cmd, title="   Orthorectification")
@@ -481,22 +491,23 @@ class Sentinel1PreProcess():
                 expression="(im%sb1!=0 ? im%sb1 : 0)" % (str(len(images_to_concatenate)),str(len(images_to_concatenate)))
                 for i in range(len(images_to_concatenate)-1,0,-1):
                     expression="(im%sb1!=0 ? im%sb1 : %s)" % (str(i),str(i),expression)
-                cmd_list.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
-                                   +str(self.cfg.ram_per_process)\
-                                    +' -il '+' '.join(images_to_concatenate)\
-                                    +' -out '+output_image\
-                                    + ' -exp "'+expression+'"')
+                cmd_list.append(['    Concatenation of '+output_image,
+                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
+                    +str(self.cfg.ram_per_process)\
+                    +' -il '+' '.join(images_to_concatenate)\
+                    +' -out '+output_image\
+                    +' -exp "'+expression+'"'])
 
                 if self.cfg.mask_cond:
                     if "vv" in image_list[0]:
                         images_msk_to_concatenate = [i.replace(".tif", "_BorderMask.tif") for i in images_to_concatenate]
                         files_to_remove += images_msk_to_concatenate
-                        cmd_list.append('export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
-                                    +str(self.cfg.ram_per_process)\
-                                    +' -il '+' '.join(images_msk_to_concatenate)\
-                                    +' -out '+output_image.replace(".tif",\
-                                                                "_BorderMask.tif")\
-                                    + ' -exp "'+expression+'"')
+                        cmd_list.append(['    Concatenation of '+output_image+' mask',
+                            'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
+                            +str(self.cfg.ram_per_process)\
+                            +' -il '+' '.join(images_msk_to_concatenate)\
+                            +' -out '+output_image.replace(".tif", "_BorderMask.tif")\
+                            +' -exp "'+expression+'"'])
 
             for i in image_sublist:
                 image_list.remove(i)
@@ -518,8 +529,10 @@ class Sentinel1PreProcess():
 
         with multiprocessing.Pool(self.cfg.nb_procs, worker_config, [self.cfg.log_queue]) as pool:
             self.cfg.log_queue_listener.start()
-            for cmd in cmd_list:
-                pool.apply_async(execute_command, (title, cmd), callback=log_success, error_callback=log_failure)
+            for count, result in enumerate(pool.imap_unordered(execute_command, cmd_list), 1):
+                logging.info("%s correctly finished", result)
+                logging.info(' --> %s... %s%%', title, count*100./nb_cmd)
+
             pool.close()
             pool.join()
             self.cfg.log_queue_listener.stop()
