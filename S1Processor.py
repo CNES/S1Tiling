@@ -106,57 +106,9 @@ class Configuration():
     def __init__(self,configFile):
         config = configparser.ConfigParser(os.environ)
         config.read(configFile)
-        self.region=config.get('DEFAULT','region')
-        self.output_preprocess=config.get('Paths','Output')
-        self.raw_directory=config.get('Paths','S1Images')
-        self.srtm=config.get('Paths','SRTM')
-        self.tmpdir = config.get('Paths', 'tmp')
-        if os.path.exists(self.tmpdir) == False:
-            print("ERROR: "+self.tmpdir+" is a wrong path")
-            exit(1)
-        self.GeoidFile=config.get('Paths','GeoidFile')
-        self.pepsdownload=config.getboolean('PEPS','Download')
-        self.ROI_by_tiles=config.get('PEPS','ROI_by_tiles')
-        self.first_date=config.get('PEPS','first_date')
-        self.last_date=config.get('PEPS','last_date')
-        self.polarisation=config.get('PEPS','Polarisation')
-        self.type_image="GRD"
-        self.mask_cond=config.getboolean('Mask','Generate_border_mask')
-        self.calibration_type=config.get('Processing','Calibration')
-        self.removethermalnoise=config.getboolean('Processing','Remove_thermal_noise')
-
-        self.out_spatial_res=config.getfloat('Processing','OutputSpatialResolution')
-
-        self.output_grid=config.get('Processing','TilesShapefile')
-        if os.path.exists(self.output_grid) == False:
-            print("ERROR: "+self.output_grid+" is a wrong path")
-            exit(1)
-
-        self.SRTMShapefile=config.get('Processing','SRTMShapefile')
-        if os.path.exists(self.SRTMShapefile) == False:
-            print("ERROR: "+self.srtm_shapefile+" is a wrong path")
-            exit(1)
-        self.grid_spacing=config.getfloat('Processing','Orthorectification_gridspacing')
-        self.border_threshold=config.getfloat('Processing','BorderThreshold')
-        try:
-           tiles_file=config.get('Processing','TilesListInFile')
-           self.tiles_list=open(tiles_file,'r').readlines()
-           self.tiles_list = [s.rstrip() for s in self.tiles_list]
-           print(self.tiles_list)
-        except:
-           tiles=config.get('Processing','Tiles')
-           self.tiles_list = [s.strip() for s in tiles.split(", ")]
-
-        self.TileToProductOverlapRatio=config.getfloat('Processing','TileToProductOverlapRatio')
-        self.Mode=config.get('Processing','Mode')
-        self.nb_procs=config.getint('Processing','NbParallelProcesses')
-        self.ram_per_process=config.getint('Processing','RAMPerProcess')
-        self.OTBThreads=config.getint('Processing','OTBNbThreads')
-        self.filtering_activated=config.getboolean('Filtering','Filtering_activated')
-        self.Reset_outcore=config.getboolean('Filtering','Reset_outcore')
-        self.Window_radius=config.getint('Filtering','Window_radius')
 
         # Logs
+        self.Mode=config.get('Processing','Mode')
         self.log_queue, self.log_queue_listener = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         if "debug" in self.Mode:
             os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
@@ -173,6 +125,56 @@ class Configuration():
         ##if "logging" in self.Mode:
         ##    self.stdoutfile = open("S1ProcessorOut.log", 'a')
         ##    self.stderrfile = open("S1ProcessorErr.log", 'a')
+
+        # Other options
+        self.region=config.get('DEFAULT','region')
+        self.output_preprocess=config.get('Paths','Output')
+        self.raw_directory=config.get('Paths','S1Images')
+        self.srtm=config.get('Paths','SRTM')
+        self.tmpdir = config.get('Paths', 'tmp')
+        if not os.path.exists(self.tmpdir):
+            logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
+            exit(1)
+        self.GeoidFile=config.get('Paths','GeoidFile')
+        self.pepsdownload=config.getboolean('PEPS','Download')
+        self.ROI_by_tiles=config.get('PEPS','ROI_by_tiles')
+        self.first_date=config.get('PEPS','first_date')
+        self.last_date=config.get('PEPS','last_date')
+        self.polarisation=config.get('PEPS','Polarisation')
+        self.type_image="GRD"
+        self.mask_cond=config.getboolean('Mask','Generate_border_mask')
+        self.calibration_type=config.get('Processing','Calibration')
+        self.removethermalnoise=config.getboolean('Processing','Remove_thermal_noise')
+
+        self.out_spatial_res=config.getfloat('Processing','OutputSpatialResolution')
+
+        self.output_grid=config.get('Processing','TilesShapefile')
+        if not os.path.exists(self.output_grid):
+            logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
+            exit(1)
+
+        self.SRTMShapefile=config.get('Processing','SRTMShapefile')
+        if not os.path.exists(self.SRTMShapefile):
+            logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.srtm_shapefile)
+            exit(1)
+        self.grid_spacing=config.getfloat('Processing','Orthorectification_gridspacing')
+        self.border_threshold=config.getfloat('Processing','BorderThreshold')
+        try:
+           tiles_file=config.get('Processing','TilesListInFile')
+           self.tiles_list=open(tiles_file,'r').readlines()
+           self.tiles_list = [s.rstrip() for s in self.tiles_list]
+           logging.info("The following tiles will be processed: %s", self.tiles_list)
+        except:
+           tiles=config.get('Processing','Tiles')
+           self.tiles_list = [s.strip() for s in tiles.split(", ")]
+
+        self.TileToProductOverlapRatio=config.getfloat('Processing','TileToProductOverlapRatio')
+        self.nb_procs=config.getint('Processing','NbParallelProcesses')
+        self.ram_per_process=config.getint('Processing','RAMPerProcess')
+        self.OTBThreads=config.getint('Processing','OTBNbThreads')
+        self.filtering_activated=config.getboolean('Filtering','Filtering_activated')
+        self.Reset_outcore=config.getboolean('Filtering','Reset_outcore')
+        self.Window_radius=config.getint('Filtering','Window_radius')
 
         self.cluster=config.getboolean('HPC-Cluster','Parallelize_tiles')
 
