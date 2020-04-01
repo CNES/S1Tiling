@@ -111,7 +111,8 @@ class Configuration():
         self.Mode=config.get('Processing','Mode')
         self.log_queue, self.log_queue_listener = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         if "debug" in self.Mode:
-            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+            # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+            pass
         ##self.stdoutfile = open("/dev/null", 'w')
         ##self.stderrfile = open("S1ProcessorErr.log", 'a')
         ##if "debug" in self.Mode:
@@ -293,29 +294,40 @@ class Sentinel1PreProcess():
             crop1 = needToBeCrop(im1_name, thr_nan_for_cropping)
             crop2 = needToBeCrop(im2_name, thr_nan_for_cropping)
 
-            npmask[:,0:cut_overlap_range]=0 # Coupe W
-            npmask[:,(xsize-cut_overlap_range):]=0 # Coupe E
-            if crop1 : npmask[0:cut_overlap_azimuth,:]=0 # Coupe N
-            if crop2 : npmask[ysize-cut_overlap_azimuth:,:]=0 # Coupe S
+            ##npmask[:,0:cut_overlap_range]=0 # Coupe W
+            ##npmask[:,(xsize-cut_overlap_range):]=0 # Coupe E
+            ##if crop1 : npmask[0:cut_overlap_azimuth,:]=0 # Coupe N
+            ##if crop2 : npmask[ysize-cut_overlap_azimuth:,:]=0 # Coupe S
 
-            driver = gdal.GetDriverByName("GTiff")
-            outdata = driver.Create(image_mask, xsize, ysize, 1, gdal.GDT_Byte)
-            outdata.SetGeoTransform(raster.GetGeoTransform())##sets same geotransform as input
-            outdata.SetProjection(raster.GetProjection())##sets same projection as input
-            outdata.GetRasterBand(1).WriteArray(npmask)
-            outdata.SetGCPs(raster.GetGCPs(),raster.GetGCPProjection())
-            outdata.FlushCache() ##saves to disk!!
-            outdata = None
+            ##driver = gdal.GetDriverByName("GTiff")
+            ##outdata = driver.Create(image_mask, xsize, ysize, 1, gdal.GDT_Byte)
+            ##outdata.SetGeoTransform(raster.GetGeoTransform())##sets same geotransform as input
+            ##outdata.SetProjection(raster.GetProjection())##sets same projection as input
+            ##outdata.GetRasterBand(1).WriteArray(npmask)
+            ##outdata.SetGCPs(raster.GetGCPs(),raster.GetGCPProjection())
+            ##outdata.FlushCache() ##saves to disk!!
+            ##outdata = None
 
-            files_to_remove = [image_mask, im1_name, im2_name]
+            ##files_to_remove = [image_mask, im1_name, im2_name]
+            files_to_remove = [im1_name, im2_name]
             all_cmd=[]
             for image in images:
                 im_calok = image.replace(".tiff", "_calOk.tiff")
                 im_ortho = image.replace(".tiff", "_OrthoReady.tiff")
-                cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath ' \
-                               +"-ram "+str(self.cfg.ram_per_process)\
-                               +" -progress false " \
-                               +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(im_calok, image_mask,im_ortho)
+                ##cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath ' \
+                ##               +"-ram "+str(self.cfg.ram_per_process)\
+                ##               +" -progress false " \
+                ##               +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(im_calok, image_mask,im_ortho)
+                cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_ClampROI' \
+                               +" -ram "+str(self.cfg.ram_per_process)\
+                               +(" -threshold.x {}" \
+                               +" -threshold.y.start {}" \
+                               +" -threshold.y.end {}" \
+                               +" -progress false" \
+                               +' -in {} -out {}').format(cut_overlap_range,
+                                      cut_overlap_azimuth if crop1 else 0,
+                                      cut_overlap_azimuth if crop2 else 0,
+                                      im_calok, im_ortho)
                 all_cmd.append(['    Cutting of '+im_ortho, cmd])
                 files_to_remove += [image, im_calok]
 
@@ -488,17 +500,22 @@ class Sentinel1PreProcess():
                 files_to_remove += images_to_concatenate
                 output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
 
-                # build the expression for BandMath for concanetation of many images
-                # for each pixel, the concatenation consists in selecting the first non-zero value in the time serie
-                expression="(im%sb1!=0 ? im%sb1 : 0)" % (str(len(images_to_concatenate)),str(len(images_to_concatenate)))
-                for i in range(len(images_to_concatenate)-1,0,-1):
-                    expression="(im%sb1!=0 ? im%sb1 : %s)" % (str(i),str(i),expression)
+                ### build the expression for BandMath for concanetation of many images
+                ### for each pixel, the concatenation consists in selecting the first non-zero value in the time serie
+                ##expression="(im%sb1!=0 ? im%sb1 : 0)" % (str(len(images_to_concatenate)),str(len(images_to_concatenate)))
+                ##for i in range(len(images_to_concatenate)-1,0,-1):
+                ##    expression="(im%sb1!=0 ? im%sb1 : %s)" % (str(i),str(i),expression)
+                ##cmd_list.append(['    Concatenation of '+output_image,
+                ##    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
+                ##    +str(self.cfg.ram_per_process)\
+                ##    +' -il '+' '.join(images_to_concatenate)\
+                ##    +' -out '+output_image\
+                ##    +' -exp "'+expression+'"'])
                 cmd_list.append(['    Concatenation of '+output_image,
-                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
+                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_Synthetize -progress false -ram '\
                     +str(self.cfg.ram_per_process)\
                     +' -il '+' '.join(images_to_concatenate)\
-                    +' -out '+output_image\
-                    +' -exp "'+expression+'"'])
+                    +' -out '+output_image])
 
                 if self.cfg.mask_cond:
                     if "vv" in image_list[0]:
