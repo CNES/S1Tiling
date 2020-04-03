@@ -43,12 +43,14 @@ from s1tiling import S1FileManager
 from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
 import configparser
-import gdal
+import gdal, rasterio
+from rasterio.windows import Window
 import subprocess
 import datetime
 import logging
 import logging.handlers
 from contextlib import redirect_stdout
+import otbApplication as otb
 
 def execute(cmd):
     try:
@@ -70,7 +72,7 @@ def worker_config(q):
     It takes care of initializing the queue handler in the subprocess.
 
     Params:
-        q: multiprocessing.Queue used for passing logging messages from worker to main process.
+        :q: multiprocessing.Queue used for passing logging messages from worker to main process.
     """
     qh = logging.handlers.QueueHandler(q)
     logger = logging.getLogger()
@@ -81,7 +83,7 @@ def execute_command(params):
     Main worker function executed by Sentinel1PreProcess.run_processing()
 
     Params:
-        p: list of two subparameters: job title + command to execute
+        :p: list of two subparameters: job title + command to execute
     """
     title, cmd = params
     logging.debug('%s # Starting %s', title, cmd)
@@ -193,6 +195,97 @@ class Configuration():
                 logging.critical("Invalid date")
                 sys.exit()
 
+class Pipeline(object):
+    def __init__(self, do_measure):
+        self.__pipeline = []
+        self.__do_measure = do_measure
+    def push(self, name, parameters):
+        self.__pipeline += [ {'appname': name, 'parameters': parameters}]
+    def do_execute(self):
+        assert(self.__pipeline) # shall not be empty!
+        app_names = []
+        last_app = None
+        for crt in self.__pipeline:
+            app_names += [crt['appname']]
+            app = otb.Registry.CreateApplication(crt['appname'])
+            assert(app)
+            crt['app'] = app
+            app.SetParameters(crt['parameters'])
+            if last_app:
+                app.ConnectImage('in', last_app, 'out')
+                in_memory = True
+                app.PropagateConnectMode(in_memory)
+            last_app = app
+
+        pipeline_name = '|'.join(app_names)
+        with Utils.ExecutionTimer('-> '+pipeline_name, self.__do_measure) as t:
+            assert(last_app)
+            last_app.ExecuteAndWriteOutput()
+        for crt in self.__pipeline:
+            del(crt['app']) # Make sure to release application memory
+            crt['app'] = None
+        return pipeline_name + ' > ' + crt['parameters']['out']
+
+def execute1(pipeline):
+    return pipeline.do_execute()
+
+class PoolOfOTBExecutions(object):
+    def __init__(self, title, do_measure, nb_procs, nb_threads, log_queue, log_queue_listener):
+        """
+        constructor
+        """
+        self.__pool = []
+        self.__title               = title
+        self.__do_measure          = do_measure
+        self.__nb_procs            = nb_procs
+        self.__nb_threads          = nb_threads
+        self.__log_queue           = log_queue
+        self.__log_queue_listener  = log_queue_listener
+
+    def new_pipeline(self):
+        pipeline = Pipeline(self.__do_measure)
+        self.__pool += [pipeline]
+        return pipeline
+
+    def process(self):
+
+        import time
+        nb_cmd = len(self.__pool)
+
+        os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(self.__nb_threads)
+        with multiprocessing.Pool(self.__nb_procs, worker_config, [self.__log_queue]) as pool:
+            self.__log_queue_listener.start()
+            for count, result in enumerate(pool.imap_unordered(execute1, self.__pool), 1):
+                logging.info("%s correctly finished", result)
+                logging.info(' --> %s... %s%%', self.__title, count*100./nb_cmd)
+
+            pool.close()
+            pool.join()
+            self.__log_queue_listener.stop()
+
+
+def needToBeCrop(image_name, thr):
+    """
+    Deprecated in favor of has_to_many_NoData
+    """
+    imgpil = Image.open(image_name)
+    ima = np.asarray(imgpil)
+    nbNan = len(np.argwhere(ima==0))
+    return nbNan>thr
+
+
+def has_to_many_NoData(image, threshold, nodata):
+    """
+    Analyses whether an image contains NO DATA.
+
+        :param image:     np.array image to analyse
+        :param threshold: number of NoData searched
+        :param nodata:    no data value
+        :return:          whether the number of no-data pixel > threshold
+    """
+    nbNoData = len(np.argwhere(image==nodata))
+    return nbNoData>threshold
+
 class Sentinel1PreProcess():
     """ This class handles the processing for Sentinel1 ortho-rectification """
     def __init__(self,cfg):
@@ -248,18 +341,78 @@ class Sentinel1PreProcess():
                 remove_files(files_to_remove)
                 logging.info("Generate Mask done")
 
+    def do_calibrate_and_cut(self, raw_raster):
+        """
+        This method:
+        - performs radiometric calibration of raw S1 images,
+        - and remove pixels on the image borders.
+        Args:
+          :raw_raster: list of raw S1 raster file to calibrate
+        """
+        cut_overlap_range = 1000 # Number of columns to cut on the sides. Here 500pixels = 5km
+        cut_overlap_azimuth = 1600 # Number of lines to cut at top or bottom
+        thr_nan_for_cropping = cut_overlap_range*2 #Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
+
+        logging.info("Calibrate and Cut %s", raw_raster)
+
+        pool = PoolOfOTBExecutions('calibrate & cut', True, self.cfg.nb_procs, self.cfg.OTBThreads, self.cfg.log_queue, self.cfg.log_queue_listener)
+
+        for i in range(len(raw_raster)):
+            images = raw_raster[i][0].get_images_list()
+
+            # First we check whether the first and/or the last lines need to be cropped (set to 0 actually)
+            # TODO: no need to test this if none of the images need to be cut...
+            with rasterio.open(images[0]) as ds_reader:
+                xsize = ds_reader.width
+                ysize = ds_reader.height
+                north = ds_reader.read(1, window=Window(0, 100, xsize+1, 1))
+                south = ds_reader.read(1, window=Window(0, ysize-100, xsize+1, 1))
+
+            crop1 = has_to_many_NoData(north, thr_nan_for_cropping, 0)
+            crop2 = has_to_many_NoData(south, thr_nan_for_cropping, 0)
+            logging.debug("   => need to crop north: %s", crop1)
+            logging.debug("   => need to crop south: %s", crop2)
+
+            # Then we process of the images in the list
+            for image in images:
+                logging.debug(" - %s", image)
+                # TODO: makes sure it goes into the temp directory...
+                image_out = image.replace(".tiff", "_OrthoReady.tiff")
+                # First, skip the step if the associated OrthoReady image already exists
+                if os.path.exists(image_out):
+                    logging.info('   %s already exists => calibration|cut skipped', image_out)
+                    continue
+
+                pipeline = pool.new_pipeline()
+                # Parameters for the calibration application
+                params_calibration = {
+                        'ram'     : str(self.cfg.ram_per_process),
+                        # 'progress': 'false',
+                        'in'      : image,
+                        'lut'     : self.cfg.calibration_type,
+                        'noise'   : str(self.cfg.removethermalnoise).lower()
+                        }
+                pipeline.push('SARCalibration', params_calibration)
+                # Parameters for the cutting application
+                params_cut = {
+                        'ram'              : str(self.cfg.ram_per_process),
+                        # 'progress'         : False,
+                        'out'              : image_out,
+                        'threshold.x'      : cut_overlap_range,
+                        'threshold.y.start': cut_overlap_azimuth if crop1 else 0,
+                        'threshold.y.end'  : cut_overlap_azimuth if crop2 else 0,
+                        }
+                pipeline.push('ClampROI', params_cut)
+
+        logging.debug('Launch pipelines')
+        pool.process()
+
     def cut_image_cmd(self, raw_raster):
         """
-        This method remove pixels on the image borders.
+        This method removes pixels on the image borders.
         Args:
           raw_raster: list of raw S1 raster file to calibrate
         """
-        def needToBeCrop(image_name, thr):
-            imgpil = Image.open(image_name)
-            ima = np.asarray(imgpil)
-            nbNan = len(np.argwhere(ima==0))
-            return nbNan>thr
-
         logging.info("Cutting %s", raw_raster)
 
         for i in range(len(raw_raster)):
@@ -276,13 +429,13 @@ class Sentinel1PreProcess():
             image=images[0]
             image = image.replace(".tiff","_calOk.tiff")
             image_ok = image.replace("_calOk.tiff", "_OrthoReady.tiff")
-            image_mask=image.replace("_calOk.tiff","_mask.tiff")
+            ##image_mask=image.replace("_calOk.tiff","_mask.tiff")
             im1_name = image.replace(".tiff","test_nord.tiff")
             im2_name = image.replace(".tiff","test_sud.tiff")
             raster = gdal.Open(image)
             xsize = raster.RasterXSize
             ysize = raster.RasterYSize
-            npmask= np.ones((ysize,xsize), dtype=bool)
+            ## npmask= np.ones((ysize,xsize), dtype=bool)
 
             cut_overlap_range = 1000 # Nombre de pixel a couper sur les cotes. ici 500 = 5km
             cut_overlap_azimuth = 1600 # Nombre de pixels a couper sur le haut ou le bas
@@ -391,9 +544,11 @@ class Sentinel1PreProcess():
         all_cmd = []
         output_files_list = []
         logging.info("Start orthorectification of %s",tile_name)
-        for i in range(len(raster_list)):
-            raster, tile_origin = raster_list[i]
+        for raster, tile_origin in raster_list:
+            logging.debug("- Otho: raster: %s; tile_origin: %s", raster, tile_origin)
             manifest = raster.get_manifest()
+            logging.debug("  -> manifest: %s", manifest)
+            logging.debug("  -> images: %s", raster.get_images_list())
 
             for image in raster.get_images_list():
                 image_ok = image.replace(".tiff", "_OrthoReady.tiff")
@@ -413,10 +568,8 @@ class Sentinel1PreProcess():
                 if not out_utm_northern:
                     out_epsg = out_epsg+100
 
-                conv_result = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)
-                (x_coord, y_coord,dummy) = conv_result[0]
-                conv_result = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)
-                (lrx, lry,dummy) = conv_result[0]
+                x_coord, y_coord, _  = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
+                lrx, lry, _          = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
 
                 if not out_utm_northern and y_coord < 0:
                     y_coord = y_coord+10000000.
@@ -544,7 +697,6 @@ class Sentinel1PreProcess():
         """
         import time
         nb_cmd = len(cmd_list)
-        pids = []
 
         with multiprocessing.Pool(self.cfg.nb_procs, worker_config, [self.cfg.log_queue]) as pool:
             self.cfg.log_queue_listener.start()
@@ -557,6 +709,7 @@ class Sentinel1PreProcess():
             self.cfg.log_queue_listener.stop()
 
         logging.info("%s done", title)
+
 
 def init_logger(mode, paths):
     import logging.config
@@ -733,10 +886,15 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
         logging.info("No intersections with tile %s",tile_it)
         continue
 
-    with Utils.ExecutionTimer("Calibration", True) as t:
-        S1_CHAIN.do_calibration_cmd(intersect_raster_list)
-    with Utils.ExecutionTimer("Cut Images", True) as t:
-        S1_CHAIN.cut_image_cmd(intersect_raster_list)
+    Horizontal = False
+    if Horizontal:
+        with Utils.ExecutionTimer("Calibration", True) as t:
+            S1_CHAIN.do_calibration_cmd(intersect_raster_list)
+        with Utils.ExecutionTimer("Cut Images", True) as t:
+            S1_CHAIN.cut_image_cmd(intersect_raster_list)
+    else:
+        with Utils.ExecutionTimer("Calibrate & Cut Images", True) as t:
+            S1_CHAIN.do_calibrate_and_cut(intersect_raster_list)
 
     with Utils.ExecutionTimer("Ortho", True) as t:
         raster_tiles_list = S1_CHAIN.do_ortho_by_tile(\
