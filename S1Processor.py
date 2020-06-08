@@ -172,7 +172,7 @@ class PoolOfOTBExecutions(object):
 
 def needToBeCrop(image_name, thr):
     """
-    Deprecated in favor of has_to_many_NoData
+    Deprecated in favor of has_too_many_NoData
     """
     imgpil = Image.open(image_name)
     ima = np.asarray(imgpil)
@@ -180,7 +180,7 @@ def needToBeCrop(image_name, thr):
     return nbNan>thr
 
 
-def has_to_many_NoData(image, threshold, nodata):
+def has_too_many_NoData(image, threshold, nodata):
     """
     Analyses whether an image contains NO DATA.
 
@@ -274,8 +274,8 @@ class Sentinel1PreProcess():
                 north = ds_reader.read(1, window=Window(0, 100, xsize+1, 1))
                 south = ds_reader.read(1, window=Window(0, ysize-100, xsize+1, 1))
 
-            crop1 = has_to_many_NoData(north, thr_nan_for_cropping, 0)
-            crop2 = has_to_many_NoData(south, thr_nan_for_cropping, 0)
+            crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
+            crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
             logging.debug("   => need to crop north: %s", crop1)
             logging.debug("   => need to crop south: %s", crop2)
 
