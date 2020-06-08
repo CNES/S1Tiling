@@ -478,8 +478,8 @@ class Sentinel1PreProcess():
                 lrx, lry, _          = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
 
                 if not out_utm_northern and y_coord < 0:
-                    y_coord = y_coord+10000000.
-                    lry = lry+10000000.
+                    y_coord += 10000000.
+                    lry     += 10000000.
 
                 ortho_image_name = current_platform\
                                    +"_"+tile_name\
