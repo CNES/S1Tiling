@@ -48,7 +48,9 @@ def in_filename(meta):
     """
     Helper accessor to access the input filename of a `Step`.
     """
-    return meta['in_filename'] if 'in_filename' in meta else meta['basename']
+    assert('in_filename' in meta)
+    return meta['in_filename']
+    # return meta['in_filename'] if 'in_filename' in meta else meta['basename']
 
 def out_filename(meta):
     """
@@ -61,9 +63,10 @@ class AbstractStep(object):
     """
     Internal root class for all actual `Step`s.
 
-    There are two kinds of steps:
+    There are three kinds of steps:
     - `FirstStep` that contains information about input files
     - `Step` that registers an otbapplication binding
+    - `StoreStep` that momentarilly disconnect on-memory pipeline to force storing of the resulting file.
 
     The step will contain information like the current input file, the current output file...
     """
@@ -73,16 +76,12 @@ class AbstractStep(object):
         """
         meta = kwargs
         assert('basename' in meta)
+        # Clear basename from any noise
         self._meta   = meta
-        self._out    = kwargs.get('param_out', 'out')
 
     @property
     def is_first_step(self):
         return True
-
-    @property
-    def param_out(self):
-        return self._out
 
     @property
     def meta(self):
@@ -90,11 +89,18 @@ class AbstractStep(object):
 
     @property
     def basename(self):
+        """
+        basename property will be used to generate all future output filenames.
+        """
         return self._meta['basename']
 
     @property
     def out_filename(self):
-        return self._meta.get('out_filename', self.basename)
+        """
+        Property that returns the name of the file produced by the current step.
+        """
+        assert('out_filename' in self._meta)
+        return self._meta['out_filename']
 
     @property
     def shall_store(self):
@@ -107,14 +113,20 @@ class AbstractStep(object):
         return False
 
     def release_app(self):
+        """
+        Makes sure that steps with applications are releasing the application
+        """
         pass
 
 
-class Step(AbstractStep):
+class _StepWithOTBApplication(AbstractStep):
     """
-    Interal specialized `Step` that holds a binding to an OTB Application.
+    Internal intermediary type for `Step` that have an application object.
+    Not meant to be used directly.
 
-    The application binding is expected to be built by a dedicated `StepFactory` and passed to the constructor.
+    Parent type for:
+    - `Step`  that will own the application
+    - and `StoreStep` that will just reference the application from the previous step
     """
     def __init__(self, app, *argv, **kwargs):
         """
@@ -131,27 +143,52 @@ class Step(AbstractStep):
         if self._app:
             self.release_app()
 
-    def ExecuteAndWriteOutput(self):
-        """
-        Method to call on the last step of a pipeline.
-        """
-        assert(self._app)
-        self._app.ExecuteAndWriteOutput()
-        if 'post' in self.meta:
-            for hook in meta['post']:
-                hook(meta)
+    def release_app(self):
+        # Only `Step` will delete, here we just reset the reference
+        self._app = None
 
     @property
     def app(self):
         return self._app
 
-    def release_app(self):
-        del(self._app)
-        self._app = None
-
     @property
     def is_first_step(self):
         return self._app is None
+
+    @property
+    def param_out(self):
+        return self._out
+
+
+class Step(_StepWithOTBApplication):
+    """
+    Interal specialized `Step` that holds a binding to an OTB Application.
+
+    The application binding is expected to be built by a dedicated `StepFactory` and passed to the constructor.
+    """
+    def __init__(self, app, *argv, **kwargs):
+        """
+        constructor
+        """
+        # logging.debug("Create Step(%s, %s)", app, meta)
+        super().__init__(app, *argv, **kwargs)
+        self._out    = kwargs.get('param_out', 'out')
+
+    def release_app(self):
+        del(self._app)
+        super().release_app() # resets self._app to None
+
+    def ExecuteAndWriteOutput(self):
+        """
+        Method to call on the last step of a pipeline.
+        """
+        assert(self._app)
+        if not self.meta.get('dryrun', False):
+            self._app.ExecuteAndWriteOutput()
+        if 'post' in self.meta:
+            for hook in meta['post']:
+                hook(self.meta)
+
 
 class StepFactory(ABC):
     """
@@ -182,7 +219,11 @@ class StepFactory(ABC):
         pass
 
     @abstractmethod
-    def get_output_filename(self, meta):
+    def build_step_output_filename(self, meta):
+        pass
+
+    @abstractmethod
+    def output_directory(self, meta):
         pass
 
     def set_output_pixel_type(self, app, meta):
@@ -196,7 +237,7 @@ class StepFactory(ABC):
     def complete_meta(self, meta): # to be overridden
         meta = meta.copy()
         meta['in_filename']  = out_filename(meta)
-        meta['out_filename'] = self.get_output_filename(meta)
+        meta['out_filename'] = self.build_step_output_filename(meta)
         return meta
 
     def create_step(self, input: Step, in_memory: bool):
@@ -212,7 +253,13 @@ class StepFactory(ABC):
                 parameters[self.param_in] = input.out_filename
             else:
                 app.ConnectImage(self.param_in, input.app, input.param_out)
-                app.PropagateConnectMode(in_memory and not input.shall_store)
+                this_step_is_in_memory = in_memory and not input.shall_store
+                logging.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
+                app.PropagateConnectMode(this_step_is_in_memory)
+                # When this is not a first step, we need to clear the input parameters
+                # from its list, otherwise some OTB applications may comply
+                del parameters[self.param_in]
+
             self.set_output_pixel_type(app, meta)
             logging.debug('Params: %s: %s', self.appname, parameters)
             app.SetParameters(parameters) # ordre à vérifier!
@@ -353,24 +400,30 @@ class Processing(object):
 # ======================================================================
 class FirstStep(AbstractStep):
     """
-    First Step for S1 tiling chain.
+    First Step:
+    - no application executed
     """
     def __init__(self, *argv, **kwargs):
-        # meta = {
-        #         'tile_name'  : tile_name,
-        #         'tile_origin': tile_origin,
-        #         'manifest'   : manifest,
-        #         'basename'   : basename
-        #         }
         super().__init__(*argv, **kwargs)
+        if not 'out_filename' in self._meta:
+            # If not set through the parameters, set it from the basename + out dir
+            self._meta['out_filename'] = self._meta['basename']
+        working_directory, basename = os.path.split(self._meta['basename'])
+        self._meta['basename'] = basename
 
 
-class StoreStep(AbstractStep):
+class StoreStep(_StepWithOTBApplication):
     def __init__(self, previous: Step):
-        super().__init__(*[], **previous.meta)
+        assert(not previous.is_first_step)
+        super().__init__(previous._app, *[], **previous.meta)
+        self._out    = previous.param_out
+
     @property
     def shall_store(self):
-        return False
+        return True
+
+    def ExecuteAndWriteOutput(self):
+        raise TypeError("A StoreStep is not meant to be the last step of a pipeline!!!")
 
 
 class Store(StepFactory):
@@ -379,15 +432,17 @@ class Store(StepFactory):
     disk by breaking in-memory connection.
     """
     def __init__(self, appname, *argv, **kwargs):
-        super().__init__(None, *argv, **kwargs)
+        super().__init__("(StoreOnFile)", *argv, **kwargs)
     def create_step(self, input: Step, in_memory: bool):
         return StoreStep(input)
 
     # abstract methods...
     def parameters(self, meta):
-        pass
-    def get_output_filename(self, meta):
-        pass
+        raise TypeError("No way to ask for the parameters from a StoreFactory")
+    def output_directory(self, meta):
+        raise TypeError("No way to ask for output dir of a StoreFactory")
+    def build_step_output_filename(self, meta):
+        raise TypeError("No way to ask for the output filename of a StoreFactory")
 
 
 

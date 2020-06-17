@@ -54,6 +54,9 @@ from s1tiling.configuration import Configuration
 from s1tiling.otbpipeline import Processing, FirstStep, Store
 from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
+# dryrun=True
+dryrun = False
+
 def remove_files(files):
     """
     Removes the files from the disk
@@ -288,13 +291,14 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
         for raster, tile_origin in intersect_raster_list:
             manifest = raster.get_manifest()
             for image in raster.get_images_list():
-                start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image)
+                start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image, dryrun=dryrun)
                 inputs += [start]
         # process.process(inputs)
 
     msg = "Concatenate"
     steps = [Concatenate]
     if Cg_Cfg.mask_cond:
+        # steps += [BuildBorderMask, SmoothBorderMask]
         steps += [Store, BuildBorderMask, SmoothBorderMask]
         msg += "|Generate Border Mask"
     with Utils.ExecutionTimer(msg, True) as t:
@@ -310,7 +314,7 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
                 images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, tile_it,i) for i in image_sublist]
                 output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
 
-            start = FirstStep(tile_name=tile_it, basename=output_image, out_filename=images_to_concatenate)
+            start = FirstStep(tile_name=tile_it, basename=output_image, out_filename=images_to_concatenate, dryrun=dryrun)
             inputs += [start]
             for i in image_sublist:
                 image_list.remove(i)

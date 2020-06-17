@@ -22,7 +22,9 @@ from rasterio.windows import Window
 import numpy as np
 import tempfile
 import logging
+import os
 from s1tiling.otbpipeline import StepFactory, in_filename, out_filename
+from s1tiling import Utils
 import otbApplication as otb
 
 
@@ -55,15 +57,17 @@ class AnalyseBorders(StepFactory):
         pass
     def parameters(self, meta):
         return None
-    def get_output_filename(self, meta):
-        return meta['basename']
+    def output_directory(self, meta):
+        raise TypeError("An AnalyseBorders step don't produce anything!")
+    def build_step_output_filename(self, meta):
+        return meta['out_filename']
     def complete_meta(self, meta):
         meta = super().complete_meta(meta)
 
         cut_overlap_range = 1000 # Number of columns to cut on the sides. Here 500pixels = 5km
         cut_overlap_azimuth = 1600 # Number of lines to cut at top or bottom
         thr_nan_for_cropping = cut_overlap_range*2 #Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
-        with rasterio.open(meta['basename']) as ds_reader:
+        with rasterio.open(meta['out_filename']) as ds_reader:
             xsize = ds_reader.width
             ysize = ds_reader.height
             north = ds_reader.read(1, window=Window(0, 100, xsize+1, 1))
@@ -101,8 +105,13 @@ class Calibrate(StepFactory):
         self.__ram_per_process    = cfg.ram_per_process
         self.__calibration_type   = cfg.calibration_type
         self.__removethermalnoise = cfg.removethermalnoise
-    def get_output_filename(self, meta):
-        return meta['basename'].replace(".tiff", "_calOk.tiff")
+        self.__tmpdir             = cfg.tmpdir
+    def output_directory(self, meta):
+        tile_name = meta['tile_name']
+        return os.path.join(self.__tmpdir, tile_name)
+    def build_step_output_filename(self, meta):
+        filename = meta['basename'].replace(".tiff", "_calOk.tiff")
+        return os.path.join(self.output_directory(meta), filename)
     def parameters(self, meta):
         return {
                 'ram'           : str(self.__ram_per_process),
@@ -131,8 +140,13 @@ class CutBorders(StepFactory):
     def __init__(self, cfg):
         super().__init__('ClampROI')
         self.__ram_per_process    = cfg.ram_per_process
-    def get_output_filename(self, meta):
-        return meta['basename'].replace(".tiff", "_OrthoReady.tiff")
+        self.__tmpdir             = cfg.tmpdir
+    def output_directory(self, meta):
+        tile_name = meta['tile_name']
+        return os.path.join(self.__tmpdir, tile_name)
+    def build_step_output_filename(self, meta):
+        filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
+        return os.path.join(self.output_directory(meta), filename)
     def parameters(self, meta):
         return {
                 'ram'              : str(self.__ram_per_process),
@@ -171,7 +185,10 @@ class OrthoRectify(StepFactory):
         self.__grid_spacing       = cfg.grid_spacing
         self.__tmp_srtm_dir       = cfg.tmp_srtm_dir
         self.__tmpdir             = cfg.tmpdir
-    def get_output_filename(self, meta):
+    def output_directory(self, meta):
+        tile_name = meta['tile_name']
+        return os.path.join(self.__tmpdir, tile_name)
+    def build_step_output_filename(self, meta):
         # Will be get around in complete_meta
         return None
     def complete_meta(self, meta):
@@ -204,7 +221,7 @@ class OrthoRectify(StepFactory):
             lry     += 10000000.
 
         # TODO: mkdir cannot work in multiproc env...
-        working_directory = os.path.join(self.__tmpdir, tile_name)
+        working_directory = self.output_directory(meta)
         if os.path.exists(working_directory) == False:
             os.makedirs(working_directory)
         ortho_image_name = current_platform\
@@ -221,7 +238,7 @@ class OrthoRectify(StepFactory):
         meta['params.ortho'] = {
                 'opt.ram'          : str(self.__ram_per_process),
                 # 'progress'       : 'false',
-                # self.param_in      : in_filename(meta),
+                self.param_in      : in_filename(meta),
                 self.param_out     : out_filename,
                 'interpolator'     : 'nn',
                 'outputs.spacingx' : spacing,
@@ -257,9 +274,13 @@ class Concatenate(StepFactory):
     def __init__(self, cfg):
         super().__init__('Synthetize', param_in='il', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
-    def get_output_filename(self, meta):
+        self.__outdir             = cfg.output_preprocess
+    def output_directory(self, meta):
+        return self.__outdir
+    def build_step_output_filename(self, meta):
+        filename = meta['basename']
+        return os.path.join(self.output_directory(meta), filename)
         # logging.debug("meta is: %s", meta)
-        return meta['basename']
         # im0 = in_filename(meta)
         # output_image = im0[:-10]+"xxxxxx"+im0[-4:]
         # return output_image
@@ -285,8 +306,13 @@ class BuildBorderMask(StepFactory):
     def __init__(self, cfg):
         super().__init__('BandMath', param_in='il', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
-    def get_output_filename(self, meta):
-        return meta['basename'].replace(".tiff", "_BorderMask_TMP.tif")
+        self.__tmpdir             = cfg.tmpdir
+    def output_directory(self, meta):
+        tile_name = meta['tile_name']
+        return os.path.join(self.__tmpdir, tile_name)
+    def build_step_output_filename(self, meta):
+        filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
+        return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
         logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
@@ -311,10 +337,14 @@ class SmoothBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('BinaryMorphologicalOperation ', param_in='in', param_out='out')
+        super().__init__('BinaryMorphologicalOperation', param_in='in', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
-    def get_output_filename(self, meta):
-        return meta['basename'].replace(".tiff", "_BorderMask.tif")
+        self.__outdir             = cfg.output_preprocess
+    def output_directory(self, meta):
+        return self.__outdir
+    def build_step_output_filename(self, meta):
+        filename = meta['basename'].replace(".tif", "_BorderMask.tif")
+        return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
         logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
@@ -325,8 +355,10 @@ class SmoothBorderMask(StepFactory):
                 self.param_in           : in_filename(meta),
                 self.param_out          : out_filename(meta),
                 'structype'             : 'ball',
-                'structype.ball.xradius': 5,
-                'structype.ball.yradius': 5 ,
+                # 'structype.ball.xradius': 5,
+                # 'structype.ball.yradius': 5 ,
+                'xradius'               : 5,
+                'yradius'               : 5 ,
                 'filter'                : 'opening'
                 }
 
