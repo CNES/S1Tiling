@@ -23,7 +23,7 @@ It performs the following steps:
   1- Download S1 images from PEPS server
   2- Calibrate the S1 images to gamma0
   3- Orthorectify S1 images and cut their on geometric tiles
-  4- Concatenante images from the same orbit on the same tile
+  4- Concatenate images from the same orbit on the same tile
   5- Build mask files
   6- Filter images by using a multiimage filter
 
@@ -35,162 +35,35 @@ import pathlib
 import sys
 import glob
 import shutil
-import numpy as np
-from PIL import Image
-from subprocess import Popen
-import multiprocessing
+# import numpy as np
+# from PIL import Image
+# from subprocess import Popen
+# import multiprocessing
 import gdal, rasterio
 from rasterio.windows import Window
-import subprocess
-import datetime
+# import subprocess
+# import datetime
 import logging
-import logging.handlers
-from contextlib import redirect_stdout
-import otbApplication as otb
+# import logging.handlers
+# from contextlib import redirect_stdout
 from s1tiling import S1FileManager
 from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
 from s1tiling.configuration import Configuration
 
-def execute(cmd):
-    try:
-        logging.debug(cmd)
-        logger = logging.getLogger('root')
-        logger.write = lambda msg: logger.info(msg) if msg != '\n' else None
-        with redirect_stdout(logger):
-            subprocess.check_call(cmd, shell = True)
-    except subprocess.CalledProcessError as e:
-        logging.warning('WARNING : Erreur dans la commande : ')
-        logging.warning(e.returncode)
-        logging.warning(e.cmd)
-        logging.warning(e.output)
-
-def worker_config(q):
-    """
-    Worker configuration function called by Pool().
-
-    It takes care of initializing the queue handler in the subprocess.
-
-    Params:
-        :q: multiprocessing.Queue used for passing logging messages from worker to main process.
-    """
-    qh = logging.handlers.QueueHandler(q)
-    logger = logging.getLogger()
-    logger.addHandler(qh)
-
-def execute_command(params):
-    """
-    Main worker function executed by Sentinel1PreProcess.run_processing()
-
-    Params:
-        :p: list of two subparameters: job title + command to execute
-    """
-    title, cmd = params
-    logging.debug('%s # Starting %s', title, cmd)
-    proc = Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-    log, _ = proc.communicate()
-    level = logging.ERROR if proc.returncode else logging.DEBUG
-    for line in log.decode().split('\n'):
-        logging.log(level, line)
-    return title
+from s1tiling.otbpipeline import Processing, FirstStep, Store
+from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
 def remove_files(files):
     """
     Removes the files from the disk
     """
     logging.debug("Remove %s", files)
+    return
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
 
-class Pipeline(object):
-    def __init__(self, do_measure):
-        self.__pipeline = []
-        self.__do_measure = do_measure
-    def push(self, name, parameters):
-        self.__pipeline += [ {'appname': name, 'parameters': parameters}]
-    def do_execute(self):
-        assert(self.__pipeline) # shall not be empty!
-        app_names = []
-        last_app = None
-        for crt in self.__pipeline:
-            app_names += [crt['appname']]
-            app = otb.Registry.CreateApplication(crt['appname'])
-            assert(app)
-            crt['app'] = app
-            app.SetParameters(crt['parameters'])
-            if last_app:
-                app.ConnectImage('in', last_app, 'out')
-                in_memory = True
-                app.PropagateConnectMode(in_memory)
-            last_app = app
-
-        pipeline_name = '|'.join(app_names)
-        with Utils.ExecutionTimer('-> '+pipeline_name, self.__do_measure) as t:
-            assert(last_app)
-            last_app.ExecuteAndWriteOutput()
-        for crt in self.__pipeline:
-            del(crt['app']) # Make sure to release application memory
-            crt['app'] = None
-        return pipeline_name + ' > ' + crt['parameters']['out']
-
-def execute1(pipeline):
-    return pipeline.do_execute()
-
-class PoolOfOTBExecutions(object):
-    def __init__(self, title, do_measure, nb_procs, nb_threads, log_queue, log_queue_listener):
-        """
-        constructor
-        """
-        self.__pool = []
-        self.__title               = title
-        self.__do_measure          = do_measure
-        self.__nb_procs            = nb_procs
-        self.__nb_threads          = nb_threads
-        self.__log_queue           = log_queue
-        self.__log_queue_listener  = log_queue_listener
-
-    def new_pipeline(self):
-        pipeline = Pipeline(self.__do_measure)
-        self.__pool += [pipeline]
-        return pipeline
-
-    def process(self):
-        nb_cmd = len(self.__pool)
-
-        os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(self.__nb_threads)
-        with multiprocessing.Pool(self.__nb_procs, worker_config, [self.__log_queue]) as pool:
-            self.__log_queue_listener.start()
-            for count, result in enumerate(pool.imap_unordered(execute1, self.__pool), 1):
-                logging.info("%s correctly finished", result)
-                logging.info(' --> %s... %s%%', self.__title, count*100./nb_cmd)
-
-            pool.close()
-            pool.join()
-            self.__log_queue_listener.stop()
-
-
-def needToBeCrop(image_name, thr):
-    """
-    Deprecated in favor of has_too_many_NoData
-    """
-    imgpil = Image.open(image_name)
-    ima = np.asarray(imgpil)
-    nbNan = len(np.argwhere(ima==0))
-    return nbNan>thr
-
-
-def has_too_many_NoData(image, threshold, nodata):
-    """
-    Analyses whether an image contains NO DATA.
-
-        :param image:     np.array image to analyse
-        :param threshold: number of NoData searched
-        :param nodata:    no data value
-        :return:          whether the number of no-data pixel > threshold
-    """
-    nbNoData = len(np.argwhere(image==nodata))
-    return nbNoData>threshold
 
 class Sentinel1PreProcess():
     """ This class handles the processing for Sentinel1 ortho-rectification """
@@ -203,396 +76,49 @@ class Sentinel1PreProcess():
         self.cfg=cfg
 
     def generate_border_mask(self, all_ortho):
-                """
-                This method generate the border mask files from the
-                orthorectified images.
-
-                Args:
-                  all_ortho: A list of ortho-rectified S1 images
-                  """
-                cmd_bandmath = []
-                cmd_morpho = []
-                files_to_remove = []
-                logging.info("Generate Mask ...")
-                for current_ortho in all_ortho:
-                    if "vv" not in current_ortho:
-                        continue
-                    working_directory, basename = os.path.split(current_ortho)
-                    name_border_mask            = basename.replace(".tif", "_BorderMask.tif")
-                    name_border_mask_tmp        = basename.replace(".tif", "_BorderMask_TMP.tif")
-                    pathname_border_mask_tmp    = os.path.join(working_directory, name_border_mask_tmp)
-
-                    files_to_remove.append(pathname_border_mask_tmp)
-                    cmd_bandmath.append(['    Mask building of '+name_border_mask_tmp,
-                        'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
-                        +str(self.cfg.ram_per_process)\
-                        +' -il '+current_ortho\
-                        +' -out '+pathname_border_mask_tmp\
-                        +' uint8 -exp "im1b1==0?0:1"'])
-
-                    #due to threshold approximation
-
-                    cmd_morpho.append(['    Mask smoothing of '+name_border_mask,
-                        'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
-                        +str(self.cfg.ram_per_process)+" -progress false -in "\
-                        +pathname_border_mask_tmp\
-                        +" -out "\
-                        +os.path.join(working_directory, name_border_mask)\
-                        +" uint8 -structype ball"\
-                        +" -structype.ball.xradius 5"\
-                        +" -structype.ball.yradius 5 -filter opening"])
-
-                self.run_processing(cmd_bandmath, title="   Mask building")
-                self.run_processing(cmd_morpho,   title="   Mask smoothing")
-                remove_files(files_to_remove)
-                logging.info("Generate Mask done")
-
-    def do_calibrate_and_cut(self, raw_raster):
         """
-        This method:
-        - performs radiometric calibration of raw S1 images,
-        - and remove pixels on the image borders.
-        Args:
-          :raw_raster: list of raw S1 raster file to calibrate
-        """
-        cut_overlap_range = 1000 # Number of columns to cut on the sides. Here 500pixels = 5km
-        cut_overlap_azimuth = 1600 # Number of lines to cut at top or bottom
-        thr_nan_for_cropping = cut_overlap_range*2 #Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
-
-        logging.info("Calibrate and Cut %s", raw_raster)
-
-        pool = PoolOfOTBExecutions('calibrate & cut', True, self.cfg.nb_procs, self.cfg.OTBThreads, self.cfg.log_queue, self.cfg.log_queue_listener)
-
-        for i in range(len(raw_raster)):
-            images = raw_raster[i][0].get_images_list()
-
-            # First we check whether the first and/or the last lines need to be cropped (set to 0 actually)
-            # TODO: no need to test this if none of the images need to be cut...
-            with rasterio.open(images[0]) as ds_reader:
-                xsize = ds_reader.width
-                ysize = ds_reader.height
-                north = ds_reader.read(1, window=Window(0, 100, xsize+1, 1))
-                south = ds_reader.read(1, window=Window(0, ysize-100, xsize+1, 1))
-
-            crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
-            crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
-            logging.debug("   => need to crop north: %s", crop1)
-            logging.debug("   => need to crop south: %s", crop2)
-
-            # Then we process of the images in the list
-            for image in images:
-                logging.debug(" - %s", image)
-                # TODO: makes sure it goes into the temp directory...
-                image_out = image.replace(".tiff", "_OrthoReady.tiff")
-                # First, skip the step if the associated OrthoReady image already exists
-                if os.path.exists(image_out):
-                    logging.info('   %s already exists => calibration|cut skipped', image_out)
-                    continue
-
-                pipeline = pool.new_pipeline()
-                # Parameters for the calibration application
-                params_calibration = {
-                        'ram'     : str(self.cfg.ram_per_process),
-                        # 'progress': 'false',
-                        'in'      : image,
-                        'lut'     : self.cfg.calibration_type,
-                        'noise'   : str(self.cfg.removethermalnoise).lower()
-                        }
-                pipeline.push('SARCalibration', params_calibration)
-                # Parameters for the cutting application
-                params_cut = {
-                        'ram'              : str(self.cfg.ram_per_process),
-                        # 'progress'         : False,
-                        'out'              : image_out,
-                        'threshold.x'      : cut_overlap_range,
-                        'threshold.y.start': cut_overlap_azimuth if crop1 else 0,
-                        'threshold.y.end'  : cut_overlap_azimuth if crop2 else 0,
-                        }
-                pipeline.push('ClampROI', params_cut)
-
-        logging.debug('Launch pipelines')
-        pool.process()
-
-    def cut_image_cmd(self, raw_raster):
-        """
-        This method removes pixels on the image borders.
-        Args:
-          raw_raster: list of raw S1 raster file to calibrate
-        """
-        logging.info("Cutting %s", raw_raster)
-
-        for i in range(len(raw_raster)):
-            logging.debug("    Cutting:"+str(int(float(i)/len(raw_raster)*100.))+"%")
-            # Check if all OrthoReady files have been already generated
-            images = raw_raster[i][0].get_images_list()
-            completed=True
-            for image in images:
-                completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
-            if completed:
-                logging.debug('    Cutting step not required => abort')
-                continue
-
-            image=images[0]
-            image = image.replace(".tiff","_calOk.tiff")
-            image_ok = image.replace("_calOk.tiff", "_OrthoReady.tiff")
-            ##image_mask=image.replace("_calOk.tiff","_mask.tiff")
-            im1_name = image.replace(".tiff","test_nord.tiff")
-            im2_name = image.replace(".tiff","test_sud.tiff")
-            raster = gdal.Open(image)
-            xsize = raster.RasterXSize
-            ysize = raster.RasterYSize
-            ## npmask= np.ones((ysize,xsize), dtype=bool)
-
-            cut_overlap_range = 1000 # Nombre de pixel a couper sur les cotes. ici 500 = 5km
-            cut_overlap_azimuth = 1600 # Nombre de pixels a couper sur le haut ou le bas
-            thr_nan_for_cropping = cut_overlap_range*2 #Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
-
-            execute('gdal_translate -srcwin 0 100 '+str(xsize)+' 1 '+image+' '+im1_name)
-            execute('gdal_translate -srcwin 0 '+str(ysize-100)+' '+str(xsize)+' 1 '+image+' '+im2_name)
-
-            crop1 = needToBeCrop(im1_name, thr_nan_for_cropping)
-            crop2 = needToBeCrop(im2_name, thr_nan_for_cropping)
-
-            ##npmask[:,0:cut_overlap_range]=0 # Coupe W
-            ##npmask[:,(xsize-cut_overlap_range):]=0 # Coupe E
-            ##if crop1 : npmask[0:cut_overlap_azimuth,:]=0 # Coupe N
-            ##if crop2 : npmask[ysize-cut_overlap_azimuth:,:]=0 # Coupe S
-
-            ##driver = gdal.GetDriverByName("GTiff")
-            ##outdata = driver.Create(image_mask, xsize, ysize, 1, gdal.GDT_Byte)
-            ##outdata.SetGeoTransform(raster.GetGeoTransform())##sets same geotransform as input
-            ##outdata.SetProjection(raster.GetProjection())##sets same projection as input
-            ##outdata.GetRasterBand(1).WriteArray(npmask)
-            ##outdata.SetGCPs(raster.GetGCPs(),raster.GetGCPProjection())
-            ##outdata.FlushCache() ##saves to disk!!
-            ##outdata = None
-
-            ##files_to_remove = [image_mask, im1_name, im2_name]
-            files_to_remove = [im1_name, im2_name]
-            all_cmd=[]
-            for image in images:
-                im_calok = image.replace(".tiff", "_calOk.tiff")
-                im_ortho = image.replace(".tiff", "_OrthoReady.tiff")
-                ##cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath ' \
-                ##               +"-ram "+str(self.cfg.ram_per_process)\
-                ##               +" -progress false " \
-                ##               +'-il {} {} -out {} -exp "im1b1*im2b1"'.format(im_calok, image_mask,im_ortho)
-                cmd='export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_ClampROI' \
-                               +" -ram "+str(self.cfg.ram_per_process)\
-                               +(" -threshold.x {}" \
-                               +" -threshold.y.start {}" \
-                               +" -threshold.y.end {}" \
-                               +" -progress false" \
-                               +' -in {} -out {}').format(cut_overlap_range,
-                                      cut_overlap_azimuth if crop1 else 0,
-                                      cut_overlap_azimuth if crop2 else 0,
-                                      im_calok, im_ortho)
-                all_cmd.append(['    Cutting of '+im_ortho, cmd])
-                files_to_remove += [image, im_calok]
-
-            self.run_processing(all_cmd, title="   Cutting: Apply mask")
-
-            # TODO: add geoms
-            remove_files(files_to_remove)
-
-        logging.info("Cutting done ")
-
-    def do_calibration_cmd(self, raw_raster):
-        """
-        This method performs radiometric calibration of raw S1 images.
+        This method generate the border mask files from the
+        orthorectified images.
 
         Args:
-          raw_raster: list of raw S1 raster file to calibrate
-        """
+          all_ortho: A list of ortho-rectified S1 images
+          """
+        cmd_bandmath = []
+        cmd_morpho = []
         files_to_remove = []
-        all_cmd = []
-        logging.info("Calibration %s",raw_raster)
-
-        for i in range(len(raw_raster)):
-
-            # Check if all OrthoReady files have been already generated
-            images = raw_raster[i][0].get_images_list()
-            completed=True
-            for image in images:
-                logging.debug('* Check calibration for %s', image)
-                completed = completed and os.path.exists(image.replace(".tiff","_OrthoReady.tiff"))
-            if completed:
-                logging.debug('    Calibration step not required => abort')
+        logging.info("Generate Mask ...")
+        for current_ortho in all_ortho:
+            if "vv" not in current_ortho:
                 continue
+            working_directory, basename = os.path.split(current_ortho)
+            name_border_mask            = basename.replace(".tif", "_BorderMask.tif")
+            name_border_mask_tmp        = basename.replace(".tif", "_BorderMask_TMP.tif")
+            pathname_border_mask_tmp    = os.path.join(working_directory, name_border_mask_tmp)
 
-            for image in images:
-                image_ok = image.replace(".tiff", "_calOk.tiff")
-                #UNCOMMENT TO DELETE RAW DATA
-                # files_to_remove += [image]
-                all_cmd.append(['    Calibration of '+image,
-                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_SARCalibration"\
-                    +" -ram "+str(self.cfg.ram_per_process)\
-                    +" -progress false -in "+image\
-                    +" -out "+image_ok+' -lut '+self.cfg.calibration_type \
-                    +" -noise "+str(self.cfg.removethermalnoise).lower()])
+            files_to_remove.append(pathname_border_mask_tmp)
+            cmd_bandmath.append(['    Mask building of '+name_border_mask_tmp,
+                'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
+                +str(self.cfg.ram_per_process)\
+                +' -il '+current_ortho\
+                +' -out '+pathname_border_mask_tmp\
+                +' uint8 -exp "im1b1==0?0:1"'])
 
-        self.run_processing(all_cmd, title="   Calibration "+self.cfg.calibration_type)
+            #due to threshold approximation
 
-        # TODO: add geoms
+            cmd_morpho.append(['    Mask smoothing of '+name_border_mask,
+                'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
+                +str(self.cfg.ram_per_process)+" -progress false -in "\
+                +pathname_border_mask_tmp\
+                +" -out "\
+                +os.path.join(working_directory, name_border_mask)\
+                +" uint8 -structype ball"\
+                +" -structype.ball.xradius 5"\
+                +" -structype.ball.yradius 5 -filter opening"])
+
+        self.run_processing(cmd_bandmath, title="   Mask building")
+        self.run_processing(cmd_morpho,   title="   Mask smoothing")
         remove_files(files_to_remove)
-
-        logging.info("Calibration done")
-
-    def do_ortho_by_tile(self, raster_list, tile_name, tmp_srtm_dir):
-        """
-        This method performs ortho-rectification of a list of
-        s1 images on given tile.
-
-        Args:
-          raster_list: list of raw S1 raster file to orthorectify
-          tile_name: Name of the MGRS tile to generate
-        """
-        all_cmd = []
-        output_files_list = []
-        logging.info("Start orthorectification of %s",tile_name)
-        for raster, tile_origin in raster_list:
-            logging.debug("- Otho: raster: %s; tile_origin: %s", raster, tile_origin)
-            manifest = raster.get_manifest()
-            logging.debug("  -> manifest: %s", manifest)
-            logging.debug("  -> images: %s", raster.get_images_list())
-
-            for image in raster.get_images_list():
-                image_ok = image.replace(".tiff", "_OrthoReady.tiff")
-                current_date            = Utils.get_date_from_s1_raster(image)
-                current_polar           = Utils.get_polar_from_s1_raster(image)
-                current_platform        = Utils.get_platform_from_s1_raster(image)
-                current_orbit_direction = Utils.get_orbit_direction(manifest)
-                current_relative_orbit  = Utils.get_relative_orbit(manifest)
-                out_utm_zone            = tile_name[0:2]
-                out_utm_northern        = (tile_name[2] >= 'N')
-                working_directory       = os.path.join(self.cfg.output_preprocess, tile_name)
-                if os.path.exists(working_directory) == False:
-                    os.makedirs(working_directory)
-
-                in_epsg = 4326
-                out_epsg = 32600+int(out_utm_zone)
-                if not out_utm_northern:
-                    out_epsg = out_epsg+100
-
-                x_coord, y_coord, _  = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
-                lrx, lry, _          = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
-
-                if not out_utm_northern and y_coord < 0:
-                    y_coord += 10000000.
-                    lry     += 10000000.
-
-                ortho_image_name = current_platform\
-                                   +"_"+tile_name\
-                                   +"_"+current_polar\
-                                   +"_"+current_orbit_direction\
-                                   +'_{:0>3d}'.format(current_relative_orbit)\
-                                   +"_"+current_date\
-                                   +".tif"
-
-                ortho_image_pathname = os.path.join(working_directory, ortho_image_name)
-                if not os.path.exists(ortho_image_pathname) and not os.path.exists(os.path.join(working_directory,ortho_image_name[:-11]+"txxxxxx.tif")):
-                    cmd = 'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_OrthoRectification -opt.ram "\
-                      +str(self.cfg.ram_per_process)\
-                      +" -progress false -io.in "+image_ok\
-                      +" -io.out \""+ortho_image_pathname\
-                      +"?&writegeom=false&gdal:co:COMPRESS=DEFLATE\" -interpolator nn -outputs.spacingx "\
-                      +str(self.cfg.out_spatial_res)\
-                      +" -outputs.spacingy -"+str(self.cfg.out_spatial_res)\
-                      +" -outputs.sizex "\
-                      +str(int(round(abs(lrx-x_coord)/self.cfg.out_spatial_res)))\
-                      +" -outputs.sizey "\
-                      +str(int(round(abs(lry-y_coord)/self.cfg.out_spatial_res)))\
-                      +" -opt.gridspacing "+str(self.cfg.grid_spacing)\
-                      +" -map utm -map.utm.zone "+str(out_utm_zone)\
-                      +" -map.utm.northhem "+str(out_utm_northern).lower()\
-                      +" -outputs.ulx "+str(x_coord)\
-                      +" -outputs.uly "+str(y_coord)\
-                      +" -elev.dem "+tmp_srtm_dir+" -elev.geoid "+self.cfg.GeoidFile
-
-                    all_cmd.append(['    Orthorectification of '+ortho_image_name, cmd])
-                    output_files_list.append(ortho_image_pathname)
-
-        self.run_processing(all_cmd, title="   Orthorectification")
-
-        # Writing the metadata
-        for f in os.listdir(working_directory):
-            fullpath = os.path.join(working_directory, f)
-            if os.path.isfile(fullpath) and f.startswith('s1') and f.endswith('.tif'):
-                dst = gdal.Open(fullpath, gdal.GA_Update)
-                oin = f.split('_')
-
-                dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', tile_name)
-                dst.SetMetadataItem('PROCESSED_DATETIME', str(datetime.datetime.now().strftime('%Y:%m:%d')))
-                dst.SetMetadataItem('ORTHORECTIFIED', 'true')
-                dst.SetMetadataItem('CALIBRATION', str(self.cfg.calibration_type))
-                dst.SetMetadataItem('SPATIAL_RESOLUTION', str(self.cfg.out_spatial_res))
-                dst.SetMetadataItem('IMAGE_TYPE', 'GRD')
-                dst.SetMetadataItem('FLYING_UNIT_CODE', oin[0])
-                dst.SetMetadataItem('POLARIZATION', oin[2])
-                dst.SetMetadataItem('ORBIT', oin[4])
-                dst.SetMetadataItem('ORBIT_DIRECTION', oin[3])
-                if oin[5][9] == 'x':
-                    date = oin[5][0:4]+':'+oin[5][4:6]+':'+oin[5][6:8]+' 00:00:00'
-                else:
-                    date = oin[5][0:4]+':'+oin[5][4:6]+':'+oin[5][6:8]+' '+oin[5][9:11]+':'+oin[5][11:13]+':'+oin[5][13:15]
-                dst.SetMetadataItem('ACQUISITION_DATETIME', date)
-
-        return output_files_list
-
-    def concatenate_images(self,tile):
-        """
-        This method concatenates images sub-swath for all generated tiles.
-        """
-        logging.info("Start concatenation of %s",tile)
-        cmd_list = []
-        files_to_remove = []
-
-        image_list = [i.name for i in Utils.list_files(os.path.join(self.cfg.output_preprocess, tile))
-                if (len(i.name) == 40 and "xxxxxx" not in i.name)]
-        image_list.sort()
-
-        while len(image_list) > 1:
-            image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
-
-            if len(image_sublist) >1 :
-                images_to_concatenate=[os.path.join(self.cfg.output_preprocess, tile,i) for i in image_sublist]
-                files_to_remove += images_to_concatenate
-                output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
-
-                ### build the expression for BandMath for concanetation of many images
-                ### for each pixel, the concatenation consists in selecting the first non-zero value in the time serie
-                ##expression="(im%sb1!=0 ? im%sb1 : 0)" % (str(len(images_to_concatenate)),str(len(images_to_concatenate)))
-                ##for i in range(len(images_to_concatenate)-1,0,-1):
-                ##    expression="(im%sb1!=0 ? im%sb1 : %s)" % (str(i),str(i),expression)
-                ##cmd_list.append(['    Concatenation of '+output_image,
-                ##    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
-                ##    +str(self.cfg.ram_per_process)\
-                ##    +' -il '+' '.join(images_to_concatenate)\
-                ##    +' -out '+output_image\
-                ##    +' -exp "'+expression+'"'])
-                cmd_list.append(['    Concatenation of '+output_image,
-                    'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_Synthetize -progress false -ram '\
-                    +str(self.cfg.ram_per_process)\
-                    +' -il '+' '.join(images_to_concatenate)\
-                    +' -out '+output_image])
-
-                if self.cfg.mask_cond:
-                    if "vv" in image_list[0]:
-                        images_msk_to_concatenate = [i.replace(".tif", "_BorderMask.tif") for i in images_to_concatenate]
-                        files_to_remove += images_msk_to_concatenate
-                        cmd_list.append(['    Concatenation of '+output_image+' mask',
-                            'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -progress false -ram '\
-                            +str(self.cfg.ram_per_process)\
-                            +' -il '+' '.join(images_msk_to_concatenate)\
-                            +' -out '+output_image.replace(".tif", "_BorderMask.tif")\
-                            +' -exp "'+expression+'"'])
-
-            for i in image_sublist:
-                image_list.remove(i)
-
-        self.run_processing(cmd_list, "   Concatenation")
-
-        remove_files(files_to_remove)
+        logging.info("Generate Mask done")
 
     def run_processing(self, cmd_list, title=""):
         """
@@ -715,18 +241,23 @@ if not SRTM_OK:
     logging.critical("Some SRTM tiles are missing, exiting ...")
     sys.exit(1)
 
-# copy all needed SRTM file in a temp directory for orthorectification processing
-for srtm_tile in NEEDED_SRTM_TILES:
-    os.symlink(os.path.join(Cg_Cfg.srtm,srtm_tile),os.path.join(S1_FILE_MANAGER.tmpsrtmdir,srtm_tile))
-
-
 if not os.path.exists(Cg_Cfg.GeoidFile):
     logging.critical("Geoid file does not exists (%s), exiting ...", Cg_Cfg.GeoidFile)
     sys.exit(1)
 
+# copy all needed SRTM file in a temp directory for orthorectification processing
+# TODO: clean this tmp directory at the end!
+for srtm_tile in NEEDED_SRTM_TILES:
+    os.symlink(os.path.join(Cg_Cfg.srtm,srtm_tile),os.path.join(S1_FILE_MANAGER.tmpsrtmdir,srtm_tile))
+
+
 filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
 for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
+
+    working_directory = os.path.join(Cg_Cfg.tmpdir, tile_it)
+    if not os.path.exists(working_directory):
+        os.makedirs(working_directory)
 
     logging.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
 
@@ -745,28 +276,52 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
         intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
 
     if len(intersect_raster_list) == 0:
-        logging.info("No intersections with tile %s",tile_it)
+        logging.info("No intersection with tile %s",tile_it)
         continue
 
-    Horizontal = False
-    if Horizontal:
-        with Utils.ExecutionTimer("Calibration", True) as t:
-            S1_CHAIN.do_calibration_cmd(intersect_raster_list)
-        with Utils.ExecutionTimer("Cut Images", True) as t:
-            S1_CHAIN.cut_image_cmd(intersect_raster_list)
-    else:
-        with Utils.ExecutionTimer("Calibrate & Cut Images", True) as t:
-            S1_CHAIN.do_calibrate_and_cut(intersect_raster_list)
+    Cg_Cfg.tmp_srtm_dir = S1_FILE_MANAGER.tmpsrtmdir
+    with Utils.ExecutionTimer("Calibration|Cut|Ortho", True) as t:
+        process = Processing(Cg_Cfg)
+        process.register_pipeline(
+                [AnalyseBorders, Calibrate, CutBorders, OrthoRectify])
+        inputs = []
+        for raster, tile_origin in intersect_raster_list:
+            manifest = raster.get_manifest()
+            for image in raster.get_images_list():
+                start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image)
+                inputs += [start]
+        # process.process(inputs)
 
-    with Utils.ExecutionTimer("Ortho", True) as t:
-        raster_tiles_list = S1_CHAIN.do_ortho_by_tile(\
-                intersect_raster_list, tile_it,S1_FILE_MANAGER.tmpsrtmdir)
+    msg = "Concatenate"
+    steps = [Concatenate]
     if Cg_Cfg.mask_cond:
-        with Utils.ExecutionTimer("Generate Border Mask", True) as t:
-            S1_CHAIN.generate_border_mask(raster_tiles_list)
+        steps += [Store, BuildBorderMask, SmoothBorderMask]
+        msg += "|Generate Border Mask"
+    with Utils.ExecutionTimer(msg, True) as t:
+        inputs = []
+        image_list = [i.name for i in Utils.list_files(os.path.join(Cg_Cfg.tmpdir, tile_it))
+                if (len(i.name) == 40 and "xxxxxx" not in i.name)]
+        image_list.sort()
 
-    with Utils.ExecutionTimer("Concatenate", True) as t:
-        S1_CHAIN.concatenate_images(tile_it)
+        while len(image_list) > 1:
+            image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
+
+            if len(image_sublist) >1 :
+                images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, tile_it,i) for i in image_sublist]
+                output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
+
+            start = FirstStep(tile_name=tile_it, basename=output_image, out_filename=images_to_concatenate)
+            inputs += [start]
+            for i in image_sublist:
+                image_list.remove(i)
+            logging.info("Concat %s --> %s", image_sublist, output_image)
+        process = Processing(Cg_Cfg)
+        process.register_pipeline(steps)
+        process.process(inputs)
+
+    ##if Cg_Cfg.mask_cond:
+    ##    with Utils.ExecutionTimer("Generate Border Mask", True) as t:
+    ##        S1_CHAIN.generate_border_mask(raster_tiles_list)
 
     """
     if Cg_Cfg.filtering_activated:
