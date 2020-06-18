@@ -262,6 +262,10 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
     if not os.path.exists(working_directory):
         os.makedirs(working_directory)
 
+    out_dir = os.path.join(Cg_Cfg.output_preprocess, tile_it)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
     logging.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
 
     # keep only the 500's newer files
@@ -286,14 +290,15 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
     with Utils.ExecutionTimer("Calibration|Cut|Ortho", True) as t:
         process = Processing(Cg_Cfg)
         process.register_pipeline(
-                [AnalyseBorders, Calibrate, CutBorders, OrthoRectify])
+                [AnalyseBorders, Calibrate, CutBorders, Store, OrthoRectify])
+                # [AnalyseBorders, Calibrate, CutBorders, OrthoRectify])
         inputs = []
         for raster, tile_origin in intersect_raster_list:
             manifest = raster.get_manifest()
             for image in raster.get_images_list():
                 start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image, dryrun=dryrun)
                 inputs += [start]
-        # process.process(inputs)
+        process.process(inputs)
 
     msg = "Concatenate"
     steps = [Concatenate]
