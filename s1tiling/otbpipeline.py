@@ -30,6 +30,22 @@ import otbApplication as otb
 import s1tiling.Utils as Utils
 
 
+def as_app_shell_param(p):
+    """
+    Internal function used to stringigy value to appear like a a parameter for a program launched through shell.
+
+    foo     -> 'foo'
+    42      -> 42
+    [a, 42] -> 'a' 42
+    """
+    if type(p) is list:
+        return ' '.join(as_app_shell_param(e) for e in p)
+    elif type(p) is int:
+        return p
+    else:
+        return "'%s'" %(p,)
+
+
 def worker_config(q):
     """
     Worker configuration function called by Pool().
@@ -182,12 +198,7 @@ class Step(_StepWithOTBApplication):
         """
         Method to call on the last step of a pipeline.
         """
-        assert(self._app)
-        if not self.meta.get('dryrun', False):
-            self._app.ExecuteAndWriteOutput()
-        if 'post' in self.meta:
-            for hook in meta['post']:
-                hook(self.meta)
+        raise TypeError("A normal Step is not meant to be the last step of a pipeline!!!")
 
 
 class StepFactory(ABC):
@@ -238,6 +249,7 @@ class StepFactory(ABC):
         meta = meta.copy()
         meta['in_filename']  = out_filename(meta)
         meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['pipe'] = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
     def create_step(self, input: Step, in_memory: bool):
@@ -254,21 +266,22 @@ class StepFactory(ABC):
             else:
                 app.ConnectImage(self.param_in, input.app, input.param_out)
                 this_step_is_in_memory = in_memory and not input.shall_store
-                logging.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
+                # logging.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
                 app.PropagateConnectMode(this_step_is_in_memory)
-                # When this is not a first step, we need to clear the input parameters
-                # from its list, otherwise some OTB applications may comply
-                del parameters[self.param_in]
+                if this_step_is_in_memory:
+                    # When this is not a store step, we need to clear the input parameters
+                    # from its list, otherwise some OTB applications may comply
+                    del parameters[self.param_in]
+
 
             self.set_output_pixel_type(app, meta)
-            logging.debug('Params: %s: %s', self.appname, parameters)
+            logging.debug('Register app: %s %s', self.appname, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
             app.SetParameters(parameters) # ordre à vérifier!
             meta['param_out'] = self.param_out
             return Step(app, **meta)
         else:
             # Return previous app?
             return AbstractStep(**meta)
-
 
 
 class Pipeline(object):
@@ -307,14 +320,9 @@ class Pipeline(object):
             steps += [step]
             app_names += [crt.appname]
 
-        pipeline_name = '|'.join(app_names)
-        # TODO: if last output file already exists: permit to ignore...
-        with Utils.ExecutionTimer('-> '+pipeline_name, self.__do_measure) as t:
-            assert(steps)
-            # TODO: catch execute failure, and report it!
-            steps[-1].ExecuteAndWriteOutput()
         for step in steps:
             step.release_app() # Make sure to release application memory
+        pipeline_name = '|'.join(app_names)
         return pipeline_name + ' > ' + steps[-1].out_filename
 
 
@@ -380,7 +388,9 @@ class Processing(object):
         # self.__factory_steps      = []
 
     def register_pipeline(self, factory_steps):
-        self.__factory_steps = factory_steps
+        # Automatically append the final storing step
+        # TODO: check there is only one at the end of the method
+        self.__factory_steps = factory_steps + [Store]
 
     def process(self, startpoints):
         # TODO: forward the exact config params: thr, process
@@ -410,6 +420,7 @@ class FirstStep(AbstractStep):
             self._meta['out_filename'] = self._meta['basename']
         working_directory, basename = os.path.split(self._meta['basename'])
         self._meta['basename'] = basename
+        self._meta['pipe'] = [self._meta['out_filename']]
 
 
 class StoreStep(_StepWithOTBApplication):
@@ -423,7 +434,18 @@ class StoreStep(_StepWithOTBApplication):
         return True
 
     def ExecuteAndWriteOutput(self):
-        raise TypeError("A StoreStep is not meant to be the last step of a pipeline!!!")
+        assert(self._app)
+        do_measure = True # TODO
+        # logging.debug('meta pipe: %s', self.meta['pipe'])
+        pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+        with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
+            if not self.meta.get('dryrun', False):
+                # TODO: catch execute failure, and report it!
+                self._app.ExecuteAndWriteOutput()
+        if 'post' in self.meta:
+            for hook in meta['post']:
+                hook(self.meta)
+        self.meta['pipe'] = [self.out_filename]
 
 
 class Store(StepFactory):
@@ -434,7 +456,9 @@ class Store(StepFactory):
     def __init__(self, appname, *argv, **kwargs):
         super().__init__("(StoreOnFile)", *argv, **kwargs)
     def create_step(self, input: Step, in_memory: bool):
-        return StoreStep(input)
+        res = StoreStep(input)
+        res.ExecuteAndWriteOutput()
+        return res
 
     # abstract methods...
     def parameters(self, meta):

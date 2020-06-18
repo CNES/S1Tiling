@@ -276,7 +276,7 @@ class Concatenate(StepFactory):
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
     def output_directory(self, meta):
-        return self.__outdir
+        return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
         filename = meta['basename']
         return os.path.join(self.output_directory(meta), filename)
@@ -314,13 +314,13 @@ class BuildBorderMask(StepFactory):
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
         return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
-        logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
     def parameters(self, meta):
         return {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
-                self.param_in      : [in_filename(meta), ''],
+                self.param_in      : [in_filename(meta)],
                 self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
                 }
@@ -341,12 +341,12 @@ class SmoothBorderMask(StepFactory):
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
     def output_directory(self, meta):
-        return self.__outdir
+        return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tif", "_BorderMask.tif")
         return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
-        logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
     def parameters(self, meta):
         return {
