@@ -117,7 +117,7 @@ class Calibrate(StepFactory):
                 'ram'           : str(self.__ram_per_process),
                 # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
-                self.param_out  : out_filename(meta),
+                # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
                 'noise'         : str(self.__removethermalnoise).lower()
                 }
@@ -152,7 +152,7 @@ class CutBorders(StepFactory):
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
-                self.param_out     : out_filename(meta),
+                # self.param_out     : out_filename(meta),
                 'threshold.x'      : meta['cut']['threshold.x'],
                 'threshold.y.start': meta['cut']['threshold.y.start'],
                 'threshold.y.end'  : meta['cut']['threshold.y.end']
@@ -235,11 +235,12 @@ class OrthoRectify(StepFactory):
         out_filename = os.path.join(working_directory, ortho_image_name)
         meta['out_filename'] = out_filename
         spacing = self.__out_spatial_res
+        logging.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         meta['params.ortho'] = {
                 'opt.ram'          : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
-                self.param_out     : out_filename,
+                # self.param_out     : out_filename,
                 'interpolator'     : 'nn',
                 'outputs.spacingx' : spacing,
                 'outputs.spacingy' : -self.__out_spatial_res,
@@ -289,7 +290,7 @@ class Concatenate(StepFactory):
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
-                self.param_out     : out_filename(meta),
+                # self.param_out     : out_filename(meta),
                 }
 
 
@@ -321,7 +322,7 @@ class BuildBorderMask(StepFactory):
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : [in_filename(meta)],
-                self.param_out     : out_filename(meta),
+                # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
                 }
 

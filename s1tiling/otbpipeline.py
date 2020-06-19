@@ -441,6 +441,7 @@ class StoreStep(_StepWithOTBApplication):
         with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
             if not self.meta.get('dryrun', False):
                 # TODO: catch execute failure, and report it!
+                self._app.SetParameterString(self.param_out, self.out_filename)
                 self._app.ExecuteAndWriteOutput()
         if 'post' in self.meta:
             for hook in meta['post']:
