@@ -252,7 +252,7 @@ class StepFactory(ABC):
         meta['pipe'] = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
-    def create_step(self, input: Step, in_memory: bool):
+    def create_step(self, input: Step, in_memory: bool, previous_steps):
         # TODO: handle filename transformations
         # TODO: distinguish step description & step
         meta = self.complete_meta(input.meta)
@@ -316,12 +316,12 @@ class Pipeline(object):
         app_names = [str(self.__input.out_filename)]
         steps     = [self.__input]
         for crt in self.__pipeline:
-            step = crt.create_step(steps[-1], self.__in_memory)
+            step = crt.create_step(steps[-1], self.__in_memory, steps)
             steps += [step]
             app_names += [crt.appname]
 
         for step in steps:
-            step.release_app() # Make sure to release application memory
+            step.release_app() # should not make any difference now...
         pipeline_name = '|'.join(app_names)
         return pipeline_name + ' > ' + steps[-1].out_filename
 
@@ -456,9 +456,14 @@ class Store(StepFactory):
     """
     def __init__(self, appname, *argv, **kwargs):
         super().__init__("(StoreOnFile)", *argv, **kwargs)
-    def create_step(self, input: Step, in_memory: bool):
-        res = StoreStep(input)
-        res.ExecuteAndWriteOutput()
+    def create_step(self, input: Step, in_memory: bool, previous_steps):
+        try:
+            res = StoreStep(input)
+            res.ExecuteAndWriteOutput()
+        finally:
+            # Collect memory now!
+            for s in previous_steps:
+                s.release_app()
         return res
 
     # abstract methods...
