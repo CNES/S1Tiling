@@ -22,6 +22,7 @@
 """ This module contains various utility functions"""
 
 import ogr
+import osgeo # To test __version__
 from osgeo import osr
 import xml.etree.ElementTree as ET
 from timeit import default_timer as timer
@@ -123,18 +124,28 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
       a list of tuples representing the converted coordinates
     """
     tuple_out = []
-    for in_coord in tuple_list:
-        lon = in_coord[0]
-        lat = in_coord[1]
 
+    if tuple_list:
         in_spatial_ref = osr.SpatialReference()
         in_spatial_ref.ImportFromEPSG(in_epsg)
         out_spatial_ref = osr.SpatialReference()
         out_spatial_ref.ImportFromEPSG(out_epsg)
+        if int(osgeo.__version__[0]) >= 3:
+            # GDAL 2.0 and GDAL 3.0 don't take the CoordinateTransformation() parameters in the same order
+            # https://github.com/OSGeo/gdal/issues/1546
+            #
+            # GDAL 3 changes axis order: https://github.com/OSGeo/gdal/issues/1546
+            in_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+            # out_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
+    for in_coord in tuple_list:
+        lon = in_coord[0]
+        lat = in_coord[1]
 
         coord_trans = osr.CoordinateTransformation(in_spatial_ref,\
                                                    out_spatial_ref)
         coord = coord_trans.TransformPoint(lon, lat)
+        # logging.debug("convert_coord(lon=%s, lat=%s): %s, %s ==> %s", in_epsg, out_epsg, lon, lat, coord)
         tuple_out.append(coord)
     return tuple_out
 
