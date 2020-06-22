@@ -162,7 +162,7 @@ TILES_TO_PROCESS = []
 
 ALL_REQUESTED = False
 
-for tile_it in Cg_Cfg.tiles_list:
+for tile_it in Cg_Cfg.tile_list:
     logging.info('Requesting to process tile %s', tile_it)
     if tile_it == "ALL":
         ALL_REQUESTED = True
@@ -303,7 +303,6 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
     msg = "Concatenate"
     steps = [Concatenate]
     if Cg_Cfg.mask_cond:
-        # steps += [BuildBorderMask, SmoothBorderMask]
         steps += [Store, BuildBorderMask, SmoothBorderMask]
         msg += "|Generate Border Mask"
     with Utils.ExecutionTimer(msg, True) as t:
@@ -330,7 +329,7 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
 
     ##if Cg_Cfg.mask_cond:
     ##    with Utils.ExecutionTimer("Generate Border Mask", True) as t:
-    ##        S1_CHAIN.generate_border_mask(raster_tiles_list)
+    ##        S1_CHAIN.generate_border_mask(raster_tile_list)
 
     """
     if Cg_Cfg.filtering_activated:

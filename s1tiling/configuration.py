@@ -23,6 +23,7 @@ import logging
 import logging.handlers
 import pathlib
 import os
+import re
 import multiprocessing
 
 def init_logger(mode, paths):
@@ -132,12 +133,12 @@ class Configuration():
         self.border_threshold=config.getfloat('Processing','BorderThreshold')
         try:
            tiles_file=config.get('Processing','TilesListInFile')
-           self.tiles_list=open(tiles_file,'r').readlines()
-           self.tiles_list = [s.rstrip() for s in self.tiles_list]
-           logging.info("The following tiles will be processed: %s", self.tiles_list)
+           self.tile_list=open(tiles_file,'r').readlines()
+           self.tile_list = [s.rstrip() for s in self.tile_list]
+           logging.info("The following tiles will be processed: %s", self.tile_list)
         except:
            tiles=config.get('Processing','Tiles')
-           self.tiles_list = [s.strip() for s in tiles.split(", ")]
+           self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
         self.TileToProductOverlapRatio= config.getfloat('Processing','TileToProductOverlapRatio')
         self.nb_procs                 = config.getint('Processing','NbParallelProcesses')
