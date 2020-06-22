@@ -148,6 +148,7 @@ class S1FileManager(object):
         """ This method downloads the required images if pepsdownload is True"""
         import numpy as np
         if not self.cfg.pepsdownload:
+            logging.info("Using images already downloaded, as per configuration request")
             return
 
         if self.roi_by_tiles is not None:
