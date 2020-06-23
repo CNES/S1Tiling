@@ -76,6 +76,12 @@ def out_filename(meta):
     """
     return meta.get('out_filename')
 
+def out_extended_filename_complement(meta):
+    """
+    Helper accessor to the extended filename to use to produce the image.
+    """
+    return meta.get('out_extended_filename_complement', '')
+
 
 class AbstractStep(object):
     """
@@ -248,6 +254,10 @@ class StepFactory(ABC):
         pass
 
     def complete_meta(self, meta): # to be overridden
+        """
+        Other metadata not filled here:
+        - `out_extended_filename_complement`
+        """
         meta = meta.copy()
         meta['in_filename']  = out_filename(meta)
         meta['out_filename'] = self.build_step_output_filename(meta)
@@ -443,7 +453,7 @@ class StoreStep(_StepWithOTBApplication):
         with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
             if not self.meta.get('dryrun', False):
                 # TODO: catch execute failure, and report it!
-                self._app.SetParameterString(self.param_out, self.out_filename)
+                self._app.SetParameterString(self.param_out, self.out_filename+out_extended_filename_complement(self.meta))
                 self._app.ExecuteAndWriteOutput()
         if 'post' in self.meta:
             for hook in meta['post']:

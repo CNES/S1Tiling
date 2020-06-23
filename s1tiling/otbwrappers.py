@@ -230,8 +230,7 @@ class OrthoRectify(StepFactory):
                            +"_"+current_orbit_direction\
                            +'_{:0>3d}'.format(current_relative_orbit)\
                            +"_"+current_date\
-                           +".tif"\
-                           +"?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
+                           +".tif"
         out_filename = os.path.join(working_directory, ortho_image_name)
         meta['out_filename'] = out_filename
         spacing = self.__out_spatial_res
@@ -255,6 +254,7 @@ class OrthoRectify(StepFactory):
                 'elev.dem'         : self.__tmp_srtm_dir,
                 'elev.geoid'       : self.__GeoidFile
                 }
+        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
         # TODO
         # meta['post'] = get(meta, 'post', []) + add_ortho_metadata
         return meta
