@@ -307,6 +307,10 @@ class Concatenate(StepFactory):
         # Unlike output, concatenation result goes into tmp
         filename = meta['basename']
         return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
+    def complete_meta(self, meta):
+        meta = super().complete_meta(meta)
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        return meta
     def parameters(self, meta):
         return {
                 'ram'              : str(self.__ram_per_process),
