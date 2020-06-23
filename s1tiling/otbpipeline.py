@@ -280,6 +280,7 @@ class StepFactory(ABC):
             parameters = self.parameters(meta)
             if input.is_first_step:
                 parameters[self.param_in] = input.out_filename
+                lg_from = input.out_filename
             else:
                 app.ConnectImage(self.param_in, input.app, input.param_out)
                 this_step_is_in_memory = in_memory and not input.shall_store
@@ -289,10 +290,11 @@ class StepFactory(ABC):
                     # When this is not a store step, we need to clear the input parameters
                     # from its list, otherwise some OTB applications may comply
                     del parameters[self.param_in]
+                lg_from = 'app'
 
 
             self.set_output_pixel_type(app, meta)
-            logging.debug('Register app: %s %s', self.appname, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+            logging.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
             app.SetParameters(parameters) # ordre à vérifier!
             meta['param_out'] = self.param_out
             return Step(app, **meta)
@@ -504,6 +506,7 @@ class Store(StepFactory):
             res.ExecuteAndWriteOutput()
         finally:
             # Collect memory now!
+            res.release_app()
             for s in previous_steps:
                 s.release_app()
         return res
