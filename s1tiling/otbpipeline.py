@@ -29,6 +29,8 @@ import multiprocessing
 import otbApplication as otb
 import s1tiling.Utils as Utils
 
+# Global that permits to run the pipeline through gdb and debug OTB applications.
+DEBUG_OTB = False
 
 def as_app_shell_param(p):
     """
@@ -358,7 +360,7 @@ class PoolOfOTBExecutions(object):
 
         os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(self.__nb_threads)
         os.environ['OTB_LOGGER_LEVEL'] = 'DEBUG'
-        if False: # debug OTB applications with gdb => do not spawn process!
+        if DEBUG_OTB: # debug OTB applications with gdb => do not spawn process!
             execute1(self.__pool[0])
         else:
             with multiprocessing.Pool(self.__nb_procs, worker_config, [self.__log_queue]) as pool:
