@@ -22,6 +22,7 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
+import re
 from abc import ABC, abstractmethod
 import logging
 import logging.handlers
@@ -242,6 +243,10 @@ class StepFactory(ABC):
         pass
 
     @abstractmethod
+    def build_step_output_tmp_filename(self, meta):
+        pass
+
+    @abstractmethod
     def output_directory(self, meta):
         pass
 
@@ -261,11 +266,11 @@ class StepFactory(ABC):
         meta = meta.copy()
         meta['in_filename']  = out_filename(meta)
         meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['out_tmp_filename'] = self.build_step_output_tmp_filename(meta)
         meta['pipe'] = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
     def create_step(self, input: Step, in_memory: bool, previous_steps):
-        # TODO: handle filename transformations
         # TODO: distinguish step description & step
         meta = self.complete_meta(input.meta)
         if self.appname:
@@ -442,6 +447,15 @@ class StoreStep(_StepWithOTBApplication):
         self._out    = previous.param_out
 
     @property
+    def tmp_filename(self):
+        """
+        Property that returns the name of the file produced by the current step while the OTB application is running.
+        Eventually, it'll get renamed into `self.out_filename` if the application succeeds.
+        """
+        assert('out_tmp_filename' in self._meta)
+        return self._meta['out_tmp_filename']
+
+    @property
     def shall_store(self):
         return True
 
@@ -453,13 +467,29 @@ class StoreStep(_StepWithOTBApplication):
         with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
             if not self.meta.get('dryrun', False):
                 # TODO: catch execute failure, and report it!
-                self._app.SetParameterString(self.param_out, self.out_filename+out_extended_filename_complement(self.meta))
+                self._app.SetParameterString(self.param_out, self.tmp_filename+out_extended_filename_complement(self.meta))
                 self._app.ExecuteAndWriteOutput()
+                commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta:
             for hook in meta['post']:
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]
 
+def commit_otb_application(tmp_filename, out_filename):
+    """
+    Concluding step that validates the execution of a successful OTB application.
+    - Rename the tmp image into its final name
+    - Rename the associated geom file (if any as well)
+    """
+    res = os.replace(tmp_filename, out_filename)
+    logging.debug('Renaming: %s <- mv %s %s', res, tmp_filename, out_filename)
+    re_tiff = re.compile(r'\.tiff?$')
+    tmp_geom = re.sub(re_tiff, '.geom', tmp_filename)
+    if os.path.isfile(tmp_geom):
+        out_geom = re.sub(re_tiff, '.geom', out_filename)
+        res = os.replace(tmp_geom, out_geom)
+        logging.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
+    assert(not os.path.isfile(tmp_filename))
 
 class Store(StepFactory):
     """
@@ -485,6 +515,8 @@ class Store(StepFactory):
         raise TypeError("No way to ask for output dir of a StoreFactory")
     def build_step_output_filename(self, meta):
         raise TypeError("No way to ask for the output filename of a StoreFactory")
+    def build_step_output_tmp_filename(self, meta):
+        raise TypeError("No way to ask for the output temporary filename of a StoreFactory")
 
 
 

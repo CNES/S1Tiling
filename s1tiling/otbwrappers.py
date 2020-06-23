@@ -23,10 +23,12 @@ import numpy as np
 import tempfile
 import logging
 import os
+import re
 from s1tiling.otbpipeline import StepFactory, in_filename, out_filename
 from s1tiling import Utils
 import otbApplication as otb
 
+re_tiff = re.compile(r'\.tiff?$')
 
 def has_too_many_NoData(image, threshold, nodata):
     """
@@ -61,6 +63,8 @@ class AnalyseBorders(StepFactory):
         raise TypeError("An AnalyseBorders step don't produce anything!")
     def build_step_output_filename(self, meta):
         return meta['out_filename']
+    def build_step_output_tmp_filename(self, meta):
+        return self.build_step_output_filename(meta)
     def complete_meta(self, meta):
         meta = super().complete_meta(meta)
 
@@ -112,6 +116,9 @@ class Calibrate(StepFactory):
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tiff", "_calOk.tiff")
         return os.path.join(self.output_directory(meta), filename)
+    def build_step_output_tmp_filename(self, meta):
+        filename = meta['basename'].replace(".tiff", "_calOk.tmp.tiff")
+        return os.path.join(self.output_directory(meta), filename)
     def parameters(self, meta):
         return {
                 'ram'           : str(self.__ram_per_process),
@@ -146,6 +153,9 @@ class CutBorders(StepFactory):
         return os.path.join(self.__tmpdir, tile_name)
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
+        return os.path.join(self.output_directory(meta), filename)
+    def build_step_output_tmp_filename(self, meta):
+        filename = meta['basename'].replace(".tiff", "_OrthoReady.tmp.tiff")
         return os.path.join(self.output_directory(meta), filename)
     def parameters(self, meta):
         return {
@@ -191,6 +201,10 @@ class OrthoRectify(StepFactory):
     def build_step_output_filename(self, meta):
         # Will be get around in complete_meta
         return None
+    def build_step_output_tmp_filename(self, meta):
+        # Will be get around in complete_meta
+        return None
+
     def complete_meta(self, meta):
         meta = super().complete_meta(meta)
         # TODO: need manifest!!!
@@ -224,15 +238,17 @@ class OrthoRectify(StepFactory):
         working_directory = self.output_directory(meta)
         if os.path.exists(working_directory) == False:
             os.makedirs(working_directory)
-        ortho_image_name = current_platform\
+        ortho_image_name_fmt = current_platform\
                            +"_"+tile_name\
                            +"_"+current_polar\
                            +"_"+current_orbit_direction\
                            +'_{:0>3d}'.format(current_relative_orbit)\
                            +"_"+current_date\
-                           +".tif"
-        out_filename = os.path.join(working_directory, ortho_image_name)
-        meta['out_filename'] = out_filename
+                           +".%s"
+        out_filename_fmt = os.path.join(working_directory, ortho_image_name_fmt)
+        meta['out_filename']     = out_filename_fmt % ('tif', )
+        # ortho product goes to tmp dir, it's perfect for the tmp file as well
+        meta['out_tmp_filename'] = out_filename_fmt % ('tmp.tif', )
         spacing = self.__out_spatial_res
         logging.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         meta['params.ortho'] = {
@@ -276,6 +292,9 @@ class Concatenate(StepFactory):
         super().__init__('Synthetize', param_in='il', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
+        self.__tmpdir             = cfg.tmpdir
+    def tmp_directory(self, meta):
+        return os.path.join(self.__tmpdir, meta['tile_name'])
     def output_directory(self, meta):
         return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
@@ -285,6 +304,10 @@ class Concatenate(StepFactory):
         # im0 = in_filename(meta)
         # output_image = im0[:-10]+"xxxxxx"+im0[-4:]
         # return output_image
+    def build_step_output_tmp_filename(self, meta):
+        # Unlike output, concatenation result goes into tmp
+        filename = meta['basename']
+        return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
     def parameters(self, meta):
         return {
                 'ram'              : str(self.__ram_per_process),
@@ -314,6 +337,9 @@ class BuildBorderMask(StepFactory):
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
         return os.path.join(self.output_directory(meta), filename)
+    def build_step_output_tmp_filename(self, meta):
+        filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tmp.tif")
+        return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
         # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
@@ -341,11 +367,17 @@ class SmoothBorderMask(StepFactory):
         super().__init__('BinaryMorphologicalOperation', param_in='in', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
+        self.__tmpdir             = cfg.tmpdir
+    def tmp_directory(self, meta):
+        return os.path.join(self.__tmpdir, meta['tile_name'])
     def output_directory(self, meta):
         return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tif", "_BorderMask.tif")
         return os.path.join(self.output_directory(meta), filename)
+    def build_step_output_tmp_filename(self, meta):
+        filename = meta['basename'].replace(".tif", "_BorderMask.tmp.tif")
+        return os.path.join(self.tmp_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
         # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
