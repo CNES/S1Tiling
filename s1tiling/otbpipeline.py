@@ -69,7 +69,6 @@ def in_filename(meta):
     """
     assert('in_filename' in meta)
     return meta['in_filename']
-    # return meta['in_filename'] if 'in_filename' in meta else meta['basename']
 
 def out_filename(meta):
     """
@@ -264,10 +263,10 @@ class StepFactory(ABC):
         - `out_extended_filename_complement`
         """
         meta = meta.copy()
-        meta['in_filename']  = out_filename(meta)
-        meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['in_filename']      = out_filename(meta)
+        meta['out_filename']     = self.build_step_output_filename(meta)
         meta['out_tmp_filename'] = self.build_step_output_tmp_filename(meta)
-        meta['pipe'] = meta.get('pipe', []) + [self.__class__.__name__]
+        meta['pipe']             = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
     def create_step(self, input: Step, in_memory: bool, previous_steps):
@@ -295,7 +294,7 @@ class StepFactory(ABC):
 
             self.set_output_pixel_type(app, meta)
             logging.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
-            app.SetParameters(parameters) # ordre à vérifier!
+            app.SetParameters(parameters)
             meta['param_out'] = self.param_out
             return Step(app, **meta)
         else:

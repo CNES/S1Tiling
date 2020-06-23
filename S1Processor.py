@@ -35,17 +35,9 @@ import pathlib
 import sys
 import glob
 import shutil
-# import numpy as np
-# from PIL import Image
-# from subprocess import Popen
-# import multiprocessing
 import gdal, rasterio
 from rasterio.windows import Window
-# import subprocess
-# import datetime
 import logging
-# import logging.handlers
-# from contextlib import redirect_stdout
 from s1tiling import S1FileManager
 from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
@@ -68,84 +60,6 @@ def remove_files(files):
             os.remove(file_it)
 
 
-class Sentinel1PreProcess():
-    """ This class handles the processing for Sentinel1 ortho-rectification """
-    def __init__(self,cfg):
-        try:
-            os.remove("S1ProcessorErr.log.log")
-            os.remove("S1ProcessorOut.log")
-        except os.error:
-            pass
-        self.cfg=cfg
-
-    def generate_border_mask(self, all_ortho):
-        """
-        This method generate the border mask files from the
-        orthorectified images.
-
-        Args:
-          all_ortho: A list of ortho-rectified S1 images
-          """
-        cmd_bandmath = []
-        cmd_morpho = []
-        files_to_remove = []
-        logging.info("Generate Mask ...")
-        for current_ortho in all_ortho:
-            if "vv" not in current_ortho:
-                continue
-            working_directory, basename = os.path.split(current_ortho)
-            name_border_mask            = basename.replace(".tif", "_BorderMask.tif")
-            name_border_mask_tmp        = basename.replace(".tif", "_BorderMask_TMP.tif")
-            pathname_border_mask_tmp    = os.path.join(working_directory, name_border_mask_tmp)
-
-            files_to_remove.append(pathname_border_mask_tmp)
-            cmd_bandmath.append(['    Mask building of '+name_border_mask_tmp,
-                'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+'otbcli_BandMath -ram '\
-                +str(self.cfg.ram_per_process)\
-                +' -il '+current_ortho\
-                +' -out '+pathname_border_mask_tmp\
-                +' uint8 -exp "im1b1==0?0:1"'])
-
-            #due to threshold approximation
-
-            cmd_morpho.append(['    Mask smoothing of '+name_border_mask,
-                'export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={};'.format(self.cfg.OTBThreads)+"otbcli_BinaryMorphologicalOperation -ram "\
-                +str(self.cfg.ram_per_process)+" -progress false -in "\
-                +pathname_border_mask_tmp\
-                +" -out "\
-                +os.path.join(working_directory, name_border_mask)\
-                +" uint8 -structype ball"\
-                +" -structype.ball.xradius 5"\
-                +" -structype.ball.yradius 5 -filter opening"])
-
-        self.run_processing(cmd_bandmath, title="   Mask building")
-        self.run_processing(cmd_morpho,   title="   Mask smoothing")
-        remove_files(files_to_remove)
-        logging.info("Generate Mask done")
-
-    def run_processing(self, cmd_list, title=""):
-        """
-        This method executes a given command.
-        Args:
-          cmd_list: the command to run
-          title: optional title
-        """
-        import time
-        nb_cmd = len(cmd_list)
-
-        with multiprocessing.Pool(self.cfg.nb_procs, worker_config, [self.cfg.log_queue]) as pool:
-            self.cfg.log_queue_listener.start()
-            for count, result in enumerate(pool.imap_unordered(execute_command, cmd_list), 1):
-                logging.info("%s correctly finished", result)
-                logging.info(' --> %s... %s%%', title, count*100./nb_cmd)
-
-            pool.close()
-            pool.join()
-            self.cfg.log_queue_listener.stop()
-
-        logging.info("%s done", title)
-
-
 # Main code
 
 if len(sys.argv) != 2:
@@ -154,7 +68,6 @@ if len(sys.argv) != 2:
 
 CFG = sys.argv[1]
 Cg_Cfg=Configuration(CFG)
-S1_CHAIN = Sentinel1PreProcess(Cg_Cfg)
 S1_FILE_MANAGER = S1FileManager.S1FileManager(Cg_Cfg)
 
 
@@ -326,10 +239,6 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
         process = Processing(Cg_Cfg)
         process.register_pipeline(steps)
         process.process(inputs)
-
-    ##if Cg_Cfg.mask_cond:
-    ##    with Utils.ExecutionTimer("Generate Border Mask", True) as t:
-    ##        S1_CHAIN.generate_border_mask(raster_tile_list)
 
     """
     if Cg_Cfg.filtering_activated:

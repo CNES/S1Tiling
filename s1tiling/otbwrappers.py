@@ -68,7 +68,7 @@ class AnalyseBorders(StepFactory):
     def complete_meta(self, meta):
         meta = super().complete_meta(meta)
 
-        cut_overlap_range = 1000 # Number of columns to cut on the sides. Here 500pixels = 5km
+        cut_overlap_range   = 1000 # Number of columns to cut on the sides. Here 500pixels = 5km
         cut_overlap_azimuth = 1600 # Number of lines to cut at top or bottom
         thr_nan_for_cropping = cut_overlap_range*2 #Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
         with rasterio.open(meta['out_filename']) as ds_reader:
@@ -207,7 +207,6 @@ class OrthoRectify(StepFactory):
 
     def complete_meta(self, meta):
         meta = super().complete_meta(meta)
-        # TODO: need manifest!!!
         manifest                = meta['manifest']
         image                   = in_filename(meta)   # meta['in_filename']
         tile_name               = meta['tile_name']
@@ -386,7 +385,7 @@ class SmoothBorderMask(StepFactory):
                 'ram'                   : str(self.__ram_per_process),
                 # 'progress'            : 'false',
                 self.param_in           : in_filename(meta),
-                self.param_out          : out_filename(meta),
+                # self.param_out          : out_filename(meta),
                 'structype'             : 'ball',
                 # 'structype.ball.xradius': 5,
                 # 'structype.ball.yradius': 5 ,
