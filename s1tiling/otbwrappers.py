@@ -211,9 +211,7 @@ class OrthoRectify(StepFactory):
         image                   = in_filename(meta)   # meta['in_filename']
         tile_name               = meta['tile_name']
         tile_origin             = meta['tile_origin']
-        logging.debug("meta :%s", meta)
-        logging.debug("image :%s", image)
-        logging.debug("tile_name :%s", tile_name)
+        logging.debug("OrthoRectify.complete_meta(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
         current_date            = Utils.get_date_from_s1_raster(image)
         current_polar           = Utils.get_polar_from_s1_raster(image)
         current_platform        = Utils.get_platform_from_s1_raster(image)

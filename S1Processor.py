@@ -76,7 +76,6 @@ TILES_TO_PROCESS = []
 ALL_REQUESTED = False
 
 for tile_it in Cg_Cfg.tile_list:
-    logging.info('Requesting to process tile %s', tile_it)
     if tile_it == "ALL":
         ALL_REQUESTED = True
         break
@@ -84,6 +83,7 @@ for tile_it in Cg_Cfg.tile_list:
         TILES_TO_PROCESS.append(tile_it)
     else:
         logging.info("Tile %s does not exist, skipping ...", tile_it)
+logging.info('Requested tiles: %s', Cg_Cfg.tile_list)
 
 # We can not require both to process all tiles covered by downloaded products
 # and and download all tiles

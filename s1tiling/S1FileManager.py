@@ -283,6 +283,9 @@ class S1FileManager(object):
           S1DateAcquisition class, [corners]) for S1 products
           intersecting the given tile
         """
+        logging.debug('Test intersections of %s', tile_name_field)
+        # TODO: don't abort if there is only vv or vh
+        # => move to another dependency analysis policy
         date_exist=[os.path.basename(f)[21:21+8] for f in glob.glob(os.path.join(self.cfg.output_preprocess,tile_name_field,"s1?_*.tif"))]
         intersect_raster = []
 
@@ -296,8 +299,8 @@ class S1FileManager(object):
         tile_footprint = current_tile.GetGeometryRef()
 
         for image in self.raw_raster_list:
-            logging.debug('Manifest: %s', image.get_manifest())
-            logging.debug('Image list: %s', image.get_images_list())
+            logging.debug('- Manifest: %s', image.get_manifest())
+            logging.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list())==0:
                 logging.critical("Problem with %s",image.get_manifest())
                 logging.critical("Please remove the raw data for this SAFE file")
@@ -306,6 +309,7 @@ class S1FileManager(object):
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
 
             if date_safe in date_exist:
+                logging.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
                 continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
@@ -320,6 +324,7 @@ class S1FileManager(object):
             poly.AddGeometry(ring)
 
             intersection = poly.Intersection(tile_footprint)
+            logging.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', ring, tile_footprint, intersection)
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()
