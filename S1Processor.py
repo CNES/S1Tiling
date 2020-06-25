@@ -224,10 +224,10 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
                 if (len(i.name) == 40 and "xxxxxx" not in i.name)]
         image_list.sort()
 
-        while len(image_list) > 1:
+        while len(image_list) > 0:
             image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
 
-            if len(image_sublist) >1 :
+            if len(image_sublist) > 0:
                 images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, tile_it,i) for i in image_sublist]
                 output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
 
