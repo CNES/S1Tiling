@@ -169,9 +169,13 @@ for srtm_tile in NEEDED_SRTM_TILES:
 
 filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
+S1_tmp_dir = os.path.join(Cg_Cfg.tmpdir, 'S1')
+if not os.path.exists(S1_tmp_dir):
+    os.makedirs(S1_tmp_dir)
+
 for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
 
-    working_directory = os.path.join(Cg_Cfg.tmpdir, tile_it)
+    working_directory = os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it)
     if not os.path.exists(working_directory):
         os.makedirs(working_directory)
 
@@ -220,7 +224,7 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
         msg += "|Generate Border Mask"
     with Utils.ExecutionTimer(msg, True) as t:
         inputs = []
-        image_list = [i.name for i in Utils.list_files(os.path.join(Cg_Cfg.tmpdir, tile_it))
+        image_list = [i.name for i in Utils.list_files(os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it))
                 if (len(i.name) == 40 and "xxxxxx" not in i.name)]
         image_list.sort()
 
@@ -228,7 +232,7 @@ for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
             image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
 
             if len(image_sublist) > 0:
-                images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, tile_it,i) for i in image_sublist]
+                images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it,i) for i in image_sublist]
                 output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
 
             start = FirstStep(tile_name=tile_it, basename=output_image, out_filename=images_to_concatenate, dryrun=dryrun)

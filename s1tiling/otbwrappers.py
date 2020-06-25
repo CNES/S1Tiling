@@ -111,8 +111,8 @@ class Calibrate(StepFactory):
         self.__removethermalnoise = cfg.removethermalnoise
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
-        tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, tile_name)
+        # tile_name = meta['tile_name'] # manifest maybe?
+        return os.path.join(self.__tmpdir, 'S1')
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tiff", "_calOk.tiff")
         return os.path.join(self.output_directory(meta), filename)
@@ -149,8 +149,8 @@ class CutBorders(StepFactory):
         self.__ram_per_process    = cfg.ram_per_process
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
-        tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, tile_name)
+        # tile_name = meta['tile_name'] # manifest maybe?
+        return os.path.join(self.__tmpdir, 'S1')
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
         return os.path.join(self.output_directory(meta), filename)
@@ -197,7 +197,7 @@ class OrthoRectify(StepFactory):
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
         tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, tile_name)
+        return os.path.join(self.__tmpdir, 'S2', tile_name)
     def build_step_output_filename(self, meta):
         # Will be get around in complete_meta
         return None
@@ -291,7 +291,7 @@ class Concatenate(StepFactory):
         self.__outdir             = cfg.output_preprocess
         self.__tmpdir             = cfg.tmpdir
     def tmp_directory(self, meta):
-        return os.path.join(self.__tmpdir, meta['tile_name'])
+        return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
     def output_directory(self, meta):
         return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
@@ -334,7 +334,7 @@ class BuildBorderMask(StepFactory):
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
         tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, tile_name)
+        return os.path.join(self.__tmpdir, 'S2', tile_name)
     def build_step_output_filename(self, meta):
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
         return os.path.join(self.output_directory(meta), filename)
@@ -370,7 +370,7 @@ class SmoothBorderMask(StepFactory):
         self.__outdir             = cfg.output_preprocess
         self.__tmpdir             = cfg.tmpdir
     def tmp_directory(self, meta):
-        return os.path.join(self.__tmpdir, meta['tile_name'])
+        return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
     def output_directory(self, meta):
         return os.path.join(self.__outdir, meta['tile_name'])
     def build_step_output_filename(self, meta):
