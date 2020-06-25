@@ -465,6 +465,12 @@ class StoreStep(_StepWithOTBApplication):
         do_measure = True # TODO
         # logging.debug('meta pipe: %s', self.meta['pipe'])
         pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+        if os.path.isfile(self.out_filename):
+            # TODO: This is a dirty hack, instead of analysing at the last
+            # moment, it'd be better to have a clear idea of all dependencies
+            # and of what needs to be done.
+            logging.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
+            return
         with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
             if not self.meta.get('dryrun', False):
                 # TODO: catch execute failure, and report it!
@@ -504,6 +510,7 @@ class Store(StepFactory):
             res = StoreStep(input)
             res.ExecuteAndWriteOutput()
         finally:
+            # logging.debug("Collecting memory!")
             # Collect memory now!
             res.release_app()
             for s in previous_steps:
