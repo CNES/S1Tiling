@@ -24,6 +24,7 @@ import tempfile
 import logging
 import os
 import re
+import datetime
 from s1tiling.otbpipeline import StepFactory, in_filename, out_filename
 from s1tiling import Utils
 import otbApplication as otb
@@ -110,6 +111,10 @@ class Calibrate(StepFactory):
         self.__calibration_type   = cfg.calibration_type
         self.__removethermalnoise = cfg.removethermalnoise
         self.__tmpdir             = cfg.tmpdir
+    def complete_meta(self, meta):
+        meta = super().complete_meta(meta)
+        meta['calibration_type'] = self.__calibration_type
+        return meta
     def output_directory(self, meta):
         # tile_name = meta['tile_name'] # manifest maybe?
         return os.path.join(self.__tmpdir, 'S1')
@@ -235,6 +240,11 @@ class OrthoRectify(StepFactory):
         working_directory = self.output_directory(meta)
         if os.path.exists(working_directory) == False:
             os.makedirs(working_directory)
+        meta['flying_unit_code'] = current_platform
+        meta['polarisation']     = current_polar
+        meta['orbit_direction']  = current_orbit_direction
+        meta['orbit']            = '{:0>3d}'.format(current_relative_orbit)
+        meta['acquisition_time'] = current_date
         ortho_image_name_fmt = current_platform\
                            +"_"+tile_name\
                            +"_"+current_polar\
@@ -268,11 +278,33 @@ class OrthoRectify(StepFactory):
                 'elev.geoid'       : self.__GeoidFile
                 }
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
-        # TODO
-        # meta['post'] = get(meta, 'post', []) + add_ortho_metadata
+        meta['post'] = meta.get('post', []) + [self.add_ortho_metadata]
         return meta
     def parameters(self, meta):
         return meta['params.ortho']
+    def add_ortho_metadata(self, meta):
+        fullpath = out_filename(meta)
+        logging.debug('Set metadata in %s', fullpath)
+        dst = gdal.Open(fullpath, gdal.GA_Update)
+
+        dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
+        dst.SetMetadataItem('PROCESSED_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d')))
+        dst.SetMetadataItem('ORTHORECTIFIED',             'true')
+        dst.SetMetadataItem('CALIBRATION',                str(meta['calibration_type']))
+        dst.SetMetadataItem('SPATIAL_RESOLUTION',         str(self.__out_spatial_res))
+        dst.SetMetadataItem('IMAGE_TYPE',                 'GRD')
+        dst.SetMetadataItem('FLYING_UNIT_CODE',           meta['flying_unit_code'])
+        dst.SetMetadataItem('POLARIZATION',               meta['polarisation'])
+        dst.SetMetadataItem('ORBIT',                      meta['orbit'])
+        dst.SetMetadataItem('ORBIT_DIRECTION',            meta['orbit_direction'])
+
+        acquisition_time = meta['acquisition_time']
+        date = acquisition_time[0:4]+':'+acquisition_time[4:6]+':'+acquisition_time[6:8]
+        if acquisition_time[9] == 'x':
+            date += ' 00:00:00'
+        else:
+            date += ' '+acquisition_time[9:11]+':'+acquisition_time[11:13]+':'+acquisition_time[13:15]
+        dst.SetMetadataItem('ACQUISITION_DATETIME', date)
 
 
 class Concatenate(StepFactory):

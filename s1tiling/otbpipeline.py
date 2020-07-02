@@ -338,8 +338,8 @@ class Pipeline(object):
             steps += [step]
             app_names += [crt.appname]
 
-        for step in steps:
-            step.release_app() # should not make any difference now...
+        # for step in steps:
+            # step.release_app() # should not make any difference now...
         pipeline_name = '|'.join(app_names)
         return pipeline_name + ' > ' + steps[-1].out_filename
 
@@ -478,7 +478,7 @@ class StoreStep(_StepWithOTBApplication):
                 self._app.ExecuteAndWriteOutput()
                 commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta:
-            for hook in meta['post']:
+            for hook in self.meta['post']:
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]
 
