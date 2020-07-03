@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
@@ -109,7 +109,7 @@ class S1FileManager(object):
         self.raw_raster_list = []
         self.nb_images = 0
 
-        self.tmpsrtmdir=tempfile.mkdtemp(dir=cfg.tmpdir)
+        self.__tmpsrtmdir = None
 
         self.tiff_pattern = "measurement/*.tiff"
         self.vh_pattern = "measurement/*vh*-???.tiff"
@@ -143,6 +143,48 @@ class S1FileManager(object):
             os.makedirs(self.cfg.raw_directory)
         except os.error:
             pass
+
+    def __enter__(self):
+        """
+        Turn the S1FileManager into a context manager, context acquisition function
+        """
+        return self
+    def __exit__(self, type, value, traceback):
+        """
+        Turn the S1FileManager into a context manager, cleanup function
+        """
+        if self.__tmpsrtmdir:
+            logging.debug('Cleaning temporary SRTM diretory (%s)', self.__tmpsrtmdir)
+            self.__tmpsrtmdir.cleanup()
+            self.__tmpsrtmdir = None
+        return False
+
+    def tmpsrtmdir(self, srtm_tiles):
+        """
+        Generate the temporary directory for SRTM tiles on the fly
+        And populate it with symbolic link to the actual SRTM tiles
+        """
+        if not self.__tmpsrtmdir:
+            # copy all needed SRTM file in a temp directory for orthorectification processing
+            self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
+            logging.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
+            assert(os.path.isdir(self.__tmpsrtmdir.name))
+            for srtm_tile in srtm_tiles:
+                logging.debug('ln -s %s  <-- %s',
+                        os.path.join(self.cfg.srtm,          srtm_tile),
+                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+                os.symlink(
+                        os.path.join(self.cfg.srtm,          srtm_tile),
+                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+        return self.__tmpsrtmdir.name
+
+    def keep_X_latest_S1_files(self, threshold):
+        safeFileList = sorted(glob.glob(os.path.join(self.cfg.raw_directory,"*")), key=os.path.getctime)
+        if len(safeFileList) > threshold:
+            for f in safeFileList[:len(safeFileList)-threshold]:
+                logging.debug("Remove : ",os.path.basename(f))
+                shutil.rmtree(f, ignore_errors=True)
+            self.get_s1_img()
 
     def download_images(self,tiles=None):
         """ This method downloads the required images if pepsdownload is True"""
@@ -183,7 +225,7 @@ class S1FileManager(object):
 
     def get_s1_img(self):
         """
-        This method returns the list of S1 images available
+        This method updates the list of S1 images available
         (from analysis of raw_directory)
 
         Returns:
