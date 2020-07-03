@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
@@ -109,7 +109,7 @@ class S1FileManager(object):
         self.raw_raster_list = []
         self.nb_images = 0
 
-        self.tmpsrtmdir=tempfile.mkdtemp(dir=cfg.tmpdir)
+        self.__tmpsrtmdir = None
 
         self.tiff_pattern = "measurement/*.tiff"
         self.vh_pattern = "measurement/*vh*-???.tiff"
@@ -144,10 +144,53 @@ class S1FileManager(object):
         except os.error:
             pass
 
+    def __enter__(self):
+        """
+        Turn the S1FileManager into a context manager, context acquisition function
+        """
+        return self
+    def __exit__(self, type, value, traceback):
+        """
+        Turn the S1FileManager into a context manager, cleanup function
+        """
+        if self.__tmpsrtmdir:
+            logging.debug('Cleaning temporary SRTM diretory (%s)', self.__tmpsrtmdir)
+            self.__tmpsrtmdir.cleanup()
+            self.__tmpsrtmdir = None
+        return False
+
+    def tmpsrtmdir(self, srtm_tiles):
+        """
+        Generate the temporary directory for SRTM tiles on the fly
+        And populate it with symbolic link to the actual SRTM tiles
+        """
+        if not self.__tmpsrtmdir:
+            # copy all needed SRTM file in a temp directory for orthorectification processing
+            self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
+            logging.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
+            assert(os.path.isdir(self.__tmpsrtmdir.name))
+            for srtm_tile in srtm_tiles:
+                logging.debug('ln -s %s  <-- %s',
+                        os.path.join(self.cfg.srtm,          srtm_tile),
+                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+                os.symlink(
+                        os.path.join(self.cfg.srtm,          srtm_tile),
+                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+        return self.__tmpsrtmdir.name
+
+    def keep_X_latest_S1_files(self, threshold):
+        safeFileList = sorted(glob.glob(os.path.join(self.cfg.raw_directory,"*")), key=os.path.getctime)
+        if len(safeFileList) > threshold:
+            for f in safeFileList[:len(safeFileList)-threshold]:
+                logging.debug("Remove : ",os.path.basename(f))
+                shutil.rmtree(f, ignore_errors=True)
+            self.get_s1_img()
+
     def download_images(self,tiles=None):
         """ This method downloads the required images if pepsdownload is True"""
         import numpy as np
         if not self.cfg.pepsdownload:
+            logging.info("Using images already downloaded, as per configuration request")
             return
 
         if self.roi_by_tiles is not None:
@@ -182,7 +225,7 @@ class S1FileManager(object):
 
     def get_s1_img(self):
         """
-        This method returns the list of S1 images available
+        This method updates the list of S1 images available
         (from analysis of raw_directory)
 
         Returns:
@@ -282,6 +325,9 @@ class S1FileManager(object):
           S1DateAcquisition class, [corners]) for S1 products
           intersecting the given tile
         """
+        logging.debug('Test intersections of %s', tile_name_field)
+        # TODO: don't abort if there is only vv or vh
+        # => move to another dependency analysis policy
         date_exist=[os.path.basename(f)[21:21+8] for f in glob.glob(os.path.join(self.cfg.output_preprocess,tile_name_field,"s1?_*.tif"))]
         intersect_raster = []
 
@@ -295,8 +341,8 @@ class S1FileManager(object):
         tile_footprint = current_tile.GetGeometryRef()
 
         for image in self.raw_raster_list:
-            logging.debug('Manifest: %s', image.get_manifest())
-            logging.debug('Image list: %s', image.get_images_list())
+            logging.debug('- Manifest: %s', image.get_manifest())
+            logging.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list())==0:
                 logging.critical("Problem with %s",image.get_manifest())
                 logging.critical("Please remove the raw data for this SAFE file")
@@ -305,6 +351,7 @@ class S1FileManager(object):
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
 
             if date_safe in date_exist:
+                logging.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
                 continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
@@ -319,6 +366,7 @@ class S1FileManager(object):
             poly.AddGeometry(ring)
 
             intersection = poly.Intersection(tile_footprint)
+            logging.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', ring, tile_footprint, intersection)
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()

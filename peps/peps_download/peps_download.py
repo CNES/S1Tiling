@@ -227,8 +227,8 @@ try:
         (email,passwd)=f.readline().split(' ')
         if passwd.endswith('\n'):
             passwd=passwd[:-1]
-        print('email: ', email)
-        print('pwd: ', passwd)
+        # print('email: ', email)
+        # print('pwd: ', passwd)
 except Exception as inst:
     print("error with password file:" + str(inst))
     sys.exit(-2)
