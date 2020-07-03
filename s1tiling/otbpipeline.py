@@ -506,8 +506,13 @@ class Store(StepFactory):
     def __init__(self, appname, *argv, **kwargs):
         super().__init__("(StoreOnFile)", *argv, **kwargs)
     def create_step(self, input: Step, in_memory: bool, previous_steps):
+        if input.is_first_step:
+            # Special case of by-passed inputs
+            meta = input.meta.copy()
+            return AbstractStep(**meta)
+
+        res = StoreStep(input)
         try:
-            res = StoreStep(input)
             res.ExecuteAndWriteOutput()
         finally:
             # logging.debug("Collecting memory!")

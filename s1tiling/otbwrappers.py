@@ -25,7 +25,7 @@ import logging
 import os
 import re
 import datetime
-from s1tiling.otbpipeline import StepFactory, in_filename, out_filename
+from s1tiling.otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
 from s1tiling import Utils
 import otbApplication as otb
 
@@ -341,6 +341,20 @@ class Concatenate(StepFactory):
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         return meta
+    def create_step(self, input: Step, in_memory: bool, previous_steps):
+        """
+        `create_step` is overridden in Concatenate case in order to by-pass Concatenatation in case there is only a single file.
+        """
+        if len(input.out_filename) == 1:
+            logging.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', input.out_filename)
+            meta = self.complete_meta(input.meta)
+            res = AbstractStep(**meta)
+            logging.debug('Renaming %s into %s', input.out_filename[0], res.out_filename)
+            os.replace(input.out_filename[0], res.out_filename)
+            return res
+        else:
+            return super().create_step(input, in_memory, previous_steps)
+
     def parameters(self, meta):
         return {
                 'ram'              : str(self.__ram_per_process),
