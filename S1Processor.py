@@ -112,16 +112,11 @@ def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
             current_NEEDED_SRTM_TILES.append(srtm_tile)
             current_coverage += coverage
         # If SRTM coverage of MGRS tile is enough, process it
-        if current_coverage >= 1.:
-            # TODO factorise the two branches
-            NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
-            TILES_TO_PROCESS_CHECKED.append(tile_it)
-        else:
-            # Skip it
+        NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
+        TILES_TO_PROCESS_CHECKED.append(tile_it)
+        if current_coverage < 1.:
             logging.warning("Tile %s has insuficient SRTM coverage (%s%%)",
                     tile_it, 100*current_coverage)
-            NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
-            TILES_TO_PROCESS_CHECKED.append(tile_it)
 
     # Remove duplicates
     NEEDED_SRTM_TILES = list(set(NEEDED_SRTM_TILES))
