@@ -56,7 +56,7 @@ class AnalyseBorders(StepFactory):
     by `CutBorders` step factory.
     """
     def __init__(self, cfg):
-        super().__init__('')
+        super().__init__('', 'AnalyseBorders')
         pass
     def parameters(self, meta):
         return None
@@ -104,7 +104,7 @@ class Calibrate(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('SARCalibration')
+        super().__init__('SARCalibration', 'Calibration')
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
         self.__ram_per_process    = cfg.ram_per_process
@@ -150,7 +150,7 @@ class CutBorders(StepFactory):
     - `cut`->`threshold.y.end`   -- from AnalyseBorders
     """
     def __init__(self, cfg):
-        super().__init__('ClampROI')
+        super().__init__('ClampROI', 'BorderCutting')
         self.__ram_per_process    = cfg.ram_per_process
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
@@ -193,7 +193,7 @@ class OrthoRectify(StepFactory):
     - `tile_origin`
     """
     def __init__(self, cfg):
-        super().__init__('OrthoRectification', param_in='io.in', param_out='io.out')
+        super().__init__('OrthoRectification', 'OrthoRectification', param_in='io.in', param_out='io.out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__out_spatial_res    = cfg.out_spatial_res
         self.__GeoidFile          = cfg.GeoidFile
@@ -214,6 +214,7 @@ class OrthoRectify(StepFactory):
         meta = super().complete_meta(meta)
         manifest                = meta['manifest']
         image                   = in_filename(meta)   # meta['in_filename']
+        # image                   = meta['basename']
         tile_name               = meta['tile_name']
         tile_origin             = meta['tile_origin']
         logging.debug("OrthoRectify.complete_meta(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
@@ -318,7 +319,7 @@ class Concatenate(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('Synthetize', param_in='il', param_out='out')
+        super().__init__('Synthetize', 'Concatenation', param_in='il', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
         self.__tmpdir             = cfg.tmpdir
@@ -338,12 +339,14 @@ class Concatenate(StepFactory):
         filename = meta['basename']
         return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
     def complete_meta(self, meta):
+        meta = meta.copy()
+        meta['basename'] = re.sub('(?<=t)\d+(?=\.)', lambda m: 'x'*len(m.group()), out_filename(meta))
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         return meta
     def create_step(self, input: Step, in_memory: bool, previous_steps):
         """
-        `create_step` is overridden in Concatenate case in order to by-pass Concatenatation in case there is only a single file.
+        `create_step` is overridden in Concatenate case in order to by-pass Concatenation in case there is only a single file.
         """
         if len(input.out_filename) == 1:
             logging.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', input.out_filename)
@@ -375,7 +378,7 @@ class BuildBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('BandMath', param_in='il', param_out='out')
+        super().__init__('BandMath', 'BuildBorderMask', param_in='il', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__tmpdir             = cfg.tmpdir
     def output_directory(self, meta):
@@ -411,7 +414,7 @@ class SmoothBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('BinaryMorphologicalOperation', param_in='in', param_out='out')
+        super().__init__('BinaryMorphologicalOperation', 'SmoothBorderMask', param_in='in', param_out='out')
         self.__ram_per_process    = cfg.ram_per_process
         self.__outdir             = cfg.output_preprocess
         self.__tmpdir             = cfg.tmpdir

@@ -43,7 +43,7 @@ from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
 from s1tiling.configuration import Configuration
 
-from s1tiling.otbpipeline import Processing, FirstStep, Store
+from s1tiling.otbpipeline import Processing, FirstStep, Store, PipelineDescription
 from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
 # dryrun=True
@@ -194,6 +194,65 @@ with S1FileManager.S1FileManager(Cg_Cfg) as S1_FILE_MANAGER:
         if len(intersect_raster_list) == 0:
             logging.info("No intersection with tile %s",tile_it)
             continue
+
+        pipelines = [
+                PipelineDescription([AnalyseBorders(Cg_Cfg), Calibrate(Cg_Cfg), CutBorders(Cg_Cfg)], 'PrepareForOrtho', product_required=False),
+                PipelineDescription([OrthoRectify(Cg_Cfg)],                                          'OrthoRectify',    product_required=False),
+                PipelineDescription([Concatenate(Cg_Cfg)],                                                              product_required=True),
+                PipelineDescription([BuildBorderMask(Cg_Cfg), SmoothBorderMask(Cg_Cfg)],             'GenerateMask',    product_required=True)
+                ]
+        inputs = []
+        for raster, tile_origin in intersect_raster_list:
+            manifest = raster.get_manifest()
+            for image in raster.get_images_list():
+                start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image)
+                inputs += [ start.meta ]
+
+        required = set()
+        previous = {}
+        for pipeline in pipelines:
+            logging.debug('Analysing %s dependencies', pipeline.name)
+            next_inputs = []
+            for input in inputs:
+                expected = pipeline.expected(input)
+                next_inputs += [expected]
+                expected_pathname = expected['out_pathname']
+                if os.path.isfile(expected_pathname):
+                    previous[expected_pathname] = False # File exists
+                else:
+                    if not expected_pathname in previous:
+                        previous[expected_pathname] = {'pipeline': pipeline, 'inputs':[input]}
+                    elif not input['out_filename'] in (m['out_filename'] for m in previous[expected_pathname]['inputs']):
+                        previous[expected_pathname]['inputs'].append(input)
+                    if pipeline.product_is_required:
+                        required.add(expected_pathname)
+            inputs = next_inputs
+
+        logging.debug("\n")
+        logging.debug("PREVIOUS")
+        for path, prev in previous.items():
+            if prev:
+                logging.debug('%s may require %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
+            else:
+                logging.debug('%s already exists, no need to produce it', path)
+
+        logging.debug("\n")
+        logging.debug("TASKS")
+        for file in required:
+            assert(previous[file])
+            task_inputs = previous[file]['inputs']
+            # logging.debug('%s --> %s', file, task_inputs)
+            input_files = [m['out_filename'] for m in task_inputs]
+            logging.info('TASKS += %s(%s)', previous[file]['pipeline'].name, input_files)
+            for t in task_inputs:
+                if not os.path.isfile(t['out_filename']):
+                    logging.warning('Need to register %s', t['out_filename'])
+                    # required.add(t['out_filename'])
+
+
+        sys.exit(0)
+
+
 
         with Utils.ExecutionTimer("Calibration|Cut|Ortho", True) as t:
             process = Processing(Cg_Cfg)

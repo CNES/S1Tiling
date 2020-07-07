@@ -215,15 +215,22 @@ class StepFactory(ABC):
 
     Meant to be inherited for each possible OTB application used in a pipeline.
     """
-    def __init__(self, appname, *argv, **kwargs):
+    def __init__(self, appname, name, *argv, **kwargs):
         self._in         = kwargs.get('param_in',  'in')
         self._out        = kwargs.get('param_out', 'out')
         self._appname    = appname
-        logging.debug("new StepFactory(%s)", appname)
+        assert(name)
+        self._name       = name
+        logging.debug("new StepFactory(%s) -> app=%s", name, appname)
 
     @property
     def appname(self):
         return self._appname
+
+    @property
+    def name(self):
+        assert(type(self._name) == str)
+        return self._name
 
     @property
     def param_in(self):
@@ -390,6 +397,53 @@ class PoolOfOTBExecutions(object):
                 self.__log_queue_listener.stop()
 
 
+class PipelineDescription(object):
+    """
+    Pipeline description:
+    - stores the various factory steps that describe a pipeline,
+    - and can tell the expected product name given an input.
+    """
+    def __init__(self, factory_steps, name=None, product_required=False, is_name_incremental=False):
+        """
+        constructor
+        """
+        assert(factory_steps) # shall not be None or empty
+        self.__factory_steps       = factory_steps
+        self.__is_name_incremental = is_name_incremental
+        self.__is_product_required = product_required
+        if name:
+            self.__name = name
+        else:
+            self.__name = '|'.join([step.name for step in self.__factory_steps])
+
+    def expected(self, input_meta):
+        """
+        Returns the expected name of the product of this pipeline
+        """
+        assert(self.__factory_steps) # shall not be None or empty
+        if self.__is_name_incremental:
+            res = input_meta
+            for step in self.__factory_steps:
+                res = step.complete_meta(res)
+        else:
+            res = self.__factory_steps[-1].complete_meta(input_meta)
+        # out_pathname = self.__factory_steps[-1].build_step_output_filename(res)
+        out_pathname = out_filename(res)
+        # logging.debug('%s / %s', dir, out_filename(res))
+        # out_pathname = os.path.join(dir, out_filename(res))
+        res['out_pathname'] = out_pathname
+        logging.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_pathname)
+        return res
+
+    @property
+    def name(self):
+        assert(type(self.__name) == str)
+        return self.__name
+
+    @property
+    def product_is_required(self):
+        return self.__is_product_required
+
 class Processing(object):
     """
     Entry point for executing multiple instance of the same pipeline of
@@ -408,6 +462,7 @@ class Processing(object):
     def register_pipeline(self, factory_steps):
         # Automatically append the final storing step
         # TODO: check there is only one at the end of the method
+        # TODO: store a PipelineDescription instead
         self.__factory_steps = factory_steps + [Store]
 
     def process(self, startpoints):
@@ -416,6 +471,7 @@ class Processing(object):
             self.__log_queue, self.__log_queue_listener)
         for startpoint in startpoints:
             logging.info("register processing of %s", startpoint.basename)
+            # TODO: new_pipeline receives the PipelineDescription and add store of the fly
             pipeline = pool.new_pipeline(in_memory=True)
             pipeline.set_input(startpoint)
             for factory in self.__factory_steps:
@@ -504,7 +560,7 @@ class Store(StepFactory):
     disk by breaking in-memory connection.
     """
     def __init__(self, appname, *argv, **kwargs):
-        super().__init__("(StoreOnFile)", *argv, **kwargs)
+        super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
     def create_step(self, input: Step, in_memory: bool, previous_steps):
         if input.is_first_step:
             # Special case of by-passed inputs
