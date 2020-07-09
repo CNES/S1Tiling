@@ -99,6 +99,8 @@ class AbstractStep(object):
         constructor
         """
         meta = kwargs
+        if not 'basename' in meta:
+            logging.critical('no "basename" in meta == %s', meta)
         assert('basename' in meta)
         # Clear basename from any noise
         self._meta   = meta
@@ -276,8 +278,9 @@ class StepFactory(ABC):
         meta['pipe']             = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
-    def create_step(self, input: Step, in_memory: bool, previous_steps):
+    def create_step(self, input: AbstractStep, in_memory: bool, previous_steps):
         # TODO: distinguish step description & step
+        assert(issubclass(type(input), AbstractStep))
         meta = self.complete_meta(input.meta)
         if self.appname:
             app = otb.Registry.CreateApplication(self.appname)
@@ -320,10 +323,11 @@ class Pipeline(object):
     Internal class only meant to be used by  `Pool`.
     """
     ## Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory):
-        self.__pipeline = []
+    def __init__(self, do_measure, in_memory, name=None):
+        self.__pipeline   = []
         self.__do_measure = do_measure
         self.__in_memory  = in_memory
+        self.__name       = name
     #def __enter__(self):
     #    return self
     #def __exit__(self, type, value, traceback):
@@ -331,28 +335,54 @@ class Pipeline(object):
     #        crt.release_app() # Make sure to release application memory
     #    return False
 
-    def set_input(self, input):
-        self.__input = input
+    def __repr__(self):
+        return self.name
+    def set_input(self, input: AbstractStep):
+        assert(type(input) is list or issubclass(type(input), AbstractStep))
+        if type(input) is list:
+            if len(input) == 1:
+                self.__input = input[0]
+            else:
+                assert(input)
+                self.__input = MergeStep(input)
+        else:
+            self.__input = input
+
+    @property
+    def name(self):
+        return str(self.__input.out_filename) + '|' + \
+                (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+
+        return str([i.out_filename for i in self.__input]) + '|' + \
+                (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
     def push(self, otbstep):
         self.__pipeline += [otbstep]
     def do_execute(self):
+        input_files = self.__input.out_filename
+        if (type(input_files) is str) and not os.path.isfile(input_files):
+            logging.warning("Cannot execute %s as %s doesn's exist", self, input_files)
+            return ""
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
         assert(self.__pipeline) # shall not be empty!
-        app_names = [str(self.__input.out_filename)]
         steps     = [self.__input]
         for crt in self.__pipeline:
             step = crt.create_step(steps[-1], self.__in_memory, steps)
             steps += [step]
-            app_names += [crt.appname]
 
         # for step in steps:
             # step.release_app() # should not make any difference now...
-        pipeline_name = '|'.join(app_names)
-        return pipeline_name + ' > ' + steps[-1].out_filename
+        # return self.name + ' > ' + steps[-1].out_filename
+        return steps[-1].out_filename
 
 
 # TODO: try to make it static...
 def execute1(pipeline):
+    return pipeline.do_execute()
+
+
+# TODO: try to make it static...
+def execute2(pipeline, *args, **kwargs):
+    logging.info('RUN %s with %s & %s', pipeline, args, kwargs)
     return pipeline.do_execute()
 
 
@@ -444,6 +474,118 @@ class PipelineDescription(object):
     def product_is_required(self):
         return self.__is_product_required
 
+    def instanciate(self, do_measure, in_memory):
+        pipeline = Pipeline(do_measure, in_memory, self.name)
+        for sf in self.__factory_steps + [Store('noappname')]:
+            pipeline.push(sf)
+        return pipeline
+
+
+class PipelineDescriptionSequence(object):
+    """
+    List of `PipelineDescription` objects
+    """
+    def __init__(self, cfg):
+        """
+        constructor
+        """
+        assert(cfg)
+        self.__cfg       = cfg
+        self.__pipelines = []
+
+    def register_pipeline(self, factory_steps, *args, **kwargs):
+        """
+        Register a pipeline description from:
+
+        Params:
+            :factory_steps:       List of non-instanciated `StepFactory` classes
+            :name:                Optional name for the pipeline
+            :product_required:    Tells whether the pipeline product is expected as a final product
+            :is_name_incremental: Tells whether `expected` filename needs evaluations of each
+                                  intermediary steps of whether it can be directly deduced from the
+                                  last step.
+        """
+        steps = [FS(self.__cfg) for FS in factory_steps]
+        pipeline = PipelineDescription(steps, *args, **kwargs)
+        self.__pipelines.append( pipeline )
+
+    def generate_tasks(self, tile_name, raster_list):
+        """
+        Generate the minimal list of tasks that can be passed to Dask
+
+        Params:
+            :tile_name:   Name of the current S2 tile
+            :raster_list: List of rasters that intersect the tile.
+        TODO: Move into another dedicated class instead of PipelineDescriptionSequence
+        """
+        # Flattens the list of inputs as `FirstStep`s
+        inputs = []
+        for raster, tile_origin in raster_list:
+            manifest = raster.get_manifest()
+            for image in raster.get_images_list():
+                start = FirstStep(tile_name=tile_name, tile_origin=tile_origin, manifest=manifest, basename=image)
+                inputs += [ start.meta ]
+
+        # Runs the inputs through all pipeline descriptions to build the full list
+        # of intermediary and final products and what they required to be built
+        required = set() # (first batch) Final products identified as _needed to be produced_
+        previous = {}    # Graph of dependencies: for a product tells how it's produced (pipeline + inputs)
+        # +-> TODO: cache previous in order to remember which files already exist or not
+        #     the difficult part is to flag as "generation successful" of not
+        for pipeline in self.__pipelines:
+            logging.debug('Analysing |%s| dependencies', pipeline.name)
+            next_inputs = []
+            for input in inputs:
+                expected = pipeline.expected(input)
+                next_inputs += [expected]
+                expected_pathname = expected['out_pathname']
+                if os.path.isfile(expected_pathname):
+                    previous[expected_pathname] = False # File exists
+                else:
+                    if not expected_pathname in previous:
+                        previous[expected_pathname] = {'pipeline': pipeline, 'inputs':[input]}
+                    elif not input['out_filename'] in (m['out_filename'] for m in previous[expected_pathname]['inputs']):
+                        previous[expected_pathname]['inputs'].append(input)
+                    if pipeline.product_is_required:
+                        required.add(expected_pathname)
+            inputs = next_inputs
+
+        logging.debug("Dependencies found:")
+        for path, prev in previous.items():
+            if prev:
+                logging.debug('- %s may require %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
+            else:
+                logging.debug('- %s already exists, no need to produce it', path)
+
+        # Generate the actual list of tasks
+        final_products = required
+        tasks = {}
+        while required:
+            new_required = set()
+            for file in required:
+                assert(previous[file])
+                task_inputs = previous[file]['inputs']
+                # logging.debug('%s --> %s', file, task_inputs)
+                input_files = [m['out_filename'] for m in task_inputs]
+                # tasks[file] = [execute1, previous[file]['pipeline'].name, input_files]
+                pipeline_instance = previous[file]['pipeline'].instanciate(True, True)
+                pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
+                tasks[file] = (execute2, pipeline_instance, input_files)
+                logging.debug('TASKS[%s] += %s(%s)', file, previous[file]['pipeline'].name, input_files)
+
+                for t in task_inputs: # check whether the inputs need to be produced as well
+                    if not os.path.isfile(t['out_filename']):
+                        logging.debug('Need to register %s', t['out_filename'])
+                        new_required.add(t['out_filename'])
+                    else:
+                        tasks[t['out_filename']] = FirstStep(**t)
+            required = new_required
+
+        for fp in final_products:
+            assert(fp in tasks.keys())
+        return tasks, list(final_products)
+
+
 class Processing(object):
     """
     Entry point for executing multiple instance of the same pipeline of
@@ -495,6 +637,35 @@ class FirstStep(AbstractStep):
         working_directory, basename = os.path.split(self._meta['basename'])
         self._meta['basename'] = basename
         self._meta['pipe'] = [self._meta['out_filename']]
+
+    def __str__(self):
+        return 'FirstStep%s' % (self._meta,)
+
+    def __repr__(self):
+        return 'FirstStep%s' % (self._meta,)
+
+class MergeStep(AbstractStep):
+    """
+    First Step:
+    - no application executed
+    """
+    def __init__(self, steps, *argv, **kwargs):
+        meta = {**(steps[0]._meta), **kwargs} # kwargs override step0.meta
+        super().__init__(*argv, **meta)
+        self.__steps = steps
+        self._meta['out_filename'] = [out_filename(s._meta) for s in steps]
+        ##if not 'out_filename' in self._meta:
+        ##    # If not set through the parameters, set it from the basename + out dir
+        ##    self._meta['out_filename'] = self._meta['basename']
+        ##working_directory, basename = os.path.split(self._meta['basename'])
+        ##self._meta['basename'] = basename
+        ##self._meta['pipe'] = [self._meta['out_filename']]
+
+    def __str__(self):
+        return 'MergeStep%s' % (self.__steps,)
+
+    def __repr__(self):
+        return 'MergeStep%s' % (self.__steps,)
 
 
 class StoreStep(_StepWithOTBApplication):

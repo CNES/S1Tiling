@@ -200,6 +200,8 @@ class OrthoRectify(StepFactory):
         self.__grid_spacing       = cfg.grid_spacing
         self.__tmp_srtm_dir       = cfg.tmp_srtm_dir
         self.__tmpdir             = cfg.tmpdir
+        # Some workaround when ortho is not sequenced long with calibration
+        self.__calibration_type   = cfg.calibration_type
     def output_directory(self, meta):
         tile_name = meta['tile_name']
         return os.path.join(self.__tmpdir, 'S2', tile_name)
@@ -280,6 +282,10 @@ class OrthoRectify(StepFactory):
                 }
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
         meta['post'] = meta.get('post', []) + [self.add_ortho_metadata]
+
+        # Some workaround when ortho is not sequenced long with calibration
+        meta['calibration_type'] = self.__calibration_type
+
         return meta
     def parameters(self, meta):
         return meta['params.ortho']
@@ -340,7 +346,10 @@ class Concatenate(StepFactory):
         return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
     def complete_meta(self, meta):
         meta = meta.copy()
-        meta['basename'] = re.sub('(?<=t)\d+(?=\.)', lambda m: 'x'*len(m.group()), out_filename(meta))
+        out_file = out_filename(meta)
+        if type(out_file) is list:
+            out_file = out_file[0]
+        meta['basename'] = re.sub('(?<=t)\d+(?=\.)', lambda m: 'x'*len(m.group()), out_file)
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         return meta
