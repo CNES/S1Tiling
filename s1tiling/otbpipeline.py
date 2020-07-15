@@ -30,6 +30,8 @@ import multiprocessing
 import otbApplication as otb
 import s1tiling.Utils as Utils
 
+logger = logging.getLogger('s1tiling')
+
 # Global that permits to run the pipeline through gdb and debug OTB applications.
 DEBUG_OTB = False
 
@@ -100,7 +102,7 @@ class AbstractStep(object):
         """
         meta = kwargs
         if not 'basename' in meta:
-            logging.critical('no "basename" in meta == %s', meta)
+            logger.critical('no "basename" in meta == %s', meta)
         assert('basename' in meta)
         # Clear basename from any noise
         self._meta   = meta
@@ -158,7 +160,7 @@ class _StepWithOTBApplication(AbstractStep):
         """
         constructor
         """
-        # logging.debug("Create Step(%s, %s)", app, meta)
+        # logger.debug("Create Step(%s, %s)", app, meta)
         super().__init__(*argv, **kwargs)
         self._app    = app
 
@@ -196,7 +198,7 @@ class Step(_StepWithOTBApplication):
         """
         constructor
         """
-        # logging.debug("Create Step(%s, %s)", app, meta)
+        # logger.debug("Create Step(%s, %s)", app, meta)
         super().__init__(app, *argv, **kwargs)
         self._out    = kwargs.get('param_out', 'out')
 
@@ -223,7 +225,7 @@ class StepFactory(ABC):
         self._appname    = appname
         assert(name)
         self._name       = name
-        logging.debug("new StepFactory(%s) -> app=%s", name, appname)
+        logger.debug("new StepFactory(%s) -> app=%s", name, appname)
 
     @property
     def appname(self):
@@ -293,7 +295,7 @@ class StepFactory(ABC):
             else:
                 app.ConnectImage(self.param_in, input.app, input.param_out)
                 this_step_is_in_memory = in_memory and not input.shall_store
-                # logging.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
+                # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
                 app.PropagateConnectMode(this_step_is_in_memory)
                 if this_step_is_in_memory:
                     # When this is not a store step, we need to clear the input parameters
@@ -303,7 +305,7 @@ class StepFactory(ABC):
 
 
             self.set_output_pixel_type(app, meta)
-            logging.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
             app.SetParameters(parameters)
             meta['param_out'] = self.param_out
             return Step(app, **meta)
@@ -360,7 +362,7 @@ class Pipeline(object):
     def do_execute(self):
         input_files = self.__input.out_filename
         if (type(input_files) is str) and not os.path.isfile(input_files):
-            logging.warning("Cannot execute %s as %s doesn's exist", self, input_files)
+            logger.warning("Cannot execute %s as %s doesn's exist", self, input_files)
             return ""
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
         assert(self.__pipeline) # shall not be empty!
@@ -382,7 +384,7 @@ def execute1(pipeline):
 
 # TODO: try to make it static...
 def execute2(pipeline, *args, **kwargs):
-    logging.info('RUN %s with %s & %s', pipeline, args, kwargs)
+    logger.info('RUN %s with %s & %s', pipeline, args, kwargs)
     return pipeline.do_execute()
 
 
@@ -419,8 +421,8 @@ class PoolOfOTBExecutions(object):
             with multiprocessing.Pool(self.__nb_procs, worker_config, [self.__log_queue]) as pool:
                 self.__log_queue_listener.start()
                 for count, result in enumerate(pool.imap_unordered(execute1, self.__pool), 1):
-                    logging.info("%s correctly finished", result)
-                    logging.info(' --> %s... %s%%', self.__title, count*100./nb_cmd)
+                    logger.info("%s correctly finished", result)
+                    logger.info(' --> %s... %s%%', self.__title, count*100./nb_cmd)
 
                 pool.close()
                 pool.join()
@@ -459,10 +461,10 @@ class PipelineDescription(object):
             res = self.__factory_steps[-1].complete_meta(input_meta)
         # out_pathname = self.__factory_steps[-1].build_step_output_filename(res)
         out_pathname = out_filename(res)
-        # logging.debug('%s / %s', dir, out_filename(res))
+        # logger.debug('%s / %s', dir, out_filename(res))
         # out_pathname = os.path.join(dir, out_filename(res))
         res['out_pathname'] = out_pathname
-        logging.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_pathname)
+        logger.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_pathname)
         return res
 
     @property
@@ -533,7 +535,7 @@ class PipelineDescriptionSequence(object):
         # +-> TODO: cache previous in order to remember which files already exist or not
         #     the difficult part is to flag as "generation successful" of not
         for pipeline in self.__pipelines:
-            logging.debug('Analysing |%s| dependencies', pipeline.name)
+            logger.debug('Analysing |%s| dependencies', pipeline.name)
             next_inputs = []
             for input in inputs:
                 expected = pipeline.expected(input)
@@ -550,12 +552,12 @@ class PipelineDescriptionSequence(object):
                         required.add(expected_pathname)
             inputs = next_inputs
 
-        logging.debug("Dependencies found:")
+        logger.debug("Dependencies found:")
         for path, prev in previous.items():
             if prev:
-                logging.debug('- %s may require %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
+                logger.debug('- %s may require %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
             else:
-                logging.debug('- %s already exists, no need to produce it', path)
+                logger.debug('- %s already exists, no need to produce it', path)
 
         # Generate the actual list of tasks
         final_products = required
@@ -565,17 +567,17 @@ class PipelineDescriptionSequence(object):
             for file in required:
                 assert(previous[file])
                 task_inputs = previous[file]['inputs']
-                # logging.debug('%s --> %s', file, task_inputs)
+                # logger.debug('%s --> %s', file, task_inputs)
                 input_files = [m['out_filename'] for m in task_inputs]
                 # tasks[file] = [execute1, previous[file]['pipeline'].name, input_files]
                 pipeline_instance = previous[file]['pipeline'].instanciate(True, True)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
                 tasks[file] = (execute2, pipeline_instance, input_files)
-                logging.debug('TASKS[%s] += %s(%s)', file, previous[file]['pipeline'].name, input_files)
+                logger.debug('TASKS[%s] += %s(%s)', file, previous[file]['pipeline'].name, input_files)
 
                 for t in task_inputs: # check whether the inputs need to be produced as well
                     if not os.path.isfile(t['out_filename']):
-                        logging.debug('Need to register %s', t['out_filename'])
+                        logger.debug('Need to register %s', t['out_filename'])
                         new_required.add(t['out_filename'])
                     else:
                         tasks[t['out_filename']] = FirstStep(**t)
@@ -612,14 +614,14 @@ class Processing(object):
         pool = PoolOfOTBExecutions("testpool", True, 2, 1,
             self.__log_queue, self.__log_queue_listener)
         for startpoint in startpoints:
-            logging.info("register processing of %s", startpoint.basename)
+            logger.info("register processing of %s", startpoint.basename)
             # TODO: new_pipeline receives the PipelineDescription and add store of the fly
             pipeline = pool.new_pipeline(in_memory=True)
             pipeline.set_input(startpoint)
             for factory in self.__factory_steps:
                 pipeline.push(factory(self.__cfg))
 
-        logging.debug('Launch pipelines')
+        logger.debug('Launch pipelines')
         pool.process()
 
 
@@ -690,13 +692,13 @@ class StoreStep(_StepWithOTBApplication):
     def ExecuteAndWriteOutput(self):
         assert(self._app)
         do_measure = True # TODO
-        # logging.debug('meta pipe: %s', self.meta['pipe'])
+        # logger.debug('meta pipe: %s', self.meta['pipe'])
         pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
         if os.path.isfile(self.out_filename):
             # TODO: This is a dirty hack, instead of analysing at the last
             # moment, it'd be better to have a clear idea of all dependencies
             # and of what needs to be done.
-            logging.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
+            logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
         with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
             if not self.meta.get('dryrun', False):
@@ -716,13 +718,13 @@ def commit_otb_application(tmp_filename, out_filename):
     - Rename the associated geom file (if any as well)
     """
     res = os.replace(tmp_filename, out_filename)
-    logging.debug('Renaming: %s <- mv %s %s', res, tmp_filename, out_filename)
+    logger.debug('Renaming: %s <- mv %s %s', res, tmp_filename, out_filename)
     re_tiff = re.compile(r'\.tiff?$')
     tmp_geom = re.sub(re_tiff, '.geom', tmp_filename)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_filename)
         res = os.replace(tmp_geom, out_geom)
-        logging.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
+        logger.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
     assert(not os.path.isfile(tmp_filename))
 
 class Store(StepFactory):
@@ -742,7 +744,7 @@ class Store(StepFactory):
         try:
             res.ExecuteAndWriteOutput()
         finally:
-            # logging.debug("Collecting memory!")
+            # logger.debug("Collecting memory!")
             # Collect memory now!
             res.release_app()
             for s in previous_steps:

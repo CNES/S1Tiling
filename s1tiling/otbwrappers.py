@@ -29,6 +29,8 @@ from s1tiling.otbpipeline import StepFactory, in_filename, out_filename, Step, A
 from s1tiling import Utils
 import otbApplication as otb
 
+logger = logging.getLogger('s1tiling')
+
 re_tiff = re.compile(r'\.tiff?$')
 
 def has_too_many_NoData(image, threshold, nodata):
@@ -80,8 +82,8 @@ class AnalyseBorders(StepFactory):
 
         crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
         crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
-        logging.debug("   => need to crop north: %s", crop1)
-        logging.debug("   => need to crop south: %s", crop2)
+        logger.debug("   => need to crop north: %s", crop1)
+        logger.debug("   => need to crop south: %s", crop2)
         meta['cut'] = {
                 'threshold.x'      : cut_overlap_range,
                 'threshold.y.start': cut_overlap_azimuth if crop1 else 0,
@@ -219,7 +221,7 @@ class OrthoRectify(StepFactory):
         # image                   = meta['basename']
         tile_name               = meta['tile_name']
         tile_origin             = meta['tile_origin']
-        logging.debug("OrthoRectify.complete_meta(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
+        logger.debug("OrthoRectify.complete_meta(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
         current_date            = Utils.get_date_from_s1_raster(image)
         current_polar           = Utils.get_polar_from_s1_raster(image)
         current_platform        = Utils.get_platform_from_s1_raster(image)
@@ -260,7 +262,7 @@ class OrthoRectify(StepFactory):
         # ortho product goes to tmp dir, it's perfect for the tmp file as well
         meta['out_tmp_filename'] = out_filename_fmt % ('tmp.tif', )
         spacing = self.__out_spatial_res
-        logging.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
+        logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         meta['params.ortho'] = {
                 'opt.ram'          : str(self.__ram_per_process),
                 # 'progress'       : 'false',
@@ -291,7 +293,7 @@ class OrthoRectify(StepFactory):
         return meta['params.ortho']
     def add_ortho_metadata(self, meta):
         fullpath = out_filename(meta)
-        logging.debug('Set metadata in %s', fullpath)
+        logger.debug('Set metadata in %s', fullpath)
         dst = gdal.Open(fullpath, gdal.GA_Update)
 
         dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
@@ -336,10 +338,6 @@ class Concatenate(StepFactory):
     def build_step_output_filename(self, meta):
         filename = meta['basename']
         return os.path.join(self.output_directory(meta), filename)
-        # logging.debug("meta is: %s", meta)
-        # im0 = in_filename(meta)
-        # output_image = im0[:-10]+"xxxxxx"+im0[-4:]
-        # return output_image
     def build_step_output_tmp_filename(self, meta):
         # Unlike output, concatenation result goes into tmp
         filename = meta['basename']
@@ -358,10 +356,10 @@ class Concatenate(StepFactory):
         `create_step` is overridden in Concatenate case in order to by-pass Concatenation in case there is only a single file.
         """
         if len(input.out_filename) == 1:
-            logging.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', input.out_filename)
+            logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', input.out_filename)
             meta = self.complete_meta(input.meta)
             res = AbstractStep(**meta)
-            logging.debug('Renaming %s into %s', input.out_filename[0], res.out_filename)
+            logger.debug('Renaming %s into %s', input.out_filename[0], res.out_filename)
             os.replace(input.out_filename[0], res.out_filename)
             return res
         else:
@@ -400,7 +398,7 @@ class BuildBorderMask(StepFactory):
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tmp.tif")
         return os.path.join(self.output_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
-        # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        # logger.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
     def parameters(self, meta):
         return {
@@ -438,7 +436,7 @@ class SmoothBorderMask(StepFactory):
         filename = meta['basename'].replace(".tif", "_BorderMask.tmp.tif")
         return os.path.join(self.tmp_directory(meta), filename)
     def set_output_pixel_type(self, app, meta):
-        # logging.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        # logger.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
     def parameters(self, meta):
         return {

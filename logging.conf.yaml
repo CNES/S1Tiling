@@ -36,11 +36,11 @@ handlers:
     #     subject: Houston, we have a problem.
 
 loggers:
-    simpleExample:
+    s1tiling:
         level: DEBUG
-        handlers: [console]
+        handlers: [console, file, important]
         propagate: no
 root:
     level: INFO
-    handlers: [console,file, important]
+    handlers: [console, file, important]
 

@@ -28,6 +28,8 @@ import fnmatch, glob
 import sys
 import logging
 
+logger = logging.getLogger('s1tiling')
+
 class Layer(object):
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
@@ -61,7 +63,7 @@ def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_da
             +" --latmin "+str(latmin)+" --latmax "+str(latmax)\
             +" -w "+raw_directory\
             +" --tiledata "+tile_data
-    logging.debug('Download with %s', command)
+    logger.debug('Download with %s', command)
     status = -1
     while status != 0:
         if tile_name: # <=> self.cfg.cluster is True
@@ -77,12 +79,12 @@ def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
     import zipfile
     for file_it in list_files(raw_directory, '*.zip'):
-        logging.debug("unzipping %s",file_it.name)
+        logger.debug("unzipping %s",file_it.name)
         try:
             with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
                 zip_ref.extractall(raw_directory)
         except  zipfile.BadZipfile:
-            logging.warning("%s is corrupted. This file will be removed", file_it.path)
+            logger.warning("%s is corrupted. This file will be removed", file_it.path)
         try:
             os.remove(file_it.path)
         except:
@@ -94,10 +96,10 @@ def filter_images_or_ortho(kind, all_images):
     # fnmatch cannot be used with patterns like 'dir/*.foo'
     # => As the directory as been filtered with glob(), just work without the directory part
     images = fnmatch.filter(all_images, pattern)
-    logging.debug("  * %s images: %s", kind, images)
+    logger.debug("  * %s images: %s", kind, images)
     if not images:
         images = [f.replace("_OrthoReady.tiff",".tiff") for f in fnmatch.filter(all_images, ortho_pattern)]
-        logging.debug("    %s images from Ortho: %s", kind, images)
+        logger.debug("    %s images from Ortho: %s", kind, images)
     return images
 
 
@@ -136,7 +138,7 @@ class S1FileManager(object):
                 try:
                     self.roi_by_coordinates = cfg.ROI_by_coordinates.split()
                 except cfg.NoOptionError:
-                    logging.critical("No ROI defined in the config file")
+                    logger.critical("No ROI defined in the config file")
                     exit(-1)
 
         try:
@@ -154,7 +156,7 @@ class S1FileManager(object):
         Turn the S1FileManager into a context manager, cleanup function
         """
         if self.__tmpsrtmdir:
-            logging.debug('Cleaning temporary SRTM diretory (%s)', self.__tmpsrtmdir)
+            logger.debug('Cleaning temporary SRTM diretory (%s)', self.__tmpsrtmdir)
             self.__tmpsrtmdir.cleanup()
             self.__tmpsrtmdir = None
         return False
@@ -167,10 +169,10 @@ class S1FileManager(object):
         if not self.__tmpsrtmdir:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logging.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
+            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
             assert(os.path.isdir(self.__tmpsrtmdir.name))
             for srtm_tile in srtm_tiles:
-                logging.debug('ln -s %s  <-- %s',
+                logger.debug('ln -s %s  <-- %s',
                         os.path.join(self.cfg.srtm,          srtm_tile),
                         os.path.join(self.__tmpsrtmdir.name, srtm_tile))
                 os.symlink(
@@ -182,7 +184,7 @@ class S1FileManager(object):
         safeFileList = sorted(glob.glob(os.path.join(self.cfg.raw_directory,"*")), key=os.path.getctime)
         if len(safeFileList) > threshold:
             for f in safeFileList[:len(safeFileList)-threshold]:
-                logging.debug("Remove : ",os.path.basename(f))
+                logger.debug("Remove : ",os.path.basename(f))
                 shutil.rmtree(f, ignore_errors=True)
             self.get_s1_img()
 
@@ -190,7 +192,7 @@ class S1FileManager(object):
         """ This method downloads the required images if pepsdownload is True"""
         import numpy as np
         if not self.cfg.pepsdownload:
-            logging.info("Using images already downloaded, as per configuration request")
+            logger.info("Using images already downloaded, as per configuration request")
             return
 
         if self.roi_by_tiles is not None:
@@ -200,7 +202,7 @@ class S1FileManager(object):
                 tiles_list = self.cfg.tiles_list
             else:
                 tiles_list = self.roi_by_tiles
-            logging.debug("Tiles requested to download: %s", tiles_list)
+            logger.debug("Tiles requested to download: %s", tiles_list)
 
             layer = Layer(self.cfg.output_grid)
             for current_tile in layer:
@@ -244,8 +246,8 @@ class S1FileManager(object):
             manifest = os.path.join(safe_dir, self.manifest_pattern)
             acquisition = S1DateAcquisition(manifest, [])
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
-            logging.debug("# Safe dir: %s", safe_dir)
-            logging.debug("  all tiffs: %s", list(all_tiffs))
+            logger.debug("# Safe dir: %s", safe_dir)
+            logger.debug("  all tiffs: %s", list(all_tiffs))
 
             vv_images = filter_images_or_ortho('vv', all_tiffs)
             vh_images = filter_images_or_ortho('vh', all_tiffs)
@@ -272,7 +274,7 @@ class S1FileManager(object):
         layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
-            #logging.debug("%s", current_tile.GetField('NAME'))
+            #logger.debug("%s", current_tile.GetField('NAME'))
             if current_tile.GetField('NAME') in tile_name_field:
                 return True
         return False
@@ -325,7 +327,7 @@ class S1FileManager(object):
           S1DateAcquisition class, [corners]) for S1 products
           intersecting the given tile
         """
-        logging.debug('Test intersections of %s', tile_name_field)
+        logger.debug('Test intersections of %s', tile_name_field)
         # TODO: don't abort if there is only vv or vh
         # => move to another dependency analysis policy
         date_exist=[os.path.basename(f)[21:21+8] for f in glob.glob(os.path.join(self.cfg.output_preprocess,tile_name_field,"s1?_*.tif"))]
@@ -334,24 +336,24 @@ class S1FileManager(object):
         layer = Layer(self.cfg.output_grid)
         current_tile = layer.find_tile_named(tile_name_field)
         if not current_tile:
-            logging.info("Tile %s does not exist", tile_name_field)
+            logger.info("Tile %s does not exist", tile_name_field)
             return intersect_raster
 
         poly = ogr.Geometry(ogr.wkbPolygon)
         tile_footprint = current_tile.GetGeometryRef()
 
         for image in self.raw_raster_list:
-            logging.debug('- Manifest: %s', image.get_manifest())
-            logging.debug('  Image list: %s', image.get_images_list())
+            logger.debug('- Manifest: %s', image.get_manifest())
+            logger.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list())==0:
-                logging.critical("Problem with %s",image.get_manifest())
-                logging.critical("Please remove the raw data for this SAFE file")
+                logger.critical("Problem with %s",image.get_manifest())
+                logger.critical("Please remove the raw data for this SAFE file")
                 sys.exit(-1)
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
 
             if date_safe in date_exist:
-                logging.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
+                logger.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
                 continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
@@ -366,7 +368,7 @@ class S1FileManager(object):
             poly.AddGeometry(ring)
 
             intersection = poly.Intersection(tile_footprint)
-            logging.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', ring, tile_footprint, intersection)
+            logger.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', ring, tile_footprint, intersection)
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()
@@ -412,7 +414,7 @@ class S1FileManager(object):
         needed_srtm_tiles = {}
 
         for tile in tiles_to_process:
-            logging.debug("Check SRTM tile for %s",tile)
+            logger.debug("Check SRTM tile for %s",tile)
 
             srtm_tiles = []
             mgrs_footprint = self.get_mgrs_tile_geometry_by_name(tile)
@@ -425,7 +427,7 @@ class S1FileManager(object):
                     coverage = intersection.GetArea()/area
                     srtm_tiles.append((srtm_tile.GetField('FILE'), coverage))
             needed_srtm_tiles[tile] = srtm_tiles
-        logging.info("SRTM ok")
+        logger.info("SRTM ok")
         return needed_srtm_tiles
 
     def record_processed_filenames(self):

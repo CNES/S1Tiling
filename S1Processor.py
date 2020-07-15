@@ -57,7 +57,7 @@ def remove_files(files):
     """
     Removes the files from the disk
     """
-    logging.debug("Remove %s", files)
+    logger.debug("Remove %s", files)
     return
     for file_it in files:
         if os.path.exists(file_it):
@@ -76,20 +76,20 @@ def extract_tiles_to_process(cfg, s1_file_manager):
         elif True:  #s1_file_manager.tile_exists(tile_it):
             TILES_TO_PROCESS.append(tile_it)
         else:
-            logging.info("Tile %s does not exist, skipping ...", tile_it)
-    logging.info('Requested tiles: %s', cfg.tile_list)
+            logger.info("Tile %s does not exist, skipping ...", tile_it)
+    logger.info('Requested tiles: %s', cfg.tile_list)
 
     # We can not require both to process all tiles covered by downloaded products
     # and and download all tiles
 
     if ALL_REQUESTED:
         if cfg.pepsdownload and "ALL" in cfg.roi_by_tiles:
-            logging.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
+            logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
                 +" Use ROI_by_coordinates or deactivate download instead")
             sys.exit(1)
         else:
             TILES_TO_PROCESS = s1_file_manager.get_tiles_covered_by_products()
-            logging.info("All tiles for which more than "\
+            logger.info("All tiles for which more than "\
                 +str(100*cfg.TileToProductOverlapRatio)\
                 +"% of the surface is covered by products will be produced: "\
                 +str(TILES_TO_PROCESS))
@@ -106,7 +106,7 @@ def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
 
     # For each MGRS tile to process
     for tile_it in TILES_TO_PROCESS:
-        logging.info("Check SRTM coverage for %s",tile_it)
+        logger.info("Check SRTM coverage for %s",tile_it)
         # Get SRTM tiles coverage statistics
         srtm_tiles = SRTM_TILES_CHECK[tile_it]
         current_coverage = 0
@@ -119,7 +119,7 @@ def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
         NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
         TILES_TO_PROCESS_CHECKED.append(tile_it)
         if current_coverage < 1.:
-            logging.warning("Tile %s has insuficient SRTM coverage (%s%%)",
+            logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
                     tile_it, 100*current_coverage)
 
     # Remove duplicates
@@ -133,7 +133,7 @@ def check_srtm_tiles(cfg, srtm_tiles):
         tile_path = os.path.join(cfg.srtm, srtm_tile)
         if not os.path.exists(tile_path):
             res = False
-            logging.critical(tile_path+" is missing!")
+            logger.critical(tile_path+" is missing!")
     return res
 
 # Main code
@@ -145,29 +145,30 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
     CFG = sys.argv[1]
     Cg_Cfg=Configuration(CFG)
+    logger = logging.getLogger('s1tiling')
     with S1FileManager.S1FileManager(Cg_Cfg) as S1_FILE_MANAGER:
         TILES_TO_PROCESS = extract_tiles_to_process(Cg_Cfg, S1_FILE_MANAGER)
         if len(TILES_TO_PROCESS) == 0:
-            logging.critical("No existing tiles found, exiting ...")
+            logger.critical("No existing tiles found, exiting ...")
             sys.exit(1)
 
         TILES_TO_PROCESS_CHECKED, NEEDED_SRTM_TILES = check_tiles_to_process(TILES_TO_PROCESS, S1_FILE_MANAGER)
 
-        logging.info("%s images to process on %s tiles",
+        logger.info("%s images to process on %s tiles",
                 S1_FILE_MANAGER.nb_images, TILES_TO_PROCESS_CHECKED)
 
         if len(TILES_TO_PROCESS_CHECKED) == 0:
-            logging.critical("No tiles to process, exiting ...")
+            logger.critical("No tiles to process, exiting ...")
             sys.exit(1)
 
-        logging.info("Required SRTM tiles: %s", NEEDED_SRTM_TILES)
+        logger.info("Required SRTM tiles: %s", NEEDED_SRTM_TILES)
 
         if not check_srtm_tiles(Cg_Cfg, NEEDED_SRTM_TILES):
-            logging.critical("Some SRTM tiles are missing, exiting ...")
+            logger.critical("Some SRTM tiles are missing, exiting ...")
             sys.exit(1)
 
         if not os.path.exists(Cg_Cfg.GeoidFile):
-            logging.critical("Geoid file does not exists (%s), exiting ...", Cg_Cfg.GeoidFile)
+            logger.critical("Geoid file does not exists (%s), exiting ...", Cg_Cfg.GeoidFile)
             sys.exit(1)
 
         # Prepare directories where to store temporary files
@@ -196,7 +197,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
             out_dir = os.path.join(Cg_Cfg.output_preprocess, tile_it)
             os.makedirs(out_dir, exist_ok=True)
 
-            logging.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
+            logger.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
 
             S1_FILE_MANAGER.keep_X_latest_S1_files(1000)
 
@@ -207,12 +208,12 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
 
             if len(intersect_raster_list) == 0:
-                logging.info("No intersection with tile %s",tile_it)
+                logger.info("No intersection with tile %s",tile_it)
                 continue
 
             dsk, final_products = pipelines.generate_tasks(tile_it, intersect_raster_list)
             for product, how in dsk.items():
-                logging.debug('- task: %s <-- %s', product, how)
+                logger.debug('- task: %s <-- %s', product, how)
                 if DEBUG_OTB:
                     if not issubclass(type(how), FirstStep):
                         how[0](*list(how)[1:])
@@ -259,7 +260,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                     inputs += [start]
                     for i in image_sublist:
                         image_list.remove(i)
-                    logging.info("Concat %s --> %s", image_sublist, output_image)
+                    logger.info("Concat %s --> %s", image_sublist, output_image)
                 process = Processing(Cg_Cfg)
                 process.register_pipeline(steps)
                 process.process(inputs)
