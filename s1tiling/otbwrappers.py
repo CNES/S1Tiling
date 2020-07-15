@@ -347,6 +347,7 @@ class Concatenate(StepFactory):
         out_file = out_filename(meta)
         if type(out_file) is list:
             out_file = out_file[0]
+        wd, out_file = os.path.split(out_file)
         meta['basename'] = re.sub('(?<=t)\d+(?=\.)', lambda m: 'x'*len(m.group()), out_file)
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
@@ -401,13 +402,15 @@ class BuildBorderMask(StepFactory):
         # logger.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
     def parameters(self, meta):
-        return {
+        params = {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
                 }
+        # logger.debug('%s(%s)', self.appname, params)
+        return params
 
 
 class SmoothBorderMask(StepFactory):

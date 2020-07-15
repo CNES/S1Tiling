@@ -211,59 +211,18 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 logger.info("No intersection with tile %s",tile_it)
                 continue
 
-            dsk, final_products = pipelines.generate_tasks(tile_it, intersect_raster_list)
-            for product, how in dsk.items():
-                logger.debug('- task: %s <-- %s', product, how)
+            dsk, final_products = pipelines.generate_tasks(tile_it, intersect_raster_list, debug_otb=DEBUG_OTB)
                 if DEBUG_OTB:
+                for product, how in reversed(dsk):
+                    logger.debug('- task: %s <-- %s', product, how)
                     if not issubclass(type(how), FirstStep):
                         how[0](*list(how)[1:])
-
-            if not DEBUG_OTB:
+            else:
+                for product, how in dsk.items():
+                    logger.debug('- task: %s <-- %s', product, how)
+                    if not issubclass(type(how), FirstStep):
+                        how[0](*list(how)[1:])
                 client.get(dsk, final_products)
-
-            sys.exit(0)
-
-
-
-            with Utils.ExecutionTimer("Calibration|Cut|Ortho", True) as t:
-                process = Processing(Cg_Cfg)
-                process.register_pipeline(
-                        [AnalyseBorders, Calibrate, CutBorders, Store, OrthoRectify])
-                        # [AnalyseBorders, Calibrate, CutBorders, OrthoRectify])
-                inputs = []
-                for raster, tile_origin in intersect_raster_list:
-                    manifest = raster.get_manifest()
-                    for image in raster.get_images_list():
-                        start = FirstStep(tile_name=tile_it, tile_origin=tile_origin, manifest=manifest, basename=image, dryrun=dryrun)
-                        inputs += [start]
-                process.process(inputs)
-
-            msg = "Concatenate"
-            steps = [Concatenate]
-            if Cg_Cfg.mask_cond:
-                steps += [Store, BuildBorderMask, SmoothBorderMask]
-                msg += "|Generate Border Mask"
-            with Utils.ExecutionTimer(msg, True) as t:
-                inputs = []
-                image_list = [i.name for i in Utils.list_files(os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it))
-                        if (len(i.name) == 40 and "xxxxxx" not in i.name)]
-                image_list.sort()
-
-                while len(image_list) > 0:
-                    image_sublist=[i for i in image_list if (image_list[0][:29] in i)]
-
-                    if len(image_sublist) > 0:
-                        images_to_concatenate=[os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it,i) for i in image_sublist]
-                        output_image = images_to_concatenate[0][:-10]+"xxxxxx"+images_to_concatenate[0][-4:]
-
-                    start = FirstStep(tile_name=tile_it, basename=output_image, out_filename=images_to_concatenate, dryrun=dryrun)
-                    inputs += [start]
-                    for i in image_sublist:
-                        image_list.remove(i)
-                    logger.info("Concat %s --> %s", image_sublist, output_image)
-                process = Processing(Cg_Cfg)
-                process.register_pipeline(steps)
-                process.process(inputs)
 
             """
             if Cg_Cfg.filtering_activated:

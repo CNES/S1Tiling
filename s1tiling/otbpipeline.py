@@ -85,6 +85,16 @@ def out_extended_filename_complement(meta):
     return meta.get('out_extended_filename_complement', '')
 
 
+def files_exist(files):
+    if (type(files) is str):
+        return os.path.isfile(files)
+    else:
+        for file in files:
+            if not os.path.isfile(file):
+                return False
+        return True
+
+
 class AbstractStep(object):
     """
     Internal root class for all actual `Step`s.
@@ -290,7 +300,10 @@ class StepFactory(ABC):
                 raise RuntimeError("Cannot create OTB application '"+self.appname+"'")
             parameters = self.parameters(meta)
             if input.is_first_step:
-                parameters[self.param_in] = input.out_filename
+                if not files_exist(input.out_filename):
+                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
+                    raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
+                # parameters[self.param_in] = input.out_filename
                 lg_from = input.out_filename
             else:
                 app.ConnectImage(self.param_in, input.app, input.param_out)
@@ -306,7 +319,12 @@ class StepFactory(ABC):
 
             self.set_output_pixel_type(app, meta)
             logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
-            app.SetParameters(parameters)
+            try:
+                app.SetParameters(parameters)
+            except Exception as e:
+                logging.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
+                raise
+
             meta['param_out'] = self.param_out
             return Step(app, **meta)
         else:
@@ -360,9 +378,8 @@ class Pipeline(object):
     def push(self, otbstep):
         self.__pipeline += [otbstep]
     def do_execute(self):
-        input_files = self.__input.out_filename
-        if (type(input_files) is str) and not os.path.isfile(input_files):
-            logger.warning("Cannot execute %s as %s doesn's exist", self, input_files)
+        if not files_exist(self.__input.out_filename):
+            logger.warning("Cannot execute %s as %s doesn's exist", self, self.__input.out_filename)
             return ""
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
         assert(self.__pipeline) # shall not be empty!
@@ -511,7 +528,7 @@ class PipelineDescriptionSequence(object):
         pipeline = PipelineDescription(steps, *args, **kwargs)
         self.__pipelines.append( pipeline )
 
-    def generate_tasks(self, tile_name, raster_list):
+    def generate_tasks(self, tile_name, raster_list, debug_otb=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -561,7 +578,7 @@ class PipelineDescriptionSequence(object):
 
         # Generate the actual list of tasks
         final_products = required
-        tasks = {}
+        tasks = {} if not debug_otb else []
         while required:
             new_required = set()
             for file in required:
@@ -572,19 +589,24 @@ class PipelineDescriptionSequence(object):
                 # tasks[file] = [execute1, previous[file]['pipeline'].name, input_files]
                 pipeline_instance = previous[file]['pipeline'].instanciate(True, True)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
-                tasks[file] = (execute2, pipeline_instance, input_files)
+                if debug_otb:
+                    tasks.append([file, (execute2, pipeline_instance, input_files)])
+                else:
+                    tasks[file] = (execute2, pipeline_instance, input_files)
                 logger.debug('TASKS[%s] += %s(%s)', file, previous[file]['pipeline'].name, input_files)
 
                 for t in task_inputs: # check whether the inputs need to be produced as well
                     if not os.path.isfile(t['out_filename']):
                         logger.debug('Need to register %s', t['out_filename'])
                         new_required.add(t['out_filename'])
+                    elif debug_otb:
+                        tasks.append([t['out_filename'],  FirstStep(**t)])
                     else:
                         tasks[t['out_filename']] = FirstStep(**t)
             required = new_required
 
         for fp in final_products:
-            assert(fp in tasks.keys())
+            assert(debug_otb or fp in tasks.keys())
         return tasks, list(final_products)
 
 
