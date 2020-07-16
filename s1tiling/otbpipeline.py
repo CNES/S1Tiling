@@ -23,6 +23,7 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 
 import os
 import re
+import copy
 from abc import ABC, abstractmethod
 import logging
 import logging.handlers
@@ -31,6 +32,7 @@ import otbApplication as otb
 import s1tiling.Utils as Utils
 
 logger = logging.getLogger('s1tiling')
+d_logger = logging.getLogger('distributed.worker')
 
 # Global that permits to run the pipeline through gdb and debug OTB applications.
 DEBUG_OTB = False
@@ -332,6 +334,35 @@ class StepFactory(ABC):
             return AbstractStep(**meta)
 
 
+class Outcome(object):
+    """
+    Kind of monad à la C++ `std::expected<>`, `boost::Outcome`
+    """
+    def __init__(self, value_or_error):
+        """
+        constructor
+        """
+        self.__value_or_error    = value_or_error
+        self.__is_error          = issubclass(type(value_or_error), BaseException)
+        self.__related_filenames = []
+    def __bool__(self):
+        return not self.__is_error
+    def add_related_filename(self, fn):
+        self.__related_filenames += [fn]
+        return self
+    def __repr__(self):
+        if self.__is_error:
+            msg = 'Failed to produce %s' % (self.__related_filenames[-1])
+            if len(self.__related_filenames) > 1:
+                msg += ' because '+', '.join(self.__related_filenames[:-1])+' could not be produced: '
+            else:
+                msg += ': '
+            msg += '%s' % (self.__value_or_error, )
+            return msg
+        else:
+            return 'Success: %s' % (self.__value_or_error)
+
+
 class Pipeline(object):
     """
     Pipeline of OTB applications.
@@ -343,11 +374,12 @@ class Pipeline(object):
     Internal class only meant to be used by  `Pool`.
     """
     ## Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory, name=None):
+    def __init__(self, do_measure, in_memory, name=None, output=None):
         self.__pipeline   = []
         self.__do_measure = do_measure
         self.__in_memory  = in_memory
         self.__name       = name
+        self.__output     = output
     #def __enter__(self):
     #    return self
     #def __exit__(self, type, value, traceback):
@@ -375,12 +407,17 @@ class Pipeline(object):
 
         return str([i.out_filename for i in self.__input]) + '|' + \
                 (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+    @property
+    def output(self):
+        return self.__output
+
     def push(self, otbstep):
         self.__pipeline += [otbstep]
     def do_execute(self):
         if not files_exist(self.__input.out_filename):
-            logger.warning("Cannot execute %s as %s doesn's exist", self, self.__input.out_filename)
-            return ""
+            msg = "Cannot execute %s as %s doesn't exist" % (self, self.__input.out_filename)
+            logger.warning(msg)
+            return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
         assert(self.__pipeline) # shall not be empty!
         steps     = [self.__input]
@@ -391,7 +428,7 @@ class Pipeline(object):
         # for step in steps:
             # step.release_app() # should not make any difference now...
         # return self.name + ' > ' + steps[-1].out_filename
-        return steps[-1].out_filename
+        return Outcome(steps[-1].out_filename)
 
 
 # TODO: try to make it static...
@@ -401,8 +438,22 @@ def execute1(pipeline):
 
 # TODO: try to make it static...
 def execute2(pipeline, *args, **kwargs):
-    logger.info('RUN %s with %s & %s', pipeline, args, kwargs)
-    return pipeline.do_execute()
+    # global logger
+    # logger = d_logger
+    # logger.info('RUN %s with %s', pipeline, args)
+    d_logger.info('RUN2 %s with %s', pipeline, args)
+    try:
+        assert(len(args) == 1)
+        for arg in args[0]:
+            d_logger.info('ARG: %s (%s)', arg, type(arg))
+            if (type(arg) is Outcome) and not arg:
+                return copy.deepcopy(arg).add_related_filename(pipeline.output)
+        # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
+        # That's why errors need to be caught and transformed here.
+        return pipeline.do_execute().add_related_filename(pipeline.output)
+    except Exception as e:
+        d_logger.exception('Execution of %s with %s failed', pipeline, args)
+        return Outcome(e).add_related_filename(pipeline.output)
 
 
 class PoolOfOTBExecutions(object):
@@ -493,8 +544,8 @@ class PipelineDescription(object):
     def product_is_required(self):
         return self.__is_product_required
 
-    def instanciate(self, do_measure, in_memory):
-        pipeline = Pipeline(do_measure, in_memory, self.name)
+    def instanciate(self, file, do_measure, in_memory):
+        pipeline = Pipeline(do_measure, in_memory, self.name, file)
         for sf in self.__factory_steps + [Store('noappname')]:
             pipeline.push(sf)
         return pipeline
@@ -586,8 +637,7 @@ class PipelineDescriptionSequence(object):
                 task_inputs = previous[file]['inputs']
                 # logger.debug('%s --> %s', file, task_inputs)
                 input_files = [m['out_filename'] for m in task_inputs]
-                # tasks[file] = [execute1, previous[file]['pipeline'].name, input_files]
-                pipeline_instance = previous[file]['pipeline'].instanciate(True, True)
+                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
                 if debug_otb:
                     tasks.append([file, (execute2, pipeline_instance, input_files)])

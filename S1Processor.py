@@ -186,7 +186,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
-        cluster = LocalCluster(threads_per_worker=2, processes=True, n_workers=2)
+        cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=2, silence_logs=False)
         client = Client(cluster)
 
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
@@ -212,7 +212,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 continue
 
             dsk, final_products = pipelines.generate_tasks(tile_it, intersect_raster_list, debug_otb=DEBUG_OTB)
-                if DEBUG_OTB:
+            if DEBUG_OTB:
                 for product, how in reversed(dsk):
                     logger.debug('- task: %s <-- %s', product, how)
                     if not issubclass(type(how), FirstStep):
@@ -220,9 +220,11 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
             else:
                 for product, how in dsk.items():
                     logger.debug('- task: %s <-- %s', product, how)
-                    if not issubclass(type(how), FirstStep):
-                        how[0](*list(how)[1:])
-                client.get(dsk, final_products)
+                logger.info('Start S1 -> S2 transformations for %s', tile_it)
+                results = client.get(dsk, final_products)
+                logger.info('Execution report:')
+                for r in results:
+                    logger.info(' - %s', r)
 
             """
             if Cg_Cfg.filtering_activated:
