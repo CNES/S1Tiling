@@ -352,9 +352,9 @@ class S1FileManager(object):
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
 
-            if date_safe in date_exist:
-                logger.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
-                continue
+            ##if date_safe in date_exist:
+            ##    logger.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
+            ##    continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
 
