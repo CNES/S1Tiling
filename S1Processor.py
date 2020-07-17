@@ -145,6 +145,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
     CFG = sys.argv[1]
     Cg_Cfg=Configuration(CFG)
+    os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(Cg_Cfg.OTBThreads)
     logger = logging.getLogger('s1tiling')
     with S1FileManager.S1FileManager(Cg_Cfg) as S1_FILE_MANAGER:
         TILES_TO_PROCESS = extract_tiles_to_process(Cg_Cfg, S1_FILE_MANAGER)
@@ -186,7 +187,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
-        cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=2, silence_logs=False)
+        cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
         client = Client(cluster)
 
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
@@ -211,7 +212,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 logger.info("No intersection with tile %s",tile_it)
                 continue
 
-            dsk, final_products = pipelines.generate_tasks(tile_it, intersect_raster_list, debug_otb=DEBUG_OTB)
+            dsk, required_products = pipelines.generate_tasks(tile_it, intersect_raster_list, debug_otb=DEBUG_OTB)
             if DEBUG_OTB:
                 for product, how in reversed(dsk):
                     logger.debug('- task: %s <-- %s', product, how)
@@ -221,7 +222,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 for product, how in dsk.items():
                     logger.debug('- task: %s <-- %s', product, how)
                 logger.info('Start S1 -> S2 transformations for %s', tile_it)
-                results = client.get(dsk, final_products)
+                results = client.get(dsk, required_products)
                 logger.info('Execution report:')
                 for r in results:
                     logger.info(' - %s', r)
