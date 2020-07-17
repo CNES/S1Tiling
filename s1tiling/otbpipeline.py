@@ -402,11 +402,11 @@ class Pipeline(object):
 
     @property
     def name(self):
-        return str(self.__input.out_filename) + '|' + \
-                (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+        appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+        return '%s -> %s from %s' % (appname, self.__output, self.__input.out_filename)
+        return str(self.__input.out_filename) + '|' + appname
 
-        return str([i.out_filename for i in self.__input]) + '|' + \
-                (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+        return str([i.out_filename for i in self.__input]) + '|' + appname
     @property
     def output(self):
         return self.__output
@@ -441,18 +441,21 @@ def execute2(pipeline, *args, **kwargs):
     # global logger
     # logger = d_logger
     # logger.info('RUN %s with %s', pipeline, args)
-    d_logger.info('RUN2 %s with %s', pipeline, args)
+    d_logger.debug('Parameters for %s: %s', pipeline, args)
     try:
         assert(len(args) == 1)
         for arg in args[0]:
-            d_logger.info('ARG: %s (%s)', arg, type(arg))
+            # d_logger.info('ARG: %s (%s)', arg, type(arg))
             if (type(arg) is Outcome) and not arg:
+                d_logger.warning('Abort execution of %s. Error: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
+        d_logger.info('Execute %s', pipeline)
         return pipeline.do_execute().add_related_filename(pipeline.output)
     except Exception as e:
-        d_logger.exception('Execution of %s with %s failed', pipeline, args)
+        d_logger.exception('Execution of %s failed', pipeline)
+        d_logger.debug('Parameters for %s were: %s', pipeline, args)
         return Outcome(e).add_related_filename(pipeline.output)
 
 

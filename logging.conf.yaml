@@ -38,8 +38,12 @@ handlers:
 loggers:
     s1tiling:
         level: DEBUG
+          #handlers: [console, file, important]
+        propagate: yes
+    distributed.worker:
+        level: INFO
         handlers: [console, file, important]
-        propagate: no
+        propagate: yes
 root:
     level: INFO
     handlers: [console, file, important]
