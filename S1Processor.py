@@ -48,8 +48,8 @@ from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRec
 
 import dask.distributed
 from dask.distributed import Client, LocalCluster
+from dask.diagnostics import ProgressBar
 
-# dryrun=True
 dryrun = False
 DEBUG_OTB = False
 
@@ -137,7 +137,6 @@ def check_srtm_tiles(cfg, srtm_tiles):
     return res
 
 # Main code
-import dask.core, dask.order
 if __name__ == '__main__': # Required for Dask: https://github.com/dask/distributed/issues/2422
     if len(sys.argv) != 2:
         print("Usage: "+sys.argv[0]+" config.cfg")
@@ -190,6 +189,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
         cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
         client = Client(cluster)
 
+        results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
 
             working_directory = os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it)
@@ -217,15 +217,14 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 for product, how in reversed(dsk):
                     logger.debug('- task: %s <-- %s', product, how)
                     if not issubclass(type(how), FirstStep):
-                        how[0](*list(how)[1:])
+                        results += [how[0](*list(how)[1:])]
             else:
                 for product, how in dsk.items():
                     logger.debug('- task: %s <-- %s', product, how)
+
                 logger.info('Start S1 -> S2 transformations for %s', tile_it)
-                results = client.get(dsk, required_products)
-                logger.info('Execution report:')
-                for r in results:
-                    logger.info(' - %s', r)
+                ProgressBar().register()
+                results += client.get(dsk, required_products)
 
             """
             if Cg_Cfg.filtering_activated:
@@ -233,3 +232,6 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                     filteringProcessor.process(tile_it)
             """
 
+        logger.info('Execution report:')
+        for r in results:
+            logger.info(' - %s', r)
