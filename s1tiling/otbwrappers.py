@@ -356,15 +356,22 @@ class Concatenate(StepFactory):
         """
         `create_step` is overridden in Concatenate case in order to by-pass Concatenation in case there is only a single file.
         """
-        if len(input.out_filename) == 1:
-            logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', input.out_filename)
-            meta = self.complete_meta(input.meta)
-            res = AbstractStep(**meta)
-            logger.debug('Renaming %s into %s', input.out_filename[0], res.out_filename)
-            os.replace(input.out_filename[0], res.out_filename)
-            return res
+        # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
+        if type(input.out_filename) == list and len(input.out_filename) == 1:
+            # This situation should not happen any more, we now a single string as input.
+            # The code is kept in case s1tiling kernel changes again.
+            concat_in_filename = input.out_filename[0]
+        elif type(input.out_filename) == str:
+            concat_in_filename = input.out_filename
         else:
             return super().create_step(input, in_memory, previous_steps)
+        # Back to a single file input case
+        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
+        meta = self.complete_meta(input.meta)
+        res = AbstractStep(**meta)
+        logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
+        os.replace(concat_in_filename, res.out_filename)
+        return res
 
     def parameters(self, meta):
         return {
