@@ -22,6 +22,7 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
+from pathlib import Path
 import re
 import copy
 from abc import ABC, abstractmethod
@@ -554,6 +555,15 @@ class PipelineDescription(object):
         return pipeline
 
 
+def to_dask_key(pathname):
+    """
+    Generate a simplified graph key name from a full pathname.
+    - Strip directory name
+    - Replace '-' with '_' as Dask has a special interpretation for '-' in key names.
+    """
+    return Path(pathname).stem.replace('-', '_')
+
+
 class PipelineDescriptionSequence(object):
     """
     List of `PipelineDescription` objects
@@ -631,31 +641,32 @@ class PipelineDescriptionSequence(object):
                 logger.debug('- %s already exists, no need to produce it', path)
 
         # Generate the actual list of tasks
-        final_products = required
+        final_products = [to_dask_key(p) for p in required]
         tasks = {} if not debug_otb else []
         while required:
             new_required = set()
             for file in required:
                 assert(previous[file])
+                base_file = to_dask_key(file)
                 task_inputs = previous[file]['inputs']
                 # logger.debug('%s --> %s', file, task_inputs)
-                input_files = [m['out_filename'] for m in task_inputs]
+                input_files = [to_dask_key(m['out_filename']) for m in task_inputs]
                 pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
                 if debug_otb:
-                    tasks.append([file, (execute2, pipeline_instance, input_files)])
+                    tasks.append([base_file, (execute2, pipeline_instance, input_files)])
                 else:
-                    tasks[file] = (execute2, pipeline_instance, input_files)
-                logger.debug('TASKS[%s] += %s(%s)', file, previous[file]['pipeline'].name, input_files)
+                    tasks[base_file] = (execute2, pipeline_instance, input_files)
+                logger.debug('TASKS[%s] += %s(%s)', base_file, previous[file]['pipeline'].name, input_files)
 
                 for t in task_inputs: # check whether the inputs need to be produced as well
                     if not os.path.isfile(t['out_filename']):
                         logger.debug('Need to register %s', t['out_filename'])
                         new_required.add(t['out_filename'])
                     elif debug_otb:
-                        tasks.append([t['out_filename'],  FirstStep(**t)])
+                        tasks.append([to_dask_key(t['out_filename']),  FirstStep(**t)])
                     else:
-                        tasks[t['out_filename']] = FirstStep(**t)
+                        tasks[to_dask_key(t['out_filename'])] = FirstStep(**t)
             required = new_required
 
         for fp in final_products:
