@@ -136,6 +136,23 @@ def check_srtm_tiles(cfg, srtm_tiles):
             logger.critical(tile_path+" is missing!")
     return res
 
+
+def setup_worker_logs(config, dask_worker):
+    d_logger = logging.getLogger('distributed.worker')
+    r_logger = logging.getLogger()
+    old_handlers = d_logger.handlers[:]
+
+    for h, cfg in config['handlers'].items():
+        if 'filename' in cfg and '%' in cfg['filename']:
+            cfg['filename'] = cfg['filename'] % ('worker-'+str(dask_worker.name),)
+
+    logging.config.dictConfig(config)
+    # Restore old dask.distributed handlers, and inject them in root handler as well
+    for hdlr in old_handlers:
+        d_logger.addHandler(hdlr)
+        r_logger.addHandler(hdlr) # <-- this way we send s1tiling messages to dask channel
+
+
 # Main code
 if __name__ == '__main__': # Required for Dask: https://github.com/dask/distributed/issues/2422
     if len(sys.argv) != 2:
@@ -188,6 +205,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
         client = Client(cluster)
+        client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(Cg_Cfg.log_config, dask_worker))
 
         results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
@@ -221,10 +239,6 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
             else:
                 for product, how in dsk.items():
                     logger.debug('- task: %s <-- %s', product, how)
-
-                logger.info('Start S1 -> S2 transformations for %s', tile_it)
-                ProgressBar().register()
-                results += client.get(dsk, required_products)
 
             """
             if Cg_Cfg.filtering_activated:

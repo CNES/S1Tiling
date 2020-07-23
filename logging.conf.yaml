@@ -18,13 +18,15 @@ handlers:
         class: logging.FileHandler
         level: DEBUG
         formatter: full
-        filename: S1Processor.debug.log
+        # %s will be replaced by "main" or "worker-%d"
+        filename: S1Processor-%s.debug.log
         mode: w # 'w' disable 'a'ppend
     important:
         class: logging.FileHandler
         level: WARNING
         formatter: full
-        filename: S1Processor.warning.log
+        # %s will be replaced by "main" or "worker-%d"
+        filename: S1Processor-%s.warning.log
         mode: w # 'w' disable 'a'ppend
     # email:
     #     class: logging.handlers.SMTPHandler

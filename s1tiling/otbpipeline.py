@@ -33,7 +33,7 @@ import otbApplication as otb
 import s1tiling.Utils as Utils
 
 logger = logging.getLogger('s1tiling')
-d_logger = logging.getLogger('distributed.worker')
+# d_logger = logging.getLogger('distributed.worker')
 
 # Global that permits to run the pipeline through gdb and debug OTB applications.
 DEBUG_OTB = False
@@ -439,24 +439,21 @@ def execute1(pipeline):
 
 # TODO: try to make it static...
 def execute2(pipeline, *args, **kwargs):
-    # global logger
-    # logger = d_logger
-    # logger.info('RUN %s with %s', pipeline, args)
-    d_logger.debug('Parameters for %s: %s', pipeline, args)
+    logger.debug('Parameters for %s: %s', pipeline, args)
     try:
         assert(len(args) == 1)
         for arg in args[0]:
-            # d_logger.info('ARG: %s (%s)', arg, type(arg))
+            # logger.info('ARG: %s (%s)', arg, type(arg))
             if (type(arg) is Outcome) and not arg:
-                d_logger.warning('Abort execution of %s. Error: %s', pipeline, arg)
+                logger.warning('Abort execution of %s. Error: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
-        d_logger.info('Execute %s', pipeline)
+        logger.info('Execute %s', pipeline)
         return pipeline.do_execute().add_related_filename(pipeline.output)
     except Exception as e:
-        d_logger.exception('Execution of %s failed', pipeline)
-        d_logger.debug('Parameters for %s were: %s', pipeline, args)
+        logger.exception('Execution of %s failed', pipeline)
+        logger.debug('Parameters for %s were: %s', pipeline, args)
         return Outcome(e).add_related_filename(pipeline.output)
 
 
@@ -671,7 +668,7 @@ class PipelineDescriptionSequence(object):
 
         for fp in final_products:
             assert(debug_otb or fp in tasks.keys())
-        return tasks, list(final_products)
+        return tasks, final_products
 
 
 class Processing(object):

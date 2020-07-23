@@ -24,6 +24,7 @@ import logging.handlers
 import pathlib
 import os
 import re
+import copy
 import multiprocessing
 
 def init_logger(mode, paths):
@@ -59,17 +60,19 @@ def init_logger(mode, paths):
                 config["root"]["handlers"] += ['file']
             if not 'important' in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
-        logging.config.dictConfig(config)
+        main_config = copy.deepcopy(config)
+        for h, cfg in main_config['handlers'].items():
+            if 'filename' in cfg and '%' in cfg['filename']:
+                cfg['filename'] = cfg['filename'] % ('main',)
+        logging.config.dictConfig(main_config)
     else:
         # This situation should not happen
         if verbose:
             logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+            # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
         else:
             logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-    queue = multiprocessing.Queue()
-    queue_listener = logging.handlers.QueueListener(queue)
-    return queue, queue_listener
+    return config
 
 
 class Configuration():
@@ -80,9 +83,11 @@ class Configuration():
 
         # Logs
         self.Mode=config.get('Processing','Mode')
-        self.log_queue, self.log_queue_listener = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
+        self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
+        # self.log_queue = multiprocessing.Queue()
+        # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode:
-            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+            # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
             pass
         ##self.stdoutfile = open("/dev/null", 'w')
         ##self.stderrfile = open("S1ProcessorErr.log", 'a')
