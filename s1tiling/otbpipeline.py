@@ -282,6 +282,12 @@ class StepFactory(ABC):
         assert(issubclass(type(input), AbstractStep))
         meta = self.complete_meta(input.meta)
         if self.appname:
+            if meta.get('dryrun', False):
+                logger.warning('DRY RUN mode: ignore step and OTB Application creation')
+                lg_from = input.out_filename if input.is_first_step else 'app'
+                logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
+                meta['param_out'] = self.param_out
+                return Step('FAKEAPP', **meta)
             app = otb.Registry.CreateApplication(self.appname)
             if not app:
                 raise RuntimeError("Cannot create OTB application '"+self.appname+"'")
@@ -401,7 +407,7 @@ class Pipeline(object):
     def push(self, otbstep):
         self.__pipeline += [otbstep]
     def do_execute(self):
-        if not files_exist(self.__input.out_filename):
+        if not files_exist(self.__input.out_filename) and not self.__input.meta.get('dryrun', False):
             msg = "Cannot execute %s as %s doesn't exist" % (self, self.__input.out_filename)
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
@@ -526,7 +532,7 @@ class PipelineDescriptionSequence(object):
         pipeline = PipelineDescription(steps, *args, **kwargs)
         self.__pipelines.append( pipeline )
 
-    def generate_tasks(self, tile_name, raster_list, debug_otb=False):
+    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -540,7 +546,7 @@ class PipelineDescriptionSequence(object):
         for raster, tile_origin in raster_list:
             manifest = raster.get_manifest()
             for image in raster.get_images_list():
-                start = FirstStep(tile_name=tile_name, tile_origin=tile_origin, manifest=manifest, basename=image)
+                start = FirstStep(tile_name=tile_name, tile_origin=tile_origin, manifest=manifest, basename=image, dryrun=dryrun)
                 inputs += [ start.meta ]
 
         # Runs the inputs through all pipeline descriptions to build the full list
@@ -690,7 +696,7 @@ class StoreStep(_StepWithOTBApplication):
                 self._app.SetParameterString(self.param_out, self.tmp_filename+out_extended_filename_complement(self.meta))
                 self._app.ExecuteAndWriteOutput()
                 commit_otb_application(self.tmp_filename, self.out_filename)
-        if 'post' in self.meta:
+        if 'post' in self.meta and not self.meta.get('dryrun', False):
             for hook in self.meta['post']:
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]

@@ -50,7 +50,7 @@ import dask.distributed
 from dask.distributed import Client, LocalCluster
 from dask.diagnostics import ProgressBar
 
-dryrun = False
+DRYRUN = False    # Global that permits to see what would be executed, without producing anything
 DEBUG_OTB = False # Global that permits to run the pipeline through gdb and debug OTB applications.
 
 def remove_files(files):
@@ -178,7 +178,7 @@ def process_one_tile(
         logger.info("No intersection with tile %s", tile_name)
         return
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, debug_otb=debug_otb)
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, debug_otb=debug_otb, dryrun=dryrun)
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
@@ -259,7 +259,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 results += process_one_tile(
                         tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
                         Cg_Cfg, S1_FILE_MANAGER, pipelines,
-                        debug_otb=DEBUG_OTB)
+                        debug_otb=DEBUG_OTB, dryrun=DRYRUN)
 
             """
             if Cg_Cfg.filtering_activated:
