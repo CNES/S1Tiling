@@ -253,43 +253,54 @@ def list_dirs(directory, pattern = None):
     return res
 
 
-class StdOutErrAdapter(object):
-    def __init__(self, logger, mode=None):
-        self.__logger   = logger
-        self.__mode     = mode # None => adapt DEBUG/INFO/ERROR/...
-        self.__lvl_re   = re.compile('(\((DEBUG|INFO|WARNING|ERROR)\))')
-        self.__lvl_map  = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
-    def write(self, message):
-        messages = message.rstrip().splitlines()
-        for m in messages:
-            if self.__mode:
-                lvl = self.__mode
-            else:
-                match = self.__lvl_re.search(m)
-                if match:
-                    lvl = self.__lvl_map[match.group(2)]
-                else:
-                    lvl = logging.INFO
-            self.__logger.log(lvl, m)
-    def flush(self):
-        pass
-
-    def isatty(self):
-        return False
-
 class RedirectStdToLogger(object):
     """
     Yet another helper class to redirect messages sent to stdout and stderr to a proper logger
 
-    This is a very simplified version tuned to answer S1Tiling needs
+    This is a very simplified version tuned to answer S1Tiling needs.
+    It also acts as a context manager.
     """
-
     def __init__(self, logger):
-        """
-        constructor
-        """
         self.__old_stdout = sys.stdout
         self.__old_stderr = sys.stderr
         self.__logger     = logger
-        sys.stdout = StdOutErrAdapter(logger) # TODO: addapt DEBUG/INFO...
-        sys.stderr = StdOutErrAdapter(logger, logging.ERROR)
+        sys.stdout = RedirectStdToLogger.__StdOutErrAdapter(logger)
+        sys.stderr = RedirectStdToLogger.__StdOutErrAdapter(logger, logging.ERROR)
+    def __enter__(self):
+        return self
+    def __exit__(self, type, value, traceback):
+        sys.stdout = self.__old_stdout
+        sys.stderr = self.__old_stderr
+        return False
+
+    class __StdOutErrAdapter(object):
+        """
+        Internal adapter that redirects messages, initially sent to a file, to a logger.
+        """
+        def __init__(self, logger, mode=None):
+            self.__logger   = logger
+            self.__mode      = mode # None => adapt DEBUG/INFO/ERROR/...
+            self.__last_mode = mode # None => adapt DEBUG/INFO/ERROR/...
+            self.__lvl_re   = re.compile('(\((DEBUG|INFO|WARNING|ERROR)\))')
+            self.__lvl_map  = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
+        def write(self, message):
+            messages = message.rstrip().splitlines()
+            for m in messages:
+                if self.__mode:
+                    lvl = self.__mode
+                else:
+                    match = self.__lvl_re.search(m)
+                    if match:
+                        lvl = self.__lvl_map[match.group(2)]
+                    else:
+                        lvl = self.__last_level or logging.INFO
+                # OTB may have multi line messages.
+                # In that case, reset happens with a new message
+                self.__last_level = lvl
+                self.__logger.log(lvl, m)
+        def flush(self):
+            pass
+
+        def isatty(self):
+            return False
+

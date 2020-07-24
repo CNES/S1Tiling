@@ -288,34 +288,36 @@ class StepFactory(ABC):
                 logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
                 meta['param_out'] = self.param_out
                 return Step('FAKEAPP', **meta)
-            app = otb.Registry.CreateApplication(self.appname)
-            if not app:
-                raise RuntimeError("Cannot create OTB application '"+self.appname+"'")
-            parameters = self.parameters(meta)
-            if input.is_first_step:
-                if not files_exist(input.out_filename):
-                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
-                    raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
-                # parameters[self.param_in] = input.out_filename
-                lg_from = input.out_filename
-            else:
-                app.ConnectImage(self.param_in, input.app, input.param_out)
-                this_step_is_in_memory = in_memory and not input.shall_store
-                # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
-                app.PropagateConnectMode(this_step_is_in_memory)
-                if this_step_is_in_memory:
-                    # When this is not a store step, we need to clear the input parameters
-                    # from its list, otherwise some OTB applications may comply
-                    del parameters[self.param_in]
-                lg_from = 'app'
+            with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')) as otblogger:
+                # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
+                app = otb.Registry.CreateApplication(self.appname)
+                if not app:
+                    raise RuntimeError("Cannot create OTB application '"+self.appname+"'")
+                parameters = self.parameters(meta)
+                if input.is_first_step:
+                    if not files_exist(input.out_filename):
+                        logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
+                        raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
+                    # parameters[self.param_in] = input.out_filename
+                    lg_from = input.out_filename
+                else:
+                    app.ConnectImage(self.param_in, input.app, input.param_out)
+                    this_step_is_in_memory = in_memory and not input.shall_store
+                    # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
+                    app.PropagateConnectMode(this_step_is_in_memory)
+                    if this_step_is_in_memory:
+                        # When this is not a store step, we need to clear the input parameters
+                        # from its list, otherwise some OTB applications may comply
+                        del parameters[self.param_in]
+                    lg_from = 'app'
 
-            self.set_output_pixel_type(app, meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
-            try:
-                app.SetParameters(parameters)
-            except Exception as e:
-                logging.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
-                raise
+                self.set_output_pixel_type(app, meta)
+                logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+                try:
+                    app.SetParameters(parameters)
+                except Exception as e:
+                    logger.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
+                    raise
 
             meta['param_out'] = self.param_out
             return Step(app, **meta)
@@ -690,12 +692,17 @@ class StoreStep(_StepWithOTBApplication):
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
-            if not self.meta.get('dryrun', False):
-                # TODO: catch execute failure, and report it!
-                self._app.SetParameterString(self.param_out, self.tmp_filename+out_extended_filename_complement(self.meta))
-                self._app.ExecuteAndWriteOutput()
-                commit_otb_application(self.tmp_filename, self.out_filename)
+        with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')) as otblogger:
+            # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
+            with Utils.ExecutionTimer('-> pipe << '+pipeline_name+' >>', do_measure) as t:
+                if not self.meta.get('dryrun', False):
+                    # TODO: catch execute failure, and report it!
+                    # logger.info("START %s", pipeline_name)
+                    with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')) as otblogger:
+                        # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
+                        self._app.SetParameterString(self.param_out, self.tmp_filename+out_extended_filename_complement(self.meta))
+                        self._app.ExecuteAndWriteOutput()
+                    commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not self.meta.get('dryrun', False):
             for hook in self.meta['post']:
                 hook(self.meta)

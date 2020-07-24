@@ -86,22 +86,9 @@ class Configuration():
         self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
-        if "debug" in self.Mode:
-            # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
+        if "debug" in self.Mode and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+            os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
             pass
-        ##self.stdoutfile = open("/dev/null", 'w')
-        ##self.stderrfile = open("S1ProcessorErr.log", 'a')
-        ##if "debug" in self.Mode:
-        ##    self.stdoutfile = None
-        ##    self.stderrfile = None
-        ##    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ##    os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
-        ##else:
-        ##    logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-
-        ##if "logging" in self.Mode:
-        ##    self.stdoutfile = open("S1ProcessorOut.log", 'a')
-        ##    self.stderrfile = open("S1ProcessorErr.log", 'a')
 
         # Other options
         self.region           = config.get('DEFAULT','region')

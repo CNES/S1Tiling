@@ -40,7 +40,14 @@ handlers:
 loggers:
     s1tiling:
         level: DEBUG
-          #handlers: [console, file, important]
+        propagate: yes
+    s1tiling.OTB:
+        # Logger that inherits s1tiling logger.
+        # Permits to have s1tiling in debug mode while OTB isn't and the other
+        # way around.
+        # OTB DEBUG logs are displayed iff level is DEBUG and configFile mode
+        # is debug as well.
+        level: INFO
         propagate: yes
     distributed.worker:
         level: INFO

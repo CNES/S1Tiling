@@ -152,11 +152,7 @@ def setup_worker_logs(config, dask_worker):
         d_logger.addHandler(hdlr)
         r_logger.addHandler(hdlr) # <-- this way we send s1tiling messages to dask channel
 
-    ##def isatty(self):
-    ##    return False
-    ##streamtologger.redirect(logging.getLogger('s1tiling'))
-    ##import types
-    ##sys.stdout.isatty = types.MethodType(isatty, sys.stdout)
+    # From now on, redirect stdout/stderr messages to s1tiling
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
 
 
