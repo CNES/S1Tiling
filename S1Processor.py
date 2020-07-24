@@ -43,7 +43,7 @@ from s1tiling import S1FilteringProcessor
 from s1tiling import Utils
 from s1tiling.configuration import Configuration
 
-from s1tiling.otbpipeline import Processing, FirstStep, Store, PipelineDescriptionSequence
+from s1tiling.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
 import dask.distributed
@@ -51,7 +51,7 @@ from dask.distributed import Client, LocalCluster
 from dask.diagnostics import ProgressBar
 
 dryrun = False
-DEBUG_OTB = False
+DEBUG_OTB = False # Global that permits to run the pipeline through gdb and debug OTB applications.
 
 def remove_files(files):
     """
@@ -153,6 +153,51 @@ def setup_worker_logs(config, dask_worker):
         r_logger.addHandler(hdlr) # <-- this way we send s1tiling messages to dask channel
 
 
+def process_one_tile(
+        tile_name, tile_idx, tiles_nb,
+        config, s1_file_manager, pipelines,
+        debug_otb=False, dryrun=False
+        ):
+    working_directory = os.path.join(config.tmpdir, 'S2', tile_name)
+    os.makedirs(working_directory, exist_ok=True)
+
+    out_dir = os.path.join(config.output_preprocess, tile_name)
+    os.makedirs(out_dir, exist_ok=True)
+
+    logger.info("Processing tile %s (%s/%s)", tile_name, idx+1, tiles_nb)
+
+    s1_file_manager.keep_X_latest_S1_files(1000)
+
+    with Utils.ExecutionTimer("Downloading images related to "+tile_name, True) as t:
+        s1_file_manager.download_images(tiles=tile_name)
+
+    with Utils.ExecutionTimer("Intersecting raster list w/ "+tile_name, True) as t:
+        intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+
+    if len(intersect_raster_list) == 0:
+        logger.info("No intersection with tile %s", tile_name)
+        return
+
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, debug_otb=debug_otb)
+    logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
+    results = []
+    if debug_otb:
+        for product, how in reversed(dsk):
+            logger.debug('- task: %s <-- %s', product, how)
+        logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
+        for product, how in reversed(dsk):
+            logger.info('- execute: %s <-- %s', product, how)
+            if not issubclass(type(how), FirstStep):
+                results += [how[0](*list(how)[1:])]
+    else:
+        for product, how in dsk.items():
+            logger.debug('- task: %s <-- %s', product, how)
+
+        logger.info('Start S1 -> S2 transformations for %s', tile_name)
+        results = client.get(dsk, required_products)
+    return results
+
+
 # Main code
 if __name__ == '__main__': # Required for Dask: https://github.com/dask/distributed/issues/2422
     if len(sys.argv) != 2:
@@ -209,36 +254,11 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
-
-            working_directory = os.path.join(Cg_Cfg.tmpdir, 'S2', tile_it)
-            os.makedirs(working_directory, exist_ok=True)
-
-            out_dir = os.path.join(Cg_Cfg.output_preprocess, tile_it)
-            os.makedirs(out_dir, exist_ok=True)
-
-            logger.info("Tile: "+tile_it+" ("+str(idx+1)+"/"+str(len(TILES_TO_PROCESS_CHECKED))+")")
-
-            S1_FILE_MANAGER.keep_X_latest_S1_files(1000)
-
-            with Utils.ExecutionTimer("Downloading tiles", True) as t:
-                S1_FILE_MANAGER.download_images(tiles=tile_it)
-
-            with Utils.ExecutionTimer("Intersecting raster list", True) as t:
-                intersect_raster_list = S1_FILE_MANAGER.get_s1_intersect_by_tile(tile_it)
-
-            if len(intersect_raster_list) == 0:
-                logger.info("No intersection with tile %s",tile_it)
-                continue
-
-            dsk, required_products = pipelines.generate_tasks(tile_it, intersect_raster_list, debug_otb=DEBUG_OTB)
-            if DEBUG_OTB:
-                for product, how in reversed(dsk):
-                    logger.debug('- task: %s <-- %s', product, how)
-                    if not issubclass(type(how), FirstStep):
-                        results += [how[0](*list(how)[1:])]
-            else:
-                for product, how in dsk.items():
-                    logger.debug('- task: %s <-- %s', product, how)
+            with Utils.ExecutionTimer("Processing of tile "+tile_it, True) as t:
+                results += process_one_tile(
+                        tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
+                        Cg_Cfg, S1_FILE_MANAGER, pipelines,
+                        debug_otb=DEBUG_OTB)
 
             """
             if Cg_Cfg.filtering_activated:
@@ -247,5 +267,9 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
             """
 
         logger.info('Execution report:')
-        for r in results:
-            logger.info(' - %s', r)
+        if results:
+            for r in results:
+                logger.info(' - %s', r)
+        else:
+            logger.info(' -> Nothing has been executed')
+
