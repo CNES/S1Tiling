@@ -21,6 +21,8 @@
 
 """ This module contains various utility functions"""
 
+import sys
+import re
 import ogr
 import osgeo # To test __version__
 from osgeo import osr
@@ -34,6 +36,7 @@ import fnmatch
 def get_relative_orbit(manifest):
     root=ET.parse(manifest)
     return int(root.find("metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}orbitReference/{http://www.esa.int/safe/sentinel-1.0}relativeOrbitNumber").text)
+
 
 def get_origin(manifest):
     """Parse the coordinate of the origin in the manifest file
@@ -54,6 +57,7 @@ def get_origin(manifest):
                                 .split(",")[1]))for val in coor]
                 return coord[0], coord[1], coord[2], coord[3]
         raise Exception("Coordinates not found in "+str(manifest))
+
 
 def get_tile_origin_intersect_by_s1(grid_path, image):
     """
@@ -89,6 +93,7 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
         if intersection.GetArea() != 0:
             intersect_tile.append(current_tile.GetField('NAME'))
     return intersect_tile
+
 
 def get_orbit_direction(manifest):
     """This function returns the orbit direction from a S1 manifest file.
@@ -149,6 +154,7 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
         tuple_out.append(coord)
     return tuple_out
 
+
 def get_date_from_s1_raster(path_to_raster):
     """
     Small utilty function that parses a s1 raster file name to extract date.
@@ -160,6 +166,7 @@ def get_date_from_s1_raster(path_to_raster):
       a string representing the date
     """
     return path_to_raster.split("/")[-1].split("-")[4]
+
 
 def get_polar_from_s1_raster(path_to_raster):
     """
@@ -174,6 +181,7 @@ def get_polar_from_s1_raster(path_to_raster):
     """
     return path_to_raster.split("/")[-1].split("-")[3]
 
+
 def get_platform_from_s1_raster(path_to_raster):
     """
     Small utilty function that parses a s1 raster file name to extract platform
@@ -185,6 +193,7 @@ def get_platform_from_s1_raster(path_to_raster):
       a string representing the platform
     """
     return path_to_raster.split("/")[-1].split("-")[0]
+
 
 class ExecutionTimer(object):
     """Context manager to help measure execution times
@@ -205,6 +214,7 @@ class ExecutionTimer(object):
             logging.info("%s took %ssec", self._text, end-self._start)
         return False
 
+
 def list_files(directory, pattern = None):
     """
     Efficient listing of files in current directory.
@@ -223,6 +233,7 @@ def list_files(directory, pattern = None):
         res = [entry for entry in list if filter(entry)]
     return res
 
+
 def list_dirs(directory, pattern = None):
     """
     Efficient listing of sub-directories in current directory.
@@ -240,3 +251,45 @@ def list_dirs(directory, pattern = None):
     with os.scandir(directory) as list:
         res = [entry for entry in list if filter(entry)]
     return res
+
+
+class StdOutErrAdapter(object):
+    def __init__(self, logger, mode=None):
+        self.__logger   = logger
+        self.__mode     = mode # None => adapt DEBUG/INFO/ERROR/...
+        self.__lvl_re   = re.compile('(\((DEBUG|INFO|WARNING|ERROR)\))')
+        self.__lvl_map  = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
+    def write(self, message):
+        messages = message.rstrip().splitlines()
+        for m in messages:
+            if self.__mode:
+                lvl = self.__mode
+            else:
+                match = self.__lvl_re.search(m)
+                if match:
+                    lvl = self.__lvl_map[match.group(2)]
+                else:
+                    lvl = logging.INFO
+            self.__logger.log(lvl, m)
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+class RedirectStdToLogger(object):
+    """
+    Yet another helper class to redirect messages sent to stdout and stderr to a proper logger
+
+    This is a very simplified version tuned to answer S1Tiling needs
+    """
+
+    def __init__(self, logger):
+        """
+        constructor
+        """
+        self.__old_stdout = sys.stdout
+        self.__old_stderr = sys.stderr
+        self.__logger     = logger
+        sys.stdout = StdOutErrAdapter(logger) # TODO: addapt DEBUG/INFO...
+        sys.stderr = StdOutErrAdapter(logger, logging.ERROR)

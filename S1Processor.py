@@ -152,6 +152,13 @@ def setup_worker_logs(config, dask_worker):
         d_logger.addHandler(hdlr)
         r_logger.addHandler(hdlr) # <-- this way we send s1tiling messages to dask channel
 
+    ##def isatty(self):
+    ##    return False
+    ##streamtologger.redirect(logging.getLogger('s1tiling'))
+    ##import types
+    ##sys.stdout.isatty = types.MethodType(isatty, sys.stdout)
+    Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
+
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
