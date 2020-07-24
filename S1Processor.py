@@ -244,7 +244,8 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
         pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
         pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
-        pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask],     'GenerateMask',    product_required=True)
+        if Cg_Cfg.mask_cond:
+            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask],     'GenerateMask',    product_required=True)
 
         filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
