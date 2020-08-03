@@ -50,8 +50,13 @@ import dask.distributed
 from dask.distributed import Client, LocalCluster
 from dask.diagnostics import ProgressBar
 
-DRYRUN = False    # Global that permits to see what would be executed, without producing anything
+# Graphs
+# import dask
+from s1tiling.vis import SimpleComputationGraph
+
+DRYRUN = False    # Global that permits to see what would be executed, without producing anything.
 DEBUG_OTB = False # Global that permits to run the pipeline through gdb and debug OTB applications.
+DEBUG_TASKS=False # Global that permits to generate a SVG image for each task graph.
 
 def remove_files(files):
     """
@@ -196,6 +201,8 @@ def process_one_tile(
         for product, how in dsk.items():
             logger.debug('- task: %s <-- %s', product, how)
 
+        if DEBUG_TASKS:
+            SimpleComputationGraph().simple_graph(dsk, filename='tasks-%s-%s.svg' % (idx+1, tile_name))
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
         results = client.get(dsk, required_products)
     return results
