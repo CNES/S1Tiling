@@ -28,6 +28,10 @@ import fnmatch, glob
 import sys
 import logging
 
+from eodag.utils.logging import setup_logging
+setup_logging(verbose=1)
+from eodag.api.core import EODataAccessGateway
+
 logger = logging.getLogger('s1tiling')
 
 class Layer(object):
@@ -52,10 +56,60 @@ class Layer(object):
                 return tile
         return None
 
-def download(raw_directory, pepscommand, lonmin, lonmax, latmin, latmax, tile_data, tile_name):
+def product_property(prod, key, default = None):
+    res  = prod.properties.get(key, default)
+    return res
+
+
+def download(dag: EODataAccessGateway,
+        lonmin, lonmax, latmin, latmax,
+        first_date, last_date,
+        tile_data, tile_name, polarization):
     """
-    Process with the call to peps_download
+    Process with the call to eodag download.
+    :param raw_directory:
     """
+    product_type = 'S1_SAR_GRD'
+    extent = {
+            'lonmin': lonmin,
+            'lonmax': lonmax,
+            'latmin': latmin,
+            'latmax': latmax
+            }
+    products, estimated_total_nbr_of_results = dag.search(
+            productType=product_type,
+            start=first_date, end=last_date,
+            box=extent,
+            # Filtering doesn't work this way as of eodag v1.5.2, it should be possible w/ v1.6
+            # polarizationMode=polarization,
+            # sensorMode="IW"
+            )
+    # logger.info("%s remote S1 products found: %s", len(products), products)
+    ##for p in products:
+    ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
+
+    # First only keep "IW" sensor products with the expected polarisation
+    products = [p for p in products
+            if (    product_property(p, "sensorMode",       "")=="IW"
+                and product_property(p, "polarizationMode", "")==polarization)
+            ]
+    logger.info("%s remote S1 products found and filtered: %s", len(products), products)
+    # Filter out products that either:
+    # - already exist
+    # - or for which we found matching dates
+
+    # And finally download all!
+    # TODO: register downloading into Dask
+    paths = dag.download_all(
+            products,
+            # progress_callback=NotebookProgressCallback(),
+            # wait=0.5,
+            # timeout=5
+            )
+    logger.info("Remote S1 products saved into %s", paths)
+    # sys.exit(-1)
+    return paths
+
     from subprocess import Popen
     import time
     command = pepscommand\
@@ -113,22 +167,32 @@ class S1FileManager(object):
 
         self.__tmpsrtmdir = None
 
-        self.tiff_pattern = "measurement/*.tiff"
-        self.vh_pattern = "measurement/*vh*-???.tiff"
-        self.vv_pattern = "measurement/*vv*-???.tiff"
-        self.hh_pattern = "measurement/*hh*-???.tiff"
-        self.hv_pattern = "measurement/*hv*-???.tiff"
+        self.tiff_pattern     = "measurement/*.tiff"
+        self.vh_pattern       = "measurement/*vh*-???.tiff"
+        self.vv_pattern       = "measurement/*vv*-???.tiff"
+        self.hh_pattern       = "measurement/*hh*-???.tiff"
+        self.hv_pattern       = "measurement/*hv*-???.tiff"
         self.manifest_pattern = "manifest.safe"
 
+        self._ensure_workspaces_exist()
         self.processed_filenames = self.get_processed_filenames(cfg)
-        self.get_s1_img()
+        self._update_s1_img_list()
 
-        if self.cfg.pepsdownload == True:
+        if self.cfg.download:
             self.fd=cfg.first_date
             self.ld=cfg.last_date
-            self.pepscommand = "python ./peps/peps_download/peps_download.py -c S1 -p"+ self.cfg.type_image+\
-                    " -a ./peps/peps_download/peps.txt -m IW -d "\
-                    +self.cfg.first_date+" -f "+self.cfg.last_date+ " --pol "+self.cfg.polarisation
+            logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
+            self._dag = EODataAccessGateway(self.cfg.eodagConfig)
+            # TODO: update once eodag directly offers "DL directory setting" feature v1.7? +?
+            dest_dir = os.path.abspath(self.cfg.raw_directory)
+            logger.debug('Override EODAG output directory to %s', dest_dir)
+            for provider in self._dag.providers_config.keys():
+                if hasattr(self._dag.providers_config[provider], 'download'):
+                    self._dag.providers_config[provider].download.update({'outputs_prefix': dest_dir})
+                    logger.debug(' - for %s', provider)
+                else:
+                    logger.debug(' - NOT for %s', provider)
+
             self.roi_by_coordinates = None
             self.roi_by_tiles       = None
 
@@ -140,11 +204,6 @@ class S1FileManager(object):
                 except cfg.NoOptionError:
                     logger.critical("No ROI defined in the config file")
                     exit(-1)
-
-        try:
-            os.makedirs(self.cfg.raw_directory)
-        except os.error:
-            pass
 
     def __enter__(self):
         """
@@ -160,6 +219,32 @@ class S1FileManager(object):
             self.__tmpsrtmdir.cleanup()
             self.__tmpsrtmdir = None
         return False
+
+    def _ensure_workspaces_exist(self):
+        """
+        Makes sure the directories used for :
+        - raw data
+        - output data
+        - and temporary data
+        all exist
+        """
+        for p in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
+            if not os.path.exists(p):
+                os.makedirs(p, exist_ok=True)
+
+    def ensure_tile_workspaces_exist(self, tile_name):
+        """
+        Makes sure the directories used for :
+        - output data/{tile}
+        - and temporary data/S2/{tile}
+        all exist
+        """
+        working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
+        os.makedirs(working_directory, exist_ok=True)
+
+        out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
+        os.makedirs(out_dir, exist_ok=True)
+        return working_directory, out_dir
 
     def tmpsrtmdir(self, srtm_tiles):
         """
@@ -184,14 +269,14 @@ class S1FileManager(object):
         safeFileList = sorted(glob.glob(os.path.join(self.cfg.raw_directory,"*")), key=os.path.getctime)
         if len(safeFileList) > threshold:
             for f in safeFileList[:len(safeFileList)-threshold]:
-                logger.debug("Remove : ",os.path.basename(f))
+                logger.debug("Remove old SAFE: %s",os.path.basename(f))
                 shutil.rmtree(f, ignore_errors=True)
-            self.get_s1_img()
+            self._update_s1_img_list()
 
     def download_images(self,tiles=None):
-        """ This method downloads the required images if pepsdownload is True"""
+        """ This method downloads the required images if download is True"""
         import numpy as np
-        if not self.cfg.pepsdownload:
+        if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
             return
 
@@ -212,20 +297,25 @@ class S1FileManager(object):
                     latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
                     lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
                     lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
-                    download(self.cfg.raw_directory, self.pepscommand,
+                    download(self._dag,
                             lonmin, lonmax, latmin, latmax,
+                            self.fd, self.ld,
                             os.path.join(self.cfg.output_preprocess,tiles_list),
-                            current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
+                            current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None,
+                            self.cfg.polarisation)
         else: # roi_by_tiles is None
-            download(self.cfg.raw_directory, self.pepscommand,
+            download(self._dag,
                     self.roi_by_coordinates[0], self.roi_by_coordinates[2],
                     self.roi_by_coordinates[1], self.roi_by_coordinates[3],
+                    self.fd, self.ld,
                     os.path.join(self.cfg.output_preprocess,current_tile),
-                    current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None)
-        unzip_images(self.cfg.raw_directory)
-        self.get_s1_img()
+                    current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None,
+                    self.cfg.polarisation)
+        # unzip_images(self.cfg.raw_directory)
+        # TODO: remove zips
+        self._update_s1_img_list()
 
-    def get_s1_img(self):
+    def _update_s1_img_list(self):
         """
         This method updates the list of S1 images available
         (from analysis of raw_directory)
@@ -236,13 +326,14 @@ class S1FileManager(object):
         """
 
         self.raw_raster_list=[]
-        if os.path.exists(self.cfg.raw_directory) == False:
-            os.makedirs(self.cfg.raw_directory)
-            return
         content = list_dirs(self.cfg.raw_directory)
 
         for current_content in content:
-            safe_dir = current_content.path
+            # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            safe_dir = os.path.join(current_content.path, os.path.basename(current_content.path)+'.SAFE')
+            if not os.path.isdir(safe_dir):
+                continue
+
             manifest = os.path.join(safe_dir, self.manifest_pattern)
             acquisition = S1DateAcquisition(manifest, [])
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
@@ -347,7 +438,7 @@ class S1FileManager(object):
             logger.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list())==0:
                 logger.critical("Problem with %s",image.get_manifest())
-                logger.critical("Please remove the raw data for this SAFE file")
+                logger.critical("Please remove the raw data for %s SAFE file", image.get_manifest())
                 sys.exit(-1)
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
@@ -377,7 +468,7 @@ class S1FileManager(object):
 
         return intersect_raster
 
-    def get_mgrs_tile_geometry_by_name(self, mgrs_tile_name):
+    def _get_mgrs_tile_geometry_by_name(self, mgrs_tile_name):
         """
         This method returns the MGRS tile geometry
         as OGRGeometry given its identifier
@@ -407,7 +498,6 @@ class S1FileManager(object):
         Return:
           A list of tuples (SRTM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
-
         """
         srtm_layer = Layer(self.cfg.SRTMShapefile)
 
@@ -417,7 +507,7 @@ class S1FileManager(object):
             logger.debug("Check SRTM tile for %s",tile)
 
             srtm_tiles = []
-            mgrs_footprint = self.get_mgrs_tile_geometry_by_name(tile)
+            mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
             area = mgrs_footprint.GetArea()
             srtm_layer.ResetReading()
             for srtm_tile in srtm_layer:
@@ -453,5 +543,4 @@ class S1FileManager(object):
         Returns:
           the list of raw rasters
         """
-
         return self.raw_raster_list

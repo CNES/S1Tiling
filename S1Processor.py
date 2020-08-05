@@ -20,7 +20,7 @@
 """
 This module contains a script to build temporal series of S1 images by tiles
 It performs the following steps:
-  1- Download S1 images from PEPS server
+  1- Download S1 images from S1 data provider (through eodag)
   2- Calibrate the S1 images to gamma0
   3- Orthorectify S1 images and cut their on geometric tiles
   4- Concatenate images from the same orbit on the same tile
@@ -88,7 +88,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     # and and download all tiles
 
     if ALL_REQUESTED:
-        if cfg.pepsdownload and "ALL" in cfg.roi_by_tiles:
+        if cfg.download and "ALL" in cfg.roi_by_tiles:
             logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
                 +" Use ROI_by_coordinates or deactivate download instead")
             sys.exit(1)
@@ -166,11 +166,7 @@ def process_one_tile(
         config, s1_file_manager, pipelines,
         debug_otb=False, dryrun=False
         ):
-    working_directory = os.path.join(config.tmpdir, 'S2', tile_name)
-    os.makedirs(working_directory, exist_ok=True)
-
-    out_dir = os.path.join(config.output_preprocess, tile_name)
-    os.makedirs(out_dir, exist_ok=True)
+    s1_file_manager.ensure_tile_workspaces_exist(tile_name)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, idx+1, tiles_nb)
 

@@ -22,7 +22,7 @@ import configparser
 import logging
 import logging.handlers
 import pathlib
-import os
+import os, sys
 import re
 import copy
 import multiprocessing
@@ -100,11 +100,24 @@ class Configuration():
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
             exit(1)
         self.GeoidFile         = config.get('Paths','GeoidFile')
-        self.pepsdownload      = config.getboolean('PEPS','Download')
-        self.ROI_by_tiles      = config.get('PEPS','ROI_by_tiles')
-        self.first_date        = config.get('PEPS','first_date')
-        self.last_date         = config.get('PEPS','last_date')
-        self.polarisation      = config.get('PEPS','Polarisation')
+        if config.has_section('PEPS'):
+            logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
+            sys.exit(-1)
+        self.eodagConfig       = config.get('DataSource', 'eodagConfig', fallback=None)
+        self.download          = config.getboolean('DataSource','Download')
+        self.ROI_by_tiles      = config.get('DataSource','ROI_by_tiles')
+        self.first_date        = config.get('DataSource','first_date')
+        self.last_date         = config.get('DataSource','last_date')
+        self.polarisation      = config.get('DataSource','Polarisation')
+        if   self.polarisation=='VV-VH':
+            self.polarisation = 'VV VH'
+        elif self.polarisation=='HH-HV':
+            self.polarisation = 'HH HV'
+        else:
+            logging.critical("Parameter [Polarisation] must be HH-HV or VV-VH")
+            logging.critical("Please correct it the config file ")
+            sys.exit(-1)
+
         self.type_image        = "GRD"
         self.mask_cond         = config.getboolean('Mask','Generate_border_mask')
         self.calibration_type  = config.get('Processing','Calibration')
@@ -141,6 +154,7 @@ class Configuration():
         self.Window_radius            = config.getint('Filtering','Window_radius')
 
         self.cluster                  = config.getboolean('HPC-Cluster','Parallelize_tiles')
+
 
         def check_date (self):
             import datetime

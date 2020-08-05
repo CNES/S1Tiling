@@ -59,6 +59,7 @@ TBC
   * ConfigParser
   * Dask"distributed"
   * bokeh (to display Dask dashboard)
+  * graphviz (to generate task graphs)
 
 ## Setup
 
