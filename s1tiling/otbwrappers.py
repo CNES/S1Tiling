@@ -22,7 +22,7 @@ from rasterio.windows import Window
 import numpy as np
 import tempfile
 import logging
-import os
+import os, shutil
 import re
 import datetime
 from s1tiling.otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
@@ -370,7 +370,7 @@ class Concatenate(StepFactory):
         meta = self.complete_meta(input.meta)
         res = AbstractStep(**meta)
         logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        os.replace(concat_in_filename, res.out_filename)
+        shutil.move(concat_in_filename, res.out_filename)
         return res
 
     def parameters(self, meta):

@@ -21,7 +21,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
-import os
+import os, shutil
 from pathlib import Path
 import re
 import copy
@@ -715,13 +715,13 @@ def commit_otb_application(tmp_filename, out_filename):
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    res = os.replace(tmp_filename, out_filename)
+    res = shutil.move(tmp_filename, out_filename)
     logger.debug('Renaming: %s <- mv %s %s', res, tmp_filename, out_filename)
     re_tiff = re.compile(r'\.tiff?$')
     tmp_geom = re.sub(re_tiff, '.geom', tmp_filename)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_filename)
-        res = os.replace(tmp_geom, out_geom)
+        res = shutil.move(tmp_geom, out_geom)
         logger.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
     assert(not os.path.isfile(tmp_filename))
 
