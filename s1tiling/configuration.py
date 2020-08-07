@@ -99,7 +99,7 @@ class Configuration():
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
-            exit(1)
+            sys.exit(1)
         self.GeoidFile         = config.get('Paths','GeoidFile')
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
@@ -129,12 +129,12 @@ class Configuration():
         self.output_grid       = config.get('Processing','TilesShapefile')
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
-            exit(1)
+            sys.exit(1)
 
         self.SRTMShapefile=config.get('Processing','SRTMShapefile')
         if not os.path.isfile(self.SRTMShapefile):
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.srtm_shapefile)
-            exit(1)
+            sys.exit(-1)
         self.grid_spacing=config.getfloat('Processing','Orthorectification_gridspacing')
         self.border_threshold=config.getfloat('Processing','BorderThreshold')
         try:

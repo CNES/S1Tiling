@@ -34,6 +34,7 @@ from eodag.api.core import EODataAccessGateway
 
 logger = logging.getLogger('s1tiling')
 
+
 class Layer(object):
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
@@ -55,6 +56,7 @@ class Layer(object):
             if tile.GetField('NAME') in tile_name_field:
                 return tile
         return None
+
 
 def product_property(prod, key, default = None):
     res  = prod.properties.get(key, default)
@@ -110,24 +112,6 @@ def download(dag: EODataAccessGateway,
     # sys.exit(-1)
     return paths
 
-    from subprocess import Popen
-    import time
-    command = pepscommand\
-            +" --lonmin "+str(lonmin)+" --lonmax "+str(lonmax)\
-            +" --latmin "+str(latmin)+" --latmax "+str(latmax)\
-            +" -w "+raw_directory\
-            +" --tiledata "+tile_data
-    logger.debug('Download with %s', command)
-    status = -1
-    while status != 0:
-        if tile_name: # <=> self.cfg.cluster is True
-            pid = Popen(command, stdout=open(tile_name,"a"),      stderr=None,shell=True)
-        else:
-            pid = Popen(command, stdout=open("/dev/stdout", 'w'), stderr=open("/dev/stderr", 'w'),shell=True)
-        while pid.poll() is None:
-            unzip_images(raw_directory)
-            time.sleep(20)
-        status = pid.poll()
 
 def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
@@ -143,6 +127,7 @@ def unzip_images(raw_directory):
             os.remove(file_it.path)
         except:
             pass
+
 
 def filter_images_or_ortho(kind, all_images):
     pattern = "*"+kind+"*-???.tiff"
@@ -203,7 +188,7 @@ class S1FileManager(object):
                     self.roi_by_coordinates = cfg.ROI_by_coordinates.split()
                 except cfg.NoOptionError:
                     logger.critical("No ROI defined in the config file")
-                    exit(-1)
+                    sys.exit(-1)
 
     def __enter__(self):
         """
