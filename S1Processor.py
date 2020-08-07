@@ -54,9 +54,9 @@ from dask.diagnostics import ProgressBar
 # import dask
 from s1tiling.vis import SimpleComputationGraph
 
-DRYRUN = False    # Global that permits to see what would be executed, without producing anything.
-DEBUG_OTB = False # Global that permits to run the pipeline through gdb and debug OTB applications.
-DEBUG_TASKS=False # Global that permits to generate a SVG image for each task graph.
+DRYRUN     = False # Global that permits to see what would be executed, without producing anything.
+DEBUG_OTB  = False # Global that permits to run the pipeline through gdb and debug OTB applications.
+DEBUG_TASKS= False # Global that permits to generate a SVG image for each task graph.
 
 def remove_files(files):
     """
@@ -255,9 +255,10 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
-        cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
-        client = Client(cluster)
-        client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(Cg_Cfg.log_config, dask_worker))
+        if not DEBUG_OTB:
+            cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
+            client = Client(cluster)
+            client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(Cg_Cfg.log_config, dask_worker))
 
         results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
