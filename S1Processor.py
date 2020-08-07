@@ -180,7 +180,7 @@ def process_one_tile(
 
     if len(intersect_raster_list) == 0:
         logger.info("No intersection with tile %s", tile_name)
-        return
+        return []
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, debug_otb=debug_otb, dryrun=dryrun)
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
@@ -262,10 +262,11 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
         results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
             with Utils.ExecutionTimer("Processing of tile "+tile_it, True) as t:
-                results += process_one_tile(
+                r = process_one_tile(
                         tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
                         Cg_Cfg, S1_FILE_MANAGER, pipelines,
                         debug_otb=DEBUG_OTB, dryrun=DRYRUN)
+                results += r
 
             """
             if Cg_Cfg.filtering_activated:
