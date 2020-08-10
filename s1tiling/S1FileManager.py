@@ -27,6 +27,7 @@ import tempfile
 import fnmatch, glob
 import sys
 import logging
+import re
 
 from eodag.utils.logging import setup_logging
 setup_logging(verbose=1)
@@ -63,56 +64,6 @@ def product_property(prod, key, default = None):
     return res
 
 
-def download(dag: EODataAccessGateway,
-        lonmin, lonmax, latmin, latmax,
-        first_date, last_date,
-        tile_data, tile_name, polarization):
-    """
-    Process with the call to eodag download.
-    :param raw_directory:
-    """
-    product_type = 'S1_SAR_GRD'
-    extent = {
-            'lonmin': lonmin,
-            'lonmax': lonmax,
-            'latmin': latmin,
-            'latmax': latmax
-            }
-    products, estimated_total_nbr_of_results = dag.search(
-            productType=product_type,
-            start=first_date, end=last_date,
-            box=extent,
-            # Filtering doesn't work this way as of eodag v1.5.2, it should be possible w/ v1.6
-            # polarizationMode=polarization,
-            # sensorMode="IW"
-            )
-    # logger.info("%s remote S1 products found: %s", len(products), products)
-    ##for p in products:
-    ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
-
-    # First only keep "IW" sensor products with the expected polarisation
-    products = [p for p in products
-            if (    product_property(p, "sensorMode",       "")=="IW"
-                and product_property(p, "polarizationMode", "")==polarization)
-            ]
-    logger.info("%s remote S1 products found and filtered: %s", len(products), products)
-    # Filter out products that either:
-    # - already exist
-    # - or for which we found matching dates
-
-    # And finally download all!
-    # TODO: register downloading into Dask
-    paths = dag.download_all(
-            products,
-            # progress_callback=NotebookProgressCallback(),
-            # wait=0.5,
-            # timeout=5
-            )
-    logger.info("Remote S1 products saved into %s", paths)
-    # sys.exit(-1)
-    return paths
-
-
 def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
     import zipfile
@@ -128,6 +79,19 @@ def unzip_images(raw_directory):
         except:
             pass
 
+def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
+    logger.debug('Searching %s in %s', product, s2images)
+    # id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
+    prod_re = re.compile('(S1.)_IW_...._...._(\d{8})T\d{6}.*')
+    sat, start = prod_re.match(product.as_dict()['id']).groups()
+    for pol in polarizations:
+        # s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
+        pat = '%s_%s_%s_*_%stxxxxxx.tif' % (sat.lower(), tile_name, pol, start)
+        found = fnmatch.filter(s2images, pat)
+        logger.debug('searching w/ %s ==> Found: %s', pat, found)
+        if not found:
+            return True
+    return False
 
 def filter_images_or_ortho(kind, all_images):
     pattern = "*"+kind+"*-???.tiff"
@@ -258,6 +222,78 @@ class S1FileManager(object):
                 shutil.rmtree(f, ignore_errors=True)
             self._update_s1_img_list()
 
+    def _download(self, dag: EODataAccessGateway,
+            lonmin, lonmax, latmin, latmax,
+            first_date, last_date,
+            tile_out_dir, tile_name, polarization):
+        """
+        Process with the call to eodag download.
+        :param raw_directory:
+        """
+        product_type = 'S1_SAR_GRD'
+        extent = {
+                'lonmin': lonmin,
+                'lonmax': lonmax,
+                'latmin': latmin,
+                'latmax': latmax
+                }
+        products, estimated_total_nbr_of_results = dag.search(
+                productType=product_type,
+                start=first_date, end=last_date,
+                box=extent,
+                # Filtering doesn't work this way as of eodag v1.5.2, it should be possible w/ v1.6
+                # polarizationMode=polarization,
+                # sensorMode="IW"
+                )
+        # logger.info("%s remote S1 products found: %s", len(products), products)
+        ##for p in products:
+        ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
+
+        # First only keep "IW" sensor products with the expected polarisation
+        products = [p for p in products
+                if (    product_property(p, "sensorMode",       "")=="IW"
+                    and product_property(p, "polarizationMode", "")==polarization)
+                ]
+        logger.debug("%s remote S1 products found and filtered (IW && %s): %s", len(products), polarization, products)
+        if not products: # no need to continue
+            return []
+
+        # Filter out products that either:
+        # - already exist in the "cache"
+        # logger.debug('Check products against the cache: %s', self.product_list)
+        products = [p for p in products
+                if not p.as_dict()['id'] in self.product_list
+                ]
+        logger.debug("%s remote S1 products are not found in the cache: %s", len(products), products)
+        if not products: # no need to continue
+            return []
+        # - or for which we found matching dates
+        #   Beware: a matching VV while the VH doesn't exist and is present in the
+        #   remote product shall trigger the download of the product.
+        polarizations = polarization.lower().split(' ')
+        s2images_pat = 's1?_%s_*.tif'% (tile_name, )
+        logger.debug('search %s for %s', s2images_pat, polarizations)
+        s2images = glob.glob1(tile_out_dir, s2images_pat)
+        products = [p for p in products
+                if does_final_product_need_to_be_generated_for(p, tile_name, polarizations, s2images)
+                ]
+
+        # And finally download all!
+        # TODO: register downloading into Dask
+        logger.info("%s remote S1 products will be downloaded: %s", len(products), products)
+        if not products: # no need to continue
+            # Actually, in that special case we could almost detect there is nothing to do
+            return []
+        paths = dag.download_all(
+                products,
+                # progress_callback=NotebookProgressCallback(),
+                # wait=0.5,
+                # timeout=5
+                )
+        logger.info("Remote S1 products saved into %s", paths)
+        # sys.exit(-1)
+        return paths
+
     def download_images(self,tiles=None):
         """ This method downloads the required images if download is True"""
         import numpy as np
@@ -276,25 +312,29 @@ class S1FileManager(object):
 
             layer = Layer(self.cfg.output_grid)
             for current_tile in layer:
-                if current_tile.GetField('NAME') in tiles_list:
+                tile_name = current_tile.GetField('NAME')
+                if tile_name in tiles_list:
                     tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
                     latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
                     latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
                     lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
                     lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
-                    download(self._dag,
+                    self._download(self._dag,
                             lonmin, lonmax, latmin, latmax,
                             self.fd, self.ld,
                             os.path.join(self.cfg.output_preprocess,tiles_list),
-                            current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None,
+                            tile_name,
+                            # tile_name+".txt" if self.cfg.cluster else None,
                             self.cfg.polarisation)
         else: # roi_by_tiles is None
-            download(self._dag,
+            # TODO: BUG: there is no current_tile/tile_name set in that case
+            self._download(self._dag,
                     self.roi_by_coordinates[0], self.roi_by_coordinates[2],
                     self.roi_by_coordinates[1], self.roi_by_coordinates[3],
                     self.fd, self.ld,
                     os.path.join(self.cfg.output_preprocess,current_tile),
-                    current_tile.GetField('NAME')+".txt" if self.cfg.cluster else None,
+                    tile_name,
+                    # tile_name+".txt" if self.cfg.cluster else None,
                     self.cfg.polarisation)
         # unzip_images(self.cfg.raw_directory)
         # TODO: remove zips
@@ -310,7 +350,8 @@ class S1FileManager(object):
            of S1DateAcquisition class
         """
 
-        self.raw_raster_list=[]
+        self.raw_raster_list = []
+        self.product_list    = []
         content = list_dirs(self.cfg.raw_directory)
 
         for current_content in content:
@@ -319,6 +360,7 @@ class S1FileManager(object):
             if not os.path.isdir(safe_dir):
                 continue
 
+            self.product_list += [os.path.basename(current_content.path)]
             manifest = os.path.join(safe_dir, self.manifest_pattern)
             acquisition = S1DateAcquisition(manifest, [])
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))

@@ -225,6 +225,8 @@ class OrthoRectify(StepFactory):
         current_date            = Utils.get_date_from_s1_raster(image)
         current_polar           = Utils.get_polar_from_s1_raster(image)
         current_platform        = Utils.get_platform_from_s1_raster(image)
+        # TODO: if the manifest is no longer here, we may need to look into the geom instead
+        # It'd actually be better
         current_orbit_direction = Utils.get_orbit_direction(manifest)
         current_relative_orbit  = Utils.get_relative_orbit(manifest)
         out_utm_zone            = tile_name[0:2]
