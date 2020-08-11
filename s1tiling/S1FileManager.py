@@ -13,7 +13,9 @@
 #
 # =========================================================================
 #
-# Authors: Thierry KOLECK (CNES)
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
 #
 # =========================================================================
 
@@ -110,11 +112,11 @@ class S1FileManager(object):
     """ Class to manage processed files (downloads, checks) """
     def __init__(self,cfg):
 
-        self.cfg=cfg
-        self.raw_raster_list = []
-        self.nb_images = 0
+        self.cfg              =cfg
+        self.raw_raster_list  = []
+        self.nb_images        = 0
 
-        self.__tmpsrtmdir = None
+        self.__tmpsrtmdir     = None
 
         self.tiff_pattern     = "measurement/*.tiff"
         self.vh_pattern       = "measurement/*vh*-???.tiff"
@@ -254,7 +256,7 @@ class S1FileManager(object):
                 if (    product_property(p, "sensorMode",       "")=="IW"
                     and product_property(p, "polarizationMode", "")==polarization)
                 ]
-        logger.debug("%s remote S1 products found and filtered (IW && %s): %s", len(products), polarization, products)
+        logger.debug("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
         if not products: # no need to continue
             return []
 
@@ -264,12 +266,14 @@ class S1FileManager(object):
         products = [p for p in products
                 if not p.as_dict()['id'] in self.product_list
                 ]
-        logger.debug("%s remote S1 products are not found in the cache: %s", len(products), products)
+        logger.debug("%s remote S1 product(s) are not found in the cache: %s", len(products), products)
         if not products: # no need to continue
             return []
         # - or for which we found matching dates
         #   Beware: a matching VV while the VH doesn't exist and is present in the
         #   remote product shall trigger the download of the product.
+        #   TODO: We should actually inject the expected filenames into the task graph generator
+        #   in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
         s2images_pat = 's1?_%s_*.tif'% (tile_name, )
         logger.debug('search %s for %s', s2images_pat, polarizations)
@@ -280,18 +284,25 @@ class S1FileManager(object):
 
         # And finally download all!
         # TODO: register downloading into Dask
-        logger.info("%s remote S1 products will be downloaded: %s", len(products), products)
+        logger.info("%s remote S1 product(s) will be downloaded: %s", len(products), products)
         if not products: # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
             return []
         paths = dag.download_all(
-                products,
+                products[:], # pass a copy because eodag modifies the list
                 # progress_callback=NotebookProgressCallback(),
                 # wait=0.5,
                 # timeout=5
                 )
-        logger.info("Remote S1 products saved into %s", paths)
-        # sys.exit(-1)
+        logger.info("Remote S1 products saved into %s", products)
+        # And clean temporary files
+        for product in products:
+            file = os.path.join(self.cfg.raw_directory, product.as_dict()['id'])+'.zip'
+            try:
+                logger.debug('Removing downloaded ZIP: %s', file)
+                os.remove(file)
+            except:
+                pass
         return paths
 
     def download_images(self,tiles=None):
@@ -336,8 +347,6 @@ class S1FileManager(object):
                     tile_name,
                     # tile_name+".txt" if self.cfg.cluster else None,
                     self.cfg.polarisation)
-        # unzip_images(self.cfg.raw_directory)
-        # TODO: remove zips
         self._update_s1_img_list()
 
     def _update_s1_img_list(self):
@@ -446,8 +455,6 @@ class S1FileManager(object):
           intersecting the given tile
         """
         logger.debug('Test intersections of %s', tile_name_field)
-        # TODO: don't abort if there is only vv or vh
-        # => move to another dependency analysis policy
         date_exist=[os.path.basename(f)[21:21+8] for f in glob.glob(os.path.join(self.cfg.output_preprocess,tile_name_field,"s1?_*.tif"))]
         intersect_raster = []
 
@@ -470,9 +477,6 @@ class S1FileManager(object):
 
             date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
 
-            ##if date_safe in date_exist:
-            ##    logger.debug('  -> Safe date (%s) found in %s => Ignore %s', date_safe, date_exist, image.get_images_list())
-            ##    continue
             manifest = image.get_manifest()
             nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
 
