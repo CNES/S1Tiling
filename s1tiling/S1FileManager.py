@@ -243,15 +243,16 @@ class S1FileManager(object):
                 productType=product_type,
                 start=first_date, end=last_date,
                 box=extent,
-                # Filtering doesn't work this way as of eodag v1.5.2, it should be possible w/ v1.6
-                # polarizationMode=polarization,
-                # sensorMode="IW"
+                # If we have eodag v1.6, we try to filter product during the search request
+                polarizationMode=polarization,
+                sensorMode="IW"
                 )
-        # logger.info("%s remote S1 products found: %s", len(products), products)
+        logger.info("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
 
         # First only keep "IW" sensor products with the expected polarisation
+        # -> This filter is required with eodag < v1.6, it's redundant w/ v1.6+
         products = [p for p in products
                 if (    product_property(p, "sensorMode",       "")=="IW"
                     and product_property(p, "polarizationMode", "")==polarization)
@@ -290,11 +291,9 @@ class S1FileManager(object):
             return []
         paths = dag.download_all(
                 products[:], # pass a copy because eodag modifies the list
-                # progress_callback=NotebookProgressCallback(),
-                # wait=0.5,
-                # timeout=5
                 )
-        logger.info("Remote S1 products saved into %s", products)
+        # paths returns the list of .SAFE directories
+        logger.info("Remote S1 products saved into %s", paths)
         # And clean temporary files
         for product in products:
             file = os.path.join(self.cfg.raw_directory, product.as_dict()['id'])+'.zip'
