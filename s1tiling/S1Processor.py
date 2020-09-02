@@ -3,13 +3,22 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright (c) CESBIO. All rights reserved.
+#   Copyright 2017-2020 (c) CESBIO. All rights reserved.
 #
-#   See LICENSE for details.
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
 #
-#   This software is distributed WITHOUT ANY WARRANTY; without even
-#   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#   PURPOSE.  See the above copyright notices for more information.
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 #
 # =========================================================================
 #
@@ -38,13 +47,13 @@ import shutil
 import gdal, rasterio
 from rasterio.windows import Window
 import logging
-from s1tiling import S1FileManager
-from s1tiling import S1FilteringProcessor
-from s1tiling import Utils
-from s1tiling.configuration import Configuration
+from libs import S1FileManager
+from libs import S1FilteringProcessor
+from libs import Utils
+from libs.configuration import Configuration
 
-from s1tiling.otbpipeline import FirstStep, PipelineDescriptionSequence
-from s1tiling.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from libs.otbpipeline import FirstStep, PipelineDescriptionSequence
+from libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
 import dask.distributed
 from dask.distributed import Client, LocalCluster
@@ -52,7 +61,7 @@ from dask.diagnostics import ProgressBar
 
 # Graphs
 # import dask
-from s1tiling.vis import SimpleComputationGraph
+from libs.vis import SimpleComputationGraph
 
 DRYRUN     = False # Global that permits to see what would be executed, without producing anything.
 DEBUG_OTB  = False # Global that permits to run the pipeline through gdb and debug OTB applications.

@@ -3,13 +3,22 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright (c) CESBIO. All rights reserved.
+#   Copyright 2017-2020 (c) CESBIO. All rights reserved.
 #
-#   See LICENSE for details.
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
 #
-#   This software is distributed WITHOUT ANY WARRANTY; without even
-#   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#   PURPOSE.  See the above copyright notices for more information.
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 #
 # =========================================================================
 #
@@ -23,8 +32,8 @@
 
 import os
 import ogr
-from s1tiling.Utils import get_origin, list_files, list_dirs
-from s1tiling.S1DateAcquisition import S1DateAcquisition
+from libs.Utils import get_origin, list_files, list_dirs
+from libs.S1DateAcquisition import S1DateAcquisition
 import tempfile
 import fnmatch, glob
 import sys
