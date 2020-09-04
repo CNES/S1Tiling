@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
 #
@@ -40,12 +40,7 @@ It performs the following steps:
 """
 
 import os
-import pathlib
 import sys
-import glob
-import shutil
-import gdal, rasterio
-from rasterio.windows import Window
 import logging
 from libs import S1FileManager
 from libs import S1FilteringProcessor
@@ -57,15 +52,15 @@ from libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify
 
 import dask.distributed
 from dask.distributed import Client, LocalCluster
-from dask.diagnostics import ProgressBar
 
 # Graphs
 # import dask
 from libs.vis import SimpleComputationGraph
 
-DRYRUN     = False # Global that permits to see what would be executed, without producing anything.
-DEBUG_OTB  = False # Global that permits to run the pipeline through gdb and debug OTB applications.
-DEBUG_TASKS= False # Global that permits to generate a SVG image for each task graph.
+DRYRUN      = False  # Global that permits to see what would be executed, without producing anything.
+DEBUG_OTB   = False  # Global that permits to run the pipeline through gdb and debug OTB applications.
+DEBUG_TASKS = False  # Global that permits to generate a SVG image for each task graph.
+
 
 def remove_files(files):
     """
@@ -87,7 +82,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
         if tile_it == "ALL":
             ALL_REQUESTED = True
             break
-        elif True:  #s1_file_manager.tile_exists(tile_it):
+        elif True:  # s1_file_manager.tile_exists(tile_it):
             TILES_TO_PROCESS.append(tile_it)
         else:
             logger.info("Tile %s does not exist, skipping ...", tile_it)
@@ -98,15 +93,15 @@ def extract_tiles_to_process(cfg, s1_file_manager):
 
     if ALL_REQUESTED:
         if cfg.download and "ALL" in cfg.roi_by_tiles:
-            logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."\
-                +" Use ROI_by_coordinates or deactivate download instead")
+            logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."
+                    + " Use ROI_by_coordinates or deactivate download instead")
             sys.exit(1)
         else:
             TILES_TO_PROCESS = s1_file_manager.get_tiles_covered_by_products()
-            logger.info("All tiles for which more than "\
-                +str(100*cfg.TileToProductOverlapRatio)\
-                +"% of the surface is covered by products will be produced: "\
-                +str(TILES_TO_PROCESS))
+            logger.info("All tiles for which more than "
+                    + str(100 * cfg.TileToProductOverlapRatio)
+                    + "% of the surface is covered by products will be produced: "
+                    + str(TILES_TO_PROCESS))
 
     return TILES_TO_PROCESS
 
@@ -120,7 +115,7 @@ def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
 
     # For each MGRS tile to process
     for tile_it in TILES_TO_PROCESS:
-        logger.info("Check SRTM coverage for %s",tile_it)
+        logger.info("Check SRTM coverage for %s", tile_it)
         # Get SRTM tiles coverage statistics
         srtm_tiles = SRTM_TILES_CHECK[tile_it]
         current_coverage = 0
@@ -134,7 +129,7 @@ def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
         TILES_TO_PROCESS_CHECKED.append(tile_it)
         if current_coverage < 1.:
             logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
-                    tile_it, 100*current_coverage)
+                    tile_it, 100 * current_coverage)
 
     # Remove duplicates
     NEEDED_SRTM_TILES = list(set(NEEDED_SRTM_TILES))
@@ -147,7 +142,7 @@ def check_srtm_tiles(cfg, srtm_tiles):
         tile_path = os.path.join(cfg.srtm, srtm_tile)
         if not os.path.exists(tile_path):
             res = False
-            logger.critical(tile_path+" is missing!")
+            logger.critical(tile_path + " is missing!")
     return res
 
 
@@ -158,13 +153,13 @@ def setup_worker_logs(config, dask_worker):
 
     for h, cfg in config['handlers'].items():
         if 'filename' in cfg and '%' in cfg['filename']:
-            cfg['filename'] = cfg['filename'] % ('worker-'+str(dask_worker.name),)
+            cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
 
     logging.config.dictConfig(config)
     # Restore old dask.distributed handlers, and inject them in root handler as well
     for hdlr in old_handlers:
         d_logger.addHandler(hdlr)
-        r_logger.addHandler(hdlr) # <-- this way we send s1tiling messages to dask channel
+        r_logger.addHandler(hdlr)  # <-- this way we send s1tiling messages to dask channel
 
     # From now on, redirect stdout/stderr messages to s1tiling
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
@@ -173,25 +168,25 @@ def setup_worker_logs(config, dask_worker):
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         config, s1_file_manager, pipelines,
-        debug_otb=False, dryrun=False
-        ):
+        debug_otb=False, dryrun=False):
     s1_file_manager.ensure_tile_workspaces_exist(tile_name)
 
-    logger.info("Processing tile %s (%s/%s)", tile_name, idx+1, tiles_nb)
+    logger.info("Processing tile %s (%s/%s)", tile_name, idx + 1, tiles_nb)
 
     s1_file_manager.keep_X_latest_S1_files(1000)
 
-    with Utils.ExecutionTimer("Downloading images related to "+tile_name, True) as t:
+    with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
         s1_file_manager.download_images(tiles=tile_name)
 
-    with Utils.ExecutionTimer("Intersecting raster list w/ "+tile_name, True) as t:
+    with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
 
     if len(intersect_raster_list) == 0:
         logger.info("No intersection with tile %s", tile_name)
         return []
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, debug_otb=debug_otb, dryrun=dryrun)
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
+            debug_otb=debug_otb, dryrun=dryrun)
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
@@ -207,20 +202,20 @@ def process_one_tile(
             logger.debug('- task: %s <-- %s', product, how)
 
         if DEBUG_TASKS:
-            SimpleComputationGraph().simple_graph(dsk, filename='tasks-%s-%s.svg' % (idx+1, tile_name))
+            SimpleComputationGraph().simple_graph(dsk, filename='tasks-%s-%s.svg' % (idx + 1, tile_name))
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
         results = client.get(dsk, required_products)
     return results
 
 
 # Main code
-if __name__ == '__main__': # Required for Dask: https://github.com/dask/distributed/issues/2422
+if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     if len(sys.argv) != 2:
-        print("Usage: "+sys.argv[0]+" config.cfg")
+        print("Usage: " + sys.argv[0] + " config.cfg")
         sys.exit(1)
 
     CFG = sys.argv[1]
-    Cg_Cfg=Configuration(CFG)
+    Cg_Cfg = Configuration(CFG)
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(Cg_Cfg.OTBThreads)
     logger = logging.getLogger('s1tiling')
     with S1FileManager.S1FileManager(Cg_Cfg) as S1_FILE_MANAGER:
@@ -260,9 +255,9 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
         pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
         if Cg_Cfg.mask_cond:
-            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask],     'GenerateMask',    product_required=True)
+            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
 
-        filteringProcessor=S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
+        filteringProcessor = S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
 
         if not DEBUG_OTB:
             cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
@@ -271,7 +266,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
         results = []
         for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
-            with Utils.ExecutionTimer("Processing of tile "+tile_it, True) as t:
+            with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
                 r = process_one_tile(
                         tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
                         Cg_Cfg, S1_FILE_MANAGER, pipelines,
@@ -280,7 +275,7 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
 
             """
             if Cg_Cfg.filtering_activated:
-                with Utils.ExecutionTimer("MultiTemp Filter", True) as t:
+                with Utils.ExecutionTimer("MultiTemp Filter", True):
                     filteringProcessor.process(tile_it)
             """
 
@@ -290,4 +285,3 @@ if __name__ == '__main__': # Required for Dask: https://github.com/dask/distribu
                 logger.info(' - %s', r)
         else:
             logger.info(' -> Nothing has been executed')
-

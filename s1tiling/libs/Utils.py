@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
 #
@@ -33,7 +33,7 @@
 import sys
 import re
 import ogr
-import osgeo # To test __version__
+import osgeo  # To test __version__
 from osgeo import osr
 import xml.etree.ElementTree as ET
 from timeit import default_timer as timer
@@ -43,7 +43,7 @@ import fnmatch
 
 
 def get_relative_orbit(manifest):
-    root=ET.parse(manifest)
+    root = ET.parse(manifest)
     return int(root.find("metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}orbitReference/{http://www.esa.int/safe/sentinel-1.0}relativeOrbitNumber").text)
 
 
@@ -61,11 +61,11 @@ def get_origin(manifest):
             if "<gml:coordinates>" in line:
                 coor = line.replace("                <gml:coordinates>", "")\
                            .replace("</gml:coordinates>", "").split(" ")
-                coord = [(float(val.replace("\n", "").split(",")[0]),\
-                          float(val.replace("\n", "")\
+                coord = [(float(val.replace("\n", "").split(",")[0]),
+                          float(val.replace("\n", "")
                                 .split(",")[1]))for val in coor]
                 return coord[0], coord[1], coord[2], coord[3]
-        raise Exception("Coordinates not found in "+str(manifest))
+        raise Exception("Coordinates not found in " + str(manifest))
 
 
 def get_tile_origin_intersect_by_s1(grid_path, image):
@@ -122,7 +122,7 @@ def get_orbit_direction(manifest):
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise Exception("Orbit Directiction not found in "+str(manifest))
+        raise Exception("Orbit Directiction not found in " + str(manifest))
 
 
 def convert_coord(tuple_list, in_epsg, out_epsg):
@@ -145,8 +145,8 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
         out_spatial_ref = osr.SpatialReference()
         out_spatial_ref.ImportFromEPSG(out_epsg)
         if int(osgeo.__version__[0]) >= 3:
-            # GDAL 2.0 and GDAL 3.0 don't take the CoordinateTransformation() parameters in the same order
-            # https://github.com/OSGeo/gdal/issues/1546
+            # GDAL 2.0 and GDAL 3.0 don't take the CoordinateTransformation() parameters
+            # in the same order: https://github.com/OSGeo/gdal/issues/1546
             #
             # GDAL 3 changes axis order: https://github.com/OSGeo/gdal/issues/1546
             in_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
@@ -156,8 +156,7 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
         lon = in_coord[0]
         lat = in_coord[1]
 
-        coord_trans = osr.CoordinateTransformation(in_spatial_ref,\
-                                                   out_spatial_ref)
+        coord_trans = osr.CoordinateTransformation(in_spatial_ref, out_spatial_ref)
         coord = coord_trans.TransformPoint(lon, lat)
         # logging.debug("convert_coord(lon=%s, lat=%s): %s, %s ==> %s", in_epsg, out_epsg, lon, lat, coord)
         tuple_out.append(coord)
@@ -214,48 +213,50 @@ class ExecutionTimer(object):
     def __init__(self, text, do_measure):
         self._text       = text
         self._do_measure = do_measure
+
     def __enter__(self):
         self._start = timer()
         return self
+
     def __exit__(self, type, value, traceback):
         if self._do_measure:
             end = timer()
-            logging.info("%s took %ssec", self._text, end-self._start)
+            logging.info("%s took %ssec", self._text, end - self._start)
         return False
 
 
-def list_files(directory, pattern = None):
+def list_files(directory, pattern=None):
     """
     Efficient listing of files in current directory.
 
-    This version shall be faster than glob to isolate files only as it keeps in "memory" the kind of the entry without needing to stat() the entry
-    again.
+    This version shall be faster than glob to isolate files only as it keeps in "memory"
+    the kind of the entry without needing to stat() the entry again.
 
     Requires Python 3.5
     """
     if pattern:
-        filter = lambda path : path.is_file() and fnmatch.fnmatch(path, pattern)
+        filter = lambda path: path.is_file() and fnmatch.fnmatch(path, pattern)
     else:
-        filter = lambda path : path.is_file()
+        filter = lambda path: path.is_file()
 
     with os.scandir(directory) as list:
         res = [entry for entry in list if filter(entry)]
     return res
 
 
-def list_dirs(directory, pattern = None):
+def list_dirs(directory, pattern=None):
     """
     Efficient listing of sub-directories in current directory.
 
-    This version shall be faster than glob to isolate directories only as it keeps in "memory" the kind of the entry without needing to stat() the
-    entry again.
+    This version shall be faster than glob to isolate directories only as it keeps in
+    "memory" the kind of the entry without needing to stat() the entry again.
 
     Requires Python 3.5
     """
     if pattern:
-        filter = lambda path : path.is_dir() and fnmatch.fnmatch(path, pattern)
+        filter = lambda path: path.is_dir() and fnmatch.fnmatch(path, pattern)
     else:
-        filter = lambda path : path.is_dir()
+        filter = lambda path: path.is_dir()
 
     with os.scandir(directory) as list:
         res = [entry for entry in list if filter(entry)]
@@ -264,7 +265,8 @@ def list_dirs(directory, pattern = None):
 
 class RedirectStdToLogger(object):
     """
-    Yet another helper class to redirect messages sent to stdout and stderr to a proper logger
+    Yet another helper class to redirect messages sent to stdout and stderr to a proper
+    logger.
 
     This is a very simplified version tuned to answer S1Tiling needs.
     It also acts as a context manager.
@@ -275,8 +277,10 @@ class RedirectStdToLogger(object):
         self.__logger     = logger
         sys.stdout = RedirectStdToLogger.__StdOutErrAdapter(logger)
         sys.stderr = RedirectStdToLogger.__StdOutErrAdapter(logger, logging.ERROR)
+
     def __enter__(self):
         return self
+
     def __exit__(self, type, value, traceback):
         sys.stdout = self.__old_stdout
         sys.stderr = self.__old_stderr
@@ -287,11 +291,12 @@ class RedirectStdToLogger(object):
         Internal adapter that redirects messages, initially sent to a file, to a logger.
         """
         def __init__(self, logger, mode=None):
-            self.__logger   = logger
-            self.__mode      = mode # None => adapt DEBUG/INFO/ERROR/...
-            self.__last_mode = mode # None => adapt DEBUG/INFO/ERROR/...
-            self.__lvl_re   = re.compile('(\((DEBUG|INFO|WARNING|ERROR)\))')
-            self.__lvl_map  = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
+            self.__logger    = logger
+            self.__mode      = mode  # None => adapt DEBUG/INFO/ERROR/...
+            self.__last_mode = mode  # None => adapt DEBUG/INFO/ERROR/...
+            self.__lvl_re    = re.compile(r'(\((DEBUG|INFO|WARNING|ERROR)\))')
+            self.__lvl_map   = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
+
         def write(self, message):
             messages = message.rstrip().splitlines()
             for m in messages:
@@ -307,9 +312,9 @@ class RedirectStdToLogger(object):
                 # In that case, reset happens with a new message
                 self.__last_level = lvl
                 self.__logger.log(lvl, m)
+
         def flush(self):
             pass
 
         def isatty(self):
             return False
-

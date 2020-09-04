@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
 #
@@ -27,6 +27,7 @@
 # =========================================================================
 
 """ This module contains the S1DateAcquisition class"""
+
 
 class S1DateAcquisition(object):
     """This class handles the list of images for one S1 product"""
