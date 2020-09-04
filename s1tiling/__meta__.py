@@ -1,8 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Program:   S1Processor
-#
 #   Copyright 2017-2020 (c) CESBIO. All rights reserved.
 #
 #   This file is part of S1Tiling project
@@ -23,26 +21,21 @@
 # =========================================================================
 #
 # Authors: Thierry KOLECK (CNES)
+#          Luc HERMITTE (CS Group)
 #
 # =========================================================================
 
-""" This module contains the S1DateAcquisition class"""
+"""
+Holds project meta-information for setup.py
+"""
 
+from __future__ import unicode_literals
 
-class S1DateAcquisition:
-    """This class handles the list of images for one S1 product"""
-    def __init__(self, manifest, image_filenames_list):
-        self.manifest = manifest
-        self.image_filenames_list = image_filenames_list
-
-    def get_manifest(self):
-        """ Get the manifest file """
-        return self.manifest
-
-    def add_image(self, image_list):
-        """ Add an image to the image list """
-        self.image_filenames_list.append(image_list)
-
-    def get_images_list(self):
-        """ Get the image list"""
-        return self.image_filenames_list
+__title__ = "S1Tiling"
+__description__ = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
+__version__ = "1.0.0"
+__author__ = "Thierry KOLECK"
+__author_email__ = "Thierry.Koleck at cnes.fr>"
+__url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
+__license__ = "Apache 2.0"
+__copyright__ = "Copyright 2017-2020, CESBIO"

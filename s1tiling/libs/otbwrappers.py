@@ -26,7 +26,11 @@
 #          Luc HERMITTE (CS Group)
 # =========================================================================
 
-import gdal
+"""
+This modules defines the specialized Python wrappers for the OTB Applications used in
+the pipeline for S1Tiling needs.
+"""
+
 import rasterio
 from rasterio.windows import Window
 import numpy as np
@@ -37,6 +41,7 @@ import re
 import datetime
 from libs.otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
 from libs import Utils
+import gdal
 import otbApplication as otb
 
 logger = logging.getLogger('s1tiling')
@@ -69,27 +74,47 @@ class AnalyseBorders(StepFactory):
     by `CutBorders` step factory.
     """
     def __init__(self, cfg):
+        """
+        Constructor
+        """
         super().__init__('', 'AnalyseBorders')
-        pass
 
     def parameters(self, meta):
+        """
+        As there is no OTB application associated to AnalyseBorders, no parameters are
+        returned.
+        """
         return None
 
     def output_directory(self, meta):
+        """
+        As there is no OTB application associated to AnalyseBorders, there is no output
+        directory.
+        """
         raise TypeError("An AnalyseBorders step don't produce anything!")
 
     def build_step_output_filename(self, meta):
+        """
+        Forward the output filename.
+        """
         return meta['out_filename']
 
     def build_step_output_tmp_filename(self, meta):
+        """
+        As there is no OTB application associated to AnalyseBorders, there is no
+        temporary filename.
+        """
         return self.build_step_output_filename(meta)
 
     def complete_meta(self, meta):
+        """
+        Complete meta information with Cutting thresholds.
+        """
         meta = super().complete_meta(meta)
 
         cut_overlap_range   = 1000  # Number of columns to cut on the sides. Here 500pixels = 5km
         cut_overlap_azimuth = 1600  # Number of lines to cut at top or bottom
-        thr_nan_for_cropping = cut_overlap_range * 2  # Quand on fait les tests, on a pas encore couper les nan sur le cote, d'ou l'utilisatoin de ce thr
+        thr_nan_for_cropping = cut_overlap_range * 2  # When testing we having cut the NaN yet on the border hence this threshold.
         with rasterio.open(meta['out_filename']) as ds_reader:
             xsize = ds_reader.width
             ysize = ds_reader.height
@@ -122,6 +147,9 @@ class Calibrate(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
+        """
+        Constructor
+        """
         super().__init__('SARCalibration', 'Calibration')
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
@@ -131,23 +159,41 @@ class Calibrate(StepFactory):
         self.__tmpdir             = cfg.tmpdir
 
     def complete_meta(self, meta):
+        """
+        Complete GDAL metadata with the kind of calibration done.
+        """
         meta = super().complete_meta(meta)
         meta['calibration_type'] = self.__calibration_type
         return meta
 
     def output_directory(self, meta):
+        """
+        SARCalibration result files would be stored in {tmp}/S1 in case their production
+        is required (i.e. not in-memory processing)
+        """
         # tile_name = meta['tile_name'] # manifest maybe?
         return os.path.join(self.__tmpdir, 'S1')
 
     def build_step_output_filename(self, meta):
+        """
+        Returns the names of typical SARCalibration result files in case their
+        production is required (i.e. not in-memory processing)
+        """
         filename = meta['basename'].replace(".tiff", "_calOk.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
+        """
+        Returns the names of typical SARCalibration temporary result files in case their
+        production is required (i.e. not in-memory processing)
+        """
         filename = meta['basename'].replace(".tiff", "_calOk.tmp.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with SARCalibration OTB application.
+        """
         return {
                 'ram'           : str(self.__ram_per_process),
                 # 'progress'    : 'false',
@@ -173,23 +219,38 @@ class CutBorders(StepFactory):
     - `cut`->`threshold.y.end`   -- from AnalyseBorders
     """
     def __init__(self, cfg):
+        """
+        Constructor.
+        """
         super().__init__('ClampROI', 'BorderCutting')
         self.__ram_per_process = cfg.ram_per_process
         self.__tmpdir          = cfg.tmpdir
 
     def output_directory(self, meta):
+        """
+        BorderCutting result files would be stored in {tmp}/S1.
+        """
         # tile_name = meta['tile_name'] # manifest maybe?
         return os.path.join(self.__tmpdir, 'S1')
 
     def build_step_output_filename(self, meta):
+        """
+        Returns the names of typical ClampROI result files
+        """
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
+        """
+        Returns the names of typical ClampROI temporary result files
+        """
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tmp.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with ClampROI OTB application.
+        """
         return {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
@@ -220,7 +281,13 @@ class OrthoRectify(StepFactory):
     - `tile_origin`
     """
     def __init__(self, cfg):
-        super().__init__('OrthoRectification', 'OrthoRectification', param_in='io.in', param_out='io.out')
+        """
+        Constructor.
+        Extract and cache configuration options.
+        """
+        super().__init__(
+                'OrthoRectification', 'OrthoRectification',
+                param_in='io.in', param_out='io.out')
         self.__ram_per_process  = cfg.ram_per_process
         self.__out_spatial_res  = cfg.out_spatial_res
         self.__GeoidFile        = cfg.GeoidFile
@@ -231,18 +298,29 @@ class OrthoRectify(StepFactory):
         self.__calibration_type = cfg.calibration_type
 
     def output_directory(self, meta):
+        """
+        The output directory is a temporary directory with the name of the tile.
+        """
         tile_name = meta['tile_name']
         return os.path.join(self.__tmpdir, 'S2', tile_name)
 
     def build_step_output_filename(self, meta):
-        # Will be get around in complete_meta
+        """
+        The actual output filename will be built in complete_meta().
+        """
         return None
 
     def build_step_output_tmp_filename(self, meta):
-        # Will be get around in complete_meta
+        """
+        The actual temporary output filename will be built in complete_meta().
+        """
         return None
 
     def complete_meta(self, meta):
+        """
+        Complete meta information such as filenames, GDAL metadata from information
+        found in the current S1 image filename.
+        """
         meta = super().complete_meta(meta)
         manifest                = meta['manifest']
         image                   = in_filename(meta)   # meta['in_filename']
@@ -321,9 +399,16 @@ class OrthoRectify(StepFactory):
         return meta
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with OrthoRectification OTB application.
+        The parameters have been precomputed in complete_meta().
+        """
         return meta['params.ortho']
 
     def add_ortho_metadata(self, meta):
+        """
+        Post-application hook used to complete GDAL metadata.
+        """
         fullpath = out_filename(meta)
         logger.debug('Set metadata in %s', fullpath)
         dst = gdal.Open(fullpath, gdal.GA_Update)
@@ -365,26 +450,47 @@ class Concatenate(StepFactory):
         self.__tmpdir          = cfg.tmpdir
 
     def tmp_directory(self, meta):
+        """
+        Directory used to store temporary files before they are renamed into their final
+        version.
+        """
         return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
 
     def output_directory(self, meta):
+        """
+        Concatenation result files will be stored in {out}/{tile_name}
+        """
         return os.path.join(self.__outdir, meta['tile_name'])
 
     def build_step_output_filename(self, meta):
+        """
+        Returns the names of Concatenation result files.
+        Basename is precomputed in complete_meta().
+        """
         filename = meta['basename']
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
-        # Unlike output, concatenation result goes into tmp
+        """
+        Returns the names of temporary Concatenation result files.
+        Basename is precomputed in complete_meta().
+
+        Unlike output, concatenation result goes into tmp.
+        """
         filename = meta['basename']
         return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
 
     def complete_meta(self, meta):
+        """
+        Precompute output basename from the input file(s).
+        Makes sure the Synthetize OTB application would compress its result file,
+        through extended filename.
+        """
         meta = meta.copy()
         out_file = out_filename(meta)
         if type(out_file) is list:
             out_file = out_file[0]
-        wd, out_file = os.path.split(out_file)
+        _, out_file = os.path.split(out_file)
         meta['basename'] = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
@@ -413,6 +519,9 @@ class Concatenate(StepFactory):
         return res
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with Synthetize OTB application.
+        """
         return {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
@@ -432,27 +541,45 @@ class BuildBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
+        """
+        Constructor.
+        """
         super().__init__('BandMath', 'BuildBorderMask', param_in='il', param_out='out')
         self.__ram_per_process = cfg.ram_per_process
         self.__tmpdir          = cfg.tmpdir
 
     def output_directory(self, meta):
+        """
+        If dumped to a file, the result shall go in a temporary directory.
+        """
         tile_name = meta['tile_name']
         return os.path.join(self.__tmpdir, 'S2', tile_name)
 
     def build_step_output_filename(self, meta):
+        """
+        Provide the output filename.
+        """
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
+        """
+        Provide the typical temporary output filename.
+        """
         filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tmp.tif")
         return os.path.join(self.output_directory(meta), filename)
 
     def set_output_pixel_type(self, app, meta):
-        # logger.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        """
+        Force the output pixel type to UINT8.
+        """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with BandMath OTB application for computing border
+        mask.
+        """
         params = {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
@@ -475,30 +602,51 @@ class SmoothBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('BinaryMorphologicalOperation', 'SmoothBorderMask', param_in='in', param_out='out')
+        super().__init__(
+                'BinaryMorphologicalOperation', 'SmoothBorderMask',
+                param_in='in', param_out='out')
         self.__ram_per_process = cfg.ram_per_process
         self.__outdir          = cfg.output_preprocess
         self.__tmpdir          = cfg.tmpdir
 
     def tmp_directory(self, meta):
+        """
+        Directory used to store temporary files before they are renamed into their final
+        version.
+        """
         return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
 
     def output_directory(self, meta):
+        """
+        SmoothBorderMask result files will be stored in {out}/{tile_name}
+        """
         return os.path.join(self.__outdir, meta['tile_name'])
 
     def build_step_output_filename(self, meta):
+        """
+        Returns the names of SmoothBorderMask result files.
+        """
         filename = meta['basename'].replace(".tif", "_BorderMask.tif")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
+        """
+        Returns the names of SmoothBorderMask temporary result files.
+        """
         filename = meta['basename'].replace(".tif", "_BorderMask.tmp.tif")
         return os.path.join(self.tmp_directory(meta), filename)
 
     def set_output_pixel_type(self, app, meta):
-        # logger.debug('SetParameterOutputImagePixelType(%s, %s)', self.param_out, otb.ImagePixelType_uint8)
+        """
+        Force the output pixel type to UINT8.
+        """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta):
+        """
+        Returns the parameters to use with BinaryMorphologicalOperation OTB application
+        to smooth border masks.
+        """
         return {
                 'ram'                   : str(self.__ram_per_process),
                 # 'progress'            : 'false',

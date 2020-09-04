@@ -49,7 +49,7 @@ setup_logging(verbose=1)
 logger = logging.getLogger('s1tiling')
 
 
-class Layer(object):
+class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
@@ -122,7 +122,7 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-class S1FileManager(object):
+class S1FileManager:
     """ Class to manage processed files (downloads, checks) """
     def __init__(self, cfg):
 
@@ -221,7 +221,7 @@ class S1FileManager(object):
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
             logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
-            assert(os.path.isdir(self.__tmpsrtmdir.name))
+            assert os.path.isdir(self.__tmpsrtmdir.name)
             for srtm_tile in srtm_tiles:
                 logger.debug('ln -s %s  <-- %s',
                         os.path.join(self.cfg.srtm,          srtm_tile),

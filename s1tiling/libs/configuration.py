@@ -36,11 +36,10 @@ import os
 import pathlib
 import re
 import sys
+import yaml
 
 
 def init_logger(mode, paths):
-    import logging.config
-    import yaml
     # Add the dirname where the current script is
     paths += [pathlib.Path(__file__).parent.parent.absolute()]
     paths = [p / 'logging.conf.yaml' for p in paths]
@@ -72,7 +71,7 @@ def init_logger(mode, paths):
             if 'important' not in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
         main_config = copy.deepcopy(config)
-        for h, cfg in main_config['handlers'].items():
+        for _, cfg in main_config['handlers'].items():
             if 'filename' in cfg and '%' in cfg['filename']:
                 cfg['filename'] = cfg['filename'] % ('main',)
         logging.config.dictConfig(main_config)
@@ -99,7 +98,6 @@ class Configuration():
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
-            pass
 
         # Other options
         self.region            = config.get('DEFAULT', 'region')
@@ -169,7 +167,6 @@ class Configuration():
 
         def check_date(self):
             import datetime
-            import sys
 
             fd = self.first_date
             ld = self.last_date
@@ -177,6 +174,7 @@ class Configuration():
             try:
                 F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
                 L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
+                return F_Date, L_Date
             except:
                 logging.critical("Invalid date")
                 sys.exit()

@@ -203,7 +203,7 @@ def get_platform_from_s1_raster(path_to_raster):
     return path_to_raster.split("/")[-1].split("-")[0]
 
 
-class ExecutionTimer(object):
+class ExecutionTimer:
     """Context manager to help measure execution times
 
     Example:
@@ -263,7 +263,7 @@ def list_dirs(directory, pattern=None):
     return res
 
 
-class RedirectStdToLogger(object):
+class RedirectStdToLogger:
     """
     Yet another helper class to redirect messages sent to stdout and stderr to a proper
     logger.
@@ -286,7 +286,7 @@ class RedirectStdToLogger(object):
         sys.stderr = self.__old_stderr
         return False
 
-    class __StdOutErrAdapter(object):
+    class __StdOutErrAdapter:
         """
         Internal adapter that redirects messages, initially sent to a file, to a logger.
         """

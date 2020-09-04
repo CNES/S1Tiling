@@ -66,7 +66,7 @@ def in_filename(meta):
     """
     Helper accessor to access the input filename of a `Step`.
     """
-    assert('in_filename' in meta)
+    assert 'in_filename' in meta
     return meta['in_filename']
 
 
@@ -85,7 +85,7 @@ def out_extended_filename_complement(meta):
 
 
 def files_exist(files):
-    if (type(files) is str):
+    if type(files) is str:
         return os.path.isfile(files)
     else:
         for file in files:
@@ -94,7 +94,7 @@ def files_exist(files):
         return True
 
 
-class AbstractStep(object):
+class AbstractStep:
     """
     Internal root class for all actual `Step`s.
 
@@ -114,7 +114,7 @@ class AbstractStep(object):
         meta = kwargs
         if 'basename' not in meta:
             logger.critical('no "basename" in meta == %s', meta)
-        assert('basename' in meta)
+        assert 'basename' in meta
         # Clear basename from any noise
         self._meta = meta
 
@@ -138,7 +138,7 @@ class AbstractStep(object):
         """
         Property that returns the name of the file produced by the current step.
         """
-        assert('out_filename' in self._meta)
+        assert 'out_filename' in self._meta
         return self._meta['out_filename']
 
     @property
@@ -215,7 +215,7 @@ class Step(_StepWithOTBApplication):
         self._out = kwargs.get('param_out', 'out')
 
     def release_app(self):
-        del(self._app)
+        del self._app
         super().release_app()  # resets self._app to None
 
     def ExecuteAndWriteOutput(self):
@@ -235,7 +235,7 @@ class StepFactory(ABC):
         self._in      = kwargs.get('param_in',  'in')
         self._out     = kwargs.get('param_out', 'out')
         self._appname = appname
-        assert(name)
+        assert name
         self._name    = name
         logger.debug("new StepFactory(%s) -> app=%s", name, appname)
 
@@ -245,7 +245,7 @@ class StepFactory(ABC):
 
     @property
     def name(self):
-        assert(type(self._name) == str)
+        assert type(self._name) == str
         return self._name
 
     @property
@@ -294,7 +294,7 @@ class StepFactory(ABC):
 
     def create_step(self, input: AbstractStep, in_memory: bool, previous_steps):
         # TODO: distinguish step description & step
-        assert(issubclass(type(input), AbstractStep))
+        assert issubclass(type(input), AbstractStep)
         meta = self.complete_meta(input.meta)
         if self.appname:
             if meta.get('dryrun', False):
@@ -341,7 +341,7 @@ class StepFactory(ABC):
             return AbstractStep(**meta)
 
 
-class Outcome(object):
+class Outcome:
     """
     Kind of monad à la C++ `std::expected<>`, `boost::Outcome`
     It store tasks results which could be:
@@ -376,7 +376,7 @@ class Outcome(object):
             return 'Success: %s' % (self.__value_or_error)
 
 
-class Pipeline(object):
+class Pipeline:
     """
     Pipeline of OTB applications.
 
@@ -398,12 +398,12 @@ class Pipeline(object):
         return self.name
 
     def set_input(self, input: AbstractStep):
-        assert(type(input) is list or issubclass(type(input), AbstractStep))
+        assert type(input) is list or issubclass(type(input), AbstractStep)
         if type(input) is list:
             if len(input) == 1:
                 self.__input = input[0]
             else:
-                assert(input)
+                assert input
                 self.__input = MergeStep(input)
         else:
             self.__input = input
@@ -429,7 +429,7 @@ class Pipeline(object):
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
-        assert(self.__pipeline)  # shall not be empty!
+        assert self.__pipeline  # shall not be empty!
         steps = [self.__input]
         for crt in self.__pipeline:
             step = crt.create_step(steps[-1], self.__in_memory, steps)
@@ -442,7 +442,7 @@ class Pipeline(object):
 def execute4dask(pipeline, *args, **kwargs):
     logger.debug('Parameters for %s: %s', pipeline, args)
     try:
-        assert(len(args) == 1)
+        assert len(args) == 1
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
             if (type(arg) is Outcome) and not arg:
@@ -458,7 +458,7 @@ def execute4dask(pipeline, *args, **kwargs):
         return Outcome(e).add_related_filename(pipeline.output)
 
 
-class PipelineDescription(object):
+class PipelineDescription:
     """
     Pipeline description:
     - stores the various factory steps that describe a pipeline,
@@ -468,7 +468,7 @@ class PipelineDescription(object):
         """
         constructor
         """
-        assert(factory_steps)  # shall not be None or empty
+        assert factory_steps  # shall not be None or empty
         self.__factory_steps       = factory_steps
         self.__is_name_incremental = is_name_incremental
         self.__is_product_required = product_required
@@ -481,7 +481,7 @@ class PipelineDescription(object):
         """
         Returns the expected name of the product of this pipeline
         """
-        assert(self.__factory_steps)  # shall not be None or empty
+        assert self.__factory_steps  # shall not be None or empty
         if self.__is_name_incremental:
             res = input_meta
             for step in self.__factory_steps:
@@ -498,7 +498,7 @@ class PipelineDescription(object):
 
     @property
     def name(self):
-        assert(type(self.__name) == str)
+        assert type(self.__name) == str
         return self.__name
 
     @property
@@ -521,7 +521,7 @@ def to_dask_key(pathname):
     return Path(pathname).stem.replace('-', '_')
 
 
-class PipelineDescriptionSequence(object):
+class PipelineDescriptionSequence:
     """
     List of `PipelineDescription` objects
     """
@@ -529,7 +529,7 @@ class PipelineDescriptionSequence(object):
         """
         constructor
         """
-        assert(cfg)
+        assert cfg
         self.__cfg       = cfg
         self.__pipelines = []
 
@@ -604,7 +604,7 @@ class PipelineDescriptionSequence(object):
         while required:
             new_required = set()
             for file in required:
-                assert(previous[file])
+                assert previous[file]
                 base_file = to_dask_key(file)
                 task_inputs = previous[file]['inputs']
                 # logger.debug('%s --> %s', file, task_inputs)
@@ -628,7 +628,7 @@ class PipelineDescriptionSequence(object):
             required = new_required
 
         for fp in final_products:
-            assert(debug_otb or fp in tasks.keys())
+            assert debug_otb or fp in tasks.keys()
         return tasks, final_products
 
 
@@ -681,7 +681,7 @@ class StoreStep(_StepWithOTBApplication):
     pipeline.
     """
     def __init__(self, previous: Step):
-        assert(not previous.is_first_step)
+        assert not previous.is_first_step
         super().__init__(previous._app, *[], **previous.meta)
         self._out = previous.param_out
 
@@ -693,7 +693,7 @@ class StoreStep(_StepWithOTBApplication):
         Eventually, it'll get renamed into `self.out_filename` if the application
         succeeds.
         """
-        assert('out_tmp_filename' in self._meta)
+        assert 'out_tmp_filename' in self._meta
         return self._meta['out_tmp_filename']
 
     @property
@@ -701,7 +701,7 @@ class StoreStep(_StepWithOTBApplication):
         return True
 
     def ExecuteAndWriteOutput(self):
-        assert(self._app)
+        assert self._app
         do_measure = True  # TODO
         # logger.debug('meta pipe: %s', self.meta['pipe'])
         pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
@@ -742,7 +742,7 @@ def commit_otb_application(tmp_filename, out_filename):
         out_geom = re.sub(re_tiff, '.geom', out_filename)
         res = shutil.move(tmp_geom, out_geom)
         logger.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
-    assert(not os.path.isfile(tmp_filename))
+    assert not os.path.isfile(tmp_filename)
 
 
 class Store(StepFactory):
@@ -806,7 +806,7 @@ def execute4mp(pipeline):
     return pipeline.do_execute()
 
 
-class PoolOfOTBExecutions(object):
+class PoolOfOTBExecutions:
     """
     Internal multiprocess Pool of OTB pipelines.
     """
@@ -848,7 +848,7 @@ class PoolOfOTBExecutions(object):
                 self.__log_queue_listener.stop()
 
 
-class Processing(object):
+class Processing:
     """
     Entry point for executing multiple instance of the same pipeline of
     different inputs.

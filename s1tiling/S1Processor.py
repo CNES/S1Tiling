@@ -57,9 +57,9 @@ from dask.distributed import Client, LocalCluster
 # import dask
 from libs.vis import SimpleComputationGraph
 
-DRYRUN      = False  # Global that permits to see what would be executed, without producing anything.
-DEBUG_OTB   = False  # Global that permits to run the pipeline through gdb and debug OTB applications.
-DEBUG_TASKS = False  # Global that permits to generate a SVG image for each task graph.
+DRYRUN      = False  # Global to see what would be executed, without producing anything.
+DEBUG_OTB   = False  # Global to run the pipeline through gdb and debug OTB applications.
+DEBUG_TASKS = False  # Global to generate a SVG image for each task graph.
 
 
 def remove_files(files):
@@ -67,91 +67,100 @@ def remove_files(files):
     Removes the files from the disk
     """
     logger.debug("Remove %s", files)
-    return
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
 
 
 def extract_tiles_to_process(cfg, s1_file_manager):
-    TILES_TO_PROCESS = []
+    """
+    Deduce from the configuration all the tiles that need to be processed.
+    """
+    tiles_to_process = []
 
-    ALL_REQUESTED = False
+    all_requested = False
 
-    for tile_it in cfg.tile_list:
-        if tile_it == "ALL":
-            ALL_REQUESTED = True
+    for tile in cfg.tile_list:
+        if tile == "ALL":
+            all_requested = True
             break
-        elif True:  # s1_file_manager.tile_exists(tile_it):
-            TILES_TO_PROCESS.append(tile_it)
+        elif True:  # s1_file_manager.tile_exists(tile):
+            tiles_to_process.append(tile)
         else:
-            logger.info("Tile %s does not exist, skipping ...", tile_it)
+            logger.info("Tile %s does not exist, skipping ...", tile)
     logger.info('Requested tiles: %s', cfg.tile_list)
 
     # We can not require both to process all tiles covered by downloaded products
     # and and download all tiles
 
-    if ALL_REQUESTED:
+    if all_requested:
         if cfg.download and "ALL" in cfg.roi_by_tiles:
             logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."
                     + " Use ROI_by_coordinates or deactivate download instead")
             sys.exit(1)
         else:
-            TILES_TO_PROCESS = s1_file_manager.get_tiles_covered_by_products()
-            logger.info("All tiles for which more than "
-                    + str(100 * cfg.TileToProductOverlapRatio)
-                    + "% of the surface is covered by products will be produced: "
-                    + str(TILES_TO_PROCESS))
+            tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
+            logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
+                    100 * cfg.TileToProductOverlapRatio, tiles_to_process)
 
-    return TILES_TO_PROCESS
+    return tiles_to_process
 
 
-def check_tiles_to_process(TILES_TO_PROCESS, s1_file_manager):
-    NEEDED_SRTM_TILES = []
-    TILES_TO_PROCESS_CHECKED = []
+def check_tiles_to_process(tiles_to_process, s1_file_manager):
+    """
+    Search the SRTM tiles required to process the tiles to process.
+    """
+    needed_srtm_tiles = []
+    tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
 
     # Analyse SRTM coverage for MGRS tiles to be processed
-    SRTM_TILES_CHECK = s1_file_manager.check_srtm_coverage(TILES_TO_PROCESS)
+    srtm_tiles_check = s1_file_manager.check_srtm_coverage(tiles_to_process)
 
     # For each MGRS tile to process
-    for tile_it in TILES_TO_PROCESS:
-        logger.info("Check SRTM coverage for %s", tile_it)
+    for tile in tiles_to_process:
+        logger.info("Check SRTM coverage for %s", tile)
         # Get SRTM tiles coverage statistics
-        srtm_tiles = SRTM_TILES_CHECK[tile_it]
+        srtm_tiles = srtm_tiles_check[tile]
         current_coverage = 0
-        current_NEEDED_SRTM_TILES = []
+        current_needed_srtm_tiles = []
         # Compute global coverage
         for (srtm_tile, coverage) in srtm_tiles:
-            current_NEEDED_SRTM_TILES.append(srtm_tile)
+            current_needed_srtm_tiles.append(srtm_tile)
             current_coverage += coverage
         # If SRTM coverage of MGRS tile is enough, process it
-        NEEDED_SRTM_TILES += current_NEEDED_SRTM_TILES
-        TILES_TO_PROCESS_CHECKED.append(tile_it)
+        needed_srtm_tiles += current_needed_srtm_tiles
+        tiles_to_process_checked.append(tile)
         if current_coverage < 1.:
             logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
-                    tile_it, 100 * current_coverage)
+                    tile, 100 * current_coverage)
 
     # Remove duplicates
-    NEEDED_SRTM_TILES = list(set(NEEDED_SRTM_TILES))
-    return TILES_TO_PROCESS_CHECKED, NEEDED_SRTM_TILES
+    needed_srtm_tiles = list(set(needed_srtm_tiles))
+    return tiles_to_process_checked, needed_srtm_tiles
 
 
 def check_srtm_tiles(cfg, srtm_tiles):
+    """
+    Check the SRTM tiles exist on disk.
+    """
     res = True
-    for srtm_tile in NEEDED_SRTM_TILES:
+    for srtm_tile in srtm_tiles:
         tile_path = os.path.join(cfg.srtm, srtm_tile)
         if not os.path.exists(tile_path):
             res = False
-            logger.critical(tile_path + " is missing!")
+            logger.critical("%s is missing!", tile_path)
     return res
 
 
 def setup_worker_logs(config, dask_worker):
+    """
+    Set-up the logger on Dask Worker.
+    """
     d_logger = logging.getLogger('distributed.worker')
     r_logger = logging.getLogger()
     old_handlers = d_logger.handlers[:]
 
-    for h, cfg in config['handlers'].items():
+    for _, cfg in config['handlers'].items():
         if 'filename' in cfg and '%' in cfg['filename']:
             cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
 
@@ -167,11 +176,16 @@ def setup_worker_logs(config, dask_worker):
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
-        config, s1_file_manager, pipelines,
+        s1_file_manager, pipelines,
         debug_otb=False, dryrun=False):
+    """
+    Process one S2 tile.
+
+    I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
+    """
     s1_file_manager.ensure_tile_workspaces_exist(tile_name)
 
-    logger.info("Processing tile %s (%s/%s)", tile_name, idx + 1, tiles_nb)
+    logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
     s1_file_manager.keep_X_latest_S1_files(1000)
 
@@ -202,13 +216,16 @@ def process_one_tile(
             logger.debug('- task: %s <-- %s', product, how)
 
         if DEBUG_TASKS:
-            SimpleComputationGraph().simple_graph(dsk, filename='tasks-%s-%s.svg' % (idx + 1, tile_name))
+            SimpleComputationGraph().simple_graph(
+                    dsk,
+                    filename='tasks-%s-%s.svg' % (tile_idx + 1, tile_name))
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
         results = client.get(dsk, required_products)
     return results
 
 
 # Main code
+# TODO: Move into a function
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     if len(sys.argv) != 2:
         print("Usage: " + sys.argv[0] + " config.cfg")
@@ -269,15 +286,9 @@ if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distrib
             with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
                 r = process_one_tile(
                         tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
-                        Cg_Cfg, S1_FILE_MANAGER, pipelines,
+                        S1_FILE_MANAGER, pipelines,
                         debug_otb=DEBUG_OTB, dryrun=DRYRUN)
                 results += r
-
-            """
-            if Cg_Cfg.filtering_activated:
-                with Utils.ExecutionTimer("MultiTemp Filter", True):
-                    filteringProcessor.process(tile_it)
-            """
 
         logger.info('Execution report:')
         if results:
