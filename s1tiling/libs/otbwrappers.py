@@ -31,18 +31,20 @@ This modules defines the specialized Python wrappers for the OTB Applications us
 the pipeline for S1Tiling needs.
 """
 
-import rasterio
-from rasterio.windows import Window
-import numpy as np
 import logging
 import os
 import shutil
 import re
 import datetime
-from libs.otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
-from libs import Utils
+
+import numpy as np
+import rasterio
+from rasterio.windows import Window
 import gdal
 import otbApplication as otb
+
+from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
+from . import Utils
 
 logger = logging.getLogger('s1tiling')
 
@@ -349,10 +351,7 @@ class OrthoRectify(StepFactory):
             y_coord += 10000000.
             lry     += 10000000.
 
-        # TODO: mkdir cannot work in multiproc env...
         working_directory = self.output_directory(meta)
-        if not os.path.exists(working_directory):
-            os.makedirs(working_directory)
         meta['flying_unit_code'] = current_platform
         meta['polarisation']     = current_polar
         meta['orbit_direction']  = current_orbit_direction
@@ -488,7 +487,7 @@ class Concatenate(StepFactory):
         """
         meta = meta.copy()
         out_file = out_filename(meta)
-        if type(out_file) is list:
+        if isinstance(out_file, list):
             out_file = out_file[0]
         _, out_file = os.path.split(out_file)
         meta['basename'] = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
@@ -502,11 +501,11 @@ class Concatenate(StepFactory):
         Concatenation in case there is only a single file.
         """
         # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
-        if type(input.out_filename) == list and len(input.out_filename) == 1:
+        if isinstance(input.out_filename, list) and len(input.out_filename) == 1:
             # This situation should not happen any more, we now a single string as input.
             # The code is kept in case s1tiling kernel changes again.
             concat_in_filename = input.out_filename[0]
-        elif type(input.out_filename) == str:
+        elif isinstance(input.out_filename, str):
             concat_in_filename = input.out_filename
         else:
             return super().create_step(input, in_memory, previous_steps)

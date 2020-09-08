@@ -28,13 +28,13 @@
 
 """ This module contains the multitemporal speckle filtering processor """
 
+import datetime
 import glob
 import os
 from subprocess import Popen
 import pickle
 import time
 from osgeo import gdal
-import datetime
 
 
 class S1FilteringProcessor():

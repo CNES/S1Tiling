@@ -27,6 +27,10 @@
 #
 # =========================================================================
 
+"""
+Sub-module that manages decoding of S1Processor options.
+"""
+
 import configparser
 import copy
 import logging
@@ -40,6 +44,9 @@ import yaml
 
 
 def init_logger(mode, paths):
+    """
+    Initializes logging service.
+    """
     # Add the dirname where the current script is
     paths += [pathlib.Path(__file__).parent.parent.absolute()]
     paths = [p / 'logging.conf.yaml' for p in paths]
@@ -142,7 +149,7 @@ class Configuration():
 
         self.SRTMShapefile = config.get('Processing', 'SRTMShapefile')
         if not os.path.isfile(self.SRTMShapefile):
-            logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.srtm_shapefile)
+            logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
             sys.exit(-1)
         self.grid_spacing = config.getfloat('Processing', 'Orthorectification_gridspacing')
         self.border_threshold = config.getfloat('Processing', 'BorderThreshold')
@@ -151,7 +158,7 @@ class Configuration():
             self.tile_list = open(tiles_file, 'r').readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
-        except:
+        except Exception:
             tiles = config.get('Processing', 'Tiles')
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
@@ -166,6 +173,9 @@ class Configuration():
         self.cluster                   = config.getboolean('HPC-Cluster', 'Parallelize_tiles')
 
         def check_date(self):
+            """
+            DEPRECATED
+            """
             import datetime
 
             fd = self.first_date
@@ -175,6 +185,6 @@ class Configuration():
                 F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
                 L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
                 return F_Date, L_Date
-            except:
+            except Exception:
                 logging.critical("Invalid date")
                 sys.exit()

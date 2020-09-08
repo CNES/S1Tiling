@@ -39,27 +39,31 @@ It performs the following steps:
  Parameters have to be set by the user in the S1Processor.cfg file
 """
 
+import logging
 import os
 import sys
-import logging
-from libs import S1FileManager
-from libs import S1FilteringProcessor
+# import dask.distributed
+from dask.distributed import Client, LocalCluster
+
+from libs.S1FileManager import S1FileManager
+# from libs import S1FilteringProcessor
 from libs import Utils
 from libs.configuration import Configuration
 
 from libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
-import dask.distributed
-from dask.distributed import Client, LocalCluster
-
-# Graphs
-# import dask
-from libs.vis import SimpleComputationGraph
-
 DRYRUN      = False  # Global to see what would be executed, without producing anything.
 DEBUG_OTB   = False  # Global to run the pipeline through gdb and debug OTB applications.
 DEBUG_TASKS = False  # Global to generate a SVG image for each task graph.
+
+# Graphs
+# import dask
+if DEBUG_TASKS:
+    from libs.vis import SimpleComputationGraph
+
+logger = None
+# logger = logging.getLogger('s1tiling')
 
 
 def remove_files(files):
@@ -176,7 +180,7 @@ def setup_worker_logs(config, dask_worker):
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
-        s1_file_manager, pipelines,
+        s1_file_manager, pipelines, client,
         debug_otb=False, dryrun=False):
     """
     Process one S2 tile.
@@ -225,74 +229,78 @@ def process_one_tile(
 
 
 # Main code
-# TODO: Move into a function
-if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    if len(sys.argv) != 2:
-        print("Usage: " + sys.argv[0] + " config.cfg")
-        sys.exit(1)
-
-    CFG = sys.argv[1]
-    Cg_Cfg = Configuration(CFG)
-    os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(Cg_Cfg.OTBThreads)
+def main(config_filename):
+    """
+    S1Processor main() function.
+    """
+    config = Configuration(config_filename)
+    os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
+    global logger
     logger = logging.getLogger('s1tiling')
-    with S1FileManager.S1FileManager(Cg_Cfg) as S1_FILE_MANAGER:
-        TILES_TO_PROCESS = extract_tiles_to_process(Cg_Cfg, S1_FILE_MANAGER)
-        if len(TILES_TO_PROCESS) == 0:
+    with S1FileManager(config) as s1_file_manager:
+        tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
+        if len(tiles_to_process) == 0:
             logger.critical("No existing tiles found, exiting ...")
             sys.exit(1)
 
-        TILES_TO_PROCESS_CHECKED, NEEDED_SRTM_TILES = check_tiles_to_process(TILES_TO_PROCESS, S1_FILE_MANAGER)
+        tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
-                S1_FILE_MANAGER.nb_images, TILES_TO_PROCESS_CHECKED)
+                s1_file_manager.nb_images, tiles_to_process_checked)
 
-        if len(TILES_TO_PROCESS_CHECKED) == 0:
+        if len(tiles_to_process_checked) == 0:
             logger.critical("No tiles to process, exiting ...")
             sys.exit(1)
 
-        logger.info("Required SRTM tiles: %s", NEEDED_SRTM_TILES)
+        logger.info("Required SRTM tiles: %s", needed_srtm_tiles)
 
-        if not check_srtm_tiles(Cg_Cfg, NEEDED_SRTM_TILES):
+        if not check_srtm_tiles(config, needed_srtm_tiles):
             logger.critical("Some SRTM tiles are missing, exiting ...")
             sys.exit(1)
 
-        if not os.path.exists(Cg_Cfg.GeoidFile):
-            logger.critical("Geoid file does not exists (%s), exiting ...", Cg_Cfg.GeoidFile)
+        if not os.path.exists(config.GeoidFile):
+            logger.critical("Geoid file does not exists (%s), exiting ...", config.GeoidFile)
             sys.exit(1)
 
         # Prepare directories where to store temporary files
         # These directories won't be cleaned up automatically
-        S1_tmp_dir = os.path.join(Cg_Cfg.tmpdir, 'S1')
+        S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
         os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        Cg_Cfg.tmp_srtm_dir = S1_FILE_MANAGER.tmpsrtmdir(NEEDED_SRTM_TILES)
+        config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
-        pipelines = PipelineDescriptionSequence(Cg_Cfg)
+        pipelines = PipelineDescriptionSequence(config)
         pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
         pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
-        if Cg_Cfg.mask_cond:
+        if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
 
-        filteringProcessor = S1FilteringProcessor.S1FilteringProcessor(Cg_Cfg)
+        # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
 
         if not DEBUG_OTB:
-            cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=Cg_Cfg.nb_procs, silence_logs=False)
+            cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
             client = Client(cluster)
-            client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(Cg_Cfg.log_config, dask_worker))
+            client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
 
         results = []
-        for idx, tile_it in enumerate(TILES_TO_PROCESS_CHECKED):
+        for idx, tile_it in enumerate(tiles_to_process_checked):
             with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
-                r = process_one_tile(
-                        tile_it, idx, len(TILES_TO_PROCESS_CHECKED),
-                        S1_FILE_MANAGER, pipelines,
+                res = process_one_tile(
+                        tile_it, idx, len(tiles_to_process_checked),
+                        s1_file_manager, pipelines, client,
                         debug_otb=DEBUG_OTB, dryrun=DRYRUN)
-                results += r
+                results += res
 
         logger.info('Execution report:')
         if results:
-            for r in results:
-                logger.info(' - %s', r)
+            for res in results:
+                logger.info(' - %s', res)
         else:
             logger.info(' -> Nothing has been executed')
+
+if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
+    if len(sys.argv) != 2:
+        print("Usage: " + sys.argv[0] + " config.cfg")
+        sys.exit(1)
+    main(sys.argv[1])

@@ -30,20 +30,23 @@
 
 """ This module contains the S1FileManager class"""
 
-import os
-import ogr
-from libs.Utils import get_origin, list_files, list_dirs
-from libs.S1DateAcquisition import S1DateAcquisition
 import fnmatch
 import glob
 import logging
+import os
 import re
 import shutil
 import sys
 import tempfile
+import zipfile
+import numpy as np
 
+import ogr
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
+
+from .Utils import get_shape, list_files, list_dirs
+from .S1DateAcquisition import S1DateAcquisition
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
@@ -62,10 +65,18 @@ class Layer:
     def __iter__(self):
         return self.__layer.__iter__()
 
-    def ResetReading(self):
+    def reset_reading(self):
+        """
+        Reset feature reading to start on the first feature.
+
+        This affects iteration.
+        """
         return self.__layer.ResetReading()
 
     def find_tile_named(self, tile_name_field):
+        """
+        Search for a tile that maches the name.
+        """
         for tile in self.__layer:
             if tile.GetField('NAME') in tile_name_field:
                 return tile
@@ -73,13 +84,15 @@ class Layer:
 
 
 def product_property(prod, key, default=None):
+    """
+    Returns the required (EODAG) product property, or default in the property isn't found.
+    """
     res = prod.properties.get(key, default)
     return res
 
 
 def unzip_images(raw_directory):
     """This method handles unzipping of product archives"""
-    import zipfile
     for file_it in list_files(raw_directory, '*.zip'):
         logger.debug("unzipping %s", file_it.name)
         try:
@@ -94,12 +107,23 @@ def unzip_images(raw_directory):
 
 
 def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
+    """
+    Tells whether finals products associated to a tile needs to be generated.
+
+    :param product:       S1 images that are available for download through EODAG
+    :param tile_name:     Name of the S2 tile
+    :param polarizations: Requested polarizations as per configuration.
+    :param s2images:      List of already globbed S2 images files
+
+    Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
+    and the requested polarizations exists.
+    """
     logger.debug('Searching %s in %s', product, s2images)
-    # id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
+    # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
     prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
     sat, start = prod_re.match(product.as_dict()['id']).groups()
     for pol in polarizations:
-        # s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
+        # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
         pat = '%s_%s_%s_*_%stxxxxxx.tif' % (sat.lower(), tile_name, pol, start)
         found = fnmatch.filter(s2images, pat)
         logger.debug('searching w/ %s ==> Found: %s', pat, found)
@@ -109,6 +133,11 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
 
 
 def filter_images_or_ortho(kind, all_images):
+    """
+    Analyses the existing orthorectified image files, or the ortho ready ones, for the input
+    raster provided.
+    This will be used to register the image raster to transform.
+    """
     pattern = "*" + kind + "*-???.tiff"
     ortho_pattern = "*" + kind + "*-???_OrthoReady.tiff"
     # fnmatch cannot be used with patterns like 'dir/*.foo'
@@ -125,7 +154,6 @@ def filter_images_or_ortho(kind, all_images):
 class S1FileManager:
     """ Class to manage processed files (downloads, checks) """
     def __init__(self, cfg):
-
         self.cfg              = cfg
         self.raw_raster_list  = []
         self.nb_images        = 0
@@ -140,7 +168,7 @@ class S1FileManager:
         self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
-        self.processed_filenames = self.get_processed_filenames(cfg)
+        self.processed_filenames = self.get_processed_filenames()
         self._update_s1_img_list()
 
         if self.cfg.download:
@@ -153,7 +181,8 @@ class S1FileManager:
             logger.debug('Override EODAG output directory to %s', dest_dir)
             for provider in self._dag.providers_config.keys():
                 if hasattr(self._dag.providers_config[provider], 'download'):
-                    self._dag.providers_config[provider].download.update({'outputs_prefix': dest_dir})
+                    self._dag.providers_config[provider].download.update(
+                            {'outputs_prefix': dest_dir})
                     logger.debug(' - for %s', provider)
                 else:
                     logger.debug(' - NOT for %s', provider)
@@ -176,7 +205,7 @@ class S1FileManager:
         """
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Turn the S1FileManager into a context manager, cleanup function
         """
@@ -194,9 +223,9 @@ class S1FileManager:
         - and temporary data
         all exist
         """
-        for p in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
-            if not os.path.exists(p):
-                os.makedirs(p, exist_ok=True)
+        for path in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
+            if not os.path.exists(path):
+                os.makedirs(path, exist_ok=True)
 
     def ensure_tile_workspaces_exist(self, tile_name):
         """
@@ -232,11 +261,17 @@ class S1FileManager:
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):
-        safeFileList = sorted(glob.glob(os.path.join(self.cfg.raw_directory, "*")), key=os.path.getctime)
-        if len(safeFileList) > threshold:
-            for f in safeFileList[ : len(safeFileList) - threshold]:
-                logger.debug("Remove old SAFE: %s", os.path.basename(f))
-                shutil.rmtree(f, ignore_errors=True)
+        """
+        Makes sure there is no more than `threshold`  S1 SAFEs in the raw directory.
+        Oldest ones will be removed.
+        """
+        safefile_list = sorted(
+                glob.glob(os.path.join(self.cfg.raw_directory, "*")),
+                key=os.path.getctime)
+        if len(safefile_list) > threshold:
+            for safe in safefile_list[ : len(safefile_list) - threshold]:
+                logger.debug("Remove old SAFE: %s", os.path.basename(safe))
+                shutil.rmtree(safe, ignore_errors=True)
             self._update_s1_img_list()
 
     def _download(self, dag: EODataAccessGateway,
@@ -245,7 +280,6 @@ class S1FileManager:
             tile_out_dir, tile_name, polarization):
         """
         Process with the call to eodag download.
-        :param raw_directory:
         """
         product_type = 'S1_SAR_GRD'
         extent = {
@@ -254,7 +288,7 @@ class S1FileManager:
                 'latmin': latmin,
                 'latmax': latmax
                 }
-        products, estimated_total_nbr_of_results = dag.search(
+        products, _ = dag.search(
                 productType=product_type,
                 start=first_date, end=last_date,
                 box=extent,
@@ -321,7 +355,6 @@ class S1FileManager:
 
     def download_images(self, tiles=None):
         """ This method downloads the required images if download is True"""
-        import numpy as np
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
             return
@@ -379,7 +412,9 @@ class S1FileManager:
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
-            safe_dir = os.path.join(current_content.path, os.path.basename(current_content.path) + '.SAFE')
+            safe_dir = os.path.join(
+                    current_content.path,
+                    os.path.basename(current_content.path) + '.SAFE')
             if not os.path.isdir(safe_dir):
                 continue
 
@@ -435,16 +470,7 @@ class S1FileManager:
         # Loop on images
         for image in self.raw_raster_list:
             manifest = image.get_manifest()
-            nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
-
-            poly = ogr.Geometry(ogr.wkbPolygon)
-            ring = ogr.Geometry(ogr.wkbLinearRing)
-            ring.AddPoint(nw_coord[1], nw_coord[0], 0)
-            ring.AddPoint(ne_coord[1], ne_coord[0], 0)
-            ring.AddPoint(se_coord[1], se_coord[0], 0)
-            ring.AddPoint(sw_coord[1], sw_coord[0], 0)
-            ring.AddPoint(nw_coord[1], nw_coord[0], 0)
-            poly.AddGeometry(ring)
+            poly = get_shape(manifest)
 
             for current_tile in layer:
                 tile_footprint = current_tile.GetGeometryRef()
@@ -479,7 +505,6 @@ class S1FileManager:
             logger.info("Tile %s does not exist", tile_name_field)
             return intersect_raster
 
-        poly = ogr.Geometry(ogr.wkbPolygon)
         tile_footprint = current_tile.GetGeometryRef()
 
         for image in self.raw_raster_list:
@@ -490,27 +515,15 @@ class S1FileManager:
                 logger.critical("Please remove the raw data for %s SAFE file", image.get_manifest())
                 sys.exit(-1)
 
-            # date_safe=os.path.basename(image.get_images_list()[0])[14:14+8]
-
             manifest = image.get_manifest()
-            nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
-
-            poly = ogr.Geometry(ogr.wkbPolygon)
-            ring = ogr.Geometry(ogr.wkbLinearRing)
-            ring.AddPoint(nw_coord[1], nw_coord[0], 0)
-            ring.AddPoint(ne_coord[1], ne_coord[0], 0)
-            ring.AddPoint(se_coord[1], se_coord[0], 0)
-            ring.AddPoint(sw_coord[1], sw_coord[0], 0)
-            ring.AddPoint(nw_coord[1], nw_coord[0], 0)
-            poly.AddGeometry(ring)
+            poly = get_shape(manifest)
 
             intersection = poly.Intersection(tile_footprint)
-            logger.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', ring, tile_footprint, intersection)
+            logger.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', poly, tile_footprint, intersection)
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()
-                intersect_raster.append((image, [(point[0], point[1]) for point
-                                                 in points[:-1]]))
+                intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
 
         return intersect_raster
 
@@ -554,7 +567,7 @@ class S1FileManager:
             srtm_tiles = []
             mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
             area = mgrs_footprint.GetArea()
-            srtm_layer.ResetReading()
+            srtm_layer.reset_reading()
             for srtm_tile in srtm_layer:
                 srtm_footprint = srtm_tile.GetGeometryRef()
                 intersection = mgrs_footprint.Intersection(srtm_footprint)
@@ -572,7 +585,7 @@ class S1FileManager:
             for fic in self.processed_filenames:
                 in_file.write(fic + "\n")
 
-    def get_processed_filenames(self, cfg):
+    def get_processed_filenames(self):
         """ Read back the list of processed filenames (DEPRECATED)"""
         try:
             with open(os.path.join(self.cfg.output_preprocess,

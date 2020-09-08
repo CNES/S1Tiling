@@ -30,25 +30,28 @@
 
 """ This module contains various utility functions"""
 
-import sys
+import fnmatch
+import logging
+import os
 import re
+import sys
+from timeit import default_timer as timer
+import xml.etree.ElementTree as ET
 import ogr
 import osgeo  # To test __version__
 from osgeo import osr
-import xml.etree.ElementTree as ET
-from timeit import default_timer as timer
-import logging
-import os
-import fnmatch
 
 
 def get_relative_orbit(manifest):
+    """
+    Returns the relative orbit number of the product.
+    """
     root = ET.parse(manifest)
     return int(root.find("metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}orbitReference/{http://www.esa.int/safe/sentinel-1.0}relativeOrbitNumber").text)
 
 
 def get_origin(manifest):
-    """Parse the coordinate of the origin in the manifest file
+    """Parse the coordinate of the origin in the manifest file to return its footprint.
 
     Args:
       manifest: The manifest from which to parse the coordinates of the origin
@@ -68,6 +71,23 @@ def get_origin(manifest):
         raise Exception("Coordinates not found in " + str(manifest))
 
 
+def get_shape(manifest):
+    """
+    Returns the shape of the footprint of the S1 product.
+    """
+    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
+
+    poly = ogr.Geometry(ogr.wkbPolygon)
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    ring.AddPoint(nw_coord[1], nw_coord[0], 0)
+    ring.AddPoint(ne_coord[1], ne_coord[0], 0)
+    ring.AddPoint(se_coord[1], se_coord[0], 0)
+    ring.AddPoint(sw_coord[1], sw_coord[0], 0)
+    ring.AddPoint(nw_coord[1], nw_coord[0], 0)
+    poly.AddGeometry(ring)
+    return poly
+
+
 def get_tile_origin_intersect_by_s1(grid_path, image):
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
@@ -80,15 +100,7 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
       a list of string of MGRS tiles names
     """
     manifest = image.get_manifest()
-    s1_footprint = get_origin(manifest)
-    poly = ogr.Geometry(ogr.wkbPolygon)
-    ring = ogr.Geometry(ogr.wkbLinearRing)
-    ring.AddPoint(s1_footprint[0][1], s1_footprint[0][0])
-    ring.AddPoint(s1_footprint[1][1], s1_footprint[1][0])
-    ring.AddPoint(s1_footprint[2][1], s1_footprint[2][0])
-    ring.AddPoint(s1_footprint[3][1], s1_footprint[3][0])
-    ring.AddPoint(s1_footprint[0][1], s1_footprint[0][0])
-    poly.AddGeometry(ring)
+    poly = get_shape(manifest)
 
     driver = ogr.GetDriverByName("ESRI Shapefile")
     data_source = driver.Open(grid_path, 0)
@@ -218,7 +230,7 @@ class ExecutionTimer:
         self._start = timer()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         if self._do_measure:
             end = timer()
             logging.info("%s took %ssec", self._text, end - self._start)
@@ -235,12 +247,12 @@ def list_files(directory, pattern=None):
     Requires Python 3.5
     """
     if pattern:
-        filter = lambda path: path.is_file() and fnmatch.fnmatch(path, pattern)
+        filt = lambda path: path.is_file() and fnmatch.fnmatch(path, pattern)
     else:
-        filter = lambda path: path.is_file()
+        filt = lambda path: path.is_file()
 
-    with os.scandir(directory) as list:
-        res = [entry for entry in list if filter(entry)]
+    with os.scandir(directory) as nodes:
+        res = [entry for entry in nodes if filt(entry)]
     return res
 
 
@@ -254,12 +266,12 @@ def list_dirs(directory, pattern=None):
     Requires Python 3.5
     """
     if pattern:
-        filter = lambda path: path.is_dir() and fnmatch.fnmatch(path, pattern)
+        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path, pattern)
     else:
-        filter = lambda path: path.is_dir()
+        filt = lambda path: path.is_dir()
 
-    with os.scandir(directory) as list:
-        res = [entry for entry in list if filter(entry)]
+    with os.scandir(directory) as nodes:
+        res = [entry for entry in nodes if filt(entry)]
     return res
 
 
@@ -281,7 +293,7 @@ class RedirectStdToLogger:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         sys.stdout = self.__old_stdout
         sys.stderr = self.__old_stderr
         return False
@@ -291,19 +303,26 @@ class RedirectStdToLogger:
         Internal adapter that redirects messages, initially sent to a file, to a logger.
         """
         def __init__(self, logger, mode=None):
-            self.__logger    = logger
-            self.__mode      = mode  # None => adapt DEBUG/INFO/ERROR/...
-            self.__last_mode = mode  # None => adapt DEBUG/INFO/ERROR/...
-            self.__lvl_re    = re.compile(r'(\((DEBUG|INFO|WARNING|ERROR)\))')
-            self.__lvl_map   = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, 'ERROR': logging.ERROR}
+            self.__logger     = logger
+            self.__mode       = mode  # None => adapt DEBUG/INFO/ERROR/...
+            self.__last_level = mode  # None => adapt DEBUG/INFO/ERROR/...
+            self.__lvl_re     = re.compile(r'(\((DEBUG|INFO|WARNING|ERROR)\))')
+            self.__lvl_map    = {
+                    'DEBUG':   logging.DEBUG,
+                    'INFO':    logging.INFO,
+                    'WARNING': logging.WARNING,
+                    'ERROR':   logging.ERROR}
 
         def write(self, message):
+            """
+            Overrides sys.stdout.write() method
+            """
             messages = message.rstrip().splitlines()
-            for m in messages:
+            for msg in messages:
                 if self.__mode:
                     lvl = self.__mode
                 else:
-                    match = self.__lvl_re.search(m)
+                    match = self.__lvl_re.search(msg)
                     if match:
                         lvl = self.__lvl_map[match.group(2)]
                     else:
@@ -311,10 +330,17 @@ class RedirectStdToLogger:
                 # OTB may have multi line messages.
                 # In that case, reset happens with a new message
                 self.__last_level = lvl
-                self.__logger.log(lvl, m)
+                self.__logger.log(lvl, msg)
 
         def flush(self):
+            """
+            Overrides sys.stdout.flush() method
+            """
             pass
 
         def isatty(self):
+            """
+            Overrides sys.stdout.isatty() method.
+            This is required by OTB Python bindings.
+            """
             return False
