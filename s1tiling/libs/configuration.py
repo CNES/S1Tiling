@@ -170,8 +170,6 @@ class Configuration():
         self.Reset_outcore             = config.getboolean('Filtering', 'Reset_outcore')
         self.Window_radius             = config.getint('Filtering', 'Window_radius')
 
-        self.cluster                   = config.getboolean('HPC-Cluster', 'Parallelize_tiles')
-
         def check_date(self):
             """
             DEPRECATED

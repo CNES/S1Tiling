@@ -371,7 +371,6 @@ class S1FileManager:
                         self.fd, self.ld,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
                         tile_name,
-                        # tile_name+".txt" if self.cfg.cluster else None,
                         self.cfg.polarisation)
         self._update_s1_img_list()
 
