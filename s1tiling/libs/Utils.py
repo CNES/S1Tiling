@@ -338,7 +338,7 @@ class RedirectStdToLogger:
             """
             pass
 
-        def isatty(self):
+        def isatty(self):  # pylint: disable=no-self-use
             """
             Overrides sys.stdout.isatty() method.
             This is required by OTB Python bindings.

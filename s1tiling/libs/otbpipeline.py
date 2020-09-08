@@ -110,7 +110,7 @@ class AbstractStep:
     The step will contain information like the current input file, the current output
     file...
     """
-    def __init__(self, *argv, **kwargs):
+    def __init__(self, *unused_argv, **kwargs):
         """
         constructor
         """
@@ -235,7 +235,7 @@ class Step(_StepWithOTBApplication):
         del self._app
         super().release_app()  # resets self._app to None
 
-    def execute_and_write_output(self):
+    def execute_and_write_output(self):  # pylint: disable=no-self-use
         """
         Method to call on the last step of a pipeline.
         """
@@ -248,7 +248,7 @@ class StepFactory(ABC):
 
     Meant to be inherited for each possible OTB application used in a pipeline.
     """
-    def __init__(self, appname, name, *argv, **kwargs):
+    def __init__(self, appname, name, *unused_argv, **kwargs):
         self._in      = kwargs.get('param_in',  'in')
         self._out     = kwargs.get('param_out', 'out')
         self._appname = appname
@@ -348,7 +348,7 @@ class StepFactory(ABC):
         meta['pipe']             = meta.get('pipe', []) + [self.__class__.__name__]
         return meta
 
-    def create_step(self, input: AbstractStep, in_memory: bool, previous_steps):
+    def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
         """
         Instanciates the step related to the current `StepFactory`, that consumes results from the
         previous `input` step.
@@ -542,7 +542,7 @@ class Pipeline:
 
 
 # TODO: try to make it static...
-def execute4dask(pipeline, *args, **kwargs):
+def execute4dask(pipeline, *args, **unused_kwargs):
     """
     Internal worker function used by Dask to execute a pipeline.
 
@@ -560,7 +560,7 @@ def execute4dask(pipeline, *args, **kwargs):
         # That's why errors need to be caught and transformed here.
         logger.info('Execute %s', pipeline)
         return pipeline.do_execute().add_related_filename(pipeline.output)
-    except Exception as ex:
+    except Exception as ex:  # pylint: disable=broad-except
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('Parameters for %s were: %s', pipeline, args)
         return Outcome(ex).add_related_filename(pipeline.output)
@@ -728,7 +728,7 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', path)
         return required, previous
 
-    def _build_tasks_from_dependencies(self, required, previous, debug_otb):
+    def _build_tasks_from_dependencies(self, required, previous, debug_otb):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for `dask.client.get()`.
 

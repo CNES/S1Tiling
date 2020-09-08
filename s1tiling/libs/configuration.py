@@ -158,7 +158,7 @@ class Configuration():
             self.tile_list = open(tiles_file, 'r').readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             tiles = config.get('Processing', 'Tiles')
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
@@ -170,19 +170,19 @@ class Configuration():
         self.Reset_outcore             = config.getboolean('Filtering', 'Reset_outcore')
         self.Window_radius             = config.getint('Filtering', 'Window_radius')
 
-        def check_date(self):
-            """
-            DEPRECATED
-            """
-            import datetime
+    def check_date(self):
+        """
+        DEPRECATED
+        """
+        import datetime
 
-            fd = self.first_date
-            ld = self.last_date
+        fd = self.first_date
+        ld = self.last_date
 
-            try:
-                F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
-                L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
-                return F_Date, L_Date
-            except Exception:
-                logging.critical("Invalid date")
-                sys.exit()
+        try:
+            F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
+            L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
+            return F_Date, L_Date
+        except Exception:  # pylint: disable=broad-except
+            logging.critical("Invalid date")
+            sys.exit()

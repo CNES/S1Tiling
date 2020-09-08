@@ -75,7 +75,7 @@ class AnalyseBorders(StepFactory):
     Found information will be stored into the `meta` dictionary for later use
     by `CutBorders` step factory.
     """
-    def __init__(self, cfg):
+    def __init__(self, unused_cfg):
         """
         Constructor
         """
