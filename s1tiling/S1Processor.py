@@ -99,8 +99,8 @@ def extract_tiles_to_process(cfg, s1_file_manager):
 
     if all_requested:
         if cfg.download and "ALL" in cfg.roi_by_tiles:
-            logger.critical("Can not request to download ROI_by_tiles : ALL if Tiles : ALL."
-                    + " Use ROI_by_coordinates or deactivate download instead")
+            logger.critical("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
+                    + " Change either value or deactivate download instead")
             sys.exit(1)
         else:
             tiles_to_process = s1_file_manager.get_tiles_covered_by_products()

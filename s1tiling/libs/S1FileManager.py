@@ -187,17 +187,7 @@ class S1FileManager:
                 else:
                     logger.debug(' - NOT for %s', provider)
 
-            self.roi_by_coordinates = None
-            self.roi_by_tiles       = None
-
-            try:
-                self.roi_by_tiles = self.cfg.ROI_by_tiles
-            except cfg.NoOptionError:
-                try:
-                    self.roi_by_coordinates = cfg.ROI_by_coordinates.split()
-                except cfg.NoOptionError:
-                    logger.critical("No ROI defined in the config file")
-                    sys.exit(-1)
+            self.roi_by_tiles = self.cfg.ROI_by_tiles
 
     def __enter__(self):
         """
@@ -359,41 +349,30 @@ class S1FileManager:
             logger.info("Using images already downloaded, as per configuration request")
             return
 
-        if self.roi_by_tiles is not None:
-            if tiles:
-                tiles_list = tiles
-            elif "ALL" in self.roi_by_tiles:
-                tiles_list = self.cfg.tiles_list
-            else:
-                tiles_list = self.roi_by_tiles
-            logger.debug("Tiles requested to download: %s", tiles_list)
+        if tiles:
+            tiles_list = tiles
+        elif "ALL" in self.roi_by_tiles:
+            tiles_list = self.cfg.tiles_list
+        else:
+            tiles_list = self.roi_by_tiles
+        logger.debug("Tiles requested to download: %s", tiles_list)
 
-            layer = Layer(self.cfg.output_grid)
-            for current_tile in layer:
-                tile_name = current_tile.GetField('NAME')
-                if tile_name in tiles_list:
-                    tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
-                    latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
-                    latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
-                    lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
-                    lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
-                    self._download(self._dag,
-                            lonmin, lonmax, latmin, latmax,
-                            self.fd, self.ld,
-                            os.path.join(self.cfg.output_preprocess, tiles_list),
-                            tile_name,
-                            # tile_name+".txt" if self.cfg.cluster else None,
-                            self.cfg.polarisation)
-        else:  # roi_by_tiles is None
-            # TODO: BUG: there is no current_tile/tile_name set in that case
-            self._download(self._dag,
-                    self.roi_by_coordinates[0], self.roi_by_coordinates[2],
-                    self.roi_by_coordinates[1], self.roi_by_coordinates[3],
-                    self.fd, self.ld,
-                    os.path.join(self.cfg.output_preprocess, current_tile),
-                    tile_name,
-                    # tile_name+".txt" if self.cfg.cluster else None,
-                    self.cfg.polarisation)
+        layer = Layer(self.cfg.output_grid)
+        for current_tile in layer:
+            tile_name = current_tile.GetField('NAME')
+            if tile_name in tiles_list:
+                tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
+                latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
+                latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
+                lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
+                lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
+                self._download(self._dag,
+                        lonmin, lonmax, latmin, latmax,
+                        self.fd, self.ld,
+                        os.path.join(self.cfg.output_preprocess, tiles_list),
+                        tile_name,
+                        # tile_name+".txt" if self.cfg.cluster else None,
+                        self.cfg.polarisation)
         self._update_s1_img_list()
 
     def _update_s1_img_list(self):
