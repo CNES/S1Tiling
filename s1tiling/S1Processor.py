@@ -45,13 +45,13 @@ import sys
 # import dask.distributed
 from dask.distributed import Client, LocalCluster
 
-from libs.S1FileManager import S1FileManager
+from s1tiling.libs.S1FileManager import S1FileManager
 # from libs import S1FilteringProcessor
-from libs import Utils
-from libs.configuration import Configuration
+from s1tiling.libs import Utils
+from s1tiling.libs.configuration import Configuration
 
-from libs.otbpipeline import FirstStep, PipelineDescriptionSequence
-from libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
+from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
 DRYRUN      = False  # Global to see what would be executed, without producing anything.
 DEBUG_OTB   = False  # Global to run the pipeline through gdb and debug OTB applications.
