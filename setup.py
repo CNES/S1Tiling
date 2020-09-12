@@ -65,12 +65,12 @@ setup(
 
     python_requires='>=3.3, <4',
     install_requires=[
+        "click",
         "dask[distributed]",
         "eodag",
+        "graphviz",
         "numpy",
         "ogr",
-        "osgeo",
-        "pickle",
         "rasterio",
         # Any way to require OTB ?
         ],
@@ -116,16 +116,9 @@ setup(
             },
 
     scripts = ['s1tiling/S1Processor.py'],
-
-    # C'est un système de plugin, mais on s'en sert presque exclusivement
-    # Pour créer des commandes, comme "django-admin".
-    # Par exemple, si on veut créer la fabuleuse commande "proclame-sm", on
-    # va faire pointer ce nom vers la fonction proclamer(). La commande sera
-    # créé automatiquement.
-    # La syntaxe est "nom-de-commande-a-creer = package.module:fonction".
     entry_points = {
         'console_scripts': [
-            'S1Tiling.py = s1tiling.core:proclamer',
+            'S1Processor = s1tiling.S1Processor:main',
         ],
     },
 )

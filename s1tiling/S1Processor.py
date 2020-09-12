@@ -26,22 +26,38 @@
 #          Luc HERMITTE (CS Group)
 #
 # =========================================================================
-"""
-This module contains a script to build temporal series of S1 images by tiles
-It performs the following steps:
-  1- Download S1 images from S1 data provider (through eodag)
-  2- Calibrate the S1 images to gamma0
-  3- Orthorectify S1 images and cut their on geometric tiles
-  4- Concatenate images from the same orbit on the same tile
-  5- Build mask files
-  6- Filter images by using a multiimage filter
 
- Parameters have to be set by the user in the S1Processor.cfg file
 """
+S1Tiling Command Line Interface
+
+Usage: S1Processor [OPTIONS] CONFIGFILE
+
+  On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
+
+  It performs the following steps:
+   1- Download S1 images from S1 data provider (through eodag)
+   2- Calibrate the S1 images to gamma0
+   3- Orthorectify S1 images and cut their on geometric tiles
+   4- Concatenate images from the same orbit on the same tile
+   5- Build mask files
+
+  Parameters have to be set by the user in the S1Processor.cfg file
+
+Options:
+  --version  Show the version and exit.
+  --help     Show this message and exit.
+  --dryrun    Display the processing shall would be realized, but none is done.
+  --debug-otb Investigation mode were OTB Applications are directly used without Dask
+              in order to run them through gdb for instance.
+  --graphs    Generate task graphs showing the processing flow that need to be done.
+"""
+
+from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
 import sys
+import click
 # import dask.distributed
 from dask.distributed import Client, LocalCluster
 
@@ -53,17 +69,12 @@ from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
-DRYRUN      = False  # Global to see what would be executed, without producing anything.
-DEBUG_OTB   = False  # Global to run the pipeline through gdb and debug OTB applications.
-DEBUG_TASKS = False  # Global to generate a SVG image for each task graph.
-
 # Graphs
-# import dask
-if DEBUG_TASKS:
-    from libs.vis import SimpleComputationGraph
+from s1tiling.libs.vis import SimpleComputationGraph
 
 logger = None
 # logger = logging.getLogger('s1tiling')
+
 
 
 def remove_files(files):
@@ -181,7 +192,7 @@ def setup_worker_logs(config, dask_worker):
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
-        debug_otb=False, dryrun=False):
+        debug_otb=False, dryrun=False, debug_tasks=False):
     """
     Process one S2 tile.
 
@@ -219,7 +230,7 @@ def process_one_tile(
         for product, how in dsk.items():
             logger.debug('- task: %s <-- %s', product, how)
 
-        if DEBUG_TASKS:
+        if debug_tasks:
             SimpleComputationGraph().simple_graph(
                     dsk,
                     filename='tasks-%s-%s.svg' % (tile_idx + 1, tile_name))
@@ -229,9 +240,33 @@ def process_one_tile(
 
 
 # Main code
-def main(config_filename):
+@click.command()
+@click.version_option()
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def main(dryrun, debug_otb, debug_tasks, config_filename):
     """
-    S1Processor main() function.
+      On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
+
+      It performs the following steps:
+      1. Download S1 images from S1 data provider (through eodag)
+      2. Calibrate the S1 images to gamma0
+      3. Orthorectify S1 images and cut their on geometric tiles
+      4. Concatenate images from the same orbit on the same tile
+      5. Build mask files
+
+      Parameters have to be set by the user in the S1Processor.cfg file
     """
     config = Configuration(config_filename)
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
@@ -278,7 +313,7 @@ def main(config_filename):
 
         # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
 
-        if not DEBUG_OTB:
+        if not debug_otb:
             cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
             client = Client(cluster)
             client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
@@ -289,7 +324,7 @@ def main(config_filename):
                 res = process_one_tile(
                         tile_it, idx, len(tiles_to_process_checked),
                         s1_file_manager, pipelines, client,
-                        debug_otb=DEBUG_OTB, dryrun=DRYRUN)
+                        debug_otb=debug_otb, dryrun=dryrun, debug_tasks=debug_tasks)
                 results += res
 
         logger.info('Execution report:')
@@ -300,7 +335,4 @@ def main(config_filename):
             logger.info(' -> Nothing has been executed')
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    if len(sys.argv) != 2:
-        print("Usage: " + sys.argv[0] + " config.cfg")
-        sys.exit(1)
-    main(sys.argv[1])
+    main()
