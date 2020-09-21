@@ -99,7 +99,7 @@ class Configuration():
         config.read(configFile)
 
         # Logs
-        self.Mode = config.get('Processing', 'Mode')
+        self.Mode = config.get('Processing', 'mode')
         self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
@@ -107,67 +107,67 @@ class Configuration():
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
-        self.output_preprocess = config.get('Paths', 'Output')
-        self.raw_directory     = config.get('Paths', 'S1Images')
-        self.srtm              = config.get('Paths', 'SRTM')
+        self.output_preprocess = config.get('Paths', 'output')
+        self.raw_directory     = config.get('Paths', 's1_images')
+        self.srtm              = config.get('Paths', 'srtm')
         self.tmpdir            = config.get('Paths', 'tmp')
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
             sys.exit(1)
-        self.GeoidFile         = config.get('Paths', 'GeoidFile')
+        self.GeoidFile         = config.get('Paths', 'geoid_file')
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(-1)
         self.eodagConfig       = config.get('DataSource', 'eodagConfig', fallback=None)
-        self.download          = config.getboolean('DataSource', 'Download')
-        self.ROI_by_tiles      = config.get('DataSource', 'ROI_by_tiles')
+        self.download          = config.getboolean('DataSource', 'download')
+        self.ROI_by_tiles      = config.get('DataSource', 'roi_by_tiles')
         self.first_date        = config.get('DataSource', 'first_date')
         self.last_date         = config.get('DataSource', 'last_date')
-        self.polarisation      = config.get('DataSource', 'Polarisation')
+        self.polarisation      = config.get('DataSource', 'polarisation')
         if   self.polarisation == 'VV-VH':
             self.polarisation = 'VV VH'
         elif self.polarisation == 'HH-HV':
             self.polarisation = 'HH HV'
         else:
-            logging.critical("Parameter [Polarisation] must be HH-HV or VV-VH")
+            logging.critical("Parameter [polarisation] must be HH-HV or VV-VH")
             logging.critical("Please correct it the config file ")
             sys.exit(-1)
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'Generate_border_mask')
-        self.calibration_type   = config.get('Processing', 'Calibration')
-        self.removethermalnoise = config.getboolean('Processing', 'Remove_thermal_noise')
+        self.calibration_type   = config.get('Processing', 'calibration')
+        self.removethermalnoise = config.getboolean('Processing', 'remove_thermal_noise')
 
-        self.out_spatial_res    = config.getfloat('Processing', 'OutputSpatialResolution')
+        self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 
-        self.output_grid        = config.get('Processing', 'TilesShapefile')
+        self.output_grid        = config.get('Processing', 'tiles_shapefile')
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(1)
 
-        self.SRTMShapefile = config.get('Processing', 'SRTMShapefile')
+        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile')
         if not os.path.isfile(self.SRTMShapefile):
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
             sys.exit(-1)
-        self.grid_spacing = config.getfloat('Processing', 'Orthorectification_gridspacing')
-        self.border_threshold = config.getfloat('Processing', 'BorderThreshold')
+        self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
+        self.border_threshold = config.getfloat('Processing', 'border_threshold')
         try:
-            tiles_file = config.get('Processing', 'TilesListInFile')
+            tiles_file = config.get('Processing', 'tiles_list_in_file')
             self.tile_list = open(tiles_file, 'r').readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
         except Exception:  # pylint: disable=broad-except
-            tiles = config.get('Processing', 'Tiles')
+            tiles = config.get('Processing', 'tiles')
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
-        self.TileToProductOverlapRatio = config.getfloat('Processing', 'TileToProductOverlapRatio')
-        self.nb_procs                  = config.getint('Processing', 'NbParallelProcesses')
-        self.ram_per_process           = config.getint('Processing', 'RAMPerProcess')
-        self.OTBThreads                = config.getint('Processing', 'OTBNbThreads')
-        # self.filtering_activated       = config.getboolean('Filtering', 'Filtering_activated')
-        # self.Reset_outcore             = config.getboolean('Filtering', 'Reset_outcore')
-        # self.Window_radius             = config.getint('Filtering', 'Window_radius')
+        self.TileToProductOverlapRatio = config.getfloat('Processing', 'tile_to_product_overlap_ratio')
+        self.nb_procs                  = config.getint('Processing', 'nb_parallel_processes')
+        self.ram_per_process           = config.getint('Processing', 'ram_per_process')
+        self.OTBThreads                = config.getint('Processing', 'nb_otb_threads')
+        # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
+        # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
+        # self.Window_radius             = config.getint('Filtering', 'window_radius')
 
     def check_date(self):
         """
