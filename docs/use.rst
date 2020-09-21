@@ -33,27 +33,6 @@ It is expected to contain the following entries.
 You can use this :download:`this template
 <../s1tiling/resources/S1Processor.cfg>`, as a starting point.
 
-.. _default:
-
-``[DEFAULT]`` section
-+++++++++++++++++++++
-
-.. list-table::
-  :widths: auto
-  :header-rows: 1
-  :stub-columns: 1
-
-  * - Option
-    - Description
-
-      .. _default.region:
-  * - ``region``
-    -
-
-      .. todo::
-
-        This field is ignored. Remove it.
-
 .. _paths:
 
 ``[PATHS]`` section
@@ -292,7 +271,8 @@ You can use this :download:`this template
 ``[Filtering]`` section
 +++++++++++++++++++++++
 
-.. todo:: Remove this section as it isn't used.
+.. note:: The following options will eventually be used for the multitemporal
+   filtering. They are not used by S1Tiling application.
 
 
 .. list-table::

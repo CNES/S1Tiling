@@ -107,7 +107,6 @@ class Configuration():
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
-        self.region            = config.get('DEFAULT', 'region')
         self.output_preprocess = config.get('Paths', 'Output')
         self.raw_directory     = config.get('Paths', 'S1Images')
         self.srtm              = config.get('Paths', 'SRTM')
@@ -166,9 +165,9 @@ class Configuration():
         self.nb_procs                  = config.getint('Processing', 'NbParallelProcesses')
         self.ram_per_process           = config.getint('Processing', 'RAMPerProcess')
         self.OTBThreads                = config.getint('Processing', 'OTBNbThreads')
-        self.filtering_activated       = config.getboolean('Filtering', 'Filtering_activated')
-        self.Reset_outcore             = config.getboolean('Filtering', 'Reset_outcore')
-        self.Window_radius             = config.getint('Filtering', 'Window_radius')
+        # self.filtering_activated       = config.getboolean('Filtering', 'Filtering_activated')
+        # self.Reset_outcore             = config.getboolean('Filtering', 'Reset_outcore')
+        # self.Window_radius             = config.getint('Filtering', 'Window_radius')
 
     def check_date(self):
         """
