@@ -208,7 +208,7 @@ class Calibrate(StepFactory):
 
 class CutBorders(StepFactory):
     """
-    Factory that prepares steps that run `ClampROI`.
+    Factory that prepares steps that run `ResetMargin`.
 
     Requires the following information from the configuration object:
     - `ram_per_process`
@@ -224,7 +224,7 @@ class CutBorders(StepFactory):
         """
         Constructor.
         """
-        super().__init__('ClampROI', 'BorderCutting')
+        super().__init__('ResetMargin', 'BorderCutting')
         self.__ram_per_process = cfg.ram_per_process
         self.__tmpdir          = cfg.tmpdir
 
@@ -237,21 +237,21 @@ class CutBorders(StepFactory):
 
     def build_step_output_filename(self, meta):
         """
-        Returns the names of typical ClampROI result files
+        Returns the names of typical ResetMargin result files
         """
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
         """
-        Returns the names of typical ClampROI temporary result files
+        Returns the names of typical ResetMargin temporary result files
         """
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tmp.tiff")
         return os.path.join(self.output_directory(meta), filename)
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with ClampROI OTB application.
+        Returns the parameters to use with ResetMargin OTB application.
         """
         return {
                 'ram'              : str(self.__ram_per_process),
