@@ -38,6 +38,7 @@ with open(os.path.join(BASEDIR, "s1tiling", "__meta__.py"), "r") as f:
 extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
+    'm2r2'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

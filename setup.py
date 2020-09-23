@@ -87,7 +87,7 @@ setup(
             "flake8",
             "pre-commit",
             ],
-        "docs": ["sphinx == 1.8.0", "nbsphinx == 0.3.5", "nbsphinx-link == 1.1.1"],
+        "docs": ["sphinx == 1.8.0", "nbsphinx == 0.3.5", "nbsphinx-link == 1.1.1", "m2r2"],
         },
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
