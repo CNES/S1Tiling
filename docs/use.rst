@@ -9,7 +9,7 @@
 Usage
 ======================================================================
 
-Given a :ref:`request configuration <request-config-file>` (e.g.
+Given a :ref:`request configuration file <request-config-file>` (e.g.
 ``MyS1ToS2.cfg`` in ``workingdir``), running S1Tiling is as simple as::
 
         cd workingdir
@@ -17,9 +17,13 @@ Given a :ref:`request configuration <request-config-file>` (e.g.
 
 The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
 
+The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+
 Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
-The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+.. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as it
+   files are :ref:`cached <data-caches>` in between runs. This means you will
+   eventually have to clean this directory.
 
 
 .. _request-config-file:
@@ -62,12 +66,10 @@ You can use this :download:`this template
 
       .. _paths.tmp:
   * - ``tmp``
-    - Where intermediary files are stored.
+    - Where :ref:`intermediary files <temporary-files>` are stored.
       |br|
       As a S1 image may need to be used to produce several S2 tiles, once
-      orthorectified, S1 images are cached in the tmp directory.
-
-      .. note:: It's up to you, end-user, to clean that directory regularly.
+      orthorectified, S1 images are :ref:`cached <data-caches>` in the tmp directory.
 
       .. _paths.geoid_file:
   * - ``geoid_file``
@@ -96,8 +98,8 @@ You can use this :download:`this template
       the ROI, otherwise only local S1 images already in :ref:`s1_images
       <paths.s1_images>` will be processed.
 
-      .. _DataSource.eodagConfig:
-  * - ``eodagConfig``
+      .. _DataSource.eodag_config:
+  * - ``eodag_config``
     - Designates where the eodag configuration file is expected to be found.
       |br|
       Default value: :file:`%(HOME)s/.config/eodag/eodag.yml`.
@@ -159,9 +161,11 @@ You can use this :download:`this template
   * - Option
     - Description
 
-      .. _Mask.Generate_border_mask:
-  * - ``Generate_border_mask``
-    - This option allows you to choose if you want to generate border mask.
+      .. _Mask.generate_border_mask:
+  * - ``generate_border_mask``
+    - This option allows you to choose if you want to generate border masks of
+      the S2 image file produced.
+
 
 .. _Processing:
 
@@ -178,7 +182,7 @@ You can use this :download:`this template
 
       .. _Processing.calibration:
   * - ``calibration``
-    - Defines the type of calibration: ``gamma`` or ``sigma``
+    - Defines the calibration type: ``gamma`` or ``sigma``
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
@@ -198,14 +202,18 @@ You can use this :download:`this template
 
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
-    - Grid spacing for the interpolator in the orthorectification process for
-      more information, please consult the OTB orthorectification application.
+    - Grid spacing (in meters) for the interpolator in the orthorectification
+      process for more information, please consult the `OTB OrthoRectification
+      application
+      <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
       A nice value is 4 x output_spatial_resolution
 
       .. _Processing.border_threshold:
   * - ``border_threshold``
     - Threshold on the image level to be considered as zeros
+
+        .. todo:: This option is ignored...
 
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
@@ -229,9 +237,9 @@ You can use this :download:`this template
     - Percentage of tile area to be covered for a tile to be retained in
       ``ALL`` mode
 
-      .. todo::
-
-        This field is ignored. Remove it.
+      .. note::
+        At this moment this field is ignored, but it's likely to be used in the
+        future.
 
       .. _Processing.mode:
   * - ``mode``
@@ -242,20 +250,25 @@ You can use this :download:`this template
         ``$OTB_LOGGER_LEVEL=DEBUG``
       - ``logging``: saves logs to files
 
+
+      Ex.:
+
       .. code-block:: ini
 
         mode : debug logging
 
       .. _Processing.nb_parallel_processes:
   * - ``nb_parallel_processes``
-    - Number of processes to be running in parallel |br|
-      This number defines the number of S1 images to be processed in parallel.
+    - Number of processes to be running in :ref:`parallel <parallelization>`
+      |br|
+      This number defines the number of Dask Taks (and indirectly of OTB
+      applications) to be executed in parallel.
 
       .. note:: Must be <= to the number of cores on the machine.
 
       .. _Processing.ram_per_process:
   * - ``ram_per_process``
-    - RAM Allower per process in MB
+    - RAM Allowed per process in MB
 
       .. _Processing.nb_otb_threads:
   * - ``nb_otb_threads``
