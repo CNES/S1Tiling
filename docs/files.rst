@@ -96,7 +96,7 @@ Cut and calibrated S1 images ready for orthorectification
 
       Example:
 
-      .. code-block::
+      .. code-block:: none
 
            s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff
            s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.geom
