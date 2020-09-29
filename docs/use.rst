@@ -209,12 +209,6 @@ You can use this :download:`this template
 
       A nice value is 4 x output_spatial_resolution
 
-      .. _Processing.border_threshold:
-  * - ``border_threshold``
-    - Threshold on the image level to be considered as zeros
-
-        .. todo:: This option is ignored...
-
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
     - Tiles to be processed.
