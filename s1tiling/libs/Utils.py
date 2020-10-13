@@ -344,3 +344,13 @@ class RedirectStdToLogger:
             This is required by OTB Python bindings.
             """
             return False
+
+
+def remove_files(files):
+    """
+    Removes the files from the disk
+    """
+    logging.debug("Remove %s", files)
+    for file_it in files:
+        if os.path.exists(file_it):
+            os.remove(file_it)
