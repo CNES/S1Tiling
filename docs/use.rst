@@ -73,7 +73,8 @@ You can use this :download:`this template
 
       .. _paths.geoid_file:
   * - ``geoid_file``
-    - Path to Geoid model.
+    - Path to Geoid model. If left unspecified, it'll point automatically to
+      the geoid resource shipped with S1 Tiling.
 
       .. _paths.srtm:
   * - ``srtm``
@@ -194,11 +195,15 @@ You can use this :download:`this template
 
       .. _Processing.tiles_shapefile:
   * - ``tiles_shapefile``
-    - Path and filename of the tile shape definition (ESRI Shapefile)
+    - Path and filename of the tile shape definition (ESRI Shapefile). If left
+      unspecified, it'll point automatically to the `Features.shp` shapefile
+      resource shipped with S1 Tiling.
 
       .. _Processing.srtm_shapefile:
   * - ``srtm_shapefile``
-    - Path and filename of the SRTM shape definition (ESRI Shapefile)
+    - Path and filename of the SRTM shape definition (ESRI Shapefile). If left
+      unspecified, it'll point automatically to the `srtm.shp` shapefile
+      resource shipped with S1 Tiling.
 
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
