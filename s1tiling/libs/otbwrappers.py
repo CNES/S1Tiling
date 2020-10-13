@@ -40,7 +40,7 @@ import datetime
 import numpy as np
 import rasterio
 from rasterio.windows import Window
-import gdal
+from osgeo import gdal
 import otbApplication as otb
 
 from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep

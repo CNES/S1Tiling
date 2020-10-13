@@ -37,7 +37,7 @@ import re
 import sys
 from timeit import default_timer as timer
 import xml.etree.ElementTree as ET
-import ogr
+from osgeo import ogr
 import osgeo  # To test __version__
 from osgeo import osr
 

@@ -68,6 +68,7 @@ setup(
         "click",
         "dask[distributed]",
         "eodag",
+        "pygdal==3.1.0.6",
         "graphviz",
         "numpy",
         "ogr",

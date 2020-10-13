@@ -41,7 +41,7 @@ import tempfile
 import zipfile
 import numpy as np
 
-import ogr
+from osgeo import ogr
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
 
