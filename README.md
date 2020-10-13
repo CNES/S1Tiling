@@ -1,5 +1,5 @@
 # S1Tiling
-On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid
+On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
 Sentinel-1 is currently the only system to provide SAR images regularly on all
 lands on the planet. Access to these time series of images opens an
@@ -88,11 +88,17 @@ For each S2 tile:
 
 >   Copyright (c) CESBIO. All rights reserved.
 >
->   See LICENSE for details.
+>   Licensed under the Apache License, Version 2.0 (the "License");
+>   you may not use this file except in compliance with the License.
+>   You may obtain a copy of the License at
 >
->   This software is distributed WITHOUT ANY WARRANTY; without even
->   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
->   PURPOSE.  See the above copyright notices for more information.
+>       http://www.apache.org/licenses/LICENSE-2.0
+>
+>   Unless required by applicable law or agreed to in writing, software
+>   distributed under the License is distributed on an "AS IS" BASIS,
+>   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+>   See the License for the specific language governing permissions and
+>   limitations under the License.
 
 ## Contributors (according to master branch on http://tully.ups-tlse.fr/koleckt/s1tiling/commits/master/s1tiling)
 - Thierry KOLECK (CNES)

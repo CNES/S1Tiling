@@ -1,0 +1,3 @@
+include *.md
+recursive-include s1tiling/Geoid     *.grd*
+recursive-include s1tiling/shapefile *.dbf *.prj *.shp *.shx
