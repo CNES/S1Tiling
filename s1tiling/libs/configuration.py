@@ -135,7 +135,7 @@ class Configuration():
             sys.exit(-1)
 
         self.type_image         = "GRD"
-        self.mask_cond          = config.getboolean('Mask', 'Generate_border_mask')
+        self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
         self.calibration_type   = config.get('Processing', 'calibration')
         self.removethermalnoise = config.getboolean('Processing', 'remove_thermal_noise')
 
@@ -151,7 +151,6 @@ class Configuration():
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
             sys.exit(-1)
         self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
-        self.border_threshold = config.getfloat('Processing', 'border_threshold')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
             self.tile_list = open(tiles_file, 'r').readlines()

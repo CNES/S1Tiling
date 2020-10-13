@@ -1,3 +1,4 @@
+.. include:: <isoamsa.txt>
 
 .. _intro:
 
@@ -15,6 +16,23 @@ applications.
 Sentinel-1 data is ortho-rectified on the Sentinel-2 grid to promote joint use
 of both missions.
 
+.. list-table::
+  :widths: auto
+  :header-rows: 0
+  :stub-columns: 0
+
+  * - .. image:: _static/inputs.jpeg
+           :scale: 50%
+           :alt:   From Sentinel-1 images to Sentinel-2 images
+           :align: right
+
+    - |Rarrtl|
+
+    - .. image:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx.jpeg
+           :scale: 50%
+           :alt:   The orthorectified result
+           :align: left
+
 S1Tiling was developed within the CNES radar service, in collaboration with
 CESBIO, to generate time series of calibrated, ortho-rectified and filtered
 Sentinel-1 images on any terrestrial region of the Earth. The tool benefits for
@@ -25,11 +43,11 @@ The resulting images are registered to Sentinel-2 optical images, using the
 same MGRS geographic reference. You will be able to access Sentinel-1 data
 acquired on Sentinel-2 31TCJ or 11SPC tiles.This Python software, is based on
 the Orfeo Tool Box (OTB) image processing library, developed by CNES, as well
-as on `the PEPS platform <https://peps.cnes.fr/>`_ to
-access the Sentinel-1 data. It can be used on any type of platform, from a
-large computing cluster to a laptop (the fan will make some noise during
-processing). It is considerably faster than the ortho-rectification tool in
-SNAP, and can be easily used in script form.
+as on `the PEPS platform <https://peps.cnes.fr/>`_ to access the Sentinel-1
+data. It can be used on any type of platform, from a large computing cluster to
+a laptop (the fan will make some noise during processing). It is considerably
+faster than the ortho-rectification tool in SNAP, and can be easily used in
+script form.
 
 S1Tiling is currently used for many applications, such deforestation detection
 in the Amazon, monitoring of rice crops in Southeast Asia or monitoring of
