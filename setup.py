@@ -29,9 +29,19 @@
 
 import os
 from setuptools import setup, find_packages
+import subprocess
 
 # Import the library to make sure there is no side effect
 import s1tiling
+
+def request_gdal_version():
+    try:
+        r = subprocess.run(['gdal-config', '--version'], stdout=subprocess.PIPE )
+        version = r.stdout.decode('utf-8').strip('\n')
+        print("GDAL %s detected on the system, using 'gdal=%s'", version, version)
+        return version
+    except Exception as ex:  # pylint: disable=broad-except
+        return '3.1.0'
 
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
@@ -68,11 +78,10 @@ setup(
         "click",
         "dask[distributed]",
         "eodag",
-        "pygdal==3.1.0.6",
+        "gdal=="+request_gdal_version(),
         "graphviz",
         "numpy",
         "ogr",
-        "rasterio",
         # Any way to require OTB ?
         ],
     extras_require={
