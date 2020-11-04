@@ -63,6 +63,24 @@ TBC
 
 ## Setup
 
+### On HAL cluster
+
+First we need to create a conda environment 
+
+`module load conda`
+
+`conda create -n s1tiling python==3.7.2`
+
+`conda activate s1tiling`
+
+Then we have to clone S1tiling git repository and install S1tiling packages
+
+`git clone xxx`
+
+`cd s1tiling`
+
+`pip install --use-features=2020-resolver -e .`
+
 ### Dask
 > Dask does not require any setup if you only want to use it on a single computer.
 > -- https://docs.dask.org/en/latest/setup.html
