@@ -73,13 +73,26 @@ First we need to create a conda environment
 
 `conda activate s1tiling`
 
+`pip install gdal==3.1.0`
+
+Define the following env variables
+
+`export GDAL_DATA=/home/il/koleck/.conda/envs/s1tiling-hpc/lib/python3.7/site-packages/rasterio/gdal_data`
+
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/il/koleck/OTB-7.2.0-Linux64/lib/`
+
 Then we have to clone S1tiling git repository and install S1tiling packages
 
-`git clone xxx`
+`git clone https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git`
 
 `cd s1tiling`
 
 `pip install --use-features=2020-resolver -e .`
+
+Source the OTB environement
+
+`source ~/OTB-7.2.0-Linux64/otbenv.profile`
+
 
 ### Dask
 > Dask does not require any setup if you only want to use it on a single computer.
