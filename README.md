@@ -75,11 +75,6 @@ First we need to create a conda environment
 
 `pip install gdal==3.1.0`
 
-Define the following env variables
-
-`export GDAL_DATA=/home/il/koleck/.conda/envs/s1tiling-hpc/lib/python3.7/site-packages/rasterio/gdal_data`
-
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/il/koleck/OTB-7.2.0-Linux64/lib/`
 
 Then we have to clone S1tiling git repository and install S1tiling packages
 
@@ -89,9 +84,13 @@ Then we have to clone S1tiling git repository and install S1tiling packages
 
 `pip install --use-features=2020-resolver -e .`
 
-Source the OTB environement
+Source the OTB environement and update the following env variables
 
 `source ~/OTB-7.2.0-Linux64/otbenv.profile`
+
+`export GDAL_DATA=/home/il/koleck/.conda/envs/s1tiling-hpc/lib/python3.8/site-packages/rasterio/gdal_data`
+
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/il/koleck/OTB-7.2.0-Linux64/lib/`
 
 
 ### Dask
