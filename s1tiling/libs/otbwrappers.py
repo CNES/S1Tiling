@@ -414,7 +414,6 @@ class OrthoRectify(StepFactory):
         dst = gdal.Open(fullpath, gdal.GA_Update)
 
         dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
-        dst.SetMetadataItem('PROCESSED_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d')))
         dst.SetMetadataItem('TIFFTAG_DATETIME',           str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
         dst.SetMetadataItem('ORTHORECTIFIED',             'true')
         dst.SetMetadataItem('CALIBRATION',                str(meta['calibration_type']))
