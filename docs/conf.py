@@ -176,9 +176,8 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-# TODO: remove "-7.2" from OTB Cookbook once OTB 7.2 is fully released
 intersphinx_mapping = {
         'https://docs.python.org/3/': None,
         'https://distributed.dask.org/en/latest/': None,
-        'https://www.orfeo-toolbox.org/CookBook-7.2/': None
+        'https://www.orfeo-toolbox.org/CookBook/': None
         }
