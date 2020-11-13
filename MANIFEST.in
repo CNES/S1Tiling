@@ -1,3 +1,6 @@
+include README.md LICENSE requirements-dev.txt requirements.txt
 include *.md
-recursive-include s1tiling/Geoid     *.grd*
-recursive-include s1tiling/shapefile *.dbf *.prj *.shp *.shx
+recursive-include docs/                        *.rst
+recursive-include s1tiling/resources/Geoid     *.grd*
+recursive-include s1tiling/resources/shapefile *.dbf *.prj *.shp *.shx
+include s1tiling/logging.conf.yaml

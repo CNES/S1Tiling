@@ -84,6 +84,7 @@ def init_logger(mode, paths):
             if 'filename' in cfg and '%' in cfg['filename']:
                 cfg['filename'] = cfg['filename'] % ('main',)
         logging.config.dictConfig(main_config)
+        return config
     else:
         # This situation should not happen
         if verbose:
@@ -91,7 +92,7 @@ def init_logger(mode, paths):
             # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
         else:
             logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-    return config
+        return None
 
 
 class Configuration():
@@ -105,7 +106,7 @@ class Configuration():
         self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
-        if "debug" in self.Mode and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+        if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
