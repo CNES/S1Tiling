@@ -42,6 +42,8 @@ import re
 import sys
 import yaml
 
+resource_dir = pathlib.Path(__file__).parent.parent.absolute() / 'resources'
+
 
 def init_logger(mode, paths):
     """
@@ -82,6 +84,7 @@ def init_logger(mode, paths):
             if 'filename' in cfg and '%' in cfg['filename']:
                 cfg['filename'] = cfg['filename'] % ('main',)
         logging.config.dictConfig(main_config)
+        return config
     else:
         # This situation should not happen
         if verbose:
@@ -89,7 +92,7 @@ def init_logger(mode, paths):
             # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
         else:
             logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-    return config
+        return None
 
 
 class Configuration():
@@ -103,7 +106,7 @@ class Configuration():
         self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
-        if "debug" in self.Mode and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+        if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
@@ -115,7 +118,7 @@ class Configuration():
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
             sys.exit(1)
-        self.GeoidFile         = config.get('Paths', 'geoid_file')
+        self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid'))
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(-1)
@@ -141,12 +144,12 @@ class Configuration():
 
         self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 
-        self.output_grid        = config.get('Processing', 'tiles_shapefile')
+        self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(1)
 
-        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile')
+        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm.shp'))
         if not os.path.isfile(self.SRTMShapefile):
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
             sys.exit(-1)
@@ -167,6 +170,35 @@ class Configuration():
         # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
         # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
         # self.Window_radius             = config.getint('Filtering', 'window_radius')
+
+        logging.debug("Running S1Tiling with:")
+        logging.debug("[Paths]")
+        logging.debug("- geoid_file                     : %s", self.GeoidFile)
+        logging.debug("- output                         : %s", self.output_preprocess)
+        logging.debug("- s1_images                      : %s", self.raw_directory)
+        logging.debug("- srtm                           : %s", self.srtm)
+        logging.debug("- tmp                            : %s", self.tmpdir)
+        logging.debug("[DataSource]")
+        logging.debug("- download                       : %s", self.download)
+        logging.debug("- first_date                     : %s", self.first_date)
+        logging.debug("- last_date                      : %s", self.last_date)
+        logging.debug("- polarisation                   : %s", self.polarisation)
+        logging.debug("- roi_by_tiles                   : %s", self.ROI_by_tiles)
+        logging.debug("[Processing]")
+        logging.debug("- calibration                    : %s", self.calibration_type)
+        logging.debug("- mode                           : %s", self.Mode)
+        logging.debug("- nb_otb_threads                 : %s", self.OTBThreads)
+        logging.debug("- nb_parallel_processes          : %s", self.nb_procs)
+        logging.debug("- orthorectification_gridspacing : %s", self.grid_spacing)
+        logging.debug("- output_spatial_resolution      : %s", self.out_spatial_res)
+        logging.debug("- ram_per_process                : %s", self.ram_per_process)
+        logging.debug("- remove_thermal_noise           : %s", self.removethermalnoise)
+        logging.debug("- srtm_shapefile                 : %s", self.SRTMShapefile)
+        logging.debug("- tile_to_product_overlap_ratio  : %s", self.TileToProductOverlapRatio)
+        logging.debug("- tiles                          : %s", self.tile_list)
+        logging.debug("- tiles_shapefile                : %s", self.output_grid)
+        logging.debug("[Mask]")
+        logging.debug("- generate_border_mask           : %s", self.mask_cond)
 
     def check_date(self):
         """

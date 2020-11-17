@@ -29,9 +29,19 @@
 
 import os
 from setuptools import setup, find_packages
+import subprocess
 
 # Import the library to make sure there is no side effect
 import s1tiling
+
+def request_gdal_version():
+    try:
+        r = subprocess.run(['gdal-config', '--version'], stdout=subprocess.PIPE )
+        version = r.stdout.decode('utf-8').strip('\n')
+        print("GDAL %s detected on the system, using 'gdal=%s'" % (version, version))
+        return version
+    except Exception as ex:  # pylint: disable=broad-except
+        return '3.1.0'
 
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
@@ -54,8 +64,8 @@ setup(
     keywords         = "Sentinel-1, Sentinel-2, orthorectification",
 
     # Liste les packages à insérer dans la distribution
-    # plutôt que de le faire à la main, on utilise la foncton
-    # find_packages() de setuptools qui va cherche tous les packages
+    # plutôt que de le faire à la main, on utilise la fonction
+    # find_packages() de setuptools qui va chercher tous les packages
     # python recursivement dans le dossier courant.
     # C'est pour cette raison que l'on a tout mis dans un seul dossier:
     # on peut ainsi utiliser cette fonction facilement
@@ -68,11 +78,11 @@ setup(
         "click",
         "dask[distributed]",
         "eodag",
-        "pygdal==3.1.0.6",
+        "gdal=="+request_gdal_version(),
         "graphviz",
         "numpy",
         "ogr",
-        "rasterio",
+        "pyyaml",
         # Any way to require OTB ?
         ],
     extras_require={

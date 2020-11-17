@@ -497,12 +497,24 @@ class Concatenate(StepFactory):
         meta = meta.copy()
         out_file = out_filename(meta)
         if isinstance(out_file, list):
+            logger.debug('Register files to remove after concatenation: %s', out_file)
+            meta['files_to_remove'] = out_file
             out_file = out_file[0]
         _, out_file = os.path.split(out_file)
         meta['basename'] = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        meta['post'] = meta.get('post', []) + [self.clear_ortho_tmp]
         return meta
+
+    def clear_ortho_tmp(self, meta):
+        """
+        Takes care of removing the orthorectified subtiles from the temporary
+        directory once the concatenation has been done.
+        """
+        if 'files_to_remove' in meta:
+            logger.debug('Cleaning concatenated files: %s', meta['files_to_remove'])
+            Utils.remove_files(meta['files_to_remove'])
 
     def create_step(self, input: Step, in_memory: bool, previous_steps):
         """

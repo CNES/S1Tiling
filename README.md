@@ -39,29 +39,50 @@ TBC
 
 ## Requirements
 
-* OTB
-* OTB external modules
-  * SARMutitempFiltering
-  * Synthetize
-  * ClampROI
+* OTB 7.2
 * GDAL with python bindings as well
 * Python 3
-  * pickle
-  * json
-  * zipfile
-  * xml
-  * timeit
+  * click
+  * eodag
   * numpy
-  * osgeo.gdal, osgeo.gdalconst
-  * ogr
+  * gdal, ogr
   * rasterio
   * yaml
-  * ConfigParser
   * Dask"distributed"
   * bokeh (to display Dask dashboard)
   * graphviz (to generate task graphs)
 
 ## Setup
+
+### On HAL cluster
+
+First we need to create a conda environment
+
+`module load conda`
+
+`conda create -n s1tiling python==3.7.2`
+
+`conda activate s1tiling`
+
+`pip install gdal==3.1.0`
+
+
+Then we have to clone S1tiling git repository and install S1tiling packages
+
+`git clone https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git`
+
+`cd s1tiling`
+
+`pip install --use-features=2020-resolver -e .`
+
+Source the OTB environement and update the following env variables
+
+`source ~/OTB-7.2.0-Linux64/otbenv.profile`
+
+`export GDAL_DATA=/home/il/koleck/.conda/envs/s1tiling-hpc/lib/python3.8/site-packages/rasterio/gdal_data`
+
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/il/koleck/OTB-7.2.0-Linux64/lib/`
+
 
 ### Dask
 > Dask does not require any setup if you only want to use it on a single computer.
