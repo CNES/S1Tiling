@@ -38,8 +38,6 @@ import re
 import datetime
 
 import numpy as np
-import rasterio
-from rasterio.windows import Window
 from osgeo import gdal
 import otbApplication as otb
 
@@ -117,11 +115,22 @@ class AnalyseBorders(StepFactory):
         cut_overlap_range   = 1000  # Number of columns to cut on the sides. Here 500pixels = 5km
         cut_overlap_azimuth = 1600  # Number of lines to cut at top or bottom
         thr_nan_for_cropping = cut_overlap_range * 2  # When testing we having cut the NaN yet on the border hence this threshold.
-        with rasterio.open(meta['out_filename']) as ds_reader:
-            xsize = ds_reader.width
-            ysize = ds_reader.height
-            north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
-            south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
+
+        # With proper rasterio execution contexts, it would have been as clean as the following.
+        # Alas RasterIO requires GDAL 2.x while OTB requires GDAL 3.x... => We cannot use rasterio.
+        # with rasterio.open(meta['out_filename']) as ds_reader:
+        #     xsize = ds_reader.width
+        #     ysize = ds_reader.height
+        #     north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
+        #     south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
+
+        ds_reader = gdal.Open(meta['out_filename'])
+        xsize = ds_reader.RasterXSize
+        ysize = ds_reader.RasterYSize
+        north = ds_reader.ReadAsArray(0, 100, xsize, 1)
+        south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
+        del(ds_reader)
+        ds_reader = None
 
         crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
         crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)

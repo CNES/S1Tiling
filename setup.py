@@ -38,7 +38,7 @@ def request_gdal_version():
     try:
         r = subprocess.run(['gdal-config', '--version'], stdout=subprocess.PIPE )
         version = r.stdout.decode('utf-8').strip('\n')
-        print("GDAL %s detected on the system, using 'gdal=%s'", version, version)
+        print("GDAL %s detected on the system, using 'gdal=%s'" % (version, version))
         return version
     except Exception as ex:  # pylint: disable=broad-except
         return '3.1.0'
@@ -64,8 +64,8 @@ setup(
     keywords         = "Sentinel-1, Sentinel-2, orthorectification",
 
     # Liste les packages à insérer dans la distribution
-    # plutôt que de le faire à la main, on utilise la foncton
-    # find_packages() de setuptools qui va cherche tous les packages
+    # plutôt que de le faire à la main, on utilise la fonction
+    # find_packages() de setuptools qui va chercher tous les packages
     # python recursivement dans le dossier courant.
     # C'est pour cette raison que l'on a tout mis dans un seul dossier:
     # on peut ainsi utiliser cette fonction facilement
@@ -82,6 +82,7 @@ setup(
         "graphviz",
         "numpy",
         "ogr",
+        "pyyaml",
         # Any way to require OTB ?
         ],
     extras_require={

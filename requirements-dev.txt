@@ -1,2 +1,3 @@
 # Installs development and documentation dependencies from ./setup.py.
 -e .[dev,docs]
+--no-binary rasterio
