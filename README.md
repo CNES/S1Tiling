@@ -39,24 +39,15 @@ TBC
 
 ## Requirements
 
-* OTB
-* OTB external modules
-  * SARMutitempFiltering
-  * Synthetize
-  * ClampROI
+* OTB 7.2
 * GDAL with python bindings as well
 * Python 3
-  * pickle
-  * json
-  * zipfile
-  * xml
-  * timeit
+  * click
+  * eodag
   * numpy
-  * osgeo.gdal, osgeo.gdalconst
-  * ogr
+  * gdal, ogr
   * rasterio
   * yaml
-  * ConfigParser
   * Dask"distributed"
   * bokeh (to display Dask dashboard)
   * graphviz (to generate task graphs)
@@ -65,7 +56,7 @@ TBC
 
 ### On HAL cluster
 
-First we need to create a conda environment 
+First we need to create a conda environment
 
 `module load conda`
 
