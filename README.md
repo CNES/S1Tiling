@@ -35,7 +35,11 @@ make it easier for users to use.
 
 # Installation
 
-TBC
+S1Tiling installation has a few traps. Please read the relevant documentation
+on [docs/install.rst] regarding:
+
+- OTB and GDAL installation
+- Rasterio that needs to be installed from sources
 
 ## Requirements
 
@@ -52,58 +56,11 @@ TBC
   * bokeh (to display Dask dashboard)
   * graphviz (to generate task graphs)
 
-## Setup
-
-### On HAL cluster
-
-First we need to create a conda environment
-
-`module load conda`
-
-`conda create -n s1tiling python==3.7.2`
-
-`conda activate s1tiling`
-
-`pip install gdal==3.1.0`
-
-
-Then we have to clone S1tiling git repository and install S1tiling packages
-
-`git clone https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git`
-
-`cd s1tiling`
-
-`pip install --use-features=2020-resolver -e .`
-
-Source the OTB environement and update the following env variables
-
-`source ~/OTB-7.2.0-Linux64/otbenv.profile`
-
-`export GDAL_DATA=/home/il/koleck/.conda/envs/s1tiling-hpc/lib/python3.8/site-packages/rasterio/gdal_data`
-
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/il/koleck/OTB-7.2.0-Linux64/lib/`
-
-
 ### Dask
 > Dask does not require any setup if you only want to use it on a single computer.
 > -- https://docs.dask.org/en/latest/setup.html
 
 https://docs.dask.org/en/latest/setup/single-distributed.html
-
-# Design Notes
-
-S1Tiling processes the requested S2 tiles one after the other.
-
-For each S2 tile:
-
-1. It first retrieves the S1 images that intersect the S2 tile at the given
-   time range
-2. Then it builds a graph of tasks to realize (Calibration+Cutting,
-   Orthorectification, Concatenation, Mask generation). Each node of the graph
-   corresponds to a file that is meant to be produced. The graph is trimmed
-   from the edges that produce the expected files that already exist.
-3. Finally, all the remaining tasks are executed in parallel, and in order,
-   thanks to Dask.
 
 # Copyright
 
