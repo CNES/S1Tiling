@@ -1,5 +1,7 @@
 .. _install:
 
+.. index:: installation
+
 Installation
 ============
 

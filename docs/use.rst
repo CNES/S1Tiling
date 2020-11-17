@@ -5,6 +5,8 @@
 
 .. _use:
 
+.. index:: usage
+
 ======================================================================
 Usage
 ======================================================================
@@ -27,6 +29,8 @@ Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
 
 .. _request-config-file:
+
+.. index:: Request configuration file
 
 Request Configuration file
 --------------------------
@@ -314,6 +318,8 @@ You can use this :download:`this template
       pixels averaging.
 
 
+.. index:: Log configuration
+
 Log configuration
 -----------------
 Default logging configuration is provided in ``S1Tiling`` installing directory.
@@ -339,6 +345,8 @@ level is forced into ``root`` logger, and ``$OTB_LOGGER_LEVEL`` environment
 variable is set to ``DEBUG``.
 
 .. _clusters:
+
+.. index:: Clusters
 
 Working on clusters
 -------------------

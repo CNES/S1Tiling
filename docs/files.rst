@@ -1,5 +1,7 @@
 .. _files:
 
+.. index:: files
+
 ======================================================================
 Files produced
 ======================================================================
@@ -10,6 +12,8 @@ Final products
 --------------
 
 .. _full-S2-tiles:
+
+.. index:: S2 tiles
 
 Orthorectified S2 tiles
 +++++++++++++++++++++++++++++
@@ -46,6 +50,8 @@ Orthorectified S2 tiles
 
 .. _mask-files:
 
+.. index:: Mask files
+
 Mask files
 ++++++++++
 
@@ -66,6 +72,8 @@ Mask files
 
 
 .. _temporary-files:
+
+.. index:: Temporary files
 
 Temporary files
 ---------------
