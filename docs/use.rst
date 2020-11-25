@@ -281,6 +281,21 @@ You can use this :download:`this template
         For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
         be <= to the number of cores on the machine.
 
+      .. _Processing.override_azimuth_cut_threshold_to:
+  * - ``override_azimuth_cut_threshold_to``
+    - Permits to override the analysis on whether top/bottom lines shall be
+      forced to 0 in :ref:`cutting step <cutting>`. |br|
+
+      Possible values are:
+
+      :``True``:         Force cutting at the 1600th upper and the 1600th lower
+                         lines.
+      :``False``:        Force to keep every line.
+      :not set/``None``: Default analysis heuristic is used.
+
+      .. warning::
+        This option is not meant to be used. It only makes sense in some very
+        specific scenarios like tests.
 
 .. _Filtering:
 
@@ -326,8 +341,9 @@ Default logging configuration is provided in ``S1Tiling`` installing directory.
 
 It can be overridden by dropping a file similar to
 :download:`../s1tiling/logging.conf.yaml` in the same directory as the one
-where the :ref:`request-config-file` is. The file is expected to follow
-:py:mod:`logging configuration <logging.config>` file syntax.
+where the :ref:`request configuration file <request-config-file>` is. The file
+is expected to follow :py:mod:`logging configuration <logging.config>` file
+syntax.
 
 .. warning::
    This software expects the specification of:

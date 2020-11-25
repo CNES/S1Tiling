@@ -122,6 +122,11 @@ km), and 1600 pixels (16km) on the top (/resp on the bottom) of the image if
 more than 2000 NoData (NoData is assimilated with 0 here) pixels are detected
 on the 100th row from the top (/resp from the bottom).
 
+.. note::
+   The heuristic can be overridden thanks
+   :ref:`[Processing].override_azimuth_cut_threshold_to
+   <Processing.override_azimuth_cut_threshold_to>` option.
+
 At the end of this step, :ref:`orthorectification ready images
 <orthoready-files>` are produced. These files are :ref:`cached <data-caches>`
 as a same cut-and-calibrated S1 image can be orthorectified into several S2
