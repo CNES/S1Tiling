@@ -3,6 +3,7 @@
 import subprocess
 import pathlib
 import os
+import sys
 import shutil
 import logging
 from helpers import otb_compare
@@ -12,6 +13,7 @@ def remove_dirs(dir_list):
         if os.path.exists(dir):
             logging.info("rm -r '%s'", dir)
             shutil.rmtree(dir)
+
 
 def process(tmpdir, outputdir, baseline_reference_outputs, test_file):
     '''
@@ -26,9 +28,13 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file):
 
 
 def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
-    logging.info('Baseline expected in %s', baselinedir)
-    # TODO: if not there, download it!
+    logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
+    # => We need it
+    assert os.path.exists(baselinedir), \
+        ("No baseline found in '%s', please run minio-client to fetch it with:\n"+\
+        "?> mc cp --recursive minio-otb/s1-tiling/baseline '%s'") % (baselinedir, baselinedir.absolute(),)
+
     if download:
         os.environ['S1TILING_TEST_DATA_INPUT']     = str((tmpdir/'data_raw').absolute())
         os.environ['S1TILING_TEST_DOWNLOAD']       = 'True'
@@ -51,12 +57,9 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
     images = [
             '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
             '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif']
-    # cwd = '/work/scratch/hermittel/dev/S1Tiling/tests/20200306-NR/'
-    # cwd = '/home/luc/dev/S1tiling/tests/20200306-NR/'
     baseline_path =  baselinedir/'expected'
     test_file = baselinedir / 'test_33NWB_202001.cfg'
     EX = process(tmpdir, outputdir, baseline_path, test_file)
-    # EX=0
     assert EX == 0
     for im in images:
         assert otb_compare(baseline_path / im, outputdir / im) == 0
