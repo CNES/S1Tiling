@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import subprocess
 
 
@@ -13,3 +14,12 @@ def otb_compare(baseline, result):
             '-testenv']
     print(args)
     return subprocess.call(args)
+
+def metadata_compare(baseline, result):
+    """
+    Compare the metadata of the images produced by the test
+    """
+    # This is really dirty and non portable... for now
+    arg = 'bash -c "diff -I PROCESSED_DATETIME -I "Files:" <(gdalinfo %s) <(gdalinfo %s)"' % (baseline, result)
+    print(arg)
+    return os.system(arg)

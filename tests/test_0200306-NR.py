@@ -6,7 +6,8 @@ import os
 import sys
 import shutil
 import logging
-from helpers import otb_compare
+# import pytest_check
+from helpers import otb_compare, metadata_compare
 
 def remove_dirs(dir_list):
     for dir in dir_list:
@@ -63,6 +64,7 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
     assert EX == 0
     for im in images:
         assert otb_compare(baseline_path / im, outputdir / im) == 0
+        assert metadata_compare(baseline_path / im, outputdir / im) == 0
     # The following line permits to test otb_compare correctly detect differences when
     # called from pytest.
     # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
