@@ -73,11 +73,12 @@ class AnalyseBorders(StepFactory):
     Found information will be stored into the `meta` dictionary for later use
     by `CutBorders` step factory.
     """
-    def __init__(self, unused_cfg):
+    def __init__(self, cfg):
         """
         Constructor
         """
         super().__init__('', 'AnalyseBorders')
+        self.__override_azimuth_cut_threshold_to = cfg.override_azimuth_cut_threshold_to
 
     def parameters(self, meta):
         """
@@ -113,7 +114,7 @@ class AnalyseBorders(StepFactory):
         meta = super().complete_meta(meta)
 
         cut_overlap_range   = 1000  # Number of columns to cut on the sides. Here 500pixels = 5km
-        cut_overlap_azimuth = 1600  # Number of lines to cut at top or bottom
+        cut_overlap_azimuth = 1600  # Number of lines to cut at the top or the bottom
         thr_nan_for_cropping = cut_overlap_range * 2  # When testing we having cut the NaN yet on the border hence this threshold.
 
         # With proper rasterio execution contexts, it would have been as clean as the following.
@@ -132,8 +133,13 @@ class AnalyseBorders(StepFactory):
         del(ds_reader)
         ds_reader = None
 
-        crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
-        crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+        if self.__override_azimuth_cut_threshold_to is None:
+            crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
+            crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+        else:
+            crop1 = self.__override_azimuth_cut_threshold_to
+            crop2 = self.__override_azimuth_cut_threshold_to
+
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
         meta['cut'] = {

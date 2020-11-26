@@ -170,6 +170,11 @@ class Configuration():
         # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
         # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
         # self.Window_radius             = config.getint('Filtering', 'window_radius')
+        try:
+            self.override_azimuth_cut_threshold_to = config.getboolean('Processing', 'override_azimuth_cut_threshold_to')
+        except Exception:  # pylint: disable=broad-except
+            # We cannot use "fallback=None" to handle ": None" w/ getboolean()
+            self.override_azimuth_cut_threshold_to = None
 
         logging.debug("Running S1Tiling with:")
         logging.debug("[Paths]")
