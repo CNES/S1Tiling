@@ -9,6 +9,9 @@ Testing
 Contributors will want to test their changes against a baseline to ensure no
 regression appear.
 
+S1-Tiling tests are not part of an integrated continous workflow. They are
+meant to be run on an on-demand basis.
+
 At this moment we only have a single end-to-end test on S2 33NWB tile on S1
 images acquired in January 2020.
 
@@ -19,7 +22,7 @@ The baseline
 
 There are two ways to obtain the baseline:
 
-- Either we have given you an authentication token to the S3 token where we
+- Either we have given you an authentication token to the S3 server where we
   have stored the current baseline.
 
   In that case, thanks to `MinIO client
@@ -36,6 +39,9 @@ There are two ways to obtain the baseline:
      .. code:: bash
 
          mc cp --recursive minio-otb/s1-tiling/baseline /some/local/path
+
+  Instead of ``mc``, you can also use ``rclone`` -- which is for instance
+  already installed on HAL.
 
 - Or you'll need to first establish the baseline from a version of S1Tiliing
   known to work correctly, before introducing any change.
