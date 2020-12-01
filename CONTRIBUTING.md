@@ -24,9 +24,7 @@ The 'Bug' issue template will help you provide all important information and hel
 
 ## Feature requests and discussions
 
-Feature requests are welcome! Generally you are welcome to simply [open an issue](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/issues) and discuss your idea there.
-
-## Documentation improvements
+Feature requests are welcome! Generally you are welcome to simply [open an issue](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/issues/new) and discuss your idea there.
 
 
 ## Code contribution
@@ -34,6 +32,9 @@ Feature requests are welcome! Generally you are welcome to simply [open an issue
 The S1 Tiling workflow is based on GitLab [Merge Requests](https://docs.gitlab.com/ee/gitlab-basics/add-merge-request.html).
 Clone the repository, create a feature branch, commit your changes, push the feature branch to a fork (or the main repository if you are a core developer), then send a merge request. Direct push to develop without review must be avoided.
 
+## Documentation improvements
+
+You are welcome to contribute to the documentation by editing files in docs folder, commit and sending a merge request.
 
 ### Commit message
 
