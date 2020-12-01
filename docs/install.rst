@@ -5,6 +5,10 @@
 Installation
 ============
 
+.. contents:: Contents:
+   :local:
+   :depth: 3
+
 OTB & GDAL dependency
 ---------------------
 

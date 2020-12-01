@@ -6,6 +6,10 @@
 Testing
 ======================================================================
 
+.. contents:: Contents:
+   :local:
+   :depth: 3
+
 Contributors will want to test their changes against a baseline to ensure no
 regression appear.
 

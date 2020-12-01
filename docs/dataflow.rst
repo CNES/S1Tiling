@@ -8,6 +8,10 @@
 Data flow
 ======================================================================
 
+.. contents:: Contents:
+   :local:
+   :depth: 3
+
 Overall processing
 ------------------
 

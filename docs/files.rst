@@ -6,6 +6,10 @@
 Files produced
 ======================================================================
 
+.. contents:: Contents:
+   :local:
+   :depth: 3
+
 .. _final-products:
 
 Final products

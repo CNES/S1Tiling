@@ -11,17 +11,22 @@
 Usage
 ======================================================================
 
+.. contents:: Contents:
+   :local:
+   :depth: 3
+
 Given a :ref:`request configuration file <request-config-file>` (e.g.
 ``MyS1ToS2.cfg`` in ``workingdir``), running S1Tiling is as simple as::
 
         cd workingdir
         S1Processor MyS1ToS2.cfg
 
-The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
 
-The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+Then
 
-Temporary files will be produced in :ref:`tmp <paths.tmp>`.
+- The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
+- The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+- Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
 .. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as it
    files are :ref:`cached <data-caches>` in between runs. This means you will
@@ -267,11 +272,13 @@ You can use this :download:`this template
       This number defines the number of Dask Taks (and indirectly of OTB
       applications) to be executed in parallel.
 
-      .. note:: Must be <= to the number of cores on the machine.
+      .. note::
+        For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
+        be <= to the number of cores on the machine.
 
       .. _Processing.ram_per_process:
   * - ``ram_per_process``
-    - RAM Allowed per process in MB
+    - RAM allowed per OTB application pipeline, in MB.
 
       .. _Processing.nb_otb_threads:
   * - ``nb_otb_threads``

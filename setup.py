@@ -97,8 +97,15 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
+            "pytest-check",
             ],
-        "docs": ["sphinx == 1.8.0", "nbsphinx == 0.3.5", "nbsphinx-link == 1.1.1", "m2r2"],
+        "docs": [
+            "sphinx == 1.8.0",
+            "nbsphinx == 0.3.5",
+            "nbsphinx-link == 1.1.1",
+            "m2r2",
+            "sphinx_rtd_theme"
+            ],
         },
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
