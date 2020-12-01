@@ -118,7 +118,7 @@ class Configuration():
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
             sys.exit(1)
-        self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid'))
+        self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(-1)
