@@ -56,7 +56,7 @@ To use it
 .. code:: bash
 
     ml purge
-    ml otb/7.2-python-3.7.2
+    ml otb/7.2-python3.7.2
     source install_with_otb_module/bin/activate
 
     S1Processor requestfile.cfg
@@ -69,7 +69,7 @@ To use it
 
 .. code:: bash
 
-    ml otb/7.2-python-3.7.2
+    ml otb/7.2-python3.7.2
 
     # Create a conda environment
     ml conda
@@ -95,7 +95,7 @@ To use it
 
     ml purge
     ml conda
-    ml otb/7.2-python-3.7.2
+    ml otb/7.2-python3.7.2
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
 
     S1Processor requestfile.cfg
