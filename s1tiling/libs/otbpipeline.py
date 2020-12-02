@@ -99,12 +99,13 @@ def files_exist(files):
 
 class AbstractStep:
     """
-    Internal root class for all actual `Step`s.
+    Internal root class for all actual `Step` s.
 
     There are three kinds of steps:
-    - `FirstStep` that contains information about input files
-    - `Step` that registers an otbapplication binding
-    - `StoreStep` that momentarilly disconnect on-memory pipeline to force storing of
+
+    - :class:`FirstStep` that contains information about input files
+    - :class:`Step` that registers an otbapplication binding
+    - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to force storing of
       the resulting file.
 
     The step will contain information like the current input file, the current output
@@ -155,8 +156,8 @@ class AbstractStep:
         """
         No step required its result to be stored on disk and to break in_memory
         connection by default.
-        However, the artificial Step produced by `Store` factory will force the
-        result of the _previous_ app to be stored on disk.
+        However, the artificial Step produced by :class:`Store` factory will force the
+        result of the `previous` app to be stored on disk.
         """
         return False
 
@@ -173,8 +174,8 @@ class _StepWithOTBApplication(AbstractStep):
     Not meant to be used directly.
 
     Parent type for:
-    - `Step`  that will own the application
-    - and `StoreStep` that will just reference the application from the previous step
+    - :class:`Step`  that will own the application
+    - and :class:`StoreStep` that will just reference the application from the previous step
     """
     def __init__(self, app, *argv, **kwargs):
         """
@@ -220,7 +221,7 @@ class Step(_StepWithOTBApplication):
     """
     Interal specialized `Step` that holds a binding to an OTB Application.
 
-    The application binding is expected to be built by a dedicated `StepFactory` and
+    The application binding is expected to be built by a dedicated :class:`StepFactory` and
     passed to the constructor.
     """
     def __init__(self, app, *argv, **kwargs):
@@ -302,7 +303,7 @@ class StepFactory(ABC):
         """
         Filename of the step output.
 
-        See also `build_step_output_tmp_filename()` regarding the actual processing.
+        See also :func:`build_step_output_tmp_filename()` regarding the actual processing.
         """
         pass
 
@@ -311,13 +312,13 @@ class StepFactory(ABC):
         """
         Returns temporary filename to use in output of the current OTB Application.
 
-        When an OTB application is harshly interrupted (crash or user interruption), it leaves
-        behind an incomplete (and thus invalid) file.
-        In order to ignore those files when a pipeline is restarted, an temporary filename is
-        used by the OTB application.
+        When an OTB application is harshly interrupted (crash or user
+        interruption), it leaves behind an incomplete (and thus invalid) file.
+        In order to ignore those files when a pipeline is restarted, an
+        temporary filename is used by the OTB application.
         Once the application exits with success, the file will be renamed into
-        `build_step_output_filename()`, and possibly moved into `output_directory()` if this is a
-        final product.
+        :func:`build_step_output_filename()`, and possibly moved into
+        :func:`output_directory()` if this is a final product.
         """
         pass
 
@@ -338,8 +339,18 @@ class StepFactory(ABC):
 
     def complete_meta(self, meta):  # to be overridden
         """
+        Duplicates, completes, and return, the `meta` dictionary with specific
+        information for the current factory.
+
+        This method is used:
+
+        - while analysing the dependencies to build the task graph -- in this
+          use case the relevant information are the file names and paths.
+        - before instanciating a new :class:`Step`
+
         Other metadata not filled here:
-        - `out_extended_filename_complement`
+
+        - :func:`out_extended_filename_complement`
         """
         meta = meta.copy()
         meta['in_filename']      = out_filename(meta)
@@ -350,22 +361,26 @@ class StepFactory(ABC):
 
     def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
         """
-        Instanciates the step related to the current `StepFactory`, that consumes results from the
-        previous `input` step.
+        Instanciates the step related to the current :class:`StepFactory`,
+        that consumes results from the previous `input` step.
 
-        1. This methods starts by updating metadata information through `complete_meta()` on the
-        `input` metadata.
-        2. Then, steps that wrap an OTB application will instanciate this application object,
-        and:
-           - either pipe the new application to the one from the `input` step if it wasn't a
-             first step
-           - or fill in the "in" parameter of the application with the `out_filename` of the
-             `input` step.
-        2-bis. in case the new step isn't related to an OTB application, nothing specific is
-        done, we'll just just an `AbstractStep`
+        1. This methods starts by updating metadata information through
+        :func:`complete_meta()` on the `input` metadata.
 
-        Note: While `previous_steps` is ignored in this specialization, it's used in
-        `Store.create_step()` where it's eventually used to release all OTB Application objects.
+        2. Then, steps that wrap an OTB application will instanciate this
+        application object, and:
+
+           - either pipe the new application to the one from the `input` step
+             if it wasn't a first step
+           - or fill in the "in" parameter of the application with the
+             :func:`out_filename` of the `input` step.
+
+        2-bis. in case the new step isn't related to an OTB application,
+        nothing specific is done, we'll just return an :class:`AbstractStep`
+
+        Note: While `previous_steps` is ignored in this specialization, it's
+        used in :func:`Store.create_step()` where it's eventually used to
+        release all OTB Application objects.
         """
         # TODO: distinguish step description & step
         assert issubclass(type(input), AbstractStep)
@@ -460,11 +475,11 @@ class Pipeline:
     """
     Pipeline of OTB applications.
 
-    It's instanciated as a list of `AbstractStep`s.
-    `Step.execute_and_write_output()` will be executed on the last step of the
-    pipeline.
+    It's instanciated as a list of :class:`AbstractStep` s.
+    :func:`Step.execute_and_write_output()` will be executed on the last step
+    of the pipeline.
 
-    Internal class only meant to be used by  `Pool`.
+    Internal class only meant to be used by  :class:`Pool`.
     """
     # Should we inherit from contextlib.ExitStack?
     def __init__(self, do_measure, in_memory, name=None, output=None):
@@ -481,8 +496,9 @@ class Pipeline:
     def set_input(self, input: AbstractStep):
         """
         Set the input of the instanciated pipeline.
-        The `input` is expected to be either an `AbstractStep` or a list of `AbstractStep` in
-        which case it'll be internally registered as a `MergeStep`.
+        The `input` is expected to be either an :class:`AbstractStep` or a
+        list of :class:`AbstractStep` in which case it'll be internally
+        registered as a :class:`MergeStep`.
         """
         assert isinstance(input, (list, AbstractStep))
         if isinstance(input, list):
@@ -498,8 +514,8 @@ class Pipeline:
     def name(self):
         """
         Name of the pipeline.
-        It's either user registered or automatically generated from the registered
-        `StepFactory`s.
+        It's either user registered or automatically generated from the
+        registered :class:`StepFactory` s.
         """
         appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
         return '%s -> %s from %s' % (appname, self.__output, self.__input.out_filename)
@@ -624,7 +640,7 @@ class PipelineDescription:
         """
         Instanciates the pipeline specified.
 
-        Note: It systematically register a `Store` step at the end.
+        Note: It systematically register a :class:`Store` step at the end.
         """
         pipeline = Pipeline(do_measure, in_memory, self.name, file)
         for factory_step in self.__factory_steps + [Store('noappname')]:
@@ -643,7 +659,7 @@ def to_dask_key(pathname):
 
 def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
     """
-    Flatten all rasters from the manifest as a list of `FirstStep`
+    Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
     inputs = []
     for raster, tile_origin in raster_list:
@@ -661,7 +677,7 @@ def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
 
 class PipelineDescriptionSequence:
     """
-    List of `PipelineDescription` objects
+    List of :class:`PipelineDescription` objects
     """
     def __init__(self, cfg):
         """
@@ -676,7 +692,7 @@ class PipelineDescriptionSequence:
         Register a pipeline description from:
 
         Params:
-            :factory_steps:       List of non-instanciated `StepFactory` classes
+            :factory_steps:       List of non-instanciated :class:`StepFactory` classes
             :name:                Optional name for the pipeline
             :product_required:    Tells whether the pipeline product is expected as a
                                   final product
@@ -730,7 +746,7 @@ class PipelineDescriptionSequence:
 
     def _build_tasks_from_dependencies(self, required, previous, debug_otb):  # pylint: disable=no-self-use
         """
-        Generates the actual list of tasks for `dask.client.get()`.
+        Generates the actual list of tasks for :func:`dask.client.get()`.
 
         In case debug_otb is true, instead of a dictionary of tasks, an ordered list of tasks is
         returned in order to process sequentially each pipeline.
@@ -815,7 +831,7 @@ class FirstStep(AbstractStep):
 class MergeStep(AbstractStep):
     """
     Kind of FirstStep that merges the result of one or several other steps.
-    Used in entry of `Concatenate`
+    Used in entry of :class:`Concatenate`
 
     - no application executed
     """
@@ -859,7 +875,8 @@ class StoreStep(_StepWithOTBApplication):
 
     def execute_and_write_output(self):
         """
-        Specializes `execute_and_write_output()` to actually execute the OTB pipeline.
+        Specializes :func:`execute_and_write_output()` to actually execute the
+        OTB pipeline.
         """
         assert self._app
         do_measure = True  # TODO
@@ -918,8 +935,9 @@ class Store(StepFactory):
 
     def create_step(self, input: Step, in_memory: bool, previous_steps):
         """
-        Specializes `create_step()` to trigger `execute_and_write_output()` on the last step that
-        relates to an OTB Application.
+        Specializes :func:`create_step()` to trigger
+        :func:`execute_and_write_output()` on the last step that relates to an
+        OTB Application.
         """
         if input.is_first_step:
             # Special case of by-passed inputs
@@ -1035,8 +1053,8 @@ class Processing:
     different inputs.
 
     1. The object is initialized with a log queue and its listener
-    2. The pipeline is registered with a list of `StepFactory`s
-    3. The processing is done on a list of `FirstStep`s
+    2. The pipeline is registered with a list of :class`StepFactory` s
+    3. The processing is done on a list of :class:`FirstStep` s
     """
     def __init__(self, cfg, debug_otb):
         self.__log_queue          = cfg.log_queue
@@ -1047,7 +1065,7 @@ class Processing:
 
     def register_pipeline(self, factory_steps):
         """
-        Register a list of `StepFactory`s that describes a pipeline.
+        Register a list of :class:`StepFactory` s that describes a pipeline.
         """
         # Automatically append the final storing step
         self.__factory_steps = factory_steps + [Store]

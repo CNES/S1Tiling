@@ -257,7 +257,7 @@ cluster like HAL.
 
       .. warning::
 
-         Of course, we cannot use :file:`$TMPDIR` when running S1 Tiling on
+         Of course, we shall not use :file:`$TMPDIR` when running S1 Tiling on
          ``visu`` nodes. Actually, we should **not** use S1 Tiling for
          intensive computation on nodes not dedicated to computations.
 
@@ -284,7 +284,7 @@ cluster like HAL.
   * - PBS resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
-        so on. This means `select` value shal be one.
+        so on. This means ``select`` value shall be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the

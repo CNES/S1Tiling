@@ -36,8 +36,11 @@ with open(os.path.join(BASEDIR, "s1tiling", "__meta__.py"), "r") as f:
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosectionlabel",
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
+    "sphinx.ext.viewcode",
     'm2r2'
 ]
 
@@ -102,12 +105,12 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 #
 html_theme_options = {
-        # "show_prev_next": False,
-        # 'stickysidebar': True,
-        'collapse_navigation': True,
-        'sticky_navigation': True,
-        'navigation_depth': 4,
-        }
+    # "show_prev_next": False,
+    # 'stickysidebar': True,
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -115,10 +118,10 @@ html_theme_options = {
 html_static_path = ['_static']
 
 html_context = {
-        'css_files': [
-            '_static/theme_overrides.css',  # override wide tables in RTD theme
-            ],
-        }
+    'css_files': [
+        '_static/theme_overrides.css',  # override wide tables in RTD theme
+    ],
+}
 
 
 # Custom sidebar templates, must be a dictionary that maps document names
@@ -191,9 +194,10 @@ texinfo_documents = [
 ]
 
 
-# Example configuration for intersphinx: refer to the Python standard library.
+# Configuration for intersphinx
 intersphinx_mapping = {
-        'https://docs.python.org/3/': None,
-        'https://distributed.dask.org/en/latest/': None,
-        'https://www.orfeo-toolbox.org/CookBook/': None
-        }
+    'https://docs.python.org/3/': None,
+    'https://distributed.dask.org/en/latest/': None,
+    'https://docs.dask.org/en/latest/': None,
+    'https://www.orfeo-toolbox.org/CookBook/': None
+}

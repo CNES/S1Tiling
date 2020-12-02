@@ -17,23 +17,26 @@ S1Tiling -- documentation!
 :raw-html:`<a class="reference external image-reference" href="https://pypi.org/project/s1tiling/" rel="nofollow"><img src="https://img.shields.io/pypi/pyversions/s1tiling.svg" type="image/svg+xml"></a>`
 
 
-gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
-
 On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
 .. toctree::
    :maxdepth: 3
-   :caption: Contents:
+   :caption: User Guide:
 
    intro
    install
    use
    dataflow
    files
-   contribute
-   testing
    HAL
 
+.. toctree::
+   :maxdepth: 3
+   :caption: Developer Documentation:
+
+   contribute
+   developers
+   testing
 
 Indices and tables
 ==================
