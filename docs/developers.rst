@@ -207,6 +207,15 @@ default :ref:`step factories <Existing Processings>`.
 
 The important points are to decide:
 
+- Where should the step happen in the sequence of pipelines? |br|
+  In all cases, don't forget to add it in a pipeline registered in the sequence
+  of pipelines.
+- Shall its result be considered as a public product, or an intermediary step?
+  |br|
+  A public product is expected to be always produced. It shall then conclude a
+  :ref:`pipeline <Pipelines>`. Also the pipeline shall be registered with
+  ``product_required=True`` in that case.
+
 - What would be the name of the result files? |br|
   Override :func:`build_step_output_filename()
   <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>` with the
