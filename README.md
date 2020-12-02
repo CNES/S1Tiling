@@ -1,5 +1,5 @@
 # S1Tiling
-On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid
+On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
 Sentinel-1 is currently the only system to provide SAR images regularly on all
 lands on the planet. Access to these time series of images opens an
@@ -35,33 +35,26 @@ make it easier for users to use.
 
 # Installation
 
-TBC
+S1Tiling installation has a few traps. Please read the relevant documentation
+on [docs/install.rst] regarding:
+
+- OTB and GDAL installation
+- Rasterio that needs to be installed from sources
 
 ## Requirements
 
-* OTB
-* OTB external modules
-  * SARMutitempFiltering
-  * Synthetize
-  * ClampROI
+* OTB 7.2
 * GDAL with python bindings as well
 * Python 3
-  * pickle
-  * json
-  * zipfile
-  * xml
-  * timeit
+  * click
+  * eodag
   * numpy
-  * osgeo.gdal, osgeo.gdalconst
-  * ogr
+  * gdal, ogr
   * rasterio
   * yaml
-  * ConfigParser
   * Dask"distributed"
   * bokeh (to display Dask dashboard)
   * graphviz (to generate task graphs)
-
-## Setup
 
 ### Dask
 > Dask does not require any setup if you only want to use it on a single computer.
@@ -69,30 +62,21 @@ TBC
 
 https://docs.dask.org/en/latest/setup/single-distributed.html
 
-# Design Notes
-
-S1Tiling processes the requested S2 tiles one after the other.
-
-For each S2 tile:
-
-1. It first retrieves the S1 images that intersect the S2 tile at the given
-   time range
-2. Then it builds a graph of tasks to realize (Calibration+Cutting,
-   Orthorectification, Concatenation, Mask generation). Each node of the graph
-   corresponds to a file that is meant to be produced. The graph is trimmed
-   from the edges that produce the expected files that already exist.
-3. Finally, all the remaining tasks are executed in parallel, and in order,
-   thanks to Dask.
-
 # Copyright
 
 >   Copyright (c) CESBIO. All rights reserved.
 >
->   See LICENSE for details.
+>   Licensed under the Apache License, Version 2.0 (the "License");
+>   you may not use this file except in compliance with the License.
+>   You may obtain a copy of the License at
 >
->   This software is distributed WITHOUT ANY WARRANTY; without even
->   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
->   PURPOSE.  See the above copyright notices for more information.
+>       http://www.apache.org/licenses/LICENSE-2.0
+>
+>   Unless required by applicable law or agreed to in writing, software
+>   distributed under the License is distributed on an "AS IS" BASIS,
+>   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+>   See the License for the specific language governing permissions and
+>   limitations under the License.
 
 ## Contributors (according to master branch on http://tully.ups-tlse.fr/koleckt/s1tiling/commits/master/s1tiling)
 - Thierry KOLECK (CNES)

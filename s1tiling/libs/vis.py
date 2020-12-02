@@ -4,12 +4,24 @@
 # Authors: Jim Crist-Harif, and Silvio Rodrigues, 2018
 # Licence: BSD-3 clause
 
+"""
+Simple visualization of dask graph pipelines.
+"""
+
 import os
 import graphviz
 
-from dask.optimization import key_split
+from dask.utils import key_split
 from dask.dot import _get_display_cls
 from dask.core import get_dependencies
+
+__author__ = "Jim Crist-Harif, and Silvio Rodrigues"
+__copyright__ = "Copyright, 2018"
+__credits__ = ["Jim Crist-Harif", "Silvio Rodrigues"]
+__license__ = "BSD-3 clause"
+__version__ = "2"
+__status__ = "gist"
+__contact__ = "https://gist.github.com/jcrist/dc5b7cedfddff123f2177e5238e566e5"
 
 
 class SimpleComputationGraph:
