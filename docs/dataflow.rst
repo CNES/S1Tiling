@@ -2,9 +2,15 @@
 
 .. _dataflow:
 
+.. index:: data flow
+
 ======================================================================
 Data flow
 ======================================================================
+
+.. contents:: Contents:
+   :local:
+   :depth: 3
 
 Overall processing
 ------------------
@@ -28,6 +34,8 @@ For each S2 tile,
 
 
 .. _parallelization:
+
+.. index:: parallelization
 
 Parallelization
 ---------------
@@ -62,6 +70,8 @@ The processings
 
 .. _downloading:
 
+.. index:: downloading
+
 Downloading of S1 products
 ++++++++++++++++++++++++++
 
@@ -78,6 +88,8 @@ exist, it's created on the fly.
 
 
 .. _calibration:
+
+.. index:: SAR Calibration
 
 SAR Calibration
 +++++++++++++++
@@ -96,6 +108,8 @@ The type of calibration is controlled with :ref:`[Processing].calibration
 
 .. _cutting:
 
+.. index:: Margin cutting
+
 Margins cutting
 +++++++++++++++
 
@@ -112,6 +126,11 @@ km), and 1600 pixels (16km) on the top (/resp on the bottom) of the image if
 more than 2000 NoData (NoData is assimilated with 0 here) pixels are detected
 on the 100th row from the top (/resp from the bottom).
 
+.. note::
+   The heuristic can be overridden thanks
+   :ref:`[Processing].override_azimuth_cut_threshold_to
+   <Processing.override_azimuth_cut_threshold_to>` option.
+
 At the end of this step, :ref:`orthorectification ready images
 <orthoready-files>` are produced. These files are :ref:`cached <data-caches>`
 as a same cut-and-calibrated S1 image can be orthorectified into several S2
@@ -119,6 +138,8 @@ grids it intersects.
 
 
 .. _orthorectification:
+
+.. index:: Orthorectification
 
 Orthorectification
 ++++++++++++++++++
@@ -137,11 +158,12 @@ It uses the following parameters from the request configuration file:
 - :ref:`[Paths].geoid_file <paths.geoid_file>`
 
 At the end of this step, :ref:`orthorectified S1 images
-<orthorectified-files>` are produced. These files are :ref:`cached
-<data-caches>`.
+<orthorectified-files>` are produced.
 
 
 .. _concatenation:
+
+.. index:: Concatenation
 
 Concatenation
 +++++++++++++
@@ -177,6 +199,8 @@ This step produces the main product of S1 Tiling: the :ref:`final S2 tiles
 
 .. _mask-generation:
 
+.. index:: Border mask generation
+
 Border mask generation
 ++++++++++++++++++++++
 
@@ -196,14 +220,16 @@ This step produces the :ref:`border mask files <mask-files>`.
 
 .. _data-caches:
 
+.. index:: Data caches
+
 Data caches
 -----------
 
-Three kinds of data are cached, but only one is regularly cleaned-up by S1
-Tiling. The other kinds are left along as the software cannot really tell
-whether they could be reused later on or not.
+Two kinds of data are cached, but only one is regularly cleaned-up by S1
+Tiling. The other kind is left along as the software cannot really tell whether
+they could be reused later on or not.
 
-.. important:: This means that you will regularly to clean up these spaces.
+.. important:: This means that you will have to regularly clean up this space.
 
 
 .. _cache.S1:
@@ -213,7 +239,7 @@ Downloaded S1 files
 
 S1 files are downloaded in :ref:`[Paths].s1_images <Paths.s1_images>`.
 directory. Whenever there are more than 1000 S1 products in that directory,
-only the 1000 more recent are kept. The oldest ones are automatically removed.
+only the 1000 most recent are kept. The oldest ones are automatically removed.
 
 .. _caches.tmp-orthoready:
 
@@ -226,15 +252,3 @@ stored in :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
 As a same file could be orthorectified into several S2 tiles, it's kept. As S1
 Tiling doesn't know whether these files could still be of use, it doesn't try
 to remove old files. They need to be manuallly removed.
-
-
-.. _caches.tmp-orthorectified:
-
-Orthorectified S1 images
-++++++++++++++++++++++++
-
-:ref:`Orthorectified S1 files <orthoready-files>` are stored in :ref:`%(tmp)
-<paths.tmp>`:samp:`/S2/{{tilename}}/`.
-
-.. todo:: Do we really need to cache them?
-

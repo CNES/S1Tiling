@@ -5,9 +5,15 @@
 
 .. _use:
 
+.. index:: usage
+
 ======================================================================
 Usage
 ======================================================================
+
+.. contents:: Contents:
+   :local:
+   :depth: 3
 
 Given a :ref:`request configuration file <request-config-file>` (e.g.
 ``MyS1ToS2.cfg`` in ``workingdir``), running S1Tiling is as simple as::
@@ -15,11 +21,12 @@ Given a :ref:`request configuration file <request-config-file>` (e.g.
         cd workingdir
         S1Processor MyS1ToS2.cfg
 
-The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
 
-The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+Then
 
-Temporary files will be produced in :ref:`tmp <paths.tmp>`.
+- The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
+- The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+- Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
 .. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as it
    files are :ref:`cached <data-caches>` in between runs. This means you will
@@ -27,6 +34,8 @@ Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
 
 .. _request-config-file:
+
+.. index:: Request configuration file
 
 Request Configuration file
 --------------------------
@@ -73,7 +82,8 @@ You can use this :download:`this template
 
       .. _paths.geoid_file:
   * - ``geoid_file``
-    - Path to Geoid model.
+    - Path to Geoid model. If left unspecified, it'll point automatically to
+      the geoid resource shipped with S1 Tiling.
 
       .. _paths.srtm:
   * - ``srtm``
@@ -194,11 +204,15 @@ You can use this :download:`this template
 
       .. _Processing.tiles_shapefile:
   * - ``tiles_shapefile``
-    - Path and filename of the tile shape definition (ESRI Shapefile)
+    - Path and filename of the tile shape definition (ESRI Shapefile). If left
+      unspecified, it'll point automatically to the `Features.shp` shapefile
+      resource shipped with S1 Tiling.
 
       .. _Processing.srtm_shapefile:
   * - ``srtm_shapefile``
-    - Path and filename of the SRTM shape definition (ESRI Shapefile)
+    - Path and filename of the SRTM shape definition (ESRI Shapefile). If left
+      unspecified, it'll point automatically to the `srtm.shp` shapefile
+      resource shipped with S1 Tiling.
 
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
@@ -258,11 +272,13 @@ You can use this :download:`this template
       This number defines the number of Dask Taks (and indirectly of OTB
       applications) to be executed in parallel.
 
-      .. note:: Must be <= to the number of cores on the machine.
+      .. note::
+        For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
+        be <= to the number of cores on the machine.
 
       .. _Processing.ram_per_process:
   * - ``ram_per_process``
-    - RAM Allowed per process in MB
+    - RAM allowed per OTB application pipeline, in MB.
 
       .. _Processing.nb_otb_threads:
   * - ``nb_otb_threads``
@@ -272,6 +288,21 @@ You can use this :download:`this template
         For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
         be <= to the number of cores on the machine.
 
+      .. _Processing.override_azimuth_cut_threshold_to:
+  * - ``override_azimuth_cut_threshold_to``
+    - Permits to override the analysis on whether top/bottom lines shall be
+      forced to 0 in :ref:`cutting step <cutting>`. |br|
+
+      Possible values are:
+
+      :``True``:         Force cutting at the 1600th upper and the 1600th lower
+                         lines.
+      :``False``:        Force to keep every line.
+      :not set/``None``: Default analysis heuristic is used.
+
+      .. warning::
+        This option is not meant to be used. It only makes sense in some very
+        specific scenarios like tests.
 
 .. _Filtering:
 
@@ -309,14 +340,17 @@ You can use this :download:`this template
       pixels averaging.
 
 
+.. index:: Log configuration
+
 Log configuration
 -----------------
 Default logging configuration is provided in ``S1Tiling`` installing directory.
 
 It can be overridden by dropping a file similar to
 :download:`../s1tiling/logging.conf.yaml` in the same directory as the one
-where the :ref:`request-config-file` is. The file is expected to follow
-:py:mod:`logging configuration <logging.config>` file syntax.
+where the :ref:`request configuration file <request-config-file>` is. The file
+is expected to follow :py:mod:`logging configuration <logging.config>` file
+syntax.
 
 .. warning::
    This software expects the specification of:
@@ -334,6 +368,8 @@ level is forced into ``root`` logger, and ``$OTB_LOGGER_LEVEL`` environment
 variable is set to ``DEBUG``.
 
 .. _clusters:
+
+.. index:: Clusters
 
 Working on clusters
 -------------------

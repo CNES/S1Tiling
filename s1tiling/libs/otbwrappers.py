@@ -38,8 +38,6 @@ import re
 import datetime
 
 import numpy as np
-import rasterio
-from rasterio.windows import Window
 from osgeo import gdal
 import otbApplication as otb
 
@@ -67,32 +65,35 @@ def has_too_many_NoData(image, threshold, nodata):
 
 class AnalyseBorders(StepFactory):
     """
-    StepFactory that analyses whether image borders need to be cut.
+    StepFactory that analyses whether image borders need to be cut as
+    described in :ref:`Margins cutting` documentation.
 
     The step produced by this actual factory doesn't register any OTB
     application nor execute one.
     However, it loads two lines from the input image to determine whether it
     contains too many NoData.
+
     Found information will be stored into the `meta` dictionary for later use
-    by `CutBorders` step factory.
+    by :class:`CutBorders` step factory.
     """
-    def __init__(self, unused_cfg):
+    def __init__(self, cfg):
         """
         Constructor
         """
         super().__init__('', 'AnalyseBorders')
+        self.__override_azimuth_cut_threshold_to = cfg.override_azimuth_cut_threshold_to
 
     def parameters(self, meta):
         """
-        As there is no OTB application associated to AnalyseBorders, no parameters are
-        returned.
+        As there is no OTB application associated to :class:`AnalyseBorders`,
+        no parameters are returned.
         """
         return None
 
     def output_directory(self, meta):
         """
-        As there is no OTB application associated to AnalyseBorders, there is no output
-        directory.
+        As there is no OTB application associated to :class:`AnalyseBorders`,
+        there is no output directory.
         """
         raise TypeError("An AnalyseBorders step don't produce anything!")
 
@@ -104,8 +105,8 @@ class AnalyseBorders(StepFactory):
 
     def build_step_output_tmp_filename(self, meta):
         """
-        As there is no OTB application associated to AnalyseBorders, there is no
-        temporary filename.
+        As there is no OTB application associated to :class:`AnalyseBorders`,
+        there is no temporary filename.
         """
         return self.build_step_output_filename(meta)
 
@@ -116,16 +117,32 @@ class AnalyseBorders(StepFactory):
         meta = super().complete_meta(meta)
 
         cut_overlap_range   = 1000  # Number of columns to cut on the sides. Here 500pixels = 5km
-        cut_overlap_azimuth = 1600  # Number of lines to cut at top or bottom
+        cut_overlap_azimuth = 1600  # Number of lines to cut at the top or the bottom
         thr_nan_for_cropping = cut_overlap_range * 2  # When testing we having cut the NaN yet on the border hence this threshold.
-        with rasterio.open(meta['out_filename']) as ds_reader:
-            xsize = ds_reader.width
-            ysize = ds_reader.height
-            north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
-            south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
 
-        crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
-        crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+        # With proper rasterio execution contexts, it would have been as clean as the following.
+        # Alas RasterIO requires GDAL 2.x while OTB requires GDAL 3.x... => We cannot use rasterio.
+        # with rasterio.open(meta['out_filename']) as ds_reader:
+        #     xsize = ds_reader.width
+        #     ysize = ds_reader.height
+        #     north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
+        #     south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
+
+        ds_reader = gdal.Open(meta['out_filename'])
+        xsize = ds_reader.RasterXSize
+        ysize = ds_reader.RasterYSize
+        north = ds_reader.ReadAsArray(0, 100, xsize, 1)
+        south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
+        del(ds_reader)
+        ds_reader = None
+
+        if self.__override_azimuth_cut_threshold_to is None:
+            crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
+            crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+        else:
+            crop1 = self.__override_azimuth_cut_threshold_to
+            crop2 = self.__override_azimuth_cut_threshold_to
+
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
         meta['cut'] = {
@@ -138,13 +155,18 @@ class AnalyseBorders(StepFactory):
 
 class Calibrate(StepFactory):
     """
-    Factory that prepares steps that run `SARCalibration`.
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
+    Calibration` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
     - `calibration_type`
     - `removethermalnoise`
-    Requires the following information from the metadata dictionary
+
+    Requires the following information from the metadata dictionary:
+
     - base name -- to generate typical output filename
     - input filename
     - output filename
@@ -171,8 +193,9 @@ class Calibrate(StepFactory):
 
     def output_directory(self, meta):
         """
-        SARCalibration result files would be stored in {tmp}/S1 in case their production
-        is required (i.e. not in-memory processing)
+        :std:doc:`Applications/app_SARCalibration` result files would be
+        stored in `{tmp}/S1` in case their production is required (i.e. not
+        in-memory processing)
         """
         # tile_name = meta['tile_name'] # manifest maybe?
         return os.path.join(self.__tmpdir, 'S1')
@@ -195,7 +218,8 @@ class Calibrate(StepFactory):
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with SARCalibration OTB application.
+        Returns the parameters to use with :std:doc:`SARCalibration OTB
+        application <Applications/app_SARCalibration>`.
         """
         return {
                 'ram'           : str(self.__ram_per_process),
@@ -209,17 +233,21 @@ class Calibrate(StepFactory):
 
 class CutBorders(StepFactory):
     """
-    Factory that prepares steps that run `ResetMargin`.
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
+
     Requires the following information from the metadata dictionary
+
     - base name -- to generate typical output filename
     - input filename
     - output filename
-    - `cut`->`threshold.x`       -- from AnalyseBorders
-    - `cut`->`threshold.y.start` -- from AnalyseBorders
-    - `cut`->`threshold.y.end`   -- from AnalyseBorders
+    - `cut`->`threshold.x`       -- from :class:`AnalyseBorders`
+    - `cut`->`threshold.y.start` -- from :class:`AnalyseBorders`
+    - `cut`->`threshold.y.end`   -- from :class:`AnalyseBorders`
     """
     def __init__(self, cfg):
         """
@@ -231,14 +259,15 @@ class CutBorders(StepFactory):
 
     def output_directory(self, meta):
         """
-        BorderCutting result files would be stored in {tmp}/S1.
+        Border cutting result files would be stored in :file:`{tmp}/S1`.
         """
         # tile_name = meta['tile_name'] # manifest maybe?
         return os.path.join(self.__tmpdir, 'S1')
 
     def build_step_output_filename(self, meta):
         """
-        Returns the names of typical ResetMargin result files
+        Returns the names of typical ResetMargin result files:
+        ``{basename}_OrthoReady.tiff``.
         """
         filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
         return os.path.join(self.output_directory(meta), filename)
@@ -252,7 +281,8 @@ class CutBorders(StepFactory):
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with ResetMargin OTB application.
+        Returns the parameters to use with :std:doc:`ResetMargin OTB
+        application <Applications/app_ResetMargin>`.
         """
         return {
                 'ram'              : str(self.__ram_per_process),
@@ -267,15 +297,20 @@ class CutBorders(StepFactory):
 
 class OrthoRectify(StepFactory):
     """
-    Factory that prepares steps that run `OrthoRectification`.
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_OrthoRectification` as described in
+    :ref:`OrthoRectification` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
     - `tmp_srtm_dir`
+
     Requires the following information from the metadata dictionary
+
     - base name -- to generate typical output filename
     - input filename
     - output filename
@@ -309,20 +344,21 @@ class OrthoRectify(StepFactory):
 
     def build_step_output_filename(self, meta):
         """
-        The actual output filename will be built in complete_meta().
+        The actual output filename will be built in :func:`complete_meta()`.
         """
         return None
 
     def build_step_output_tmp_filename(self, meta):
         """
-        The actual temporary output filename will be built in complete_meta().
+        The actual temporary output filename will be built in
+        :func:`complete_meta()`.
         """
         return None
 
     def complete_meta(self, meta):
         """
-        Complete meta information such as filenames, GDAL metadata from information
-        found in the current S1 image filename.
+        Complete meta information such as filenames, GDAL metadata from
+        information found in the current S1 image filename.
         """
         meta = super().complete_meta(meta)
         manifest                = meta['manifest']
@@ -400,8 +436,10 @@ class OrthoRectify(StepFactory):
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with OrthoRectification OTB application.
-        The parameters have been precomputed in complete_meta().
+        Returns the parameters to use with :std:doc:`OrthoRectification OTB
+        application <Applications/app_OrthoRectification>`.
+
+        The parameters have been precomputed in :func:`complete_meta()`.
         """
         return meta['params.ortho']
 
@@ -437,11 +475,16 @@ class OrthoRectify(StepFactory):
 
 class Concatenate(StepFactory):
     """
-    Factory that prepares steps that run `Synthetize`.
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_Synthetize` as described in
+    :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
+
     Requires the following information from the metadata dictionary
+
     - input filename
     - output filename
     """
@@ -453,21 +496,21 @@ class Concatenate(StepFactory):
 
     def tmp_directory(self, meta):
         """
-        Directory used to store temporary files before they are renamed into their final
-        version.
+        Directory used to store temporary files before they are renamed into
+        their final version.
         """
         return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
 
     def output_directory(self, meta):
         """
-        Concatenation result files will be stored in {out}/{tile_name}
+        Concatenation result files will be stored in :file:`{out}/{tile_name}`
         """
         return os.path.join(self.__outdir, meta['tile_name'])
 
     def build_step_output_filename(self, meta):
         """
         Returns the names of Concatenation result files.
-        Basename is precomputed in complete_meta().
+        Basename is precomputed in :func:`complete_meta()`.
         """
         filename = meta['basename']
         return os.path.join(self.output_directory(meta), filename)
@@ -475,7 +518,7 @@ class Concatenate(StepFactory):
     def build_step_output_tmp_filename(self, meta):
         """
         Returns the names of temporary Concatenation result files.
-        Basename is precomputed in complete_meta().
+        Basename is precomputed in :func:`complete_meta()`.
 
         Unlike output, concatenation result goes into tmp.
         """
@@ -485,23 +528,36 @@ class Concatenate(StepFactory):
     def complete_meta(self, meta):
         """
         Precompute output basename from the input file(s).
-        Makes sure the Synthetize OTB application would compress its result file,
+        Makes sure the :std:doc:`Synthetize OTB application
+        <Applications/app_Synthetize>` would compress its result file,
         through extended filename.
         """
         meta = meta.copy()
         out_file = out_filename(meta)
         if isinstance(out_file, list):
+            logger.debug('Register files to remove after concatenation: %s', out_file)
+            meta['files_to_remove'] = out_file
             out_file = out_file[0]
         _, out_file = os.path.split(out_file)
         meta['basename'] = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
         meta = super().complete_meta(meta)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        meta['post'] = meta.get('post', []) + [self.clear_ortho_tmp]
         return meta
+
+    def clear_ortho_tmp(self, meta):
+        """
+        Takes care of removing the orthorectified subtiles from the temporary
+        directory once the concatenation has been done.
+        """
+        if 'files_to_remove' in meta:
+            logger.debug('Cleaning concatenated files: %s', meta['files_to_remove'])
+            Utils.remove_files(meta['files_to_remove'])
 
     def create_step(self, input: Step, in_memory: bool, previous_steps):
         """
-        `create_step` is overridden in Concatenate case in order to by-pass
-        Concatenation in case there is only a single file.
+        :func:`create_step` is overridden in :class:`Concatenate` case in
+        order to by-pass Concatenation in case there is only a single file.
         """
         # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
         if isinstance(input.out_filename, list) and len(input.out_filename) == 1:
@@ -522,7 +578,8 @@ class Concatenate(StepFactory):
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with Synthetize OTB application.
+        Returns the parameters to use with :std:doc:`Synthetize OTB
+        application <Applications/app_Synthetize>`.
         """
         return {
                 'ram'              : str(self.__ram_per_process),
@@ -534,11 +591,15 @@ class Concatenate(StepFactory):
 
 class BuildBorderMask(StepFactory):
     """
-    Factory that prepares the first step that generates border maks.
+    Factory that prepares the first step that generates border maks as
+    described in :ref:`Border mask generation` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
+
     Requires the following information from the metadata dictionary
+
     - input filename
     - output filename
     """
@@ -573,14 +634,14 @@ class BuildBorderMask(StepFactory):
 
     def set_output_pixel_type(self, app, meta):
         """
-        Force the output pixel type to UINT8.
+        Force the output pixel type to ``UINT8``.
         """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with BandMath OTB application for computing border
-        mask.
+        Returns the parameters to use with :std:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for computing border mask.
         """
         params = {
                 'ram'              : str(self.__ram_per_process),
@@ -595,11 +656,15 @@ class BuildBorderMask(StepFactory):
 
 class SmoothBorderMask(StepFactory):
     """
-    Factory that prepares the first step that smoothes border maks.
+    Factory that prepares the first step that smoothes border maks as
+    described in :ref:`Border mask generation` documentation.
 
     Requires the following information from the configuration object:
+
     - `ram_per_process`
+
     Requires the following information from the metadata dictionary
+
     - input filename
     - output filename
     """
@@ -613,41 +678,44 @@ class SmoothBorderMask(StepFactory):
 
     def tmp_directory(self, meta):
         """
-        Directory used to store temporary files before they are renamed into their final
-        version.
+        Directory used to store temporary files before they are renamed into
+        their final version.
         """
         return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
 
     def output_directory(self, meta):
         """
-        SmoothBorderMask result files will be stored in {out}/{tile_name}
+        SmoothBorderMask result files will be stored in
+        :file:`{out}/{tile_name}`.
         """
         return os.path.join(self.__outdir, meta['tile_name'])
 
     def build_step_output_filename(self, meta):
         """
-        Returns the names of SmoothBorderMask result files.
+        Returns the names of :class:`SmoothBorderMask` result files.
         """
         filename = meta['basename'].replace(".tif", "_BorderMask.tif")
         return os.path.join(self.output_directory(meta), filename)
 
     def build_step_output_tmp_filename(self, meta):
         """
-        Returns the names of SmoothBorderMask temporary result files.
+        Returns the names of :class:`SmoothBorderMask` temporary result files.
         """
         filename = meta['basename'].replace(".tif", "_BorderMask.tmp.tif")
         return os.path.join(self.tmp_directory(meta), filename)
 
     def set_output_pixel_type(self, app, meta):
         """
-        Force the output pixel type to UINT8.
+        Force the output pixel type to ``UINT8``.
         """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta):
         """
-        Returns the parameters to use with BinaryMorphologicalOperation OTB application
-        to smooth border masks.
+        Returns the parameters to use with
+        :std:doc:`BinaryMorphologicalOperation OTB application
+        <Applications/app_BinaryMorphologicalOperation>` to smooth border
+        masks.
         """
         return {
                 'ram'                   : str(self.__ram_per_process),

@@ -1,8 +1,14 @@
 .. _files:
 
+.. index:: files
+
 ======================================================================
 Files produced
 ======================================================================
+
+.. contents:: Contents:
+   :local:
+   :depth: 3
 
 .. _final-products:
 
@@ -10,6 +16,8 @@ Final products
 --------------
 
 .. _full-S2-tiles:
+
+.. index:: S2 tiles
 
 Orthorectified S2 tiles
 +++++++++++++++++++++++++++++
@@ -46,6 +54,8 @@ Orthorectified S2 tiles
 
 .. _mask-files:
 
+.. index:: Mask files
+
 Mask files
 ++++++++++
 
@@ -67,17 +77,14 @@ Mask files
 
 .. _temporary-files:
 
+.. index:: Temporary files
+
 Temporary files
 ---------------
 
-Before generating the final products, S1 Tiling produces temporary files it
-doesn't remove automatically.
-
-These files are kept (cached) as they could be used:
-
-- in between several runs to shorten processing times when resuming after an
-  interruption,
-- and other reasons specified below.
+Before generating the final products, S1 Tiling produces temporary files. Some
+are removed automatically, others are :ref:`cached <data-caches>` in between
+several runs to shorten processing times when resuming after an interruption.
 
 .. note:: It's up to you, end-user, to clean that directory regularly.
 
@@ -126,7 +133,4 @@ Orthorectified S1 images
            are actually produced at this step.
 
 .. note::
-   These files are kept for investigation purposes
-
-.. todo::
-    Do we really need to keep these files after concatenation?
+   These files are automatically cleaned up.
