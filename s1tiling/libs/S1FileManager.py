@@ -171,9 +171,9 @@ class S1FileManager:
         self.processed_filenames = self.get_processed_filenames()
         self._update_s1_img_list()
 
+        self.first_date = cfg.first_date
+        self.last_date  = cfg.last_date
         if self.cfg.download:
-            self.fd = cfg.first_date
-            self.ld = cfg.last_date
             logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
             self._dag = EODataAccessGateway(self.cfg.eodagConfig)
             # TODO: update once eodag directly offers "DL directory setting" feature v1.7? +?
@@ -368,7 +368,7 @@ class S1FileManager:
                 lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
                 self._download(self._dag,
                         lonmin, lonmax, latmin, latmax,
-                        self.fd, self.ld,
+                        self.first_date, self.last_date,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
                         tile_name,
                         self.cfg.polarisation)
@@ -460,9 +460,22 @@ class S1FileManager:
                         tiles.append(tile_name)
         return tiles
 
+    def is_manifest_in_time_range(self, manifest):
+        """
+        Returns whether the manifest name is within time range [first_date, last_date]
+        """
+        prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T\d{6}.*')
+        manipath = os.path.basename(os.path.dirname(manifest))
+        YY, MM, DD = prod_re.match(manipath).groups()
+        start = '%s-%s-%s' % (YY, MM, DD)
+        is_in_range = self.first_date <= start <= self.last_date
+        logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
+                manipath, is_in_range, self.first_date, start, self.last_date)
+        return is_in_range
+
     def get_s1_intersect_by_tile(self, tile_name_field):
         """
-        This method return the list of S1 product intersecting a given MGRS tile
+        This method returns the list of S1 product intersecting a given MGRS tile
 
         Args:
           tile_name_field: The MGRS tile identifier
@@ -487,6 +500,8 @@ class S1FileManager:
 
         for image in self.raw_raster_list:
             logger.debug('- Manifest: %s', image.get_manifest())
+            if not self.is_manifest_in_time_range(image.get_manifest()):
+                continue
             logger.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list()) == 0:
                 logger.critical("Problem with %s", image.get_manifest())
