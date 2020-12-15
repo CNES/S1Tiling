@@ -192,6 +192,7 @@ def setup_worker_logs(config, dask_worker):
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
+        searched_items_per_page,
         debug_otb=False, dryrun=False, debug_tasks=False):
     """
     Process one S2 tile.
@@ -205,7 +206,8 @@ def process_one_tile(
     s1_file_manager.keep_X_latest_S1_files(1000)
 
     with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-        s1_file_manager.download_images(tiles=tile_name)
+        s1_file_manager.download_images(tiles=tile_name,
+                searched_items_per_page=searched_items_per_page, dryrun=dryrun)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
@@ -243,6 +245,11 @@ def process_one_tile(
 @click.command()
 @click.version_option()
 @click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
         "--dryrun",
         is_flag=True,
         help="Display the processing shall would be realized, but none is done.")
@@ -255,7 +262,7 @@ def process_one_tile(
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def main(dryrun, debug_otb, debug_tasks, config_filename):
+def main(searched_items_per_page, dryrun, debug_otb, debug_tasks, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -324,6 +331,7 @@ def main(dryrun, debug_otb, debug_tasks, config_filename):
                 res = process_one_tile(
                         tile_it, idx, len(tiles_to_process_checked),
                         s1_file_manager, pipelines, client,
+                        searched_items_per_page=searched_items_per_page,
                         debug_otb=debug_otb, dryrun=dryrun, debug_tasks=debug_tasks)
                 results += res
 
