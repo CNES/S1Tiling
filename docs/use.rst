@@ -152,11 +152,11 @@ You can use this :download:`this template
 
       .. _DataSource.first_date:
   * - ``first_date``
-    - Initial date in ``YY-MM-DD`` format.
+    - Initial date in ``YYYY-MM-DD`` format.
 
       .. _DataSource.last_date:
   * - ``last_date``
-    - Final date in ``YY-MM-DD`` format.
+    - Final date in ``YYYY-MM-DD`` format.
 
 .. _Mask:
 

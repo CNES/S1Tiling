@@ -466,8 +466,8 @@ class S1FileManager:
         """
         prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T\d{6}.*')
         manipath = os.path.basename(os.path.dirname(manifest))
-        YY, MM, DD = prod_re.match(manipath).groups()
-        start = '%s-%s-%s' % (YY, MM, DD)
+        YYYY, MM, DD = prod_re.match(manipath).groups()
+        start = '%s-%s-%s' % (YYYY, MM, DD)
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
                 manipath, is_in_range, self.first_date, start, self.last_date)
