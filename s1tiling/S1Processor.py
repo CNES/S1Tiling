@@ -192,7 +192,7 @@ def setup_worker_logs(config, dask_worker):
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
-        debug_otb=False, dryrun=False, debug_tasks=False):
+        debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
     """
     Process one S2 tile.
 
@@ -215,7 +215,7 @@ def process_one_tile(
         return []
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-            debug_otb=debug_otb, dryrun=dryrun)
+            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
@@ -251,11 +251,15 @@ def process_one_tile(
         is_flag=True,
         help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
 @click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
         "--graphs", "debug_tasks",
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def main(dryrun, debug_otb, debug_tasks, config_filename):
+def main(dryrun, debug_otb, watch_ram, debug_tasks, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -324,7 +328,7 @@ def main(dryrun, debug_otb, debug_tasks, config_filename):
                 res = process_one_tile(
                         tile_it, idx, len(tiles_to_process_checked),
                         s1_file_manager, pipelines, client,
-                        debug_otb=debug_otb, dryrun=dryrun, debug_tasks=debug_tasks)
+                        debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
                 results += res
 
         logger.info('Execution report:')

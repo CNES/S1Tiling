@@ -16,7 +16,7 @@ def remove_dirs(dir_list):
             shutil.rmtree(dir)
 
 
-def process(tmpdir, outputdir, baseline_reference_outputs, test_file, dirs_to_clean=None):
+def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
     '''
     Executes the S1Processor
     '''
@@ -33,11 +33,13 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, dirs_to_cl
     remove_dirs(dirs_to_clean)
 
     args = ['python3', src_dir / 's1tiling/S1Processor.py', test_file]
+    if watch_ram:
+        args.append('--watch-ram')
     logging.info('Running: %s', args)
     return subprocess.call(args, cwd=crt_dir)
 
 
-def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
+def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download, watch_ram):
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
     # => We need it
@@ -67,7 +69,7 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
             ]
     baseline_path = baselinedir / 'expected'
     test_file     = baselinedir / 'test_33NWB_202001.cfg'
-    EX = process(tmpdir, outputdir, baseline_path, test_file)
+    EX = process(tmpdir, outputdir, baseline_path, test_file, watch_ram)
     assert EX == 0
     for im in images:
         expected = baseline_path / im
@@ -80,7 +82,7 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download):
     # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
-def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, download):
+def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, download, watch_ram):
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
     # => We need it
@@ -121,7 +123,7 @@ def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, dow
 
 
     dirs_to_clean = [tmpdir/'S1', tmpdir/'S2'] # do not clear outputdir in that case
-    EX = process(tmpdir, outputdir, baseline_path, test_file, dirs_to_clean)
+    EX = process(tmpdir, outputdir, baseline_path, test_file, watch_ram, dirs_to_clean)
     assert EX == 0
     for im in images:
         expected = baseline_path / im

@@ -39,6 +39,7 @@ from abc import ABC, abstractmethod
 import logging
 import logging.handlers
 import multiprocessing
+import objgraph
 import otbApplication as otb
 from . import Utils
 
@@ -482,10 +483,11 @@ class Pipeline:
     Internal class only meant to be used by  :class:`Pool`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory, name=None, output=None):
+    def __init__(self, do_measure, in_memory, do_watch_ram, name=None, output=None):
         self.__pipeline   = []
         self.__do_measure = do_measure
         self.__in_memory  = in_memory
+        self.__do_watch_ram = do_watch_ram
         self.__name       = name
         self.__output     = output
         self.__input      = None
@@ -527,6 +529,13 @@ class Pipeline:
         """
         return self.__output
 
+    @property
+    def shall_watch_ram(self):
+        """
+        Tells whether objects in RAM shall be watched for memory leaks.
+        """
+        return self.__do_watch_ram
+
     def push(self, otbstep: StepFactory):
         """
         Registers a StepFactory into the pipeline.
@@ -567,6 +576,9 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     Returns the product filename(s) or the caught error in case of failure.
     """
     logger.debug('Parameters for %s: %s', pipeline, args)
+    watch_ram = pipeline.shall_watch_ram
+    if watch_ram:
+        objgraph.show_growth(limit=5)
     try:
         assert len(args) == 1
         for arg in args[0]:
@@ -577,7 +589,12 @@ def execute4dask(pipeline, *args, **unused_kwargs):
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
         logger.info('Execute %s', pipeline)
-        return pipeline.do_execute().add_related_filename(pipeline.output)
+        res = pipeline.do_execute().add_related_filename(pipeline.output)
+        pipeline = None
+
+        if watch_ram:
+            objgraph.show_growth()
+        return res
     except Exception as ex:  # pylint: disable=broad-except
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('Parameters for %s were: %s', pipeline, args)
@@ -638,13 +655,13 @@ class PipelineDescription:
         """
         return self.__is_product_required
 
-    def instanciate(self, file, do_measure, in_memory):
+    def instanciate(self, file, do_measure, in_memory, do_watch_ram):
         """
         Instanciates the pipeline specified.
 
         Note: It systematically register a :class:`Store` step at the end.
         """
-        pipeline = Pipeline(do_measure, in_memory, self.name, file)
+        pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, file)
         for factory_step in self.__factory_steps + [Store('noappname')]:
             pipeline.push(factory_step)
         return pipeline
@@ -746,7 +763,7 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', path)
         return required, previous
 
-    def _build_tasks_from_dependencies(self, required, previous, debug_otb):  # pylint: disable=no-self-use
+    def _build_tasks_from_dependencies(self, required, previous, debug_otb, do_watch_ram):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -762,7 +779,7 @@ class PipelineDescriptionSequence:
                 task_inputs = previous[file]['inputs']
                 # logger.debug('%s --> %s', file, task_inputs)
                 input_files = [to_dask_key(m['out_filename']) for m in task_inputs]
-                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True)
+                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True, do_watch_ram)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
                 if debug_otb:
                     tasks.append([base_file, (execute4dask, pipeline_instance, input_files)])
@@ -781,7 +798,7 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
-    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False):
+    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False, do_watch_ram=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -800,7 +817,8 @@ class PipelineDescriptionSequence:
         tasks = self._build_tasks_from_dependencies(
                 required=required,
                 previous=previous,
-                debug_otb=debug_otb)
+                debug_otb=debug_otb,
+                do_watch_ram=do_watch_ram)
 
         for final_product in final_products:
             assert debug_otb or final_product in tasks.keys()
@@ -1023,7 +1041,8 @@ class PoolOfOTBExecutions:
         Register a new pipeline.
         """
         in_memory = kwargs.get('in_memory', True)
-        pipeline = Pipeline(self.__do_measure, in_memory)
+        do_watch_ram = kwargs.get('do_watch_ram', False)
+        pipeline = Pipeline(self.__do_measure, in_memory, do_watch_ram)
         self.__pool.append(pipeline)
         return pipeline
 
