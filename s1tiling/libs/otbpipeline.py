@@ -433,7 +433,7 @@ class StepFactory(ABC):
 
 class Outcome:
     """
-    Kind of monad à la C++ `std::expected<>`, `boost::Outcome`.
+    Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome``.
 
     It stores tasks results which could be:
     - either the filename of task product,
@@ -454,7 +454,7 @@ class Outcome:
         """
         Register a filename related to the result.
         """
-        self.__related_filenames += [filename]
+        self.__related_filenames.append(filename)
         return self
 
     def __repr__(self):
@@ -532,7 +532,7 @@ class Pipeline:
         Registers a StepFactory into the pipeline.
         """
         assert isinstance(otbstep, StepFactory)
-        self.__pipeline += [otbstep]
+        self.__pipeline.append(otbstep)
 
     def do_execute(self):
         """
@@ -552,9 +552,11 @@ class Pipeline:
         steps = [self.__input]
         for crt in self.__pipeline:
             step = crt.create_step(steps[-1], self.__in_memory, steps)
-            steps += [step]
+            steps.append(step)
 
-        return Outcome(steps[-1].out_filename)
+        res = steps[-1].out_filename
+        steps = None
+        return Outcome(res)
 
 
 # TODO: try to make it static...
@@ -657,7 +659,7 @@ def to_dask_key(pathname):
     return Path(pathname).stem.replace('-', '_')
 
 
-def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
+def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
     """
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
@@ -671,7 +673,7 @@ def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
                     manifest=manifest,
                     basename=image,
                     dryrun=dryrun)
-            inputs += [start.meta]
+            inputs.append(start.meta)
     return inputs
 
 
@@ -707,9 +709,9 @@ class PipelineDescriptionSequence:
     def _build_dependencies(self, tile_name, raster_list, dryrun):
         """
         Runs the inputs through all pipeline descriptions to build the full list
-        of intermediary and final products and what they required to be built.
+        of intermediary and final products and what they require to be built.
         """
-        inputs = generate_first_steps_from_manifest(
+        inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
                 dryrun=dryrun)
@@ -723,7 +725,7 @@ class PipelineDescriptionSequence:
             next_inputs = []
             for input in inputs:
                 expected = pipeline.expected(input)
-                next_inputs += [expected]
+                next_inputs.append(expected)
                 expected_pathname = expected['out_pathname']
                 if os.path.isfile(expected_pathname):
                     previous[expected_pathname] = False  # File exists
@@ -1022,7 +1024,7 @@ class PoolOfOTBExecutions:
         """
         in_memory = kwargs.get('in_memory', True)
         pipeline = Pipeline(self.__do_measure, in_memory)
-        self.__pool += [pipeline]
+        self.__pool.append(pipeline)
         return pipeline
 
     def process(self):
