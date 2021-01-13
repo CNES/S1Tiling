@@ -247,7 +247,7 @@ def list_files(directory, pattern=None):
     Requires Python 3.5
     """
     if pattern:
-        filt = lambda path: path.is_file() and fnmatch.fnmatch(path, pattern)
+        filt = lambda path: path.is_file() and fnmatch.fnmatch(path.name, pattern)
     else:
         filt = lambda path: path.is_file()
 
@@ -266,7 +266,7 @@ def list_dirs(directory, pattern=None):
     Requires Python 3.5
     """
     if pattern:
-        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path, pattern)
+        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path.name, pattern)
     else:
         filt = lambda path: path.is_dir()
 
