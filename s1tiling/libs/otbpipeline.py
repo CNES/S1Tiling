@@ -908,20 +908,18 @@ class StoreStep(_StepWithOTBApplication):
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
-            # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
-            with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
-                if not self.meta.get('dryrun', False):
-                    # TODO: catch execute failure, and report it!
-                    # logger.info("START %s", pipeline_name)
-                    with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
-                        # For OTB application execution, redirect stdout/stderr messages to
-                        # s1tiling.OTB
-                        self._app.SetParameterString(
-                                self.param_out,
-                                self.tmp_filename + out_extended_filename_complement(self.meta))
-                        self._app.ExecuteAndWriteOutput()
-                    commit_otb_application(self.tmp_filename, self.out_filename)
+        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
+            if not self.meta.get('dryrun', False):
+                # TODO: catch execute failure, and report it!
+                # logger.info("START %s", pipeline_name)
+                with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
+                    # For OTB application execution, redirect stdout/stderr
+                    # messages to s1tiling.OTB
+                    self._app.SetParameterString(
+                            self.param_out,
+                            self.tmp_filename + out_extended_filename_complement(self.meta))
+                    self._app.ExecuteAndWriteOutput()
+                commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not self.meta.get('dryrun', False):
             for hook in self.meta['post']:
                 hook(self.meta)
