@@ -294,7 +294,8 @@ class S1FileManager:
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
-            tile_out_dir, tile_name, polarization):
+            tile_out_dir, tile_name, polarization,
+            searched_items_per_page, dryrun):
         """
         Process with the call to eodag download.
         """
@@ -305,14 +306,23 @@ class S1FileManager:
                 'latmin': latmin,
                 'latmax': latmax
                 }
-        products, _ = dag.search(
-                productType=product_type,
-                start=first_date, end=last_date,
-                box=extent,
-                # If we have eodag v1.6, we try to filter product during the search request
-                polarizationMode=polarization,
-                sensorMode="IW"
-                )
+        products = []
+        page = 1
+        while True:
+            page_products, _ = dag.search(
+                    page=page, items_per_page=searched_items_per_page,
+                    productType=product_type,
+                    start=first_date, end=last_date,
+                    box=extent,
+                    # If we have eodag v1.6, we try to filter product during the search request
+                    polarizationMode=polarization,
+                    sensorMode="IW"
+                    )
+            logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
+            products += page_products
+            page += 1
+            if len(page_products) < searched_items_per_page:
+                break
         logger.info("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
@@ -340,7 +350,7 @@ class S1FileManager:
         products = [p for p in products
                 if not p.as_dict()['id'] in self.product_list
                 ]
-        logger.debug("%s remote S1 product(s) are not found in the cache: %s", len(products), products)
+        logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
             return []
         # - or for which we found matching dates
@@ -362,6 +372,10 @@ class S1FileManager:
         if not products:  # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
             return []
+        if dryrun:
+            paths = [p.as_dict()['id'] for p in products] # TODO: return real name
+            logger.info("Remote S1 products would have been saved into %s", paths)
+            return paths
         paths = dag.download_all(
                 products[:],  # pass a copy because eodag modifies the list
                 )
@@ -377,7 +391,7 @@ class S1FileManager:
                 pass
         return paths
 
-    def download_images(self, tiles=None):
+    def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -405,7 +419,9 @@ class S1FileManager:
                         self.first_date, self.last_date,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
                         tile_name,
-                        self.cfg.polarisation)
+                        self.cfg.polarisation,
+                        searched_items_per_page=searched_items_per_page,
+                        dryrun=dryrun)
         self._update_s1_img_list()
 
     def _update_s1_img_list(self):
