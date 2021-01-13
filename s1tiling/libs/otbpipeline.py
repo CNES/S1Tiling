@@ -39,7 +39,12 @@ from abc import ABC, abstractmethod
 import logging
 import logging.handlers
 import multiprocessing
+
+# memory leaks
+from distributed import get_worker
 import objgraph
+from pympler import muppy, tracker
+
 import otbApplication as otb
 from . import Utils
 
@@ -594,6 +599,14 @@ def execute4dask(pipeline, *args, **unused_kwargs):
 
         if watch_ram:
             objgraph.show_growth()
+
+            # all_objects = muppy.get_objects()
+            # sum1 = summary.summarize(all_objects)
+            # summary.print_(sum1)
+            w = get_worker()
+            if not hasattr(w, 'tracker'):
+                w.tr = tracker.SummaryTracker()
+            w.tr.print_diff()
         return res
     except Exception as ex:  # pylint: disable=broad-except
         logger.exception('Execution of %s failed', pipeline)
