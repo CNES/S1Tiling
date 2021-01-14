@@ -187,11 +187,13 @@ def setup_worker_logs(config, dask_worker):
 
     # From now on, redirect stdout/stderr messages to s1tiling
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
+    d_logger.debug("Client generation: %s", dask_worker.client.generation)
 
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
+        searched_items_per_page,
         debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
     """
     Process one S2 tile.
@@ -205,7 +207,8 @@ def process_one_tile(
     s1_file_manager.keep_X_latest_S1_files(1000)
 
     with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-        s1_file_manager.download_images(tiles=tile_name)
+        s1_file_manager.download_images(tiles=tile_name,
+                searched_items_per_page=searched_items_per_page, dryrun=dryrun)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
@@ -247,11 +250,19 @@ def process_one_tile(
             # And we'll need to use the synchronous=False parameter to be able to check successful executions
             # but then, how do we clean up futures and all??
             client.restart()
+            # Update the list of remaining tasks
+            dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
+                    debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
 
 
 # Main code
 @click.command()
 @click.version_option()
+@click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
 @click.option(
         "--dryrun",
         is_flag=True,
@@ -269,7 +280,7 @@ def process_one_tile(
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def main(dryrun, debug_otb, watch_ram, debug_tasks, config_filename):
+def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -338,6 +349,7 @@ def main(dryrun, debug_otb, watch_ram, debug_tasks, config_filename):
                 res = process_one_tile(
                         tile_it, idx, len(tiles_to_process_checked),
                         s1_file_manager, pipelines, client,
+                        searched_items_per_page=searched_items_per_page,
                         debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
                 results += res
 
