@@ -88,10 +88,14 @@ distribute under the chosen license.
 
 To accept your contribution, we need you to complete, sign and email to *cla [at]
 orfeo-toolbox [dot] org* an
-[Individual Contributor Licensing Agreement](doc/cla/icla-en.doc) (ICLA) form
-and a [Corporate Contributor Licensing Agreement](doc/cla/ccla-en.doc) (CCLA)
+[Individual Contributor Licensing Agreement](_static/icla-en.docx) (ICLA) form
+and a [Corporate Contributor Licensing Agreement](_static/ccla-en.docx) (CCLA)
 form if you are contributing on behalf of your company or another entity which
 retains copyright for your contribution.
+
+<!-- NOTE: The two previous links won't work from the markdown file, but
+     they'll work once translated into RST
+-->
 
 The copyright owner (or owner's agent) must be mentioned in headers of all
 modified source files.
