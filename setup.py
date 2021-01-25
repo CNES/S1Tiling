@@ -82,6 +82,8 @@ setup(
         "graphviz",
         "numpy",
         "ogr",
+        "objgraph", # leaks
+        "pympler", # leaks
         "pyyaml",
         # Any way to require OTB ?
         ],
@@ -94,8 +96,6 @@ setup(
             # "coverage",
             # "moto==1.3.6",
             # "twine",
-            "objgraph", # leaks
-            "pympler", # leaks
             "wheel",
             "flake8",
             "pre-commit",

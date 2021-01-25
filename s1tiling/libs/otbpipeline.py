@@ -43,7 +43,7 @@ import multiprocessing
 # memory leaks
 from distributed import get_worker
 import objgraph
-from pympler import muppy, tracker
+from pympler import tracker # , muppy
 
 import otbApplication as otb
 from . import Utils
@@ -489,13 +489,13 @@ class Pipeline:
     """
     # Should we inherit from contextlib.ExitStack?
     def __init__(self, do_measure, in_memory, do_watch_ram, name=None, output=None):
-        self.__pipeline   = []
-        self.__do_measure = do_measure
-        self.__in_memory  = in_memory
+        self.__pipeline     = []
+        self.__do_measure   = do_measure
+        self.__in_memory    = in_memory
         self.__do_watch_ram = do_watch_ram
-        self.__name       = name
-        self.__output     = output
-        self.__input      = None
+        self.__name         = name
+        self.__output       = output
+        self.__input        = None
 
     def __repr__(self):
         return self.name
@@ -1051,7 +1051,7 @@ class PoolOfOTBExecutions:
         """
         Register a new pipeline.
         """
-        in_memory = kwargs.get('in_memory', True)
+        in_memory    = kwargs.get('in_memory', True)
         do_watch_ram = kwargs.get('do_watch_ram', False)
         pipeline = Pipeline(self.__do_measure, in_memory, do_watch_ram)
         self.__pool.append(pipeline)

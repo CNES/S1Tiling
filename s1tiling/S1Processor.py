@@ -58,14 +58,13 @@ import logging
 import os
 import sys
 import click
-# import dask.distributed
+from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
 from s1tiling.libs.S1FileManager import S1FileManager
 # from libs import S1FilteringProcessor
 from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
-
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 
@@ -167,6 +166,19 @@ def check_srtm_tiles(cfg, srtm_tiles):
     return res
 
 
+def clean_logs(config, nb_workers):
+    """
+    Clean all the log files.
+    Meant to be called once, at startup
+    """
+    filenames = []
+    for _, cfg in config['handlers'].items():
+        if 'filename' in cfg and '%' in cfg['filename']:
+            pattern = cfg['filename'] % ('worker-%s',)
+            filenames += [pattern%(w,) for w in range(nb_workers)]
+    remove_files(filenames)
+
+
 def setup_worker_logs(config, dask_worker):
     """
     Set-up the logger on Dask Worker.
@@ -177,6 +189,7 @@ def setup_worker_logs(config, dask_worker):
 
     for _, cfg in config['handlers'].items():
         if 'filename' in cfg and '%' in cfg['filename']:
+            cfg['mode']     = 'a'  # Make sure to not reset worker log file
             cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
 
     logging.config.dictConfig(config)
@@ -187,7 +200,6 @@ def setup_worker_logs(config, dask_worker):
 
     # From now on, redirect stdout/stderr messages to s1tiling
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
-    d_logger.debug("Client generation: %s", dask_worker.client.generation)
 
 
 def process_one_tile(
@@ -239,20 +251,25 @@ def process_one_tile(
                     dsk,
                     filename='tasks-%s-%s.svg' % (tile_idx + 1, tile_name))
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
-    nb_tries = 3
-    for run in range(1, nb_tries):
-        try:
-            results = client.get(dsk, required_products)
-            return results
-        except BaseException as e:
-            logger.critical("Error found when running handling %s tile: %s. Workers will be restarted: %s/%s", tile_name, e, run, nb_tries)
-            # TODO: don't overwrite previous logs
-            # And we'll need to use the synchronous=False parameter to be able to check successful executions
-            # but then, how do we clean up futures and all??
-            client.restart()
-            # Update the list of remaining tasks
-            dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-                    debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
+        nb_tries = 2
+        for run in range(1, nb_tries+1):
+            try:
+                results = client.get(dsk, required_products)
+                return results
+            except KilledWorker as e:
+                logger.critical('%s', dir(e))
+                logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
+                        e.last_worker.name, e.task, tile_name, e, run, nb_tries)
+                # TODO: don't overwrite previous logs
+                # And we'll need to use the synchronous=False parameter to be able to check successful executions
+                # but then, how do we clean up futures and all??
+                client.restart()
+                # Update the list of remaining tasks
+                if run < nb_tries:
+                    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
+                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
+                else:
+                    raise
 
 
 # Main code
@@ -339,9 +356,12 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, con
         # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
 
         if not debug_otb:
+            clean_logs(config.log_config, config.nb_procs)
             cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
             client = Client(cluster)
             client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
+        else:
+            client = None
 
         results = []
         for idx, tile_it in enumerate(tiles_to_process_checked):
