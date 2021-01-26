@@ -134,7 +134,8 @@ on the 100th row from the top (/resp from the bottom).
 At the end of this step, :ref:`orthorectification ready images
 <orthoready-files>` are produced. These files are :ref:`cached <data-caches>`
 as a same cut-and-calibrated S1 image can be orthorectified into several S2
-grids it intersects.
+grids it intersects. The default generation of these files can be disabled by
+passing ``--no-cache-before-ortho`` to :program:`S1Processor`.
 
 
 .. _orthorectification:
@@ -251,4 +252,8 @@ stored in :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
 
 As a same file could be orthorectified into several S2 tiles, it's kept. As S1
 Tiling doesn't know whether these files could still be of use, it doesn't try
-to remove old files. They need to be manuallly removed.
+to remove old files. They need to be manually removed.
+
+The default generation of these files can be disabled by passing
+``--no-cache-before-ortho`` to :program:`S1Processor`. In that case, processing
+will be done in memory.

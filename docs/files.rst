@@ -108,13 +108,19 @@ Cut and calibrated S1 images ready for orthorectification
            s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff
            s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.geom
 
-:Format: Float32 GeoTIFF, uncompressed
+:Format: Float32 GeoTIFF, uncompressed.
 
-:Metadata: No metadata is added at this step
+:Metadata: No metadata is added at this step.
 
 .. note::
    These files are kept as a same calibrated and cut S1 image can be
    orthorectified for producing several intersecting S2 tiles.
+
+.. note::
+   If :program:`S1Processor` is executed with ``--no-cache-before-ortho`` option,
+   the processing will be done in memory and no orthoready file will be
+   produced. If not, by default, you'll have to explicitly clean these
+   temporary files.
 
 .. _orthorectified-files:
 
