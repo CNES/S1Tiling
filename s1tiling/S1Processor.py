@@ -247,7 +247,7 @@ def process_one_tile(
 @click.option(
         "--cache-before-ortho/--no-cache-before-ortho",
         is_flag=True,
-        default=True,
+        default=False,
         help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
 
         BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")

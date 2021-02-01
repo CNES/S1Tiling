@@ -113,14 +113,14 @@ Cut and calibrated S1 images ready for orthorectification
 :Metadata: No metadata is added at this step.
 
 .. note::
-   These files are kept as a same calibrated and cut S1 image can be
+   These files can be kept as a same calibrated and cut S1 image can be
    orthorectified for producing several intersecting S2 tiles.
 
 .. note::
-   If :program:`S1Processor` is executed with ``--no-cache-before-ortho`` option,
-   the processing will be done in memory and no orthoready file will be
-   produced. If not, by default, you'll have to explicitly clean these
-   temporary files.
+   These temporary files will be produced only if :program:`S1Processor` is
+   executed with ``--cache-before-ortho`` option.  In that case, the processing
+   will no longer be done in memory and orthoready files will be produced.
+   You would also have to explicitly clean these temporary files.
 
 .. _orthorectified-files:
 

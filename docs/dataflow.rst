@@ -132,10 +132,11 @@ on the 100th row from the top (/resp from the bottom).
    <Processing.override_azimuth_cut_threshold_to>` option.
 
 At the end of this step, :ref:`orthorectification ready images
-<orthoready-files>` are produced. These files are :ref:`cached <data-caches>`
-as a same cut-and-calibrated S1 image can be orthorectified into several S2
-grids it intersects. The default generation of these files can be disabled by
-passing ``--no-cache-before-ortho`` to :program:`S1Processor`.
+<orthoready-files>` may be produced. It could be interresting to :ref:`cache
+<data-caches>` these product as a same cut-and-calibrated S1 image can be
+orthorectified into several S2 grids it intersects. The default processing of
+these products in memory can be disabled by passing ``--cache-before-ortho`` to
+program:`S1Processor`.
 
 
 .. _orthorectification:
@@ -230,7 +231,7 @@ Two kinds of data are cached, but only one is regularly cleaned-up by S1
 Tiling. The other kind is left along as the software cannot really tell whether
 they could be reused later on or not.
 
-.. important:: This means that you will have to regularly clean up this space.
+.. important:: This means that you may have to regularly clean up this space.
 
 
 .. _cache.S1:
@@ -247,13 +248,30 @@ only the 1000 most recent are kept. The oldest ones are automatically removed.
 OrthoReady S1 Files
 +++++++++++++++++++
 
-:ref:`Cut and calibrated (aka "OrthoReady") files <orthoready-files>` are
-stored in :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
+OrthoRectification is done on images cut, and calibrated. A same cut and
+calibrated Sentinel-1 image can be orthorectified onto different Sentinel-2
+tiles.
 
-As a same file could be orthorectified into several S2 tiles, it's kept. As S1
-Tiling doesn't know whether these files could still be of use, it doesn't try
-to remove old files. They need to be manually removed.
+This means it could be interresting to cache these intermediary products as
+files. Yet, this is not the default behaviour. Indeed at this time, S1-Tiling
+cannot know when an "OrthoReady" file is no longer required, nor organize the
+processing of S1 images to help deleting those temporary files as soon as
+possible. In other words, it's up to you to clean these temporary files, and to
+make sure to not request too many S2 tiles on too important time ranges.
 
-The default generation of these files can be disabled by passing
-``--no-cache-before-ortho`` to :program:`S1Processor`. In that case, processing
-will be done in memory.
+That's why the default behaviour is to process "OrthoReady" product in memory.
+Also, this is not necessarily a big performance issue.
+Indeed, given OTB internals, producing an orthorectified S1 image unto a S2
+tile does not calibrate the whole S1 image, but only the minimal region
+overlapped by the S2 tile.
+
+
+.. note:: Unless you execute :program:`S1Processor` with
+   ``--cache-before-ortho``, cutting, calibration and orthorectification are
+   chained in memory.
+
+
+.. warning:: When executed with ``--cache-before-ortho``, :ref:`Cut and
+   calibrated (aka "OrthoReady") files <orthoready-files>` are stored in
+   :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
+   Do not forget to regularly clean up this space.
