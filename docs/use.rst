@@ -28,9 +28,9 @@ Then
 - The orthorectified tiles will be generated in :ref:`output <paths.output>`.
 - Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
-.. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as it
+.. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as its
    files are :ref:`cached <data-caches>` in between runs. This means you will
-   eventually have to clean this directory.
+   have to watch this directory and eventually clean it.
 
 
 .. _request-config-file:
@@ -75,10 +75,8 @@ You can use this :download:`this template
 
       .. _paths.tmp:
   * - ``tmp``
-    - Where :ref:`intermediary files <temporary-files>` are stored.
-      |br|
-      As a S1 image may need to be used to produce several S2 tiles, once
-      orthorectified, S1 images are :ref:`cached <data-caches>` in the tmp directory.
+    - Where :ref:`intermediary files <temporary-files>` are produced, and
+      sometimes :ref:`cached <data-caches>` for longer periods.
 
       .. _paths.geoid_file:
   * - ``geoid_file``
