@@ -192,6 +192,7 @@ def setup_worker_logs(config, dask_worker):
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
+        searched_items_per_page,
         debug_otb=False, dryrun=False, debug_tasks=False):
     """
     Process one S2 tile.
@@ -205,7 +206,8 @@ def process_one_tile(
     s1_file_manager.keep_X_latest_S1_files(1000)
 
     with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-        s1_file_manager.download_images(tiles=tile_name)
+        s1_file_manager.download_images(tiles=tile_name,
+                searched_items_per_page=searched_items_per_page, dryrun=dryrun)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
@@ -240,8 +242,20 @@ def process_one_tile(
 
 
 # Main code
-@click.command()
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.version_option()
+@click.option(
+        "--cache-before-ortho/--no-cache-before-ortho",
+        is_flag=True,
+        default=False,
+        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
+
+        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
+@click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
 @click.option(
         "--dryrun",
         is_flag=True,
@@ -255,7 +269,7 @@ def process_one_tile(
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def main(dryrun, debug_otb, debug_tasks, config_filename):
+def main(searched_items_per_page, dryrun, debug_otb, debug_tasks, cache_before_ortho, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -305,8 +319,12 @@ def main(dryrun, debug_otb, debug_tasks, config_filename):
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
         pipelines = PipelineDescriptionSequence(config)
-        pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
-        pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
+        if cache_before_ortho:
+            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
+            pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
+        else:
+            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False)
+
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
@@ -324,6 +342,7 @@ def main(dryrun, debug_otb, debug_tasks, config_filename):
                 res = process_one_tile(
                         tile_it, idx, len(tiles_to_process_checked),
                         s1_file_manager, pipelines, client,
+                        searched_items_per_page=searched_items_per_page,
                         debug_otb=debug_otb, dryrun=dryrun, debug_tasks=debug_tasks)
                 results += res
 
