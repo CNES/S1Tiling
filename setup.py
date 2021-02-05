@@ -82,6 +82,8 @@ setup(
         "graphviz",
         "numpy",
         "ogr",
+        "objgraph", # leaks
+        "pympler", # leaks
         "pyyaml",
         # Any way to require OTB ?
         ],

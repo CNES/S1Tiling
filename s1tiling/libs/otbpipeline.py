@@ -39,6 +39,12 @@ from abc import ABC, abstractmethod
 import logging
 import logging.handlers
 import multiprocessing
+
+# memory leaks
+from distributed import get_worker
+import objgraph
+from pympler import tracker # , muppy
+
 import otbApplication as otb
 from . import Utils
 
@@ -433,7 +439,7 @@ class StepFactory(ABC):
 
 class Outcome:
     """
-    Kind of monad à la C++ `std::expected<>`, `boost::Outcome`.
+    Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome``.
 
     It stores tasks results which could be:
     - either the filename of task product,
@@ -454,7 +460,7 @@ class Outcome:
         """
         Register a filename related to the result.
         """
-        self.__related_filenames += [filename]
+        self.__related_filenames.append(filename)
         return self
 
     def __repr__(self):
@@ -482,13 +488,14 @@ class Pipeline:
     Internal class only meant to be used by  :class:`Pool`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory, name=None, output=None):
-        self.__pipeline   = []
-        self.__do_measure = do_measure
-        self.__in_memory  = in_memory
-        self.__name       = name
-        self.__output     = output
-        self.__input      = None
+    def __init__(self, do_measure, in_memory, do_watch_ram, name=None, output=None):
+        self.__pipeline     = []
+        self.__do_measure   = do_measure
+        self.__in_memory    = in_memory
+        self.__do_watch_ram = do_watch_ram
+        self.__name         = name
+        self.__output       = output
+        self.__input        = None
 
     def __repr__(self):
         return self.name
@@ -527,12 +534,19 @@ class Pipeline:
         """
         return self.__output
 
+    @property
+    def shall_watch_ram(self):
+        """
+        Tells whether objects in RAM shall be watched for memory leaks.
+        """
+        return self.__do_watch_ram
+
     def push(self, otbstep: StepFactory):
         """
         Registers a StepFactory into the pipeline.
         """
         assert isinstance(otbstep, StepFactory)
-        self.__pipeline += [otbstep]
+        self.__pipeline.append(otbstep)
 
     def do_execute(self):
         """
@@ -552,9 +566,11 @@ class Pipeline:
         steps = [self.__input]
         for crt in self.__pipeline:
             step = crt.create_step(steps[-1], self.__in_memory, steps)
-            steps += [step]
+            steps.append(step)
 
-        return Outcome(steps[-1].out_filename)
+        res = steps[-1].out_filename
+        steps = None
+        return Outcome(res)
 
 
 # TODO: try to make it static...
@@ -565,6 +581,9 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     Returns the product filename(s) or the caught error in case of failure.
     """
     logger.debug('Parameters for %s: %s', pipeline, args)
+    watch_ram = pipeline.shall_watch_ram
+    if watch_ram:
+        objgraph.show_growth(limit=5)
     try:
         assert len(args) == 1
         for arg in args[0]:
@@ -575,7 +594,20 @@ def execute4dask(pipeline, *args, **unused_kwargs):
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
         logger.info('Execute %s', pipeline)
-        return pipeline.do_execute().add_related_filename(pipeline.output)
+        res = pipeline.do_execute().add_related_filename(pipeline.output)
+        pipeline = None
+
+        if watch_ram:
+            objgraph.show_growth()
+
+            # all_objects = muppy.get_objects()
+            # sum1 = summary.summarize(all_objects)
+            # summary.print_(sum1)
+            w = get_worker()
+            if not hasattr(w, 'tracker'):
+                w.tr = tracker.SummaryTracker()
+            w.tr.print_diff()
+        return res
     except Exception as ex:  # pylint: disable=broad-except
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('Parameters for %s were: %s', pipeline, args)
@@ -636,13 +668,13 @@ class PipelineDescription:
         """
         return self.__is_product_required
 
-    def instanciate(self, file, do_measure, in_memory):
+    def instanciate(self, file, do_measure, in_memory, do_watch_ram):
         """
         Instanciates the pipeline specified.
 
         Note: It systematically register a :class:`Store` step at the end.
         """
-        pipeline = Pipeline(do_measure, in_memory, self.name, file)
+        pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, file)
         for factory_step in self.__factory_steps + [Store('noappname')]:
             pipeline.push(factory_step)
         return pipeline
@@ -657,7 +689,7 @@ def to_dask_key(pathname):
     return Path(pathname).stem.replace('-', '_')
 
 
-def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
+def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
     """
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
@@ -671,7 +703,7 @@ def generate_first_steps_from_manifest(raster_list, tile_name, dryrun):
                     manifest=manifest,
                     basename=image,
                     dryrun=dryrun)
-            inputs += [start.meta]
+            inputs.append(start.meta)
     return inputs
 
 
@@ -707,9 +739,9 @@ class PipelineDescriptionSequence:
     def _build_dependencies(self, tile_name, raster_list, dryrun):
         """
         Runs the inputs through all pipeline descriptions to build the full list
-        of intermediary and final products and what they required to be built.
+        of intermediary and final products and what they require to be built.
         """
-        inputs = generate_first_steps_from_manifest(
+        inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
                 dryrun=dryrun)
@@ -723,7 +755,7 @@ class PipelineDescriptionSequence:
             next_inputs = []
             for input in inputs:
                 expected = pipeline.expected(input)
-                next_inputs += [expected]
+                next_inputs.append(expected)
                 expected_pathname = expected['out_pathname']
                 if os.path.isfile(expected_pathname):
                     previous[expected_pathname] = False  # File exists
@@ -744,7 +776,7 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', path)
         return required, previous
 
-    def _build_tasks_from_dependencies(self, required, previous, debug_otb):  # pylint: disable=no-self-use
+    def _build_tasks_from_dependencies(self, required, previous, debug_otb, do_watch_ram):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -760,7 +792,7 @@ class PipelineDescriptionSequence:
                 task_inputs = previous[file]['inputs']
                 # logger.debug('%s --> %s', file, task_inputs)
                 input_files = [to_dask_key(m['out_filename']) for m in task_inputs]
-                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True)
+                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True, do_watch_ram)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
                 if debug_otb:
                     tasks.append([base_file, (execute4dask, pipeline_instance, input_files)])
@@ -779,7 +811,7 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
-    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False):
+    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False, do_watch_ram=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -798,7 +830,8 @@ class PipelineDescriptionSequence:
         tasks = self._build_tasks_from_dependencies(
                 required=required,
                 previous=previous,
-                debug_otb=debug_otb)
+                debug_otb=debug_otb,
+                do_watch_ram=do_watch_ram)
 
         for final_product in final_products:
             assert debug_otb or final_product in tasks.keys()
@@ -888,20 +921,18 @@ class StoreStep(_StepWithOTBApplication):
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
-            # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
-            with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
-                if not self.meta.get('dryrun', False):
-                    # TODO: catch execute failure, and report it!
-                    # logger.info("START %s", pipeline_name)
-                    with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
-                        # For OTB application execution, redirect stdout/stderr messages to
-                        # s1tiling.OTB
-                        self._app.SetParameterString(
-                                self.param_out,
-                                self.tmp_filename + out_extended_filename_complement(self.meta))
-                        self._app.ExecuteAndWriteOutput()
-                    commit_otb_application(self.tmp_filename, self.out_filename)
+        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
+            if not self.meta.get('dryrun', False):
+                # TODO: catch execute failure, and report it!
+                # logger.info("START %s", pipeline_name)
+                with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
+                    # For OTB application execution, redirect stdout/stderr
+                    # messages to s1tiling.OTB
+                    self._app.SetParameterString(
+                            self.param_out,
+                            self.tmp_filename + out_extended_filename_complement(self.meta))
+                    self._app.ExecuteAndWriteOutput()
+                commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not self.meta.get('dryrun', False):
             for hook in self.meta['post']:
                 hook(self.meta)
@@ -1020,9 +1051,10 @@ class PoolOfOTBExecutions:
         """
         Register a new pipeline.
         """
-        in_memory = kwargs.get('in_memory', True)
-        pipeline = Pipeline(self.__do_measure, in_memory)
-        self.__pool += [pipeline]
+        in_memory    = kwargs.get('in_memory', True)
+        do_watch_ram = kwargs.get('do_watch_ram', False)
+        pipeline = Pipeline(self.__do_measure, in_memory, do_watch_ram)
+        self.__pool.append(pipeline)
         return pipeline
 
     def process(self):

@@ -151,6 +151,33 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
+def discard_small_redundant(products, id=None):
+    """
+    Sometimes there are several S1 product with the same start date, but a different end-date.
+    Let's discard the smallest products
+    """
+    if not products:
+        return products
+    if not id:
+        id = lambda name: name
+    prod_re = re.compile(r'S1._IW_...._...._(\d{8}T\d{6})_(\d{8}T\d{6}).*')
+
+    ordered_products = sorted(products, key=lambda p: id(p))
+    res = [ordered_products[0]]
+    last, _ = prod_re.match(id(res[0])).groups()
+    for product in ordered_products[1:]:
+        start, end = prod_re.match(id(product)).groups()
+        if last == start:
+            # We can suppose the new end date to be >
+            # => let's replace
+            logger.warning('Discarding %s that is smallest than %s', res[-1], product)
+            res[-1] = product
+        else:
+            res.append(product)
+            last = start
+    return res
+
+
 class S1FileManager:
     """ Class to manage processed files (downloads, checks) """
     def __init__(self, cfg):
@@ -169,10 +196,10 @@ class S1FileManager:
 
         self._ensure_workspaces_exist()
         self.processed_filenames = self.get_processed_filenames()
-        self._update_s1_img_list()
 
         self.first_date = cfg.first_date
         self.last_date  = cfg.last_date
+        self._update_s1_img_list()
         if self.cfg.download:
             logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
             self._dag = EODataAccessGateway(self.cfg.eodagConfig)
@@ -267,7 +294,8 @@ class S1FileManager:
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
-            tile_out_dir, tile_name, polarization):
+            tile_out_dir, tile_name, polarization,
+            searched_items_per_page, dryrun):
         """
         Process with the call to eodag download.
         """
@@ -278,14 +306,23 @@ class S1FileManager:
                 'latmin': latmin,
                 'latmax': latmax
                 }
-        products, _ = dag.search(
-                productType=product_type,
-                start=first_date, end=last_date,
-                box=extent,
-                # If we have eodag v1.6, we try to filter product during the search request
-                polarizationMode=polarization,
-                sensorMode="IW"
-                )
+        products = []
+        page = 1
+        while True:
+            page_products, _ = dag.search(
+                    page=page, items_per_page=searched_items_per_page,
+                    productType=product_type,
+                    start=first_date, end=last_date,
+                    box=extent,
+                    # If we have eodag v1.6, we try to filter product during the search request
+                    polarizationMode=polarization,
+                    sensorMode="IW"
+                    )
+            logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
+            products += page_products
+            page += 1
+            if len(page_products) < searched_items_per_page:
+                break
         logger.info("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
@@ -301,12 +338,19 @@ class S1FileManager:
             return []
 
         # Filter out products that either:
+        # - are overlapped by bigger ones
+        #   Sometimes there are several S1 product with the same start
+        #   date, but a different end-date.  Let's discard the
+        #   smallest products
+        products = discard_small_redundant(products, id=lambda p: p.as_dict()['id'])
+        logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
+
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
         products = [p for p in products
                 if not p.as_dict()['id'] in self.product_list
                 ]
-        logger.debug("%s remote S1 product(s) are not found in the cache: %s", len(products), products)
+        logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
             return []
         # - or for which we found matching dates
@@ -328,6 +372,10 @@ class S1FileManager:
         if not products:  # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
             return []
+        if dryrun:
+            paths = [p.as_dict()['id'] for p in products] # TODO: return real name
+            logger.info("Remote S1 products would have been saved into %s", paths)
+            return paths
         paths = dag.download_all(
                 products[:],  # pass a copy because eodag modifies the list
                 )
@@ -343,7 +391,7 @@ class S1FileManager:
                 pass
         return paths
 
-    def download_images(self, tiles=None):
+    def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -371,7 +419,9 @@ class S1FileManager:
                         self.first_date, self.last_date,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
                         tile_name,
-                        self.cfg.polarisation)
+                        self.cfg.polarisation,
+                        searched_items_per_page=searched_items_per_page,
+                        dryrun=dryrun)
         self._update_s1_img_list()
 
     def _update_s1_img_list(self):
@@ -386,7 +436,9 @@ class S1FileManager:
 
         self.raw_raster_list = []
         self.product_list    = []
-        content = list_dirs(self.cfg.raw_directory)
+        content = list_dirs(self.cfg.raw_directory, 'S1*')  # get rid of `.download` on the-fly
+        content = [d for d in content if self.is_product_in_time_range(d.path)]
+        content = discard_small_redundant(content, id=lambda d: d.name)
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
@@ -446,7 +498,7 @@ class S1FileManager:
         layer = Layer(self.cfg.output_grid)
 
         # Loop on images
-        for image in self.raw_raster_list:
+        for image in self.get_raster_list():
             manifest = image.get_manifest()
             poly = get_shape(manifest)
 
@@ -460,17 +512,18 @@ class S1FileManager:
                         tiles.append(tile_name)
         return tiles
 
-    def is_manifest_in_time_range(self, manifest):
+    def is_product_in_time_range(self, product):
         """
-        Returns whether the manifest name is within time range [first_date, last_date]
+        Returns whether the product name is within time range [first_date, last_date]
         """
         prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T\d{6}.*')
-        manipath = os.path.basename(os.path.dirname(manifest))
-        YY, MM, DD = prod_re.match(manipath).groups()
-        start = '%s-%s-%s' % (YY, MM, DD)
+        path = os.path.basename(product)
+        logger.debug('prod: %s', path)
+        YYYY, MM, DD = prod_re.match(path).groups()
+        start = '%s-%s-%s' % (YYYY, MM, DD)
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
-                manipath, is_in_range, self.first_date, start, self.last_date)
+                path, is_in_range, self.first_date, start, self.last_date)
         return is_in_range
 
     def get_s1_intersect_by_tile(self, tile_name_field):
@@ -498,10 +551,8 @@ class S1FileManager:
 
         tile_footprint = current_tile.GetGeometryRef()
 
-        for image in self.raw_raster_list:
+        for image in self.get_raster_list():
             logger.debug('- Manifest: %s', image.get_manifest())
-            if not self.is_manifest_in_time_range(image.get_manifest()):
-                continue
             logger.debug('  Image list: %s', image.get_images_list())
             if len(image.get_images_list()) == 0:
                 logger.critical("Problem with %s", image.get_manifest())
