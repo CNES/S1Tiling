@@ -26,11 +26,12 @@ def pytest_addoption(parser):
     parser.addoption("--tmpdir",      action="store",      default=crt_dir/'tmp',                      type=dir_path, help="Directory where the temporary files will be generated. Don't forget to clean it eventually.")
     parser.addoption("--srtmdir",     action="store",      default=os.getenv('SRTM_DIR', '$SRTM_DIR'), type=dir_path, help="Directory where SRTM files are - default: $SRTM_DIR")
     parser.addoption("--download",    action="store_true", default=False, help="Download the input files with eodag instead of using the compressed ones from the baseline. If true, raw S1 products will be downloaded into {tmpdir}/inputs")
+    parser.addoption("--watch_ram",   action="store_true", default=False, help="Watch memory usage")
 
 def pytest_generate_tests(metafunc):
     # This is called for every test. Only get/set command line arguments
     # if the argument is specified in the list of test "fixturenames".
-    option_list = ['baselinedir', 'srtmdir', 'download', 'outputdir', 'tmpdir']
+    option_list = ['baselinedir', 'srtmdir', 'download', 'outputdir', 'tmpdir', 'watch_ram']
     for option in option_list:
         value = getattr(metafunc.config.option, option)
         # print("%s ===> %s // %s" % (option, value, option in metafunc.fixturenames))

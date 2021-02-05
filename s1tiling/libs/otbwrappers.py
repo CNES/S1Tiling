@@ -127,17 +127,21 @@ class AnalyseBorders(StepFactory):
         #     north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
         #     south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
 
-        ds_reader = gdal.Open(meta['out_filename'])
-        xsize = ds_reader.RasterXSize
-        ysize = ds_reader.RasterYSize
-        north = ds_reader.ReadAsArray(0, 100, xsize, 1)
-        south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
-        del(ds_reader)
-        ds_reader = None
 
         if self.__override_azimuth_cut_threshold_to is None:
+            ds_reader = gdal.Open(meta['out_filename'])
+            xsize = ds_reader.RasterXSize
+            ysize = ds_reader.RasterYSize
+            north = ds_reader.ReadAsArray(0, 100, xsize, 1)
+            south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
             crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
             crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+            del south
+            del north
+            del ds_reader
+            south = None
+            north = None
+            ds_reader = None
         else:
             crop1 = self.__override_azimuth_cut_threshold_to
             crop2 = self.__override_azimuth_cut_threshold_to
@@ -468,6 +472,7 @@ class OrthoRectify(StepFactory):
         else:
             date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
+        del dst
 
 
 class Concatenate(StepFactory):
