@@ -273,8 +273,15 @@ def process_one_tile(
 
 
 # Main code
-@click.command()
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.version_option()
+@click.option(
+        "--cache-before-ortho/--no-cache-before-ortho",
+        is_flag=True,
+        default=False,
+        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
+
+        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
 @click.option(
         "--searched_items_per_page",
         default=20,
@@ -297,7 +304,7 @@ def process_one_tile(
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, config_filename):
+def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -347,8 +354,12 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, con
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
         pipelines = PipelineDescriptionSequence(config)
-        pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
-        pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
+        if cache_before_ortho:
+            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
+            pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
+        else:
+            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False)
+
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
