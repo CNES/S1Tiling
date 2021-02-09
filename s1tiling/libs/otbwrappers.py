@@ -43,6 +43,7 @@ import otbApplication as otb
 
 from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
 from . import Utils
+from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling')
 
@@ -455,7 +456,7 @@ class OrthoRectify(StepFactory):
         dst = gdal.Open(fullpath, gdal.GA_Update)
 
         dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
-        dst.SetMetadataItem('PROCESSED_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d')))
+        dst.SetMetadataItem('TIFFTAG_DATETIME',           str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
         dst.SetMetadataItem('ORTHORECTIFIED',             'true')
         dst.SetMetadataItem('CALIBRATION',                str(meta['calibration_type']))
         dst.SetMetadataItem('SPATIAL_RESOLUTION',         str(self.__out_spatial_res))
@@ -464,6 +465,8 @@ class OrthoRectify(StepFactory):
         dst.SetMetadataItem('POLARIZATION',               meta['polarisation'])
         dst.SetMetadataItem('ORBIT',                      meta['orbit'])
         dst.SetMetadataItem('ORBIT_DIRECTION',            meta['orbit_direction'])
+        dst.SetMetadataItem('TIFFTAG_SOFTWARE',           'S1 Tiling v'+__version__)
+        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION',   'Orthorectified Sentinel-'+meta['flying_unit_code'][1:].upper()+' IW GRD on S2 tile')
 
         acquisition_time = meta['acquisition_time']
         date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
