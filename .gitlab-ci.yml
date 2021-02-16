@@ -5,6 +5,11 @@ variables:
 # image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-base
 image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
 
+cache:
+    # Required to keep artifacts from old builds, e.g. from master
+    paths:
+    - public
+
 .common-doc:
     variables:
         CPLUS_INCLUDE_PATH: /usr/include/gdal
@@ -53,7 +58,7 @@ pages:
     stage: deploy
     script:
     - sphinx-build -b html -d _build/doctrees docs _build/html -v
-    - ls public
+    - ls
     - mkdir public
     - rm -rf public/${CI_COMMIT_REF_NAME}
     - mv _build/html public/${CI_COMMIT_REF_NAME}
