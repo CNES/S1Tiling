@@ -53,6 +53,7 @@ pages:
     stage: deploy
     script:
     - sphinx-build -b html -d _build/doctrees docs _build/html -v
+    - ls public
     - mkdir public
     - rm -rf public/${CI_COMMIT_REF_NAME}
     - mv _build/html public/${CI_COMMIT_REF_NAME}
