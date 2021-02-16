@@ -1,0 +1,67 @@
+variables:
+    BUILD_IMAGE_REGISTRY: $CI_REGISTRY/orfeotoolbox/otb-build-env
+    LC_ALL: C.UTF-8
+
+# image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-base
+image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
+
+.common-doc:
+    variables:
+        CPLUS_INCLUDE_PATH: /usr/include/gdal
+        C_INCLUDE_PATH: /usr/include/gdal
+        LD_LIBRARY_PATH: /opt/otb/lib:${LD_LIBRARY_PATH}
+        PYTHONPATH: /opt/otb/lib/otb/python:${PYTHONPATH}
+        OTB_APPLICATION_PATH: /opt/otb/lib/otb/applications:${OTB_APPLICATION_PATH}
+    before_script:
+    ## doc generation requires S1Tiling through autodoc
+    # => We need to be able to install S1Tiling
+    #- find /opt/otb
+    - apt-get install libgdal-dev
+    # - gdal-config --version
+    - curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+    - python3 --version
+    - python3 get-pip.py
+    - python3 -m pip install virtualenv
+    - virtualenv S1TilingEnv
+    - source S1TilingEnv/bin/activate
+    - python3 -m pip install "gdal==$(gdal-config --version)"
+    - python -c "from osgeo import gdal ; print(gdal.__version__)"
+    - python3 -m pip install .[docs]
+
+
+# Test the documentation compiles
+test:
+    extends: .common-doc
+    stage: test
+    script:
+    - sphinx-build -b html -d _build/doctrees docs _build/html -v
+    - mkdir -p test
+    - echo "CI_PIPELINE_ID=${CI_PIPELINE_ID}"
+    - mv _build/html test/${CI_PIPELINE_ID}
+    artifacts:
+        name: "$CI_PIPELINE_ID"
+        paths:
+        - test
+        expire_in: 5 days
+    except:
+    - master
+    - develop
+
+# Upload latest documentation when develop/master branches are updated
+pages:
+    extends: .common-doc
+    stage: deploy
+    script:
+    - sphinx-build -b html -d _build/doctrees docs _build/html -v
+    - mkdir public
+    - rm -r public/${CI_COMMIT_REF_NAME}
+    - mv _build/html public/${CI_COMMIT_REF_NAME}
+    - rm latest
+    # Automatically symlink 'latest' to latest version, or develop
+    - ln -s $((\ls -1vd *.* 2> /dev/null || echo develop) | tail -1) latest
+    artifacts:
+        paths:
+        - public
+    only:
+    - master
+    - develop
