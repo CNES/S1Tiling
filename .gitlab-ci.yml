@@ -54,7 +54,7 @@ pages:
     script:
     - sphinx-build -b html -d _build/doctrees docs _build/html -v
     - mkdir public
-    - rm -r public/${CI_COMMIT_REF_NAME}
+    - rm -rf public/${CI_COMMIT_REF_NAME}
     - mv _build/html public/${CI_COMMIT_REF_NAME}
     - rm latest
     # Automatically symlink 'latest' to latest version, or develop
