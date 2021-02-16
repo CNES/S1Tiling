@@ -57,9 +57,9 @@ pages:
     extends: .common-doc
     stage: deploy
     script:
+    # - ls
     - sphinx-build -b html -d _build/doctrees docs _build/html -v
-    - ls
-    - mkdir public
+    - mkdir -p public
     - rm -rf public/${CI_COMMIT_REF_NAME}
     - mv _build/html public/${CI_COMMIT_REF_NAME}
     - rm -f latest
