@@ -18,6 +18,7 @@
 #
 import os
 import sys
+import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('..'))
 
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(os.path.realpath(__file__))))
@@ -25,22 +26,27 @@ metadata = {}
 with open(os.path.join(BASEDIR, "s1tiling", "__meta__.py"), "r") as f:
     exec(f.read(), metadata)
 
+# Customize read the docs theme a bit with a custom css
+# and a custom version selection widget
+# taken from https://stackoverflow.com/a/43186995/5815110
+def setup(app):
+    # app.add_stylesheet("css/otb_theme.css")
+    app.add_javascript("js/versions.js")
 
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#
 # needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc",
+    'sphinx.ext.autodoc',
     "sphinx.ext.autosectionlabel",
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-    "sphinx.ext.viewcode",
+    'sphinx.ext.viewcode',
     'm2r2'
 ]
 
@@ -99,11 +105,12 @@ todo_include_todos = True
 # html_theme = 'nature'
 # html_theme = 'bizstyle'
 html_theme = 'sphinx_rtd_theme'
+# Add any paths that contain custom themes here, relative to this directory.
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#
 html_theme_options = {
     # "show_prev_next": False,
     # 'stickysidebar': True,
