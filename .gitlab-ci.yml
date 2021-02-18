@@ -51,6 +51,7 @@ test:
     except:
     - master
     - develop
+    - /^[0-9]+\.[0-9]+.*/
 
 # Upload latest documentation when develop/master branches are updated
 pages:
@@ -64,3 +65,4 @@ pages:
     only:
     - master
     - develop
+    - /^[0-9]+\.[0-9]+.*/
