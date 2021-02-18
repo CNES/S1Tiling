@@ -12,10 +12,10 @@ S1Tiling |release| -- documentation
 :raw-html:`<a class="reference external image-reference" href="https://badge.fury.io/py/s1tiling" rel="nofollow"><img src="https://badge.fury.io/py/s1tiling.svg" type="image/svg+xml"></a>`
 |Badge doc|
 :raw-html:`<br>`
-|Licence|
+|License|
 |Python Versions|
 
-.. |Licence| image:: https://img.shields.io/pypi/l/s1tiling.svg
+.. |License| image:: https://img.shields.io/pypi/l/s1tiling.svg
    :target: https://pypi.org/project/s1tiling/
 
 .. |Python Versions| image:: https://img.shields.io/pypi/pyversions/s1tiling.svg
@@ -33,6 +33,7 @@ On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
    dataflow
    files
    HAL
+   release_notes
 
 .. toctree::
    :maxdepth: 3
