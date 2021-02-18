@@ -76,7 +76,7 @@ author = metadata['__author__']
 version = metadata['__version__']
 # The full version, including alpha/beta/rc tags.
 release = version
-git_version = subprocess.check_output('git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD', shell=True).strip().decode('ascii')
+git_version = os.environ.get('CI_PIPELINE_ID') or subprocess.check_output('git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD', shell=True).strip().decode('ascii')
 version = git_version
 
 print('git_version: %s' % (git_version,))
