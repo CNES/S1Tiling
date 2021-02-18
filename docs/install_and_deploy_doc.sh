@@ -92,22 +92,35 @@ _is_set CI_COMMIT_REF_NAME  \
 
 echo "Installing documentation for v:${version} in ${public}"
 
+[[ "${version}" =~ ^[0-9]+(\.[0-9]+)*$ ]] && is_full_tag=1 || is_full_tag=0
+echo "Is this a non-release-candidate tag? ${is_full_tag}"
+
 # Generate doc in _build
+echo "Build documentation"
 _execute sphinx-build -b html -d _build/doctrees docs _build/html -v
 
 # Make sure public exists
+echo "Move documentation into '${public}/'" directory
 _mkdir "${public}"
 
 # Move result in public/${version]
 _rmdir "${public}/${version}"
 _execute mv _build/html "${public}/${version}"
 
+# When releasing a new official version, remove release candidates
+# expect version tag =~ 'M.m.p'
+# expect RC tag =~ 'M.m.p-rcX'
+if [ ${is_full_tag} -eq 1 ] ; then
+    echo "This is a new relase. Removing release candidates ${version}-* ..."
+    _rmdir "${public}/${version}-"*
+fi
+
 # Prepare latest/ as a copy of the latest version
 # (using a copy instead of a symlonk because gitlab-ci or gitlab-pages don't
 # seem to support symlink)
 # Automatically symlink 'latest' to latest version, or develop
-latest=$(((find public  -maxdepth 1 -mindepth 1 -type d -name "*.*" | grep  .) 2> /dev/null || echo develop) | sort -V | tail -1)
-echo "Latest version found: ${latest}"
+latest=$(((find "${public}"  -maxdepth 1 -mindepth 1 -type d -name "*.*" -printf "%P\n" | grep  .) 2> /dev/null || echo develop) | sort -V | tail -1)
+echo "Latest version found: '${latest}'"
 if [ "${latest}" = "${version}" ] ; then
     echo " => update ${public}/latest"
     _rmdir "${public}/latest"
@@ -115,6 +128,7 @@ if [ "${latest}" = "${version}" ] ; then
 fi
 
 # Generate list of versions
+echo "Generate 'versions.html' menu"
 _execute "$(_current_dir)"/list_versions.py "${public}"
 
 # Make sure that public/index.html is redirected

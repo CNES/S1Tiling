@@ -81,13 +81,14 @@ tag_re = re.compile(r'^\d+\.\d+.*')
 match = tag_re.match(git_version)
 if match:
     # Releasing a tag
-    release = version
-    release_badge = version
+    print('This is a tag: %s'% (git_version,))
+    release = git_version
 else:
     # Releasing a branch
+    print('This is a branch: %s'% (git_version,))
     release = version+'-'+git_version
-    release_badge = version+'--'+git_version
 version = git_version
+release_badge = release.replace('-', '--')
 
 print('git_version: %s' % (git_version,))
 

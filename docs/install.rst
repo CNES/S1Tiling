@@ -63,7 +63,7 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
     cd OTB-7.2.0-Linux64
     source otbenv.profile
     # Load module on HAL
-    module load gcc    
+    module load gcc
     ctest3 -S share/otb/swig/build_wrapping.cmake -VV
 
 Conflicts between rasterio default wheel and OTB binaries
