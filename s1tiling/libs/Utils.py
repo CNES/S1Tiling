@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2020 (c) CESBIO. All rights reserved.
+#   Copyright 2017-2021 (c) CESBIO. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -239,7 +239,7 @@ class ExecutionTimer:
 
 def list_files(directory, pattern=None):
     """
-    Efficient listing of files in current directory.
+    Efficient listing of files in requested directory.
 
     This version shall be faster than glob to isolate files only as it keeps in "memory"
     the kind of the entry without needing to stat() the entry again.
@@ -258,7 +258,7 @@ def list_files(directory, pattern=None):
 
 def list_dirs(directory, pattern=None):
     """
-    Efficient listing of sub-directories in current directory.
+    Efficient listing of sub-directories in requested directory.
 
     This version shall be faster than glob to isolate directories only as it keeps in
     "memory" the kind of the entry without needing to stat() the entry again.

@@ -1,5 +1,5 @@
 /*
- *   Copyright 2017-2020 (c) CESBIO. All rights reserved.
+ *   Copyright 2017-2021 (c) CESBIO. All rights reserved.
  *
  *   This file is part of S1Tiling project
  *       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -49,6 +49,7 @@ window.addEventListener('load', function() {
     };
 
     var versions_div_url = "_static/html/versions.html";
+    // var versions_div_url = "../versions.html";
 
     // If we are hosted on OTB website, get the latest version of the widget from
     // develop so that past releases can show links to future ones
