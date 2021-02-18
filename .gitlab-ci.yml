@@ -57,7 +57,7 @@ pages:
     extends: .common-doc
     stage: deploy
     script:
-    - doc/install_and_deploy_doc.sh public
+    - docs/install_and_deploy_doc.sh public
     artifacts:
         paths:
         - public
