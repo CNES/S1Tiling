@@ -57,14 +57,7 @@ pages:
     extends: .common-doc
     stage: deploy
     script:
-    # - ls
-    - sphinx-build -b html -d _build/doctrees docs _build/html -v
-    - mkdir -p public
-    - rm -rf public/${CI_COMMIT_REF_NAME}
-    - mv _build/html public/${CI_COMMIT_REF_NAME}
-    - rm -f latest
-    # Automatically symlink 'latest' to latest version, or develop
-    - ln -s $((\ls -1vd *.* 2> /dev/null || echo develop) | tail -1) latest
+    - doc/install_and_deploy_doc.sh public
     artifacts:
         paths:
         - public

@@ -7,9 +7,9 @@
     <div class="rst-other-versions">
         <dl>
             <dt>Versions</dt>
-            <dd><a href="https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/0.2.0/">0.2.0</a></dd>
-            <!-- <dd><a href="https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/1.0/">1.0.0</a></dd> -->
-            <dd><a href="https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/develop/">develop</a></dd>
+            {% for version in versions %}
+            <dd><a href="https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/{{ version }}/">{{ version }}</a></dd>
+            {% endfor %}
         </dl>
     </div>
 </div>

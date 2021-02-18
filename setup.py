@@ -103,6 +103,7 @@ setup(
             ],
         "docs": [
             "sphinx == 1.8.0",
+            "natsort",
             "nbsphinx == 0.3.5",
             "nbsphinx-link == 1.1.1",
             "m2r2",
@@ -131,7 +132,7 @@ setup(
 
     project_urls={
             "Bug Tracker": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues",
-            "Documentation": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
+            "Documentation": "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest",
             "Source Code": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
             },
 

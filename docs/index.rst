@@ -6,7 +6,7 @@
 .. role:: raw-html(raw)
     :format: html
 
-S1Tiling -- documentation!
+S1Tiling |release| -- documentation
 ====================================
 
 .. :raw-html:`<a class="reference external image-reference" href="https://badge.fury.io/py/s1tiling" rel="nofollow"><img src="https://badge.fury.io/py/s1tiling.svg" type="image/svg+xml"></a>`
