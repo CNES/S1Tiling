@@ -127,6 +127,12 @@ if [ "${latest}" = "${version}" ] ; then
     _execute cp -r "${public}/${latest}" "${public}/latest"
 fi
 
+# Create _redirects file
+echo "Create '${public}/_redirects'"
+cat > "${public}/_redirects" << EOF
+/s1tiling/ /s1tiling/latest/
+EOF
+
 # Generate list of versions
 echo "Generate 'versions.html' menu"
 _execute "$(_current_dir)"/list_versions.py "${public}"
