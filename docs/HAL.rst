@@ -323,10 +323,10 @@ PBS job file
 
     #!/bin/bash
     #PBS -N job-s1tiling
-    #PBS -l select=1:ncpus=20
+    #PBS -l select=1:ncpus=20:mem=40gb
     #PBS -l walltime=1:00:00
 
-    # NB: default memory: 5Gb par cpu is enough
+    # NB: Using 5Gb per cpu
 
     # The number of allocated CPUs is in the select parameter let's extract it
     # automatically
