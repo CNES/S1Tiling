@@ -9,13 +9,17 @@
 S1Tiling |release| -- documentation
 ====================================
 
-.. :raw-html:`<a class="reference external image-reference" href="https://badge.fury.io/py/s1tiling" rel="nofollow"><img src="https://badge.fury.io/py/s1tiling.svg" type="image/svg+xml"></a>`
-.. :raw-html:`<a class="reference external image-reference" href="https://s1tiling.readthedocs.io/en/latest/" rel="nofollow"><img alt="https://readthedocs.org/projects/pip/badge/?version=latest&amp;style=flat" src="https://readthedocs.org/projects/pip/badge/?version=latest&amp;style=flat"></a>`
-.. :raw-html:`<br>`
+:raw-html:`<a class="reference external image-reference" href="https://badge.fury.io/py/s1tiling" rel="nofollow"><img src="https://badge.fury.io/py/s1tiling.svg" type="image/svg+xml"></a>`
+|Badge doc|
+:raw-html:`<br>`
+|Licence|
+|Python Versions|
 
-:raw-html:`<a class="reference external image-reference" href="https://pypi.org/project/s1tiling/" rel="nofollow"><img src="https://img.shields.io/pypi/l/s1tiling.svg" type="image/svg+xml"></a>`
-:raw-html:`<a class="reference external image-reference" href="https://pypi.org/project/s1tiling/" rel="nofollow"><img src="https://img.shields.io/pypi/pyversions/s1tiling.svg" type="image/svg+xml"></a>`
+.. |Licence| image:: https://img.shields.io/pypi/l/s1tiling.svg
+   :target: https://pypi.org/project/s1tiling/
 
+.. |Python Versions| image:: https://img.shields.io/pypi/pyversions/s1tiling.svg
+   :target: https://pypi.org/project/s1tiling/
 
 On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
