@@ -30,8 +30,9 @@
 import os
 import sys
 from natsort import natsorted
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+SCRIPTDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
 def list_dirs(directory, pattern=None):
     """
@@ -59,8 +60,9 @@ if __name__ == '__main__':
         sys.exit(1)
     root = sys.argv[1]
     dirs = list_dirs(root)
+    print('Loading templates from %s', (SCRIPTDIR+"/_static/html",))
     env = Environment(
-            loader=PackageLoader("s1tiling", "../docs/_static/html"),
+            loader=FileSystemLoader(SCRIPTDIR+"/_static/html"),
             autoescape=select_autoescape(['html', 'xml']),
             trim_blocks=True, lstrip_blocks=True # don't add new line, keep indent
             )
