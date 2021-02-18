@@ -5,11 +5,6 @@ variables:
 # image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-base
 image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
 
-cache:
-    # Required to keep artifacts from old builds, e.g. from master
-    paths:
-    - public
-
 .common-doc:
     variables:
         CPLUS_INCLUDE_PATH: /usr/include/gdal
@@ -57,6 +52,11 @@ test:
 pages:
     extends: .common-doc
     stage: deploy
+    cache:
+        # Required to keep artifacts from old builds, e.g. from master
+        key: "public"
+        paths:
+        - public
     script:
     # Check cache
     - ls public || echo "Oups| public/ hasn't been cached"
