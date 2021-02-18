@@ -59,7 +59,7 @@ pages:
         - public
     script:
     # Check cache
-    - ls public || echo "Oups| public/ hasn't been cached"
+    - ls public && echo "public/ has been cached" || echo "Oups| public/ hasn't been cached"
     - docs/install_and_deploy_doc.sh public
     artifacts:
         paths:
