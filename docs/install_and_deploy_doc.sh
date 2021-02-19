@@ -112,7 +112,7 @@ _execute mv _build/html "${public}/${version}"
 # expect RC tag =~ 'M.m.p-rcX'
 if [ ${is_full_tag} -eq 1 ] ; then
     echo "This is a new relase. Removing release candidates ${version}-* ..."
-    _rmdir "${public}/${version}-"*
+    _execute rm -r "${public}/${version}"[a-zAZ_-]* || true
 fi
 
 # Prepare latest/ as a copy of the latest version
