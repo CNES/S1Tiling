@@ -76,3 +76,6 @@ Breaking changes
     - a few options have changed (``[DataSource]`` section)
 
 - No script is provided yet to run S1Tiling on several nodes
+
+- Multitemporal speckle filtering has been removed from S1Tiling processing. Users have to apply their own speckle filtering, according their needs (for example with OTB applications OTBDespeckle or with remote modules OTBMultitempFilterOutcore and OTBMultitempFilterFiltering)
+
