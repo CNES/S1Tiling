@@ -1,0 +1,71 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Document
+*.doc diff=astextplain
+*.DOC diff=astextplain
+*.docx diff=astextplain
+*.DOCX diff=astextplain
+*.dot diff=astextplain
+*.DOT diff=astextplain
+*.odt diff=astextplain
+*.pdf diff=astextplain
+*.PDF diff=astextplain
+*.rtf diff=astextplain
+*.RTF diff=astextplain
+*.md text
+*.rst text
+*.csv text
+*.xls text
+*.txt text
+
+# Configuration / Properties
+*.cfg text
+*.launch text
+*.prefs text
+*.project text
+*.properties text
+*.pydevproject text
+*.pylintrc_project text
+*.toml text
+
+# Graphics
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.tif binary
+*.tiff binary
+*.ico binary
+*.svg binary
+*.eps binary
+
+# Code
+*.bat text
+*.c text
+*.cmake text
+*.cpp text
+*.css text
+*.cxx text
+*.df text
+*.f text
+*.h text
+*.htm text
+*.html text
+*.in text
+*.java text
+*.js text
+*.json text
+*.jsp text
+*.jspf text
+*.jspx text
+*.ksh text
+*.py text
+*.py3 text
+*.sh text
+*.sql text
+*.txx text
+*.xml text
+*.xsd text
+*.yml text
+
