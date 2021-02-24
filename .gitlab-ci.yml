@@ -1,6 +1,8 @@
 variables:
     BUILD_IMAGE_REGISTRY: $CI_REGISTRY/orfeotoolbox/otb-build-env
     LC_ALL: C.UTF-8
+    # Set pip's cache inside the project directory since we can only cache local items
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 # image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-base
 image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
@@ -12,7 +14,14 @@ image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
         LD_LIBRARY_PATH: /opt/otb/lib:${LD_LIBRARY_PATH}
         PYTHONPATH: /opt/otb/lib/otb/python:${PYTHONPATH}
         OTB_APPLICATION_PATH: /opt/otb/lib/otb/applications:${OTB_APPLICATION_PATH}
+    cache:
+        key: packages
+        paths:
+        - $CI_PROJECT_DIR/.cache/pip
+        - S1TilingEnv
+
     before_script:
+    - mkdir -p "${PIP_CACHE_DIR}"
     ## doc generation requires S1Tiling through autodoc
     # => We need to be able to install S1Tiling
     #- find /opt/otb
