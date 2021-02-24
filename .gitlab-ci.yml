@@ -66,11 +66,11 @@ pages:
     script:
     - mkdir public
     # TODO: lock access to public
-    - rclone copy s3_otb:www public || echo "Oups| no www/ on S3"
+    - rclone copy s3_otb:s1-tiling/www public || echo "Oups| no www/ on S3"
     # Check cache
     - ls public
     - docs/install_and_deploy_doc.sh public
-    - rclone copy public s3_otb:www
+    - rclone copy public s3_otb:s1-tiling/www
     artifacts:
         paths:
         - public
