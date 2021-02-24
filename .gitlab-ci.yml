@@ -17,7 +17,8 @@ image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
     # => We need to be able to install S1Tiling
     #- find /opt/otb
     - apt update
-    - yes | apt-get install libgdal-dev rclone
+    - yes | apt-get install libgdal-dev rclone || echo "WHY???"
+    - which rclone
     # - gdal-config --version
     - curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
     - python3 --version
