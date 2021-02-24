@@ -65,7 +65,6 @@ pages:
     stage: deploy
     script:
     - mkdir public
-    - rclone --config "${RCLONE_CONFIG_FILENAME}"
     # TODO: lock access to public
     - rclone copy s3_otb:www public || echo "Oups| no www/ on S3"
     # Check cache
