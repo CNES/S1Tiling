@@ -52,18 +52,20 @@ test:
 pages:
     extends: .common-doc
     stage: deploy
-    cache:
-        # Required to keep artifacts from old builds, e.g. from master
-        key: "public"
-        paths:
-        - public
     script:
+    - mkdir public
+    - rclone config "${RCLONE_CONFIG_FILENAME}"
+    # TODO: lock access to public
+    - rclone copy s3_otb:www public || echo "Oups| no www/ on S3"
     # Check cache
-    - ls public && echo "public/ has been cached" || echo "Oups| public/ hasn't been cached"
+    - ls public
     - docs/install_and_deploy_doc.sh public
+    - rclone copy public s3_otb:www
     artifacts:
         paths:
         - public
+    environment:
+        name: generate_docs
     only:
     - master
     - develop
