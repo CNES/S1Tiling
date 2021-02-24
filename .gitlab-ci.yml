@@ -16,7 +16,7 @@ image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
     ## doc generation requires S1Tiling through autodoc
     # => We need to be able to install S1Tiling
     #- find /opt/otb
-    - apt-get install libgdal-dev
+    - apt-get install libgdal-dev rclone
     # - gdal-config --version
     - curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
     - python3 --version
