@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import re
 import subprocess
+import logging
 from osgeo import gdal
 
+re_TIFFTAG_SOFTWARE = r'(.*) \bv\d+\.\d+.*'
 
 def otb_compare(baseline, result):
     """
@@ -16,6 +19,7 @@ def otb_compare(baseline, result):
     print(args)
     return subprocess.call(args)
 
+
 def comparable_metadata(image):
     """
     Return the metadata from the specified image minus
@@ -26,10 +30,20 @@ def comparable_metadata(image):
     ds = gdal.Open(str(image))
     md = ds.GetMetadata()
     del ds
-    if 'PROCESSED_DATETIME' in md:
-        del md['PROCESSED_DATETIME']
-    del md['TIFFTAG_DATETIME']
+
+    md.pop('TIFFTAG_DATETIME',  None)
+    md.pop('PROCESSED_DATETIME', None)
+
+    if 'TIFFTAG_SOFTWARE' in md:
+        # logging.error('PERFECT')
+        ts = re.sub(re_TIFFTAG_SOFTWARE, r'\1', md['TIFFTAG_SOFTWARE'])
+        logging.info('TIFFTAG_SOFTWARE changed from "%s" to "%s" [in "%s"]' % (md['TIFFTAG_SOFTWARE'], ts, image))
+        md['TIFFTAG_SOFTWARE'] = ts
+    else:
+        logging.error('WHY???')
+
     return md
+
 
 def metadata_compare(baseline, result):
     """
