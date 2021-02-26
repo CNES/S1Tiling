@@ -436,7 +436,7 @@ class S1FileManager:
 
         self.raw_raster_list = []
         self.product_list    = []
-        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD')  # get rid of `.download` on the-fly
+        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # get rid of `.download` on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
         content = discard_small_redundant(content, id=lambda d: d.name)
 
