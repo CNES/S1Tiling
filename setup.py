@@ -57,7 +57,7 @@ setup(
     version                       = metadata["__version__"],
     description                   = metadata["__description__"],
     long_description              = readme,
-    long_description_content_type = "text/markdown"
+    long_description_content_type = "text/markdown",
     author                        = metadata["__author__"],
     author_email                  = metadata["__author_email__"],
     url                           = metadata["__url__"],
