@@ -53,15 +53,16 @@ with open(os.path.join(BASEDIR, "README.md"), "r") as f:
     readme = f.read()
 
 setup(
-    name             = metadata["__title__"],
-    version          = metadata["__version__"],
-    description      = metadata["__description__"],
-    long_description = readme,
-    author           = metadata["__author__"],
-    author_email     = metadata["__author_email__"],
-    url              = metadata["__url__"],
-    license          = metadata["__license__"],
-    keywords         = "Sentinel-1, Sentinel-2, orthorectification",
+    name                          = metadata["__title__"],
+    version                       = metadata["__version__"],
+    description                   = metadata["__description__"],
+    long_description              = readme,
+    long_description_content_type = "text/markdown",
+    author                        = metadata["__author__"],
+    author_email                  = metadata["__author_email__"],
+    url                           = metadata["__url__"],
+    license                       = metadata["__license__"],
+    keywords                      = "Sentinel-1, Sentinel-2, orthorectification",
 
     # Liste les packages à insérer dans la distribution
     # plutôt que de le faire à la main, on utilise la fonction

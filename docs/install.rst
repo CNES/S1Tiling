@@ -29,7 +29,7 @@ version.
     install gdal=={vernum}` to work correctly.
   - You'll also have to **patch** ``otbenv.profile`` to **insert** OTB ``lib/``
     directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will permit
-    ``python -c 'from osgeo import gdal'`` to work correctly.
+    ``python3 -c 'from osgeo import gdal'`` to work correctly.
 
 - In case you've compiled OTB from sources, you shouldn't have this kind of
   troubles.
@@ -69,31 +69,48 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
 Conflicts between rasterio default wheel and OTB binaries
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-We have found a compatibility issue between OTB and default rasterio
-packaging. The kind that produces:
+.. note::
+   **TL;DR** In the case you install **other programs alongside S1Tiling** in
+   the same environment, then use :program:`pip` with ``--no-binary rasterio``
+   parameter.
+
+   The current version of S1Tiling doesn't depend on any package that requires
+   ``rasterio``, and thus ``pip install s1tiling`` is enough.
+
+
+The following paragraph applies **only** in case you install other Python
+programs alongside S1Tiling in the same environment.
+
+We had found a compatibility issue between OTB and default rasterio packaging.
+The kind that produces:
 
 .. code-block:: none
 
     Unable to open EPSG support file gcs.csv
 
-The problem comes from:
+The problem came from:
 
 - OTB binaries that come with GDAL 3.1 and that set :envvar:`$GDAL_DATA` to
   the valid path in OTB binaries,
 - and GDAL 2.5+ that no longer ships :file:`gcs.csv`,
-- and rasterio (required by eodag) wheel that is statically built with gdal
-  2.4.4 `(at this time: November 2020)
-  <https://github.com/rasterio/rasterio-wheels/blob/master/env_vars.sh#L11>`_
 - and GDAL 2.4.4 that requires :file:`gcs.csv` in :envvar:`$GDAL_DATA`
+- and rasterio (used to be required by eodag 1.x) wheel that was statically
+  built with gdal 2.4.4
 
-Either we can globally change :envvar:`$GDAL_DATA` to rasterio's one (which
-requires an extra step, and which may introduce other problems), or we can
-force rasterio to depend on GDAL library shipped with OTB. As a consequence ...
+Either we could have globally changed :envvar:`$GDAL_DATA` to rasterio's one
+(which requires an extra step, and which may introduce other problems), or we
+could have forced rasterio to depend on GDAL library shipped with OTB.
 
-.. important::
+Since December 15th 2020 `rasterio wheel
+<https://github.com/rasterio/rasterio-wheels/blob/master/env_vars.sh#L11>`_
+depends on GDAL 3.2, while OTB binaries depend on GDAL 3.1. We are not sure
+there aren't any compatibility issues between both versions.
 
-    We recommend to use :program:`pip` with ``--no-binary rasterio``
-    parameter.
+As a consequence,
+if you are in this situation where you need S1Tiling, or may be just OTB, plus
+any other package that relies on rasterio, then we highly recommend to use
+:program:`pip` with ``--no-binary rasterio`` parameter to force OTB version of
+GDAL and rasterio version of GDAL to be identical.
 
 
 S1 Tiling installation
@@ -105,7 +122,7 @@ Then you can install S1 Tiling thanks to `pip`.
 
     # First go into a virtual environment (optional)
     # a- It could be a python virtual environment
-    python -m venv myS1TilingEnv
+    python3 -m venv myS1TilingEnv
     cd myS1TilingEnv
     source bin/activate
     # b- or a conda virtual environment
@@ -117,21 +134,17 @@ Then you can install S1 Tiling thanks to `pip`.
     python -m pip install --upgrade setuptools
 
     # Finally, install S1 Tiling
-    python -m pip install --use-feature=2020-resolver s1tiling --no-binary rasterio
+    #   Note: older versions of pip used to require --use-feature=2020-resolver
+    #   to install S1Tiling to resolve `click` version that `eodag` also uses.
+    python -m pip install s1tiling
 
     # Or, developper-version if you plan to work on S1 Tiling source code
     mkdir whatever && cd whatever
     git clone git@gitlab.orfeo-toolbox.org:s1-tiling/s1tiling.git
     cd s1tiling
-    python -m pip install -r requirements-dev.txt --use-feature=2020-resolver
-
-.. note::
-
-    We have noted that the new ``--use-feature=2020-resolver`` helps resolve
-    ``click`` version that eodag also uses.
+    python -m pip install -r requirements-dev.txt
 
 .. note::
 
     The :file:`requirements*.txt` files already force rasterio wheel to be
     ignored.
-

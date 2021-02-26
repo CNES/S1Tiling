@@ -9,11 +9,16 @@
 S1Tiling |release| -- documentation
 ====================================
 
-:raw-html:`<a class="reference external image-reference" href="https://badge.fury.io/py/s1tiling" rel="nofollow"><img src="https://badge.fury.io/py/s1tiling.svg" type="image/svg+xml"></a>`
+:raw-html:`<script type='text/javascript' src='https://www.openhub.net/p/S1Tiling/widgets/project_users_logo?format=js'></script>`
+:raw-html:`<br>`
+|Badge Fury|
 |Badge doc|
 :raw-html:`<br>`
 |License|
 |Python Versions|
+
+.. |Badge Fury| image:: https://badge.fury.io/py/S1Tiling.svg
+   :target: https://badge.fury.io/py/S1Tiling
 
 .. |License| image:: https://img.shields.io/pypi/l/s1tiling.svg
    :target: https://pypi.org/project/s1tiling/

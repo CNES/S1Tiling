@@ -39,11 +39,8 @@ make it easier for users to use.
 
 # Installation
 
-S1Tiling installation has a few traps. Please read the relevant documentation
-on [docs/install.rst] regarding:
-
-- OTB and GDAL installation
-- Rasterio that needs to be installed from sources
+S1Tiling installation has a few traps. Please read the [relevant documentation](https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest/install.html)
+regarding OTB and GDAL installation.
 
 ## Requirements
 
@@ -82,9 +79,12 @@ https://docs.dask.org/en/latest/setup/single-distributed.html
 >   See the License for the specific language governing permissions and
 >   limitations under the License.
 
-## Contributors (according to master branch on http://tully.ups-tlse.fr/koleckt/s1tiling/commits/master/s1tiling)
+## Contributors
+
+(according to master branch on http://tully.ups-tlse.fr/koleckt/s1tiling/commits/master/s1tiling)
+
 - Thierry KOLECK (CNES)
-- Luc HERMITTE (CS Group)
+- Luc HERMITTE (CS Group FRANCE)
 - Guillaume EYNARD-BONTEMPS (CNES)
 - Julien MICHEL (CNES)
 - Lesly SYLVESTRE (CNES)
