@@ -101,6 +101,7 @@ setup(
             "flake8",
             "pre-commit",
             "pytest-check",
+            "pytest-icdiff",
             ],
         "docs": [
             "sphinx == 1.8.0",
