@@ -46,6 +46,7 @@ On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
    contribute
    developers
+   how-to-developers
    testing
 
 Indices and tables
