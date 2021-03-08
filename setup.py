@@ -82,7 +82,6 @@ setup(
         "gdal=="+request_gdal_version(),
         "graphviz",
         "numpy",
-        "ogr",
         "objgraph", # leaks
         "pympler", # leaks
         "pyyaml",
