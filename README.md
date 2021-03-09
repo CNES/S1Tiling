@@ -51,7 +51,6 @@ regarding OTB and GDAL installation.
   * eodag
   * numpy
   * gdal
-  * rasterio
   * yaml
   * Dask"distributed"
   * bokeh (to display Dask dashboard)
