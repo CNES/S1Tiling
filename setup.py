@@ -28,8 +28,10 @@
 # =========================================================================
 
 import os
-from setuptools import setup, find_packages
 import subprocess
+
+from setuptools import setup, find_packages
+
 
 # Import the library to make sure there is no side effect
 import s1tiling
@@ -102,6 +104,7 @@ setup(
             "pre-commit",
             "pytest-check",
             "pytest-icdiff",
+            "pylint",
             ],
         "docs": [
             "sphinx == 1.8.0",
