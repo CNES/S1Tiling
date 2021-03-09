@@ -50,7 +50,7 @@ regarding OTB and GDAL installation.
   * click
   * eodag
   * numpy
-  * gdal, ogr
+  * gdal
   * rasterio
   * yaml
   * Dask"distributed"
