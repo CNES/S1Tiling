@@ -31,6 +31,12 @@ version.
     directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will permit
     ``python3 -c 'from osgeo import gdal'`` to work correctly.
 
+        .. code-block:: bash
+
+            # For instance, type this, once!
+            echo 'LD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' > otbenv.profile
+
+
 - In case you've compiled OTB from sources, you shouldn't have this kind of
   troubles.
 
