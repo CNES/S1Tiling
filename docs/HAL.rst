@@ -14,7 +14,9 @@ Installation on HAL
 
 There are mainly two x two ways to install S1Tiling on HAL.
 
-Let's start from the following context:
+If one wants to install S1Tiling from sources instead of pipy, it could be done
+from the following context. Then, in later steps, use ``"${S1TILING_SRC_DIR}"``
+instead of ``s1tiling`` as ``pip`` parameter.
 
 .. code:: bash
 
@@ -46,7 +48,7 @@ Let's start from the following context:
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
-    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install --use-feature=2020-resolver "${S1TILING_SRC_DIR}" --no-binary rasterio
+    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install s1tiling
 
     deactivate
     ml purge
@@ -84,7 +86,7 @@ To use it
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
-    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install --use-feature=2020-resolver "${S1TILING_SRC_DIR}" --no-binary rasterio
+    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install s1tiling
 
     conda deactivate
     ml purge
@@ -127,6 +129,12 @@ project) environment.
     # Patches LD_LIBRARY_PATH
     echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.2.0-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.2.0-Linux64/otbenv.profile
 
+.. note::
+
+   :file:`gdal-config`  is either available from the sources
+   (``${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config``) or to download
+   from :download:`here: gdal-config <../s1tiling/resources/gdal-config>`.
+
 ...and with conda
 ~~~~~~~~~~~~~~~~~
 
@@ -158,7 +166,7 @@ for the chosen version of Python.
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
-    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install --use-feature=2020-resolver "${S1TILING_SRC_DIR}" --no-binary rasterio
+    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install s1tiling
 
     conda deactivate
     ml purge
@@ -209,7 +217,7 @@ for the chosen version of Python.
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
-    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install --use-feature=2020-resolver "${S1TILING_SRC_DIR}" --no-binary rasterio
+    TMPDIR=/work/scratch/${USER}/tmp/ python -m pip install s1tiling
 
     deactivate
     ml purge

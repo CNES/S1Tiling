@@ -257,11 +257,11 @@ files. Yet, this is not the default behaviour. Indeed at this time, S1-Tiling
 cannot know when an "OrthoReady" file is no longer required, nor organize the
 processing of S1 images to help deleting those temporary files as soon as
 possible. In other words, it's up to you to clean these temporary files, and to
-make sure to not request too many S2 tiles on too important time ranges.
+make sure to not request too many S2 tiles on long time ranges.
 
 That's why the default behaviour is to process "OrthoReady" product in memory.
 Also, this is not necessarily a big performance issue.
-Indeed, given OTB internals, producing an orthorectified S1 image unto a S2
+Indeed, given OTB internals, producing an orthorectified S1 image onto a S2
 tile does not calibrate the whole S1 image, but only the minimal region
 overlapped by the S2 tile.
 

@@ -154,3 +154,10 @@ Then you can install S1 Tiling thanks to `pip`.
 
     The :file:`requirements*.txt` files already force rasterio wheel to be
     ignored.
+
+Extra packages
+--------------
+
+You may want to install extra packages like `bokeh
+<https://pypi.org/project/bokeh/>`_ to monitor the execution of the multiple
+processing by Dask.

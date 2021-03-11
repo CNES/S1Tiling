@@ -267,12 +267,12 @@ You can use this :download:`this template
   * - ``nb_parallel_processes``
     - Number of processes to be running in :ref:`parallel <parallelization>`
       |br|
-      This number defines the number of Dask Taks (and indirectly of OTB
+      This number defines the number of Dask Tasks (and indirectly of OTB
       applications) to be executed in parallel.
 
       .. note::
-        For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
-        be <= to the number of cores on the machine.
+        For optimal performances, ``nb_parallel_processes*nb_otb_threads``
+        should be <= to the number of cores on the machine.
 
       .. _Processing.ram_per_process:
   * - ``ram_per_process``
@@ -283,8 +283,8 @@ You can use this :download:`this template
     - Numbers of threads used by each OTB application. |br|
 
       .. note::
-        For an optimal performance, ``nb_parallel_processes*nb_otb_threads`` should
-        be <= to the number of cores on the machine.
+        For optimal performances, ``nb_parallel_processes*nb_otb_threads``
+        should be <= to the number of cores on the machine.
 
       .. _Processing.override_azimuth_cut_threshold_to:
   * - ``override_azimuth_cut_threshold_to``
