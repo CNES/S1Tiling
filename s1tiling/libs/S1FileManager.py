@@ -40,6 +40,8 @@ import sys
 import tempfile
 import zipfile
 import numpy as np
+import multiprocessing as mp
+import time
 
 from osgeo import ogr
 from eodag.api.core import EODataAccessGateway
@@ -291,6 +293,7 @@ class S1FileManager:
                 shutil.rmtree(safe, ignore_errors=True)
             self._update_s1_img_list()
 
+
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
@@ -376,9 +379,23 @@ class S1FileManager:
             paths = [p.as_dict()['id'] for p in products] # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
-        paths = dag.download_all(
-                products[:],  # pass a copy because eodag modifies the list
-                )
+
+        paths=[]
+        p_download = mp.Process(target=self._download_process, args=(dag,products[:],paths,))
+        p_download.start()
+        time.sleep(30)
+        while p_download.is_alive():
+            p_unzip = mp.Process(target=self._unzip_process)
+            p_unzip.start()
+            p_unzip.join()
+            time.sleep(5)
+
+        p_download.join()
+        p_unzip = mp.Process(target=self._unzip_process)
+        p_unzip.start()
+        p_unzip.join()
+        
+        
         # paths returns the list of .SAFE directories
         logger.info("Remote S1 products saved into %s", paths)
         # And clean temporary files
@@ -390,6 +407,27 @@ class S1FileManager:
             except OSError:
                 pass
         return paths
+
+
+    def _download_process(self, dag, products, paths):
+        paths = dag.download_all(
+                products,  # pass a copy because eodag modifies the list
+                )
+
+
+    def _unzip_process(self):
+        """This method handles unzipping of product archives"""
+        
+        for file_it in list_files(self.cfg.raw_directory, '*.zip'):
+            #logger.debug("unzipping %s", file_it.name)
+            try:
+                with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
+
+                    zip_ref.extractall(os.path.join(self.cfg.raw_directory,os.path.basename(file_it.path)[:-4]))
+                logger.debug("unzipped %s", file_it.name)    
+                os.remove(file_it.path)
+            except:
+                pass
 
     def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
