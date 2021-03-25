@@ -411,7 +411,7 @@ class S1FileManager:
 
     def _download_process(self, dag, products, paths):
         paths = dag.download_all(
-                products,  # pass a copy because eodag modifies the list
+                products, extract=False  # pass a copy because eodag modifies the list
                 )
 
 
