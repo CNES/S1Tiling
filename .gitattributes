@@ -40,8 +40,11 @@
 *.svg binary
 *.eps binary
 
+# Windows CMD does not like LF in batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 # Code
-*.bat text
 *.c text
 *.cmake text
 *.cpp text
