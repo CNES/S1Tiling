@@ -14,8 +14,8 @@
 *.pyc
 
 # Binary directory
-BUILD*
-build*
+BUILD/*
+build/*
 
 #data
 data/Output/*.tif
