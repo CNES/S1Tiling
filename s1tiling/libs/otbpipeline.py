@@ -404,6 +404,8 @@ class StepFactory(ABC):
         meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
         meta.pop('task_name', None)
         meta.pop('task_basename', None)
+        meta.pop('update_out_filename', None)
+        meta.pop('out_extended_filename_complement', None)
         return meta
 
     def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
@@ -808,7 +810,6 @@ class PipelineDescriptionSequence:
             next_inputs = []
             for input in inputs:
                 expected = pipeline.expected(input)
-                next_inputs.append(expected)
                 expected_taskname = get_task_name(expected)
                 logger.debug('  %s <-- from input: %s', expected_taskname, input)
                 logger.debug('  --> %s', expected)
@@ -819,14 +820,17 @@ class PipelineDescriptionSequence:
                 # time. Unrequired parts will be trimmed in the next task
                 # producing step.
                 if expected_taskname not in previous:
+                    next_inputs.append(expected)
                     previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
-                # elif input['out_filename'] not in (m['out_filename'] for m in previous[expected_taskname]['inputs']):
                 elif get_task_name(input) not in (get_task_name(m) for m in previous[expected_taskname]['inputs']):
                     previous[expected_taskname]['inputs'].append(input)
-                    # logger.debug('UPDATING (%s)', expected)
+                    logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation. Updating %s ...', expected_taskname, expected)
                     update_out_filename(expected, previous[expected_taskname])
+                    logger.debug('...to (%s)', expected)
+                    already_registered_next_input = [ni for ni in next_inputs if get_task_name(ni) == expected_taskname]
+                    assert len(already_registered_next_input) == 1
+                    update_out_filename(already_registered_next_input[0], previous[expected_taskname])
                 if pipeline.product_is_required:
-                    # required.add(expected_taskname)
                     required[expected_taskname] = expected
                 task_names_to_output_files_table[expected_taskname] = out_filename(expected)
             inputs = next_inputs
@@ -880,10 +884,10 @@ class PipelineDescriptionSequence:
                     tn = get_task_name(t)
                     logger.debug('processing task %s', t)
                     if not product_exists(t):
-                        logger.debug('  => Need to register production of %s (for %s)', tn, previous[task_name]['pipeline'].name)
+                        logger.info('  => Need to register production of %s (for %s)', tn, previous[task_name]['pipeline'].name)
                         new_required.add(tn)
                     else:
-                        logger.debug('  => Starting %s from existing %s', previous[task_name]['pipeline'].name, tn)
+                        logger.info('  => Starting %s from existing %s', previous[task_name]['pipeline'].name, tn)
                         register_task(tasks, to_dask_key(tn), FirstStep(**t), debug_otb)
             required = new_required
         return tasks

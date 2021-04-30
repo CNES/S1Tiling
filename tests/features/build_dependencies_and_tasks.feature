@@ -3,74 +3,78 @@ Feature: Dependencies and Tasks
     Existing products shall be analysed
     to deduce tasks to execute
 
-    Scenario: Orthorectify and concatenate two S1 images
+    Examples:
+        |builds        | a  |
+        |doesn't build | no |
+        |builds        | a  |
+
+    Background:
         Given A pipeline that calibrates and orthorectifies
         And   that concatenates
+
+    #@txxxxxx_mask
+    Scenario Outline: Orthorectify and concatenate two S1 images
+        Given that <builds> masks
         And   two S1 images
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a txxxxxx S2 file is required
-        And   it depends on 2 ortho files (and two S1 inputs)
-        And   a concatenation task is registered and produces txxxxxxx S2 file
+        Then  a txxxxxx S2 file is required, and <a> mask is required
+        And   it depends on 2 ortho files (and two S1 inputs), and <a> mask on a concatenated product
+        And   a concatenation task is registered and produces txxxxxxx S2 file and <a> mask
         And   two orthorectification tasks are registered
 
-    @chrono
-    Scenario: Orthorectify and concatenate a single S1 image
-        Given A pipeline that calibrates and orthorectifies
-        And   that concatenates
+    Scenario Outline: Orthorectify and concatenate a single S1 image
+        Given that <builds> masks
         And   a single S1 image
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a t-chrono S2 file is required
-        And   it depends on one ortho file (and one S1 input)
-        And   a concatenation task is registered and produces t-chrono S2 file
-        And   a single orthorectification tasks is registered
+        Then  a t-chrono S2 file is required, and <a> mask is required
+        And   it depends on one ortho file (and one S1 input), and <a> mask on a concatenated product
+        And   a concatenation task is registered and produces t-chrono S2 file, and <a> mask
+        And   a single orthorectification task is registered
         But   dont orthorectify the second product
 
-    Scenario: Orthorectify a single S1 image and concatenate it to a tmp FullOrtho
-        Given A pipeline that calibrates and orthorectifies
-        And   that concatenates
+    Scenario Outline: Orthorectify a single S1 image and concatenate it to a tmp FullOrtho
+        Given that <builds> masks
         And   a single S1 image
         And   a FullOrtho tmp image
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a txxxxxx S2 file is required
-        And   it depends on 2 ortho files (and two S1 inputs)
-        And   a concatenation task is registered and produces txxxxxxx S2 file
-        And   a single orthorectification tasks is registered
+        Then  a txxxxxx S2 file is required, and <a> mask is required
+        And   it depends on 2 ortho files (and two S1 inputs), and <a> mask on a concatenated product
+        And   a concatenation task is registered and produces txxxxxxx S2 file and <a> mask
+        And   a single orthorectification task is registered
         And   it depends on the existing FullOrtho tmp product
 
-    Scenario: concatenate two tmp FullOrtho
-        Given A pipeline that calibrates and orthorectifies
-        And   that concatenates
+    Scenario Outline: concatenate two tmp FullOrtho
+        Given that <builds> masks
         And   two FullOrtho tmp images
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a txxxxxx S2 file is required
-        And   it depends on 2 ortho files (and two S1 inputs)
-        And   a concatenation task is registered and produces txxxxxxx S2 file
+        Then  a txxxxxx S2 file is required, and <a> mask is required
+        And   it depends on 2 ortho files (and two S1 inputs), and <a> mask on a concatenated product
+        And   a concatenation task is registered and produces txxxxxxx S2 file and <a> mask
         And   no orthorectification tasks is registered
         And   it depends on two existing FullOrtho tmp products
 
-    Scenario: concatenate a single tmp FullOrtho
-        Given A pipeline that calibrates and orthorectifies
-        And   that concatenates
-        And   a FullOrtho tmp image
+    Scenario Outline: concatenate a single tmp FullOrtho
+        Given that <builds> masks
+        And    a FullOrtho tmp image
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a t-chrono S2 file is required
-        And   it depends on second ortho file (and second S1 input)
-        And   a concatenation task is registered and produces t-chrono S2 file
+        Then  a t-chrono S2 file is required, and <a> mask is required
+        And   it depends on second ortho file (and second S1 input), and <a> mask on a concatenated product
+        And   a concatenation task is registered and produces t-chrono S2 file, and <a> mask
         And   no orthorectification tasks is registered
         And   it depends on the existing FullOrtho tmp product
 
