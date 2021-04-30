@@ -26,15 +26,15 @@ image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
     # => We need to be able to install S1Tiling
     #- find /opt/otb
     - apt-get -y update
-    - apt-get -y install libgdal-dev rclone
+    - apt-get -y upgrade
+    - apt-get -y install libgdal-dev rclone python3-pip
     - which rclone
     # - gdal-config --version
-    - curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
     - python3 --version
-    - python3 get-pip.py
     - python3 -m pip install virtualenv
     - virtualenv S1TilingEnv
     - source S1TilingEnv/bin/activate
+    - python3 -m pip install --upgrade pip
     - python3 -m pip install "gdal==$(gdal-config --version)"
     - python -c "from osgeo import gdal ; print(gdal.__version__)"
     - python3 -m pip install .[docs]

@@ -16,6 +16,7 @@
 # Binary directory
 BUILD/*
 build/*
+_build/
 
 #data
 data/Output/*.tif
@@ -33,3 +34,13 @@ CMakeLists.txt.user*
 # back-up files when conflicts occur
 *.orig
 *.save
+
+# S1Tiling byproducts and python packaging
+*.log
+dask-worker-space
+tmp/
+public/
+.cache/
+.config/
+*egg-info/
+dist/
