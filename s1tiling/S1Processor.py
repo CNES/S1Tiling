@@ -374,6 +374,7 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
         else:
             client = None
 
+        log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
         for idx, tile_it in enumerate(tiles_to_process_checked):
             with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
@@ -384,12 +385,24 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
                         debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
                 results += res
 
-        logger.info('Execution report:')
+        nb_error_detected = 0
+        for res in results:
+            if not bool(res):
+                nb_error_detected += 1
+
+        if nb_error_detected > 0:
+            logger.warning('Execution report: %s errors detected', nb_error_detected)
+        else:
+            logger.info('Execution report: no error detected')
+
         if results:
             for res in results:
-                logger.info(' - %s', res)
+                logger.log(log_level(res), ' - %s', res)
         else:
             logger.info(' -> Nothing has been executed')
+
+        if nb_error_detected > 0:
+            sys.exit(66)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     main()
