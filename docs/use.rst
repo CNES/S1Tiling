@@ -37,6 +37,48 @@ Then
 
 .. index:: Request configuration file
 
+Process return code
+-------------------
+
+The following exist code are produced when :program:`S1Processor` returns:
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 1
+
+  * - Exit code
+    - Description
+
+  * - 0
+    - Execution successful
+  * - 66
+    - Some tasks could not be executed. See the final report in the main log.
+  * - 67
+    - .. todo::
+
+        Downloading error
+  * - 68
+    - .. todo::
+
+        Download incomplete (data not available online (`#71
+        <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_)
+  * - 69
+    - .. todo::
+
+        Output disk full
+  * - 70
+    - .. todo::
+
+        Cache disk full (when using option ``--cache-before-ortho``)
+  * - any other
+    - Unknown error. It could be related to `Bash
+      <https://www.redhat.com/sysadmin/exit-codes-demystified>`_ or to `Python
+      <https://docs.python.org/3/library/os.html#os._exit>`_ reserved error
+      codes.
+
+
+
 Request Configuration file
 --------------------------
 
@@ -377,3 +419,13 @@ Working on clusters
   By default S1Tiling works on single machines. Internally it relies on
   :py:class:`distributed.LocalCluster` a small adaptation would be required to
   work on a multi-nodes cluster.
+
+.. warning::
+
+  When executing multiple instances of S1Tiling simultaneously, make sure to
+  use different directories for:
+
+  - logs -- running S1Tiling in different directories, like :file:`$TMPDIR/`
+    on HAL, should be enough
+  - storing :ref:`input files <paths.s1_images>`, like for instance
+    :file:`$TMPDIR/data_raw/` on HAL for instance.
