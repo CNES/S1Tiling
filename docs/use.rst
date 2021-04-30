@@ -406,9 +406,7 @@ The following exist code are produced when :program:`S1Processor` returns:
   * - 66
     - Some tasks could not be executed. See the final report in the main log.
   * - 67
-    - .. todo::
-
-        Downloading error
+    - Downloading error. See the log produced.
   * - 68
     - .. todo::
 

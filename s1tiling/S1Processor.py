@@ -219,9 +219,13 @@ def process_one_tile(
 
     s1_file_manager.keep_X_latest_S1_files(1000)
 
-    with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-        s1_file_manager.download_images(tiles=tile_name,
-                searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+    try:
+        with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
+            s1_file_manager.download_images(tiles=tile_name,
+                    searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+    except BaseException as e:
+        logger.exception('Cannot download S1 images associated to %s', tile_name)
+        sys.exit(exits.DOWNLOAD_ERROR)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
