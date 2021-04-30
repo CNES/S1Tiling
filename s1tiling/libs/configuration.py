@@ -41,6 +41,7 @@ import pathlib
 import re
 import sys
 import yaml
+from s1tiling.libs import exits
 
 resource_dir = pathlib.Path(__file__).parent.parent.absolute() / 'resources'
 
@@ -117,11 +118,11 @@ class Configuration():
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
-            sys.exit(1)
+            sys.exit(exits.CONFIG_ERROR)
         self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
-            sys.exit(-1)
+            sys.exit(exits.CONFIG_ERROR)
         self.eodagConfig       = config.get('DataSource', 'eodagConfig', fallback=None)
         self.download          = config.getboolean('DataSource', 'download')
         self.ROI_by_tiles      = config.get('DataSource', 'roi_by_tiles')
@@ -135,7 +136,7 @@ class Configuration():
         else:
             logging.critical("Parameter [polarisation] must be HH-HV or VV-VH")
             logging.critical("Please correct it the config file ")
-            sys.exit(-1)
+            sys.exit(exits.CONFIG_ERROR)
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
@@ -147,12 +148,12 @@ class Configuration():
         self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
-            sys.exit(1)
+            sys.exit(exits.CONFIG_ERROR)
 
         self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm.shp'))
         if not os.path.isfile(self.SRTMShapefile):
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
-            sys.exit(-1)
+            sys.exit(exits.CONFIG_ERROR)
         self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
@@ -220,4 +221,4 @@ class Configuration():
             return F_Date, L_Date
         except Exception:  # pylint: disable=broad-except
             logging.critical("Invalid date")
-            sys.exit()
+            sys.exit(exits.CONFIG_ERROR)

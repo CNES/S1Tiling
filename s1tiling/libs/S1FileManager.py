@@ -47,6 +47,7 @@ from eodag.utils.logging import setup_logging
 
 from .Utils import get_shape, list_files, list_dirs
 from .S1DateAcquisition import S1DateAcquisition
+from s1tiling.libs import exits
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
@@ -560,7 +561,7 @@ class S1FileManager:
             if len(image.get_images_list()) == 0:
                 logger.critical("Problem with %s", image.get_manifest())
                 logger.critical("Please remove the raw data for %s SAFE file", image.get_manifest())
-                sys.exit(-1)
+                sys.exit(exits.CORRUPTED_DATA_SAFE)
 
             manifest = image.get_manifest()
             poly = get_shape(manifest)

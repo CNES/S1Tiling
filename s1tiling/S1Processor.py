@@ -67,6 +67,7 @@ from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from s1tiling.libs import exits
 
 # Graphs
 from s1tiling.libs.vis import SimpleComputationGraph
@@ -111,7 +112,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
         if cfg.download and "ALL" in cfg.roi_by_tiles:
             logger.critical("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
                     + " Change either value or deactivate download instead")
-            sys.exit(1)
+            sys.exit(exits.CONFIG_ERROR)
         else:
             tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
@@ -325,7 +326,7 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
         tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
         if len(tiles_to_process) == 0:
             logger.critical("No existing tiles found, exiting ...")
-            sys.exit(1)
+            sys.exit(exits.NO_S2_TILE)
 
         tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(tiles_to_process, s1_file_manager)
 
@@ -334,17 +335,17 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
 
         if len(tiles_to_process_checked) == 0:
             logger.critical("No tiles to process, exiting ...")
-            sys.exit(1)
+            sys.exit(exits.NO_S1_IMAGE)
 
         logger.info("Required SRTM tiles: %s", needed_srtm_tiles)
 
         if not check_srtm_tiles(config, needed_srtm_tiles):
             logger.critical("Some SRTM tiles are missing, exiting ...")
-            sys.exit(1)
+            sys.exit(exits.MISSING_SRTM)
 
         if not os.path.exists(config.GeoidFile):
             logger.critical("Geoid file does not exists (%s), exiting ...", config.GeoidFile)
-            sys.exit(1)
+            sys.exit(exits.MISSING_GEOID)
 
         # Prepare directories where to store temporary files
         # These directories won't be cleaned up automatically
@@ -402,7 +403,7 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
             logger.info(' -> Nothing has been executed')
 
         if nb_error_detected > 0:
-            sys.exit(66)
+            sys.exit(exits.TASK_FAILED)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     main()

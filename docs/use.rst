@@ -37,48 +37,6 @@ Then
 
 .. index:: Request configuration file
 
-Process return code
--------------------
-
-The following exist code are produced when :program:`S1Processor` returns:
-
-.. list-table::
-  :widths: auto
-  :header-rows: 1
-  :stub-columns: 1
-
-  * - Exit code
-    - Description
-
-  * - 0
-    - Execution successful
-  * - 66
-    - Some tasks could not be executed. See the final report in the main log.
-  * - 67
-    - .. todo::
-
-        Downloading error
-  * - 68
-    - .. todo::
-
-        Download incomplete (data not available online (`#71
-        <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_)
-  * - 69
-    - .. todo::
-
-        Output disk full
-  * - 70
-    - .. todo::
-
-        Cache disk full (when using option ``--cache-before-ortho``)
-  * - any other
-    - Unknown error. It could be related to `Bash
-      <https://www.redhat.com/sysadmin/exit-codes-demystified>`_ or to `Python
-      <https://docs.python.org/3/library/os.html#os._exit>`_ reserved error
-      codes.
-
-
-
 Request Configuration file
 --------------------------
 
@@ -429,3 +387,62 @@ Working on clusters
     on HAL, should be enough
   - storing :ref:`input files <paths.s1_images>`, like for instance
     :file:`$TMPDIR/data_raw/` on HAL for instance.
+
+Process return code
+-------------------
+
+The following exist code are produced when :program:`S1Processor` returns:
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 1
+
+  * - Exit code
+    - Description
+
+  * - 0
+    - Execution successful
+  * - 66
+    - Some tasks could not be executed. See the final report in the main log.
+  * - 67
+    - .. todo::
+
+        Downloading error
+  * - 68
+    - .. todo::
+
+        Download incomplete (data not available online (`#71
+        <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_)
+  * - 69
+    - .. todo::
+
+        Output disk full
+  * - 70
+    - .. todo::
+
+        Cache disk full (when using option ``--cache-before-ortho``)
+  * - 71
+    - An empty data safe has been found and needs to be removed so it can be
+      fetched again. See the log produced.
+  * - 72
+    - Error detected in the configuration file. See the log produced.
+  * - 73
+    - While ``ALL`` Sentinel-2 tiles for which there exist an overlapping
+      Sentinel-1 product have been requested, no Sentinel-1 product has been
+      found in the requested time range. See the log produced.
+  * - 74
+    - No Sentinel-1 product found that intersect the requested Sentinel-2 tiles
+      within the requested time range. See the log produced.
+  * - 75
+    - Cannot found all the SRTM products that cover the requested Sentinel-2
+      tiles. See the log produced.
+  * - 76
+    - Geoid file is missing or the specified path is incorrect. See the log
+      produced.
+
+  * - any other
+    - Unknown error. It could be related to `Bash
+      <https://www.redhat.com/sysadmin/exit-codes-demystified>`_ or to `Python
+      <https://docs.python.org/3/library/os.html#os._exit>`_ reserved error
+      codes.
