@@ -391,7 +391,7 @@ Working on clusters
 Process return code
 -------------------
 
-The following exist code are produced when :program:`S1Processor` returns:
+The following exit code are produced when :program:`S1Processor` returns:
 
 .. list-table::
   :widths: auto
@@ -404,7 +404,8 @@ The following exist code are produced when :program:`S1Processor` returns:
   * - 0
     - Execution successful
   * - 66
-    - Some tasks could not be executed. See the final report in the main log.
+    - Some OTB tasks could not be executed properly. See the final report in
+      the main log.
   * - 67
     - Downloading error. See the log produced.
   * - 68
@@ -427,17 +428,24 @@ The following exist code are produced when :program:`S1Processor` returns:
     - Error detected in the configuration file. See the log produced.
   * - 73
     - While ``ALL`` Sentinel-2 tiles for which there exist an overlapping
-      Sentinel-1 product have been requested, no Sentinel-1 product has been
-      found in the requested time range. See the log produced.
+      Sentinel-1 product have been :ref:`requested <DataSource.roi_by_tiles>`,
+      no Sentinel-1 product has been found in the :ref:`requested time range
+      <DataSource.first_date>`. See the log produced.
   * - 74
-    - No Sentinel-1 product found that intersect the requested Sentinel-2 tiles
-      within the requested time range. See the log produced.
+    - No Sentinel-1 product has been found that intersects the :ref:`requested
+      Sentinel-2 tiles <DataSource.roi_by_tiles>` within the :ref:`requested
+      time range <DataSource.first_date>`.
+
+      If :ref:`downloading <DataSource.download>` has been disabled, S1
+      products are searched in the :ref:`local input directory
+      <paths.s1_images>`.  See the log produced.
   * - 75
-    - Cannot found all the SRTM products that cover the requested Sentinel-2
-      tiles. See the log produced.
-  * - 76
-    - Geoid file is missing or the specified path is incorrect. See the log
+    - Cannot find all the :ref:`SRTM products <paths.srtm>` that cover the
+      :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`. See the log
       produced.
+  * - 76
+    - :ref:`Geoid file <paths.geoid_file>` is missing or the specified path is
+      incorrect. See the log produced.
 
   * - any other
     - Unknown error. It could be related to `Bash
