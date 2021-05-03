@@ -350,7 +350,8 @@ PBS job file
     # eventually. See the previous sections in the meantime.
     ml s1tiling
 
-    cd "${PBS_O_WORKDIR}"
+    mkdir -p "${PBS_O_WORKDIR}/${PBS_JOBID}"
+    cd "${PBS_O_WORKDIR}/${PBS_JOBID}"
     S1Processor S1Processor.cfg || {
         echo "Echec de l'exécution de programme" >&2
         exit 2
