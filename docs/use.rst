@@ -377,3 +377,78 @@ Working on clusters
   By default S1Tiling works on single machines. Internally it relies on
   :py:class:`distributed.LocalCluster` a small adaptation would be required to
   work on a multi-nodes cluster.
+
+.. warning::
+
+  When executing multiple instances of S1Tiling simultaneously, make sure to
+  use different directories for:
+
+  - logs -- running S1Tiling in different directories, like :file:`$TMPDIR/`
+    on HAL, should be enough
+  - storing :ref:`input files <paths.s1_images>`, like for instance
+    :file:`$TMPDIR/data_raw/` on HAL for instance.
+
+Process return code
+-------------------
+
+The following exit code are produced when :program:`S1Processor` returns:
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 1
+
+  * - Exit code
+    - Description
+
+  * - 0
+    - Execution successful
+  * - 66
+    - Some OTB tasks could not be executed properly. See the final report in
+      the main log.
+  * - 67
+    - Downloading error. See the log produced.
+  * - 68
+    - .. todo::
+
+        Download incomplete (data not available online (`#71
+        <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_)
+  * - 69
+    - .. todo::
+
+        Output disk full
+  * - 70
+    - .. todo::
+
+        Cache disk full (when using option ``--cache-before-ortho``)
+  * - 71
+    - An empty data safe has been found and needs to be removed so it can be
+      fetched again. See the log produced.
+  * - 72
+    - Error detected in the configuration file. See the log produced.
+  * - 73
+    - While ``ALL`` Sentinel-2 tiles for which there exist an overlapping
+      Sentinel-1 product have been :ref:`requested <DataSource.roi_by_tiles>`,
+      no Sentinel-1 product has been found in the :ref:`requested time range
+      <DataSource.first_date>`. See the log produced.
+  * - 74
+    - No Sentinel-1 product has been found that intersects the :ref:`requested
+      Sentinel-2 tiles <DataSource.roi_by_tiles>` within the :ref:`requested
+      time range <DataSource.first_date>`.
+
+      If :ref:`downloading <DataSource.download>` has been disabled, S1
+      products are searched in the :ref:`local input directory
+      <paths.s1_images>`.  See the log produced.
+  * - 75
+    - Cannot find all the :ref:`SRTM products <paths.srtm>` that cover the
+      :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`. See the log
+      produced.
+  * - 76
+    - :ref:`Geoid file <paths.geoid_file>` is missing or the specified path is
+      incorrect. See the log produced.
+
+  * - any other
+    - Unknown error. It could be related to `Bash
+      <https://www.redhat.com/sysadmin/exit-codes-demystified>`_ or to `Python
+      <https://docs.python.org/3/library/os.html#os._exit>`_ reserved error
+      codes.
