@@ -39,6 +39,7 @@ from abc import ABC, abstractmethod
 import logging
 import logging.handlers
 import multiprocessing
+import subprocess
 
 # memory leaks
 from distributed import get_worker
@@ -49,6 +50,24 @@ import otbApplication as otb
 from . import Utils
 
 logger = logging.getLogger('s1tiling')
+
+
+def otb_version():
+    """
+    Returns the current version on OTB (through a call to ResetMargin -version)
+    The result is cached
+    """
+    if not hasattr(otb_version, "_version"):
+        try:
+            r = subprocess.run(['otbcli_ResetMargin', '-version'], stdout=subprocess.PIPE , stderr=subprocess.STDOUT )
+            version = r.stdout.decode('utf-8').strip('\n')
+            version = re.search(r'\d+(\.\d+)+$', version)[0]
+            logger.info("OTB version detected on the system is %s", version)
+            otb_version._version = version
+        except Exception as ex:  # pylint: disable=broad-except
+            logger.exception(ex)
+            raise RuntimeError("Cannot determine current OTB version")
+    return otb_version._version
 
 
 def as_app_shell_param(param):
