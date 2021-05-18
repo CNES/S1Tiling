@@ -231,7 +231,7 @@ class Calibrate(StepFactory):
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
-                'noise'         : str(self.__removethermalnoise).lower()
+                'noise'         : self.__removethermalnoise
                 }
 
 
@@ -424,7 +424,7 @@ class OrthoRectify(StepFactory):
                 'opt.gridspacing'  : self.__grid_spacing,
                 'map'              : 'utm',
                 'map.utm.zone'     : int(out_utm_zone),
-                'map.utm.northhem' : str(out_utm_northern).lower(),
+                'map.utm.northhem' : out_utm_northern,
                 'outputs.ulx'      : x_coord,
                 'outputs.uly'      : y_coord,
                 'elev.dem'         : self.__tmp_srtm_dir,
