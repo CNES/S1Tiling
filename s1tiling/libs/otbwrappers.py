@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
+from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
 from . import Utils
 from ..__meta__ import __version__
 
@@ -288,7 +288,7 @@ class CutBorders(StepFactory):
         Returns the parameters to use with :std:doc:`ResetMargin OTB
         application <Applications/app_ResetMargin>`.
         """
-        return {
+        params = {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
@@ -297,6 +297,9 @@ class CutBorders(StepFactory):
                 'threshold.y.start': meta['cut']['threshold.y.start'],
                 'threshold.y.end'  : meta['cut']['threshold.y.end']
                 }
+        if otb_version() != '7.2.0':  # From 7.3.0 onward actually
+            params['mode'] = 'threshold'
+        return params
 
 
 class OrthoRectify(StepFactory):

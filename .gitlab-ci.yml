@@ -4,7 +4,7 @@ variables:
     # Set pip's cache inside the project directory since we can only cache local items
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.2.0
+image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
 
 .common:
     variables:
@@ -48,6 +48,9 @@ image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.2.0
 
 # Run tests
 pytest:
+    variables:
+        KUBERNETES_CPU_REQUEST: 4
+        KUBERNETES_MEMORY_REQUEST: 4Gi
     extends: .common-tests
     stage: test
     script:
