@@ -12,6 +12,8 @@ completely changed to enable multiple improvements and optimizations.
 Improvements
 ++++++++++++
 
+- Support OTB 7.3
+- Various return code after execution are now provided ((`#72 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/72>`_)
 - Improved architecture to help maintenance
 - Project stability has been improved
 
