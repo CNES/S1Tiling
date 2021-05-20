@@ -162,9 +162,13 @@ Here is a short list of the actions to do for each new release.
 
 9. Push to pipy
 
+  .. note::
+
+      You need an account on [PyPi](https://pypi.org/) with maintener level for S1Tiling project
+
   .. code::
 
-      python3 -m twine upload --repository s1tiling dist/S1Tiling-${version}*
+      python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
 10. Update :file:`__meta__.py` version to the next expected version.
     Do not use the `rcX` suffix for the moment.
