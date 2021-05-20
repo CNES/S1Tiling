@@ -86,7 +86,6 @@ test-doc:
 pages:
     extends: .common-doc
     stage: deploy
-    resource_group: documentation_cache
     script:
     - mkdir public
     # TODO: lock access to public
