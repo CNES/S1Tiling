@@ -57,9 +57,9 @@ class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid):
+    def __init__(self, grid, driver_name="ESRI Shapefile"):
         self.__grid        = grid
-        self.__driver      = ogr.GetDriverByName("ESRI Shapefile")
+        self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
         self.__layer       = self.__data_source.GetLayer()
 
@@ -605,7 +605,7 @@ class S1FileManager:
           A list of tuples (SRTM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        srtm_layer = Layer(self.cfg.SRTMShapefile)
+        srtm_layer = Layer(self.cfg.SRTMShapefile, driver_name='GPKG')
 
         needed_srtm_tiles = {}
 
@@ -621,7 +621,7 @@ class S1FileManager:
                 intersection = mgrs_footprint.Intersection(srtm_footprint)
                 if intersection.GetArea() > 0:
                     coverage = intersection.GetArea() / area
-                    srtm_tiles.append((srtm_tile.GetField('FILE'), coverage))
+                    srtm_tiles.append((srtm_tile.GetField('id'), coverage))
             needed_srtm_tiles[tile] = srtm_tiles
         logger.info("SRTM ok")
         return needed_srtm_tiles

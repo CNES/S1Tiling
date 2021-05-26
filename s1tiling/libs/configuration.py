@@ -150,7 +150,7 @@ class Configuration():
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(exits.CONFIG_ERROR)
 
-        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm.shp'))
+        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm_tiles.gpkg'))
         if not os.path.isfile(self.SRTMShapefile):
             logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
             sys.exit(exits.CONFIG_ERROR)

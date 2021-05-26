@@ -56,7 +56,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
+from pathlib import Path
 import sys
+
 import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
@@ -160,10 +162,10 @@ def check_srtm_tiles(cfg, srtm_tiles):
     """
     res = True
     for srtm_tile in srtm_tiles:
-        tile_path = os.path.join(cfg.srtm, srtm_tile)
-        if not os.path.exists(tile_path):
+        tile_path_hgt = Path(cfg.srtm, srtm_tile + '.hgt')
+        if not tile_path_hgt.exists:
             res = False
-            logger.critical("%s is missing!", tile_path)
+            logger.critical("%s is missing!", tile_path_hgt)
     return res
 
 
