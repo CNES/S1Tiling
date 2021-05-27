@@ -607,7 +607,7 @@ class S1FileManager:
           A list of tuples (SRTM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        srtm_layer = Layer(self.cfg.SRTMShapefile, driver_name='GPKG')
+        srtm_layer = Layer(self.cfg.srtm_db_filepath, driver_name='GPKG')
 
         needed_srtm_tiles = {}
 

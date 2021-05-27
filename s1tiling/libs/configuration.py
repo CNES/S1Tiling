@@ -150,10 +150,8 @@ class Configuration():
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(exits.CONFIG_ERROR)
 
-        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm_tiles.gpkg'))
-        if not os.path.isfile(self.SRTMShapefile):
-            logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
-            sys.exit(exits.CONFIG_ERROR)
+        self._SRTMShapefile = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+
         self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
@@ -199,12 +197,19 @@ class Configuration():
         logging.debug("- output_spatial_resolution      : %s", self.out_spatial_res)
         logging.debug("- ram_per_process                : %s", self.ram_per_process)
         logging.debug("- remove_thermal_noise           : %s", self.removethermalnoise)
-        logging.debug("- srtm_shapefile                 : %s", self.SRTMShapefile)
+        logging.debug("- srtm_shapefile                 : %s", self._SRTMShapefile)
         logging.debug("- tile_to_product_overlap_ratio  : %s", self.TileToProductOverlapRatio)
         logging.debug("- tiles                          : %s", self.tile_list)
         logging.debug("- tiles_shapefile                : %s", self.output_grid)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s", self.mask_cond)
+
+    @property
+    def srtm_db_filepath(self):
+        """
+        Get the SRTMShapefile databe filepath
+        """
+        return str(self._SRTMShapefile)
 
     def check_date(self):
         """
