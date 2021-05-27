@@ -208,8 +208,8 @@ You can use this :download:`this template
 
       .. _Processing.srtm_shapefile:
   * - ``srtm_shapefile``
-    - Path and filename of the SRTM shape definition (ESRI Shapefile). If left
-      unspecified, it'll point automatically to the `srtm.shp` shapefile
+    - File path of the SRTM tiles database definition (Geopackage format). If left
+      unspecified, it'll point automatically to the `srtm_tiles.gpkg` database
       resource shipped with S1 Tiling.
 
       .. _Processing.orthorectification_gridspacing:
