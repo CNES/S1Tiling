@@ -56,6 +56,8 @@ Improvements
 Bug fixed
 +++++++++
 
+- Fix pylint error ((`#82 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/82>`_)
+- Improve the srtm tiles database to avoid to request srtm tile which don't exist ((`#81 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/81>`_)
 - Work on the more complete product when there are multiple overlapping
   products (`#47
   <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/47>`_)
@@ -98,3 +100,4 @@ Breaking changes
 
 - Multitemporal speckle filtering has been removed from S1Tiling processing. Users have to apply their own speckle filtering, according their needs (for example with OTB applications OTBDespeckle or with remote modules OTBMultitempFilterOutcore and OTBMultitempFilterFiltering)
 
+- The config key `srtm_shapefile` is no more available to users.
