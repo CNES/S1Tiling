@@ -270,14 +270,14 @@ class S1FileManager:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
             logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir.name, srtm_tiles_id)
-            assert os.path.isdir(self.__tmpsrtmdir.name)
+            assert Path(self.__tmpsrtmdir.name).is_dir()
             for srtm_tile in srtm_tiles_id:
                 srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
                 srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
                 logger.debug('ln -s %s  <-- %s',
                     srtm_tile_filepath,
                     srtm_tile_filelink)
-                os.symlink(srtm_tile_filepath, srtm_tile_filelink)
+                srtm_tile_filelink.symlink_to(srtm_tile_filepath)
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):
