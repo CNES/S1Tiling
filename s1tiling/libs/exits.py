@@ -27,14 +27,14 @@
 #
 # =========================================================================
 
-TASK_FAILED      = 66
-DOWNLOAD_ERROR   = 67
-OFFLINE_DATA     = 68
-OUTPUT_DISK_FULL = 69
-TMP_DISK_FULL    = 70
-EMPTY_DATA_SAFE  = 71
-CONFIG_ERROR     = 72
-NO_S2_TILE       = 73
-NO_S1_IMAGE      = 74
-MISSING_SRTM     = 75
-MISSING_GEOID    = 76
+TASK_FAILED         = 66
+DOWNLOAD_ERROR      = 67
+OFFLINE_DATA        = 68
+OUTPUT_DISK_FULL    = 69
+TMP_DISK_FULL       = 70
+CORRUPTED_DATA_SAFE = 71
+CONFIG_ERROR        = 72
+NO_S2_TILE          = 73
+NO_S1_IMAGE         = 74
+MISSING_SRTM        = 75
+MISSING_GEOID       = 76
