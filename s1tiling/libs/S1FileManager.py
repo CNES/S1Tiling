@@ -167,7 +167,7 @@ def discard_small_redundant(products, id=None):
     res = [ordered_products[0]]
     last, _ = prod_re.match(id(res[0])).groups()
     for product in ordered_products[1:]:
-        start, end = prod_re.match(id(product)).groups()
+        start, __unused = prod_re.match(id(product)).groups()
         if last == start:
             # We can suppose the new end date to be >
             # => let's replace
