@@ -37,13 +37,14 @@ import logging
 import logging.handlers
 # import multiprocessing
 import os
-import pathlib
+from pathlib import Path
 import re
 import sys
 import yaml
+
 from s1tiling.libs import exits
 
-resource_dir = pathlib.Path(__file__).parent.parent.absolute() / 'resources'
+resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 
 def init_logger(mode, paths):
@@ -51,7 +52,7 @@ def init_logger(mode, paths):
     Initializes logging service.
     """
     # Add the dirname where the current script is
-    paths += [pathlib.Path(__file__).parent.parent.absolute()]
+    paths += [Path(__file__).parent.parent.absolute()]
     paths = [p / 'logging.conf.yaml' for p in paths]
     cfgpaths = [p for p in paths if p.is_file()]
     # print("from %s, keep %s" % (paths, cfgpaths))
@@ -104,7 +105,7 @@ class Configuration():
 
         # Logs
         self.Mode = config.get('Processing', 'mode')
-        self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
+        self.log_config = init_logger(self.Mode, [Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
