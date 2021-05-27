@@ -34,20 +34,22 @@ import fnmatch
 import glob
 import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
 import zipfile
-import numpy as np
 
-from osgeo import ogr
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
+from osgeo import ogr
+import numpy as np
 
+from s1tiling.libs import exits
 from .Utils import get_shape, list_files, list_dirs
 from .S1DateAcquisition import S1DateAcquisition
-from s1tiling.libs import exits
+
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
@@ -259,7 +261,7 @@ class S1FileManager:
         os.makedirs(out_dir, exist_ok=True)
         return working_directory, out_dir
 
-    def tmpsrtmdir(self, srtm_tiles):
+    def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """
         Generate the temporary directory for SRTM tiles on the fly
         And populate it with symbolic link to the actual SRTM tiles
@@ -267,15 +269,15 @@ class S1FileManager:
         if not self.__tmpsrtmdir:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
+            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir.name, srtm_tiles_id)
             assert os.path.isdir(self.__tmpsrtmdir.name)
-            for srtm_tile in srtm_tiles:
+            for srtm_tile in srtm_tiles_id:
+                srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
+                srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
                 logger.debug('ln -s %s  <-- %s',
-                        os.path.join(self.cfg.srtm,          srtm_tile),
-                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
-                os.symlink(
-                        os.path.join(self.cfg.srtm,          srtm_tile),
-                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+                    srtm_tile_filepath,
+                    srtm_tile_filelink)
+                os.symlink(srtm_tile_filepath, srtm_tile_filelink)
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):
