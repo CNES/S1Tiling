@@ -206,12 +206,6 @@ You can use this :download:`this template
       unspecified, it'll point automatically to the `Features.shp` shapefile
       resource shipped with S1 Tiling.
 
-      .. _Processing.srtm_shapefile:
-  * - ``srtm_shapefile``
-    - Path and filename of the SRTM shape definition (ESRI Shapefile). If left
-      unspecified, it'll point automatically to the `srtm.shp` shapefile
-      resource shipped with S1 Tiling.
-
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
     - Grid spacing (in meters) for the interpolator in the orthorectification
