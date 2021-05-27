@@ -421,7 +421,7 @@ class OrthoRectify(StepFactory):
                 # self.param_out     : out_filename,
                 'interpolator'     : 'nn',
                 'outputs.spacingx' : spacing,
-                'outputs.spacingy' : -self.__out_spatial_res,
+                'outputs.spacingy' : -spacing,
                 'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
                 'outputs.sizey'    : int(round(abs(lry - y_coord) / spacing)),
                 'opt.gridspacing'  : self.__grid_spacing,
@@ -533,24 +533,49 @@ class Concatenate(StepFactory):
         filename = meta['basename']
         return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
 
+    def update_out_filename(self, meta, with_meta):
+        # tester input list
+        # basename = un truc ou l'autre en fonction nb inputs (old value ou taskname)
+        # out_file = basename
+        meta['basename']           = meta['task_basename']
+        meta['out_filename']       = self.build_step_output_filename(meta)
+        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
+        logger.debug("concatenation.out_tmp_filename for %s updated to %s", meta['task_name'], meta['out_filename'])
+
     def complete_meta(self, meta):
         """
         Precompute output basename from the input file(s).
         Makes sure the :std:doc:`Synthetize OTB application
         <Applications/app_Synthetize>` would compress its result file,
         through extended filename.
+
+        In concatenation case, the task_name needs to be overridden to stay
+        unique and common to all inputs.
         """
         meta = meta.copy()
         out_file = out_filename(meta)
+        out_dir = self.output_directory(meta)
         if isinstance(out_file, list):
             logger.debug('Register files to remove after concatenation: %s', out_file)
             meta['files_to_remove'] = out_file
-            out_file = out_file[0]
-        _, out_file = os.path.split(out_file)
-        meta['basename'] = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
-        meta = super().complete_meta(meta)
+            _, out_file = os.path.split(out_file[0])
+            task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
+            meta['basename'] = task_basename
+            logger.debug("Concatenation result of %s goes into %s", out_file, meta['basename'])
+            # meta['does_product_exist'] = lambda : os.path.isfile(task_name(meta))
+        else:
+            _, out_file = os.path.split(out_file)
+            task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
+            meta['basename'] = out_file
+            logger.debug("Only one file to concatenate, just move it (%s)", out_file)
+        meta = super().complete_meta(meta)  # Needs a valid basename
+        meta['task_basename'] = task_basename
+        meta['task_name'] = os.path.join(out_dir, task_basename)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['post'] = meta.get('post', []) + [self.clear_ortho_tmp]
+        meta['update_out_filename'] = self.update_out_filename
+
+        # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta
 
     def clear_ortho_tmp(self, meta):
@@ -581,7 +606,8 @@ class Concatenate(StepFactory):
         meta = self.complete_meta(input.meta)
         res = AbstractStep(**meta)
         logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        shutil.move(concat_in_filename, res.out_filename)
+        if not meta.get('dryrun', False):
+            shutil.move(concat_in_filename, res.out_filename)
         return res
 
     def parameters(self, meta):
