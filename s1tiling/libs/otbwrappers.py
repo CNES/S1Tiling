@@ -333,13 +333,13 @@ class OrthoRectify(StepFactory):
         super().__init__(
                 'OrthoRectification', 'OrthoRectification',
                 param_in='io.in', param_out='io.out')
-        self.__ram_per_process  = cfg.ram_per_process
-        self.__out_spatial_res  = cfg.out_spatial_res
-        self.__GeoidFile        = cfg.GeoidFile
-        self.__grid_spacing     = cfg.grid_spacing
+        self.__ram_per_process      = cfg.ram_per_process
+        self.__out_spatial_res      = cfg.out_spatial_res
+        self.__GeoidFile            = cfg.GeoidFile
+        self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
-        self.__tmp_srtm_dir     = cfg.tmp_srtm_dir
-        self.__tmpdir           = cfg.tmpdir
+        self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
+        self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced long with calibration
         self.__calibration_type = cfg.calibration_type
 
