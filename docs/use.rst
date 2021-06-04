@@ -215,6 +215,17 @@ You can use this :download:`this template
 
       A nice value is 4 x output_spatial_resolution
 
+      .. _Processing.orthorectification_interpolation_method:
+  * - ``orthorectification_interpolation_method``
+    -  Interpolation method used in the orthorectification process
+       for more information, please consult the `OTB OrthoRectification
+      application
+      <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
+
+      Default value is set to nearest neighbor interpolation to keep compatibilty with previous results
+      By the way linear method could be more interesting.
+      Note that the bco method is not currently supported
+
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
     - Tiles to be processed.
