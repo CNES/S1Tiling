@@ -337,6 +337,7 @@ class OrthoRectify(StepFactory):
         self.__out_spatial_res  = cfg.out_spatial_res
         self.__GeoidFile        = cfg.GeoidFile
         self.__grid_spacing     = cfg.grid_spacing
+        self.__interpolation_method = cfg.interpolation_method
         self.__tmp_srtm_dir     = cfg.tmp_srtm_dir
         self.__tmpdir           = cfg.tmpdir
         # Some workaround when ortho is not sequenced long with calibration
@@ -419,7 +420,7 @@ class OrthoRectify(StepFactory):
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename,
-                'interpolator'     : 'nn',
+                'interpolator'     : self.__interpolation_method,
                 'outputs.spacingx' : spacing,
                 'outputs.spacingy' : -self.__out_spatial_res,
                 'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
