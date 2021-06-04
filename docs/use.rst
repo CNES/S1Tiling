@@ -222,7 +222,7 @@ You can use this :download:`this template
       application
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
-      Default value is set to nearest neighbor interpolation to keep compatibilty with previous results
+      Default value is set to nearest neighbor interpolation (nn) to keep compatibilty with previous results
       By the way linear method could be more interesting.
       Note that the bco method is not currently supported
 
