@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import subprocess
-import pathlib
-import os
-import sys
-import shutil
 import logging
-import pytest_icdiff
+import os
+import pathlib
+import shutil
+import subprocess
 
 # import pytest_check
-from helpers import otb_compare, comparable_metadata
+from .helpers import otb_compare, comparable_metadata
 
 def remove_dirs(dir_list):
     for dir in dir_list:
