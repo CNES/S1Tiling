@@ -217,8 +217,8 @@ You can use this :download:`this template
 
       .. _Processing.orthorectification_interpolation_method:
   * - ``orthorectification_interpolation_method``
-    -  Interpolation method used in the orthorectification process
-       for more information, please consult the `OTB OrthoRectification
+    - Interpolation method used in the orthorectification process
+      for more information, please consult the `OTB OrthoRectification
       application
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
