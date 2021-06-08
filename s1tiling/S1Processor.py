@@ -93,19 +93,19 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
-    tiles_to_process = []
+
+    logger.info('Requested tiles: %s', cfg.tile_list)
 
     all_requested = False
-
-    for tile in cfg.tile_list:
-        if tile == "ALL":
-            all_requested = True
-            break
-        elif True:  # s1_file_manager.tile_exists(tile):
-            tiles_to_process.append(tile)
-        else:
-            logger.info("Tile %s does not exist, skipping ...", tile)
-    logger.info('Requested tiles: %s', cfg.tile_list)
+    tiles_to_process = []
+    if cfg.tile_list[0] == "ALL":
+        all_requested = True
+    else:
+        for tile in cfg.tile_list:
+            if s1_file_manager.tile_exists(tile):
+                tiles_to_process.append(tile)
+            else:
+                logger.warning("Tile %s does not exist, skipping ...", tile)
 
     # We can not require both to process all tiles covered by downloaded products
     # and and download all tiles
@@ -120,6 +120,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                     100 * cfg.TileToProductOverlapRatio, tiles_to_process)
 
+    logger.info('The following tiles will be process: %s', tiles_to_process)
     return tiles_to_process
 
 

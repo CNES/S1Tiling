@@ -483,8 +483,8 @@ class S1FileManager:
         layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
-            # logger.debug("%s", current_tile.GetField('NAME'))
-            if current_tile.GetField('NAME') in tile_name_field:
+            #logger.debug("%s", current_tile.GetField('NAME'))
+            if current_tile.GetField('NAME') == tile_name_field:
                 return True
         return False
 
