@@ -29,6 +29,7 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram,
     logging.info('$S1TILING_TEST_SRTM        -> %s', os.environ['S1TILING_TEST_SRTM'])
     logging.info('$S1TILING_TEST_TMPDIR      -> %s', os.environ['S1TILING_TEST_TMPDIR'])
     logging.info('$S1TILING_TEST_DOWNLOAD    -> %s', os.environ['S1TILING_TEST_DOWNLOAD'])
+    logging.info('$S1TILING_TEST_RAM         -> %s', os.environ['S1TILING_TEST_RAM'])
 
     remove_dirs(dirs_to_clean)
 
@@ -39,7 +40,8 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram,
     return subprocess.call(args, cwd=crt_dir)
 
 
-def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download, watch_ram):
+def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
     # => We need it
@@ -60,6 +62,7 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download, watc
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
+    os.environ['S1TILING_TEST_RAM']                = str(ram)
 
     images = [
             '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
@@ -68,21 +71,24 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, download, watc
             '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
             ]
     baseline_path = baselinedir / 'expected'
-    test_file     = baselinedir / 'test_33NWB_202001.cfg'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    logging.info("Full test")
     EX = process(tmpdir, outputdir, baseline_path, test_file, watch_ram)
     assert EX == 0
     for im in images:
         expected = baseline_path / im
         produced = outputdir / im
         assert os.path.isfile(produced)
-        assert otb_compare(expected, produced) == 0
+        assert otb_compare(expected, produced) == 0, \
+                ("Comparison of %s against %s failed" % (produced, expected))
         assert comparable_metadata(expected) == comparable_metadata(produced)
     # The following line permits to test otb_compare correctly detect differences when
     # called from pytest.
     # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
-def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, download, watch_ram):
+def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
     # => We need it
@@ -103,14 +109,16 @@ def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, dow
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
+    os.environ['S1TILING_TEST_RAM']                = str(ram)
 
     images = [
             '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx_BorderMask.tif',
             '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
             ]
     baseline_path = baselinedir / 'expected'
-    test_file     = baselinedir / 'test_33NWB_202001.cfg'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
 
+    logging.info("Mask only test")
     # Fake remaining things to do
     remove_dirs([outputdir])
     os.makedirs(outputdir / '33NWB')
@@ -129,5 +137,6 @@ def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, dow
         expected = baseline_path / im
         produced = outputdir / im
         assert os.path.isfile(produced)
-        assert otb_compare(expected, produced) == 0
+        assert otb_compare(expected, produced) == 0, \
+                ("Comparison of %s against %s failed" % (produced, expected))
         assert comparable_metadata(expected) == comparable_metadata(produced)
