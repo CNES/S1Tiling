@@ -2,21 +2,23 @@ variables:
     BUILD_IMAGE_REGISTRY: $CI_REGISTRY/s1-tiling
     LC_ALL: C.UTF-8
     # Set pip's cache inside the project directory since we can only cache local items
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
 
 image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
 
 .common:
     variables:
-    cache:
-        key: packages
-        paths:
-        # - $CI_PROJECT_DIR/.cache/pip
-        # - S1TilingEnv
-        - baseline
+    # cache:
+    #     key: packages
+    #     paths:
+    #     # - $CI_PROJECT_DIR/.cache/pip
+    #     # - S1TilingEnv
+    #     # - baseline
 
     before_script:
-    - mkdir -p "${PIP_CACHE_DIR}"
+    # - mkdir -p "${PIP_CACHE_DIR}"
     ## doc generation requires S1Tiling through autodoc
     # => We need to be able to install S1Tiling
     #- find /opt/otb
@@ -48,6 +50,7 @@ image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
 
 # Run tests
 pytest:
+    resource_group: raoul_is_really_constrainst
     variables:
         KUBERNETES_CPU_REQUEST: 4
         KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -55,9 +58,11 @@ pytest:
     stage: test
     script:
     - test -d baseline || mkdir baseline
-    - time rclone -L sync s3_otb:s1-tiling/baseline baseline || echo "Oups| no baseline/ on S3"
+    - rclone -v -L sync s3_otb:s1-tiling/baseline baseline || echo "Oups| no baseline/ on S3"
     - ls baseline
-    - time python3 -m pytest --baselinedir=$(readlink -f baseline) --srtmdir=$(readlink -f baseline/MNT/SRTM_30_hgt) -o log_cli_level=info -o log_cli=true --junitxml=report.xml
+    # - find baseline/expected -type f -exec md5sum {} \;
+    - (cd baseline && find . -type f -exec md5sum {} \;)
+    - python3 -m pytest --baselinedir=$(readlink -f baseline) --srtmdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml
     artifacts:
         when: always
         reports:
@@ -65,6 +70,7 @@ pytest:
 
 # Test the documentation compiles
 test-doc:
+    resource_group: raoul_is_really_constrainst
     extends: .common-doc
     stage: test
     script:
@@ -86,7 +92,8 @@ test-doc:
 pages:
     extends: .common-doc
     stage: deploy
-    resource_group: documentation_cache
+    # resource_group: documentation_cache
+    resource_group: raoul_is_really_constrainst
     script:
     - mkdir public
     # TODO: lock access to public
