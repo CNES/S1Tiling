@@ -1,47 +1,76 @@
 variables:
-    BUILD_IMAGE_REGISTRY: $CI_REGISTRY/orfeotoolbox/otb-build-env
+    BUILD_IMAGE_REGISTRY: $CI_REGISTRY/s1-tiling
     LC_ALL: C.UTF-8
     # Set pip's cache inside the project directory since we can only cache local items
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
 
-# image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-base
-image: $BUILD_IMAGE_REGISTRY/otb-ubuntu-native-develop:latest
+image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
 
-.common-doc:
+.common:
     variables:
-        CPLUS_INCLUDE_PATH: /usr/include/gdal
-        C_INCLUDE_PATH: /usr/include/gdal
-        LD_LIBRARY_PATH: /opt/otb/lib:${LD_LIBRARY_PATH}
-        PYTHONPATH: /opt/otb/lib/otb/python:${PYTHONPATH}
-        OTB_APPLICATION_PATH: /opt/otb/lib/otb/applications:${OTB_APPLICATION_PATH}
-    cache:
-        key: packages
-        paths:
-        - $CI_PROJECT_DIR/.cache/pip
-        - S1TilingEnv
+    # cache:
+    #     key: packages
+    #     paths:
+    #     # - $CI_PROJECT_DIR/.cache/pip
+    #     # - S1TilingEnv
+    #     # - baseline
 
     before_script:
-    - mkdir -p "${PIP_CACHE_DIR}"
+    # - mkdir -p "${PIP_CACHE_DIR}"
     ## doc generation requires S1Tiling through autodoc
     # => We need to be able to install S1Tiling
     #- find /opt/otb
     - apt-get -y update
-    - apt-get -y install libgdal-dev rclone
-    - which rclone
-    # - gdal-config --version
-    - curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+    - apt-get -y upgrade
     - python3 --version
-    - python3 get-pip.py
-    - python3 -m pip install virtualenv
-    - virtualenv S1TilingEnv
-    - source S1TilingEnv/bin/activate
-    - python3 -m pip install "gdal==$(gdal-config --version)"
+    - . /tmp/${S1TILING_VENV}/bin/activate && echo "virtualenv /tmp/${S1TILING_VENV} loaded"
+    - . "${OTB_INSTALL_DIRNAME}/otbenv.profile" && echo "OTB loaded from ${OTB_INSTALL_DIRNAME}"
+    - gdal-config --version
+    - python3 -m pip install --upgrade pip
+    - echo $LD_LIBRARY_PATH
+    - find / -name "libgdal.so*"
+    - ldd /tmp/${S1TILING_VENV}/lib/python*/site-packages/osgeo/_gdal.cpython-36m-x86_64-linux-gnu.so
     - python -c "from osgeo import gdal ; print(gdal.__version__)"
-    - python3 -m pip install .[docs]
+    - ls "${OTB_INSTALL_DIRNAME}"
+    # - set
+    - echo "installing .[${INSTALL_TYPE}]"
+    - python3 -m pip install .[${INSTALL_TYPE}]
 
+.common-doc:
+    variables:
+        INSTALL_TYPE: docs
+    extends: .common
+
+.common-tests:
+    variables:
+        INSTALL_TYPE: dev
+    extends: .common
+
+# Run tests
+pytest:
+    resource_group: raoul_is_really_constrainst
+    variables:
+        KUBERNETES_CPU_REQUEST: 4
+        KUBERNETES_MEMORY_REQUEST: 4Gi
+    extends: .common-tests
+    stage: test
+    script:
+    - test -d baseline || mkdir baseline
+    - rclone -v -L sync s3_otb:s1-tiling/baseline baseline || echo "Oups| no baseline/ on S3"
+    - ls baseline
+    # - find baseline/expected -type f -exec md5sum {} \;
+    - (cd baseline && find . -type f -exec md5sum {} \;)
+    - python3 -m pytest --baselinedir=$(readlink -f baseline) --srtmdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml
+    artifacts:
+        when: always
+        reports:
+            junit: report.xml
 
 # Test the documentation compiles
-test:
+test-doc:
+    resource_group: raoul_is_really_constrainst
     extends: .common-doc
     stage: test
     script:
@@ -63,6 +92,8 @@ test:
 pages:
     extends: .common-doc
     stage: deploy
+    # resource_group: documentation_cache
+    resource_group: raoul_is_really_constrainst
     script:
     - mkdir public
     # TODO: lock access to public

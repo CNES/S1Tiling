@@ -37,12 +37,14 @@ import logging
 import logging.handlers
 # import multiprocessing
 import os
-import pathlib
+from pathlib import Path
 import re
 import sys
 import yaml
 
-resource_dir = pathlib.Path(__file__).parent.parent.absolute() / 'resources'
+from s1tiling.libs import exits
+
+resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 
 def init_logger(mode, paths):
@@ -50,7 +52,7 @@ def init_logger(mode, paths):
     Initializes logging service.
     """
     # Add the dirname where the current script is
-    paths += [pathlib.Path(__file__).parent.parent.absolute()]
+    paths += [Path(__file__).parent.parent.absolute()]
     paths = [p / 'logging.conf.yaml' for p in paths]
     cfgpaths = [p for p in paths if p.is_file()]
     # print("from %s, keep %s" % (paths, cfgpaths))
@@ -103,7 +105,7 @@ class Configuration():
 
         # Logs
         self.Mode = config.get('Processing', 'mode')
-        self.log_config = init_logger(self.Mode, [pathlib.Path(configFile).parent.absolute()])
+        self.log_config = init_logger(self.Mode, [Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
@@ -117,11 +119,11 @@ class Configuration():
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
             logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
-            sys.exit(1)
+            sys.exit(exits.CONFIG_ERROR)
         self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
-            sys.exit(-1)
+            sys.exit(exits.CONFIG_ERROR)
         self.eodagConfig       = config.get('DataSource', 'eodagConfig', fallback=None)
         self.download          = config.getboolean('DataSource', 'download')
         self.ROI_by_tiles      = config.get('DataSource', 'roi_by_tiles')
@@ -135,7 +137,7 @@ class Configuration():
         else:
             logging.critical("Parameter [polarisation] must be HH-HV or VV-VH")
             logging.critical("Please correct it the config file ")
-            sys.exit(-1)
+            sys.exit(exits.CONFIG_ERROR)
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
@@ -147,13 +149,13 @@ class Configuration():
         self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
-            sys.exit(1)
+            sys.exit(exits.CONFIG_ERROR)
 
-        self.SRTMShapefile = config.get('Processing', 'srtm_shapefile', fallback=str(resource_dir/'shapefile/srtm.shp'))
-        if not os.path.isfile(self.SRTMShapefile):
-            logging.critical("ERROR: srtm_shapefile=%s is not a valid path", self.SRTMShapefile)
-            sys.exit(-1)
+        self._SRTMShapefile = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+
         self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
+        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method',
+                                               fallback='nn')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
             self.tile_list = open(tiles_file, 'r').readlines()
@@ -198,12 +200,19 @@ class Configuration():
         logging.debug("- output_spatial_resolution      : %s", self.out_spatial_res)
         logging.debug("- ram_per_process                : %s", self.ram_per_process)
         logging.debug("- remove_thermal_noise           : %s", self.removethermalnoise)
-        logging.debug("- srtm_shapefile                 : %s", self.SRTMShapefile)
+        logging.debug("- srtm_shapefile                 : %s", self._SRTMShapefile)
         logging.debug("- tile_to_product_overlap_ratio  : %s", self.TileToProductOverlapRatio)
         logging.debug("- tiles                          : %s", self.tile_list)
         logging.debug("- tiles_shapefile                : %s", self.output_grid)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s", self.mask_cond)
+
+    @property
+    def srtm_db_filepath(self):
+        """
+        Get the SRTMShapefile databe filepath
+        """
+        return str(self._SRTMShapefile)
 
     def check_date(self):
         """
@@ -220,4 +229,4 @@ class Configuration():
             return F_Date, L_Date
         except Exception:  # pylint: disable=broad-except
             logging.critical("Invalid date")
-            sys.exit()
+            sys.exit(exits.CONFIG_ERROR)

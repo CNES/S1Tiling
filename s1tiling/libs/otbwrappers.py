@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep
+from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
 from . import Utils
 from ..__meta__ import __version__
 
@@ -231,7 +231,8 @@ class Calibrate(StepFactory):
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
-                'noise'         : str(self.__removethermalnoise).lower()
+                # The noise parameter need to set to false to perform the thermal noise
+                'noise'         : not(self.__removethermalnoise)
                 }
 
 
@@ -288,7 +289,7 @@ class CutBorders(StepFactory):
         Returns the parameters to use with :std:doc:`ResetMargin OTB
         application <Applications/app_ResetMargin>`.
         """
-        return {
+        params = {
                 'ram'              : str(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
@@ -297,6 +298,9 @@ class CutBorders(StepFactory):
                 'threshold.y.start': meta['cut']['threshold.y.start'],
                 'threshold.y.end'  : meta['cut']['threshold.y.end']
                 }
+        if otb_version() != '7.2.0':  # From 7.3.0 onward actually
+            params['mode'] = 'threshold'
+        return params
 
 
 class OrthoRectify(StepFactory):
@@ -330,12 +334,13 @@ class OrthoRectify(StepFactory):
         super().__init__(
                 'OrthoRectification', 'OrthoRectification',
                 param_in='io.in', param_out='io.out')
-        self.__ram_per_process  = cfg.ram_per_process
-        self.__out_spatial_res  = cfg.out_spatial_res
-        self.__GeoidFile        = cfg.GeoidFile
-        self.__grid_spacing     = cfg.grid_spacing
-        self.__tmp_srtm_dir     = cfg.tmp_srtm_dir
-        self.__tmpdir           = cfg.tmpdir
+        self.__ram_per_process      = cfg.ram_per_process
+        self.__out_spatial_res      = cfg.out_spatial_res
+        self.__GeoidFile            = cfg.GeoidFile
+        self.__grid_spacing         = cfg.grid_spacing
+        self.__interpolation_method = cfg.interpolation_method
+        self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
+        self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced long with calibration
         self.__calibration_type = cfg.calibration_type
 
@@ -416,7 +421,7 @@ class OrthoRectify(StepFactory):
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename,
-                'interpolator'     : 'nn',
+                'interpolator'     : self.__interpolation_method,
                 'outputs.spacingx' : spacing,
                 'outputs.spacingy' : -self.__out_spatial_res,
                 'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
@@ -424,7 +429,7 @@ class OrthoRectify(StepFactory):
                 'opt.gridspacing'  : self.__grid_spacing,
                 'map'              : 'utm',
                 'map.utm.zone'     : int(out_utm_zone),
-                'map.utm.northhem' : str(out_utm_northern).lower(),
+                'map.utm.northhem' : out_utm_northern,
                 'outputs.ulx'      : x_coord,
                 'outputs.uly'      : y_coord,
                 'elev.dem'         : self.__tmp_srtm_dir,
