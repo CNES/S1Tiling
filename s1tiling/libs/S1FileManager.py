@@ -185,7 +185,10 @@ def discard_small_redundant(products, id=None):
 
 def _download_and_extract_one_product(dag, raw_directory, product):
     """
-    Takes care of downloading exactly one remote product and unzipping it, if required.
+    Takes care of downloading exactly one remote product and unzipping it,
+    if required.
+
+    Some products are already unzipped on the fly by eodag.
     """
     logging.info("Starting download of %s...", product)
     ok_msg = "Successful download (and extraction) of %s" % (product, )  # because eodag'll clear product
@@ -195,12 +198,37 @@ def _download_and_extract_one_product(dag, raw_directory, product):
             extract=True  # Let's eodag do the job
             )
     logging.debug(ok_msg)
-    try:
-        logger.debug('Removing downloaded ZIP: %s', file)
-        os.remove(file)
-    except OSError:
-        pass
+    if os.path.exists(file) :
+        try:
+            logger.debug('Removing downloaded ZIP: %s', file)
+            os.remove(file)
+        except OSError:
+            pass
     return path
+
+
+def _parallel_download_and_extraction_of_products(dag, raw_directory, products, nb_procs):
+    """
+    Takes care of downloading exactly all remote products and unzipping them,
+    if required, in parallel.
+    """
+    log_queue = multiprocessing.Queue()
+    log_queue_listener = logging.handlers.QueueListener(log_queue)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory)
+    with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
+        log_queue_listener.start()
+        try:
+            for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                logger.info("%s correctly downloaded", result)
+                logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
+                paths.append(result)
+        finally:
+            pool.close()
+            pool.join()
+            log_queue_listener.stop()  # no context manager for QueueListener unfortunately
+
+    # paths returns the list of .SAFE directories
+    return paths
 
 
 class S1FileManager:
@@ -402,24 +430,9 @@ class S1FileManager:
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
-        paths = []
-        log_queue = multiprocessing.Queue()
-        log_queue_listener = logging.handlers.QueueListener(log_queue)
         __nb_procs = 2  # TODO: parameter
-        dl_work = partial(_download_and_extract_one_product, dag, self.cfg.raw_directory)
-        with multiprocessing.Pool(2, mp_worker_config, [log_queue]) as pool:
-            log_queue_listener.start()
-            try:
-                for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
-                    logger.info("%s correctly downloaded", result)
-                    logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                    paths.append(result)
-            finally:
-                pool.close()
-                pool.join()
-                log_queue_listener.stop()
-
-        # paths returns the list of .SAFE directories
+        paths = _parallel_download_and_extraction_of_products(
+                dag, self.cfg.raw_directory, products, __nb_procs)
         logger.info("Remote S1 products saved into %s", paths)
         return paths
 
