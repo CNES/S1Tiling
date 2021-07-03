@@ -207,11 +207,12 @@ def _download_and_extract_one_product(dag, raw_directory, product):
     return path
 
 
-def _parallel_download_and_extraction_of_products(dag, raw_directory, products, nb_procs):
+def _parallel_download_and_extraction_of_products(dag, raw_directory, products, nb_procs, tile_name):
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
     """
+    paths = []
     log_queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
     dl_work = partial(_download_and_extract_one_product, dag, raw_directory)
@@ -431,7 +432,8 @@ class S1FileManager:
             return paths
 
         paths = _parallel_download_and_extraction_of_products(
-                dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes)
+                dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
+                tile_name)
         logger.info("Remote S1 products saved into %s", paths)
         return paths
 
