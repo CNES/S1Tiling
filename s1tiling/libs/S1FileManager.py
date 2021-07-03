@@ -430,9 +430,8 @@ class S1FileManager:
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
-        __nb_procs = 2  # TODO: parameter
         paths = _parallel_download_and_extraction_of_products(
-                dag, self.cfg.raw_directory, products, __nb_procs)
+                dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes)
         logger.info("Remote S1 products saved into %s", paths)
         return paths
 
