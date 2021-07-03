@@ -31,17 +31,16 @@
 """ This module contains the S1FileManager class"""
 
 import fnmatch
+from functools import partial
 import glob
 import logging
+import multiprocessing
 import os
 from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
-import zipfile
-import multiprocessing as mp
-import time
 
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
@@ -51,6 +50,7 @@ import numpy as np
 from s1tiling.libs import exits
 from .Utils import get_shape, list_files, list_dirs
 from .S1DateAcquisition import S1DateAcquisition
+from .otbpipeline import mp_worker_config
 
 setup_logging(verbose=1)
 
@@ -183,6 +183,26 @@ def discard_small_redundant(products, id=None):
     return res
 
 
+def _download_and_extract_one_product(dag, raw_directory, product):
+    """
+    Takes care of downloading exactly one remote product and unzipping it, if required.
+    """
+    logging.info("Starting download of %s...", product)
+    ok_msg = "Successful download (and extraction) of %s" % (product, )  # because eodag'll clear product
+    file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
+    path = dag.download(
+            product,      # EODAG will clear this variable
+            extract=True  # Let's eodag do the job
+            )
+    logging.debug(ok_msg)
+    try:
+        logger.debug('Removing downloaded ZIP: %s', file)
+        os.remove(file)
+    except OSError:
+        pass
+    return path
+
+
 class S1FileManager:
     """ Class to manage processed files (downloads, checks) """
     def __init__(self, cfg):
@@ -296,12 +316,11 @@ class S1FileManager:
                 shutil.rmtree(safe, ignore_errors=True)
             self._update_s1_img_list()
 
-
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
             tile_out_dir, tile_name, polarization,
-            searched_items_per_page, dryrun):
+            searched_items_per_page,dryrun):
         """
         Process with the call to eodag download.
         """
@@ -383,54 +402,26 @@ class S1FileManager:
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
-        paths=[]
-        p_download = mp.Process(target=self._download_process, args=(dag,products[:],paths,))
-        p_download.start()
-        time.sleep(30)
-        while p_download.is_alive():
-            p_unzip = mp.Process(target=self._unzip_process)
-            p_unzip.start()
-            p_unzip.join()
-            time.sleep(5)
-
-        p_download.join()
-        p_unzip = mp.Process(target=self._unzip_process)
-        p_unzip.start()
-        p_unzip.join()
-
+        paths = []
+        log_queue = multiprocessing.Queue()
+        log_queue_listener = logging.handlers.QueueListener(log_queue)
+        __nb_procs = 2  # TODO: parameter
+        dl_work = partial(_download_and_extract_one_product, dag, self.cfg.raw_directory)
+        with multiprocessing.Pool(2, mp_worker_config, [log_queue]) as pool:
+            log_queue_listener.start()
+            try:
+                for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                    logger.info("%s correctly downloaded", result)
+                    logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
+                    paths.append(result)
+            finally:
+                pool.close()
+                pool.join()
+                log_queue_listener.stop()
 
         # paths returns the list of .SAFE directories
         logger.info("Remote S1 products saved into %s", paths)
-        # And clean temporary files
-        for product in products:
-            file = os.path.join(self.cfg.raw_directory, product.as_dict()['id']) + '.zip'
-            try:
-                logger.debug('Removing downloaded ZIP: %s', file)
-                os.remove(file)
-            except OSError:
-                pass
         return paths
-
-
-    def _download_process(self, dag, products, paths):
-        paths = dag.download_all(
-                products, extract=False  # pass a copy because eodag modifies the list
-                )
-
-
-    def _unzip_process(self):
-        """This method handles unzipping of product archives"""
-
-        for file_it in list_files(self.cfg.raw_directory, '*.zip'):
-            #logger.debug("unzipping %s", file_it.name)
-            try:
-                with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
-
-                    zip_ref.extractall(os.path.join(self.cfg.raw_directory,os.path.basename(file_it.path)[:-4]))
-                logger.debug("unzipped %s", file_it.name)
-                os.remove(file_it.path)
-            except:
-                pass
 
     def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
