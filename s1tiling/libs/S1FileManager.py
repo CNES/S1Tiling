@@ -34,20 +34,22 @@ import fnmatch
 import glob
 import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
 import zipfile
-import numpy as np
 
-from osgeo import ogr
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
+from osgeo import ogr
+import numpy as np
 
+from s1tiling.libs import exits
 from .Utils import get_shape, list_files, list_dirs
 from .S1DateAcquisition import S1DateAcquisition
-from s1tiling.libs import exits
+
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
@@ -57,9 +59,9 @@ class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid):
+    def __init__(self, grid, driver_name="ESRI Shapefile"):
         self.__grid        = grid
-        self.__driver      = ogr.GetDriverByName("ESRI Shapefile")
+        self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
         self.__layer       = self.__data_source.GetLayer()
 
@@ -167,7 +169,7 @@ def discard_small_redundant(products, id=None):
     res = [ordered_products[0]]
     last, _ = prod_re.match(id(res[0])).groups()
     for product in ordered_products[1:]:
-        start, end = prod_re.match(id(product)).groups()
+        start, __unused = prod_re.match(id(product)).groups()
         if last == start:
             # We can suppose the new end date to be >
             # => let's replace
@@ -259,7 +261,7 @@ class S1FileManager:
         os.makedirs(out_dir, exist_ok=True)
         return working_directory, out_dir
 
-    def tmpsrtmdir(self, srtm_tiles):
+    def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """
         Generate the temporary directory for SRTM tiles on the fly
         And populate it with symbolic link to the actual SRTM tiles
@@ -267,15 +269,15 @@ class S1FileManager:
         if not self.__tmpsrtmdir:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir, srtm_tiles)
-            assert os.path.isdir(self.__tmpsrtmdir.name)
-            for srtm_tile in srtm_tiles:
+            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir.name, srtm_tiles_id)
+            assert Path(self.__tmpsrtmdir.name).is_dir()
+            for srtm_tile in srtm_tiles_id:
+                srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
+                srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
                 logger.debug('ln -s %s  <-- %s',
-                        os.path.join(self.cfg.srtm,          srtm_tile),
-                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
-                os.symlink(
-                        os.path.join(self.cfg.srtm,          srtm_tile),
-                        os.path.join(self.__tmpsrtmdir.name, srtm_tile))
+                    srtm_tile_filepath,
+                    srtm_tile_filelink)
+                srtm_tile_filelink.symlink_to(srtm_tile_filepath)
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):
@@ -481,8 +483,8 @@ class S1FileManager:
         layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
-            # logger.debug("%s", current_tile.GetField('NAME'))
-            if current_tile.GetField('NAME') in tile_name_field:
+            #logger.debug("%s", current_tile.GetField('NAME'))
+            if current_tile.GetField('NAME') == tile_name_field:
                 return True
         return False
 
@@ -605,7 +607,7 @@ class S1FileManager:
           A list of tuples (SRTM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        srtm_layer = Layer(self.cfg.SRTMShapefile)
+        srtm_layer = Layer(self.cfg.srtm_db_filepath, driver_name='GPKG')
 
         needed_srtm_tiles = {}
 
@@ -621,7 +623,7 @@ class S1FileManager:
                 intersection = mgrs_footprint.Intersection(srtm_footprint)
                 if intersection.GetArea() > 0:
                     coverage = intersection.GetArea() / area
-                    srtm_tiles.append((srtm_tile.GetField('FILE'), coverage))
+                    srtm_tiles.append((srtm_tile.GetField('id'), coverage))
             needed_srtm_tiles[tile] = srtm_tiles
         logger.info("SRTM ok")
         return needed_srtm_tiles

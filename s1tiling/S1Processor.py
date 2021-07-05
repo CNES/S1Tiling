@@ -56,7 +56,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
+from pathlib import Path
 import sys
+
 import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
@@ -91,19 +93,19 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
-    tiles_to_process = []
+
+    logger.info('Requested tiles: %s', cfg.tile_list)
 
     all_requested = False
-
-    for tile in cfg.tile_list:
-        if tile == "ALL":
-            all_requested = True
-            break
-        elif True:  # s1_file_manager.tile_exists(tile):
-            tiles_to_process.append(tile)
-        else:
-            logger.info("Tile %s does not exist, skipping ...", tile)
-    logger.info('Requested tiles: %s', cfg.tile_list)
+    tiles_to_process = []
+    if cfg.tile_list[0] == "ALL":
+        all_requested = True
+    else:
+        for tile in cfg.tile_list:
+            if s1_file_manager.tile_exists(tile):
+                tiles_to_process.append(tile)
+            else:
+                logger.warning("Tile %s does not exist, skipping ...", tile)
 
     # We can not require both to process all tiles covered by downloaded products
     # and and download all tiles
@@ -118,6 +120,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                     100 * cfg.TileToProductOverlapRatio, tiles_to_process)
 
+    logger.info('The following tiles will be process: %s', tiles_to_process)
     return tiles_to_process
 
 
@@ -154,16 +157,16 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
     return tiles_to_process_checked, needed_srtm_tiles
 
 
-def check_srtm_tiles(cfg, srtm_tiles):
+def check_srtm_tiles(cfg, srtm_tiles_id, srtm_suffix='.hgt'):
     """
     Check the SRTM tiles exist on disk.
     """
     res = True
-    for srtm_tile in srtm_tiles:
-        tile_path = os.path.join(cfg.srtm, srtm_tile)
-        if not os.path.exists(tile_path):
+    for srtm_tile in srtm_tiles_id:
+        tile_path_hgt = Path(cfg.srtm, srtm_tile + srtm_suffix)
+        if not tile_path_hgt.exists():
             res = False
-            logger.critical("%s is missing!", tile_path)
+            logger.critical("%s is missing!", tile_path_hgt)
     return res
 
 

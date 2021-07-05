@@ -53,4 +53,3 @@ def metadata_compare(baseline, result):
     arg = 'bash -c "diff -I PROCESSED_DATETIME -I TIFFTAG_DATETIME -I "Files:" <(gdalinfo %s) <(gdalinfo %s)"' % (baseline, result)
     print(arg)
     return os.system(arg)
-
