@@ -151,11 +151,10 @@ class Configuration():
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(exits.CONFIG_ERROR)
 
-        self._SRTMShapefile = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        self._SRTMShapefile       = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
 
-        self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
-        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method',
-                                               fallback='nn')
+        self.grid_spacing         = config.getfloat('Processing', 'orthorectification_gridspacing')
+        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
             self.tile_list = open(tiles_file, 'r').readlines()

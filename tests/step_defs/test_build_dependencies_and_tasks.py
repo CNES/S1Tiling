@@ -72,6 +72,7 @@ class Configuration():
         self.GeoidFile                         = 'UNUSED HERE'
         self.calibration_type                  = 'sigma'
         self.grid_spacing                      = 40
+        self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
         self.override_azimuth_cut_threshold_to = None
