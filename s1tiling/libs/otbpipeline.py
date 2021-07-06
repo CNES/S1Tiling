@@ -313,20 +313,10 @@ class StepFactory(ABC):
 
     Meant to be inherited for each possible OTB application used in a pipeline.
     """
-    def __init__(self, appname, name, *unused_argv, **kwargs):
-        self._in      = kwargs.get('param_in',  'in')
-        self._out     = kwargs.get('param_out', 'out')
-        self._appname = appname
+    def __init__(self, name, *unused_argv, **kwargs):
         assert name
         self._name    = name
-        logger.debug("new StepFactory(%s) -> app=%s", name, appname)
-
-    @property
-    def appname(self):
-        """
-        OTB Application property.
-        """
-        return self._appname
+        logger.debug("new StepFactory(%s)", name)
 
     @property
     def name(self):
@@ -335,23 +325,6 @@ class StepFactory(ABC):
         """
         assert isinstance(self._name, str)
         return self._name
-
-    @property
-    def param_in(self):
-        """
-        Name of the "in" parameter used by the OTB Application.
-        Default is likely to be "in", whie some applications use "io.in", often "il" for list of
-        files...
-        """
-        return self._in
-
-    @property
-    def param_out(self):
-        """
-        Name of the "out" parameter used by the OTB Application.
-        Default is likely to be "out", whie some applications use "io.out".
-        """
-        return self._out
 
     @abstractmethod
     def parameters(self, meta):
@@ -437,15 +410,7 @@ class StepFactory(ABC):
         1. This methods starts by updating metadata information through
         :func:`complete_meta()` on the `input` metadata.
 
-        2. Then, steps that wrap an OTB application will instanciate this
-        application object, and:
-
-           - either pipe the new application to the one from the `input` step
-             if it wasn't a first step
-           - or fill in the "in" parameter of the application with the
-             :func:`out_filename` of the `input` step.
-
-        2-bis. in case the new step isn't related to an OTB application,
+        2. in case the new step isn't related to an OTB application,
         nothing specific is done, we'll just return an :class:`AbstractStep`
 
         Note: While `previous_steps` is ignored in this specialization, it's
@@ -455,50 +420,9 @@ class StepFactory(ABC):
         # TODO: distinguish step description & step
         assert issubclass(type(input), AbstractStep)
         meta = self.complete_meta(input.meta)
-        if not self.appname:
-            # Return previous app?
-            return AbstractStep(**meta)
 
-        # Otherwise: step with an OTB application...
-        if meta.get('dryrun', False):
-            logger.warning('DRY RUN mode: ignore step and OTB Application creation')
-            lg_from = input.out_filename if input.is_first_step else 'app'
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
-            meta['param_out'] = self.param_out
-            return Step('FAKEAPP', **meta)
-        with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
-            # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
-            app = otb.Registry.CreateApplication(self.appname)
-            if not app:
-                raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
-            parameters = self.parameters(meta)
-            if input.is_first_step:
-                if not files_exist(input.out_filename):
-                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
-                    raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
-                # parameters[self.param_in] = input.out_filename
-                lg_from = input.out_filename
-            else:
-                app.ConnectImage(self.param_in, input.app, input.param_out)
-                this_step_is_in_memory = in_memory and not input.shall_store
-                # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
-                app.PropagateConnectMode(this_step_is_in_memory)
-                if this_step_is_in_memory:
-                    # When this is not a store step, we need to clear the input parameters
-                    # from its list, otherwise some OTB applications may comply
-                    del parameters[self.param_in]
-                lg_from = 'app'
-
-            self.set_output_pixel_type(app, meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
-            try:
-                app.SetParameters(parameters)
-            except Exception:
-                logger.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
-                raise
-
-        meta['param_out'] = self.param_out
-        return Step(app, **meta)
+        # Return previous app?
+        return AbstractStep(**meta)
 
 
 class Outcome:
@@ -1066,6 +990,7 @@ class OTBStepFactory(StepFactory):
     This step aims at factoring recurring definitions.
     """
     def __init__(self, cfg,
+            appname,
             gen_tmp_dir, gen_output_dir, gen_output_filename,
             *argv, **kwargs):
         """
@@ -1079,12 +1004,40 @@ class OTBStepFactory(StepFactory):
         super().__init__(*argv, **kwargs)
         is_a_final_step = gen_output_dir != gen_tmp_dir
 
+        self._in                   = kwargs.get('param_in',  'in')
+        self._out                  = kwargs.get('param_out', 'out')
+        self._appname              = appname
         self.__gen_tmp_dir         = gen_tmp_dir
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
+        logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
+
+    @property
+    def appname(self):
+        """
+        OTB Application property.
+        """
+        return self._appname
+
+    @property
+    def param_in(self):
+        """
+        Name of the "in" parameter used by the OTB Application.
+        Default is likely to be "in", whie some applications use "io.in", often "il" for list of
+        files...
+        """
+        return self._in
+
+    @property
+    def param_out(self):
+        """
+        Name of the "out" parameter used by the OTB Application.
+        Default is likely to be "out", whie some applications use "io.out".
+        """
+        return self._out
 
     def output_directory(self, meta):
         """
@@ -1150,6 +1103,75 @@ class OTBStepFactory(StepFactory):
         Property ram_per_process
         """
         return self.__ram_per_process
+
+    def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
+        """
+        Instanciates the step related to the current :class:`StepFactory`,
+        that consumes results from the previous `input` step.
+
+        1. This methods starts by updating metadata information through
+        :func:`complete_meta()` on the `input` metadata.
+
+        2. Then, steps that wrap an OTB application will instanciate this
+        application object, and:
+
+           - either pipe the new application to the one from the `input` step
+             if it wasn't a first step
+           - or fill in the "in" parameter of the application with the
+             :func:`out_filename` of the `input` step.
+
+        2-bis. in case the new step isn't related to an OTB application,
+        nothing specific is done, we'll just return an :class:`AbstractStep`
+
+        Note: While `previous_steps` is ignored in this specialization, it's
+        used in :func:`Store.create_step()` where it's eventually used to
+        release all OTB Application objects.
+        """
+        # TODO: distinguish step description & step
+        assert issubclass(type(input), AbstractStep)
+        meta = self.complete_meta(input.meta)
+        assert self.appname
+
+        # Otherwise: step with an OTB application...
+        if meta.get('dryrun', False):
+            logger.warning('DRY RUN mode: ignore step and OTB Application creation')
+            lg_from = input.out_filename if input.is_first_step else 'app'
+            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
+            meta['param_out'] = self.param_out
+            return Step('FAKEAPP', **meta)
+        with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
+            # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
+            app = otb.Registry.CreateApplication(self.appname)
+            if not app:
+                raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
+            parameters = self.parameters(meta)
+            if input.is_first_step:
+                if not files_exist(input.out_filename):
+                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
+                    raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
+                # parameters[self.param_in] = input.out_filename
+                lg_from = input.out_filename
+            else:
+                app.ConnectImage(self.param_in, input.app, input.param_out)
+                this_step_is_in_memory = in_memory and not input.shall_store
+                # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
+                app.PropagateConnectMode(this_step_is_in_memory)
+                if this_step_is_in_memory:
+                    # When this is not a store step, we need to clear the input parameters
+                    # from its list, otherwise some OTB applications may comply
+                    del parameters[self.param_in]
+                lg_from = 'app'
+
+            self.set_output_pixel_type(app, meta)
+            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+            try:
+                app.SetParameters(parameters)
+            except Exception:
+                logger.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
+                raise
+
+        meta['param_out'] = self.param_out
+        return Step(app, **meta)
 
 
 class Store(StepFactory):

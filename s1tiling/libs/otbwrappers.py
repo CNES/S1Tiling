@@ -85,7 +85,7 @@ class AnalyseBorders(StepFactory):
         """
         Constructor
         """
-        super().__init__('', 'AnalyseBorders')
+        super().__init__('AnalyseBorders')
         self.__override_azimuth_cut_threshold_to = cfg.override_azimuth_cut_threshold_to
 
     def parameters(self, meta):
@@ -268,7 +268,7 @@ class CutBorders(OTBStepFactory):
         return params
 
 
-class OrthoRectify(StepFactory):
+class OrthoRectify(OTBStepFactory):
     """
     Factory that prepares steps that run
     :std:doc:`Applications/app_OrthoRectification` as described in
@@ -296,9 +296,13 @@ class OrthoRectify(StepFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        super().__init__(
-                'OrthoRectification', 'OrthoRectification',
-                param_in='io.in', param_out='io.out')
+        super().__init__(cfg,
+                appname='OrthoRectification', name='OrthoRectification',
+                param_in='io.in', param_out='io.out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=None  # Will get overridden
+                )
         self.__ram_per_process      = cfg.ram_per_process
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -307,14 +311,7 @@ class OrthoRectify(StepFactory):
         self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
         self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced long with calibration
-        self.__calibration_type = cfg.calibration_type
-
-    def output_directory(self, meta):
-        """
-        The output directory is a temporary directory with the name of the tile.
-        """
-        tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, 'S2', tile_name)
+        self.__calibration_type     = cfg.calibration_type
 
     def build_step_output_filename(self, meta):
         """
@@ -656,4 +653,40 @@ class SmoothBorderMask(OTBStepFactory):
                 'xradius'               : 5,
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
+                }
+
+
+class SARDEMProjection(OTBStepFactory):
+    """
+    Factory that prepares TODO
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(self, cfg):
+        super().__init__(
+                appname='SARDEMProjection', name='SARDEMProjection',
+                param_in='in', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=None
+                )
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`SARDEMProjection OTB application
+        <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
+        """
+        return {
+                'ram'                   : str(self.__ram_per_process),
+                # 'progress'            : 'false',
+                self.param_in           : in_filename(meta),
+                # self.param_out          : out_filename(meta),
                 }
