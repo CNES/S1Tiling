@@ -81,7 +81,18 @@ Again the processing classes are split in two families:
 Step Factories
 ++++++++++++++
 
+``StepFactory``
+~~~~~~~~~~~~~~~
+
 .. autoclass:: s1tiling.libs.otbpipeline.StepFactory
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+``OTBStepFactory``
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.otbpipeline.OTBStepFactory
    :members:
    :show-inheritance:
    :undoc-members:

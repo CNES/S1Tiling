@@ -14,8 +14,9 @@ How To's...
 How to add a new processing?
 ----------------------------
 
-This is done by deriving :class:`StepFactory
-<s1tiling.libs.otbpipeline.StepFactory>`. You'll find many examples in the
+This is done by deriving from :class:`StepFactory
+<s1tiling.libs.otbpipeline.StepFactory>`, or from :class:`OTBStepFactory
+<s1tiling.libs.otbpipeline.OTBStepFactory>`. You'll find many examples in the
 default :ref:`step factories <Existing Processings>`.
 
 The important points are to decide:
@@ -57,14 +58,6 @@ The important points are to decide:
 
 In case the step relates to an OTB application:
 
-- What would be the name of the temporary files while they are being produced? |br|
-  Return the information from :func:`build_step_output_tmp_filename()
-  <s1tiling.libs.otbpipeline.StepFactory.build_step_output_tmp_filename>`,
-- Where the product should be produced? |br|
-  Return the information from :func:`output_directory()
-  <s1tiling.libs.otbpipeline.StepFactory.output_directory>` -- this is
-  typically used from :func:`build_step_output_filename()
-  <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>`.
 - What parameters shall be sent to the OTB application? |br|
   Return the information from :func:`parameters()
   <s1tiling.libs.otbpipeline.StepFactory.parameters>`.
@@ -77,6 +70,21 @@ In case the step relates to an OTB application:
 - What is the OTB application? |br|
   Its name is expected to be passed to the constructor of the parent class,
   from the constructor of the new class.
+
+.. note::
+
+    Most of the time, inheriting of :class:`OTBStepFactory
+    <s1tiling.libs.otbpipeline.OTBStepFactory>` is the best choice. Still, it's
+    possible to take over and to manually answer the following questions:
+
+    - What would be the name of the temporary files while they are being produced? |br|
+      Return the information from :func:`build_step_output_tmp_filename()
+      <s1tiling.libs.otbpipeline.StepFactory.build_step_output_tmp_filename>`,
+    - Where the product should be produced? |br|
+      Return the information from :func:`output_directory()
+      <s1tiling.libs.otbpipeline.StepFactory.output_directory>` -- this is
+      typically used from :func:`build_step_output_filename()
+      <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>`.
 
 Technically all other methods from :class:`StepFactory
 <s1tiling.libs.otbpipeline.StepFactory>` could be overridden. For instance,

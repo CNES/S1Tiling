@@ -51,6 +51,8 @@ from . import Utils
 
 logger = logging.getLogger('s1tiling')
 
+re_tiff = re.compile(r'\.tiff?$')
+
 
 def otb_version():
     """
@@ -1055,6 +1057,99 @@ def commit_otb_application(tmp_filename, out_fn):
         res = shutil.move(tmp_geom, out_geom)
         logger.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
     assert not os.path.isfile(tmp_filename)
+
+
+class OTBStepFactory(StepFactory):
+    """
+    Abstract StepFactory for all OTB Applications.
+
+    This step aims at factoring recurring definitions.
+    """
+    def __init__(self, cfg,
+            gen_tmp_dir, gen_output_dir, gen_output_filename,
+            *argv, **kwargs):
+        """
+        Constructor
+
+        See :func:`output_directory`, :func:`tmp_directory`,
+        :func:`build_step_output_filename` and
+        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
+        ``gen_output_dir`` and ``gen_output_filename``.
+        """
+        super().__init__(*argv, **kwargs)
+        is_a_final_step = gen_output_dir != gen_tmp_dir
+
+        self.__gen_tmp_dir         = gen_tmp_dir
+        self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
+        self.__gen_output_filename = gen_output_filename
+        self.__ram_per_process     = cfg.ram_per_process
+        self.__tmpdir              = cfg.tmpdir
+        self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
+
+    def output_directory(self, meta):
+        """
+        Accessor to where output files will be stored in case their production
+        is required (i.e. not in-memory processing)
+
+        This property is built from ``gen_output_dir`` construction parameter.
+        Typical values for the parameter are:
+
+        - ``os.path.join(cfg.output_preprocess, '{tile_name}'),`` where ``tile_name``
+          is looked into ``meta`` parameter
+        - ``None``, in that case the result will be the same as :func:`tmp_directory`.
+          This case will make sense for steps that don't produce required products
+        """
+        return self.__gen_output_dir.format(**meta)
+
+    def _get_nominal_output_basename(self, meta):
+        """
+        Returns the pathless basename of the produced file (internal).
+        """
+        filename = meta['basename']
+        if self.__gen_output_filename:
+            filename = filename.replace(*self.__gen_output_filename)
+        return filename
+
+    def build_step_output_filename(self, meta):
+        """
+        Returns the names of typical result files in case their production
+        is required (i.e. not in-memory processing).
+
+        This specialization uses ``gen_output_filename`` list construction
+        parameter as parameters for :func:`str.replace` function applied
+        on ``meta['basename']``
+        """
+        filename = self._get_nominal_output_basename(meta)
+        return os.path.join(self.output_directory(meta), filename)
+
+    def tmp_directory(self, meta):
+        """
+        Directory used to store temporary files before they are renamed into
+        their final version.
+
+        This property is built from ``gen_tmp_dir`` construction parameter.
+        Typical values for the parameter are:
+
+        - ``os.path.join(cfg.tmpdir, 'S1')``
+        - ``os.path.join(cfg.tmpdir, 'S2', '{tile_name}')`` where ``tile_name``
+          is looked into ``meta`` parameter
+        """
+        return self.__gen_tmp_dir.format(**meta)
+
+    def build_step_output_tmp_filename(self, meta):
+        """
+        This specialization of :func:`StepFactory.build_step_output_tmp_filename`
+        will automatically insert ``.tmp`` before the filename extension.
+        """
+        filename = self._get_nominal_output_basename(meta)
+        return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
+
+    @property
+    def ram_per_process(self):
+        """
+        Property ram_per_process
+        """
+        return self.__ram_per_process
 
 
 class Store(StepFactory):

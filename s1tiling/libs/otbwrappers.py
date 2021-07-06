@@ -41,13 +41,18 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
+from .otbpipeline import StepFactory, OTBStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
 from . import Utils
 from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling')
 
-re_tiff = re.compile(r'\.tiff?$')
+def append_to(meta, key, value):
+    """
+    Helper function to append to a list that may be empty
+    """
+    meta['post'] = meta.get('post', []) + [value]
+    return meta
 
 
 def has_too_many_NoData(image, threshold, nodata):
@@ -157,7 +162,7 @@ class AnalyseBorders(StepFactory):
         return meta
 
 
-class Calibrate(StepFactory):
+class Calibrate(OTBStepFactory):
     """
     Factory that prepares steps that run
     :std:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
@@ -179,13 +184,17 @@ class Calibrate(StepFactory):
         """
         Constructor
         """
-        super().__init__('SARCalibration', 'Calibration')
+        super().__init__(cfg,
+                appname='SARCalibration',
+                name='Calibration',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=['.tiff', '_calOk.tiff']
+                )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
-        self.__ram_per_process    = cfg.ram_per_process
         self.__calibration_type   = cfg.calibration_type
         self.__removethermalnoise = cfg.removethermalnoise
-        self.__tmpdir             = cfg.tmpdir
 
     def complete_meta(self, meta):
         """
@@ -195,38 +204,13 @@ class Calibrate(StepFactory):
         meta['calibration_type'] = self.__calibration_type
         return meta
 
-    def output_directory(self, meta):
-        """
-        :std:doc:`Applications/app_SARCalibration` result files would be
-        stored in `{tmp}/S1` in case their production is required (i.e. not
-        in-memory processing)
-        """
-        # tile_name = meta['tile_name'] # manifest maybe?
-        return os.path.join(self.__tmpdir, 'S1')
-
-    def build_step_output_filename(self, meta):
-        """
-        Returns the names of typical SARCalibration result files in case their
-        production is required (i.e. not in-memory processing)
-        """
-        filename = meta['basename'].replace(".tiff", "_calOk.tiff")
-        return os.path.join(self.output_directory(meta), filename)
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        Returns the names of typical SARCalibration temporary result files in case their
-        production is required (i.e. not in-memory processing)
-        """
-        filename = meta['basename'].replace(".tiff", "_calOk.tmp.tiff")
-        return os.path.join(self.output_directory(meta), filename)
-
     def parameters(self, meta):
         """
         Returns the parameters to use with :std:doc:`SARCalibration OTB
         application <Applications/app_SARCalibration>`.
         """
         return {
-                'ram'           : str(self.__ram_per_process),
+                'ram'           : str(self.ram_per_process),
                 # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
@@ -236,7 +220,7 @@ class Calibrate(StepFactory):
                 }
 
 
-class CutBorders(StepFactory):
+class CutBorders(OTBStepFactory):
     """
     Factory that prepares steps that run
     :std:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
@@ -258,31 +242,12 @@ class CutBorders(StepFactory):
         """
         Constructor.
         """
-        super().__init__('ResetMargin', 'BorderCutting')
-        self.__ram_per_process = cfg.ram_per_process
-        self.__tmpdir          = cfg.tmpdir
-
-    def output_directory(self, meta):
-        """
-        Border cutting result files would be stored in :file:`{tmp}/S1`.
-        """
-        # tile_name = meta['tile_name'] # manifest maybe?
-        return os.path.join(self.__tmpdir, 'S1')
-
-    def build_step_output_filename(self, meta):
-        """
-        Returns the names of typical ResetMargin result files:
-        ``{basename}_OrthoReady.tiff``.
-        """
-        filename = meta['basename'].replace(".tiff", "_OrthoReady.tiff")
-        return os.path.join(self.output_directory(meta), filename)
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        Returns the names of typical ResetMargin temporary result files
-        """
-        filename = meta['basename'].replace(".tiff", "_OrthoReady.tmp.tiff")
-        return os.path.join(self.output_directory(meta), filename)
+        super().__init__(cfg,
+                appname='ResetMargin', name='BorderCutting',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=['.tiff', '_OrthoReady.tiff']
+                )
 
     def parameters(self, meta):
         """
@@ -290,7 +255,7 @@ class CutBorders(StepFactory):
         application <Applications/app_ResetMargin>`.
         """
         params = {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : str(self.ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
@@ -436,7 +401,7 @@ class OrthoRectify(StepFactory):
                 'elev.geoid'       : self.__GeoidFile
                 }
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
-        meta['post'] = meta.get('post', []) + [self.add_ortho_metadata]
+        append_to(meta, 'post', self.add_ortho_metadata)
 
         # Some workaround when ortho is not sequenced long with calibration
         meta['calibration_type'] = self.__calibration_type
@@ -483,7 +448,7 @@ class OrthoRectify(StepFactory):
         del dst
 
 
-class Concatenate(StepFactory):
+class Concatenate(OTBStepFactory):
     """
     Factory that prepares steps that run
     :std:doc:`Applications/app_Synthetize` as described in
@@ -499,41 +464,13 @@ class Concatenate(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__('Synthetize', 'Concatenation', param_in='il', param_out='out')
-        self.__ram_per_process = cfg.ram_per_process
-        self.__outdir          = cfg.output_preprocess
-        self.__tmpdir          = cfg.tmpdir
-
-    def tmp_directory(self, meta):
-        """
-        Directory used to store temporary files before they are renamed into
-        their final version.
-        """
-        return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
-
-    def output_directory(self, meta):
-        """
-        Concatenation result files will be stored in :file:`{out}/{tile_name}`
-        """
-        return os.path.join(self.__outdir, meta['tile_name'])
-
-    def build_step_output_filename(self, meta):
-        """
-        Returns the names of Concatenation result files.
-        Basename is precomputed in :func:`complete_meta()`.
-        """
-        filename = meta['basename']
-        return os.path.join(self.output_directory(meta), filename)
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        Returns the names of temporary Concatenation result files.
-        Basename is precomputed in :func:`complete_meta()`.
-
-        Unlike output, concatenation result goes into tmp.
-        """
-        filename = meta['basename']
-        return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
+        super().__init__(cfg,
+                appname='Synthetize', name='Concatenation',
+                param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_filename=None
+                )
 
     def update_out_filename(self, meta, with_meta):
         # tester input list
@@ -574,7 +511,7 @@ class Concatenate(StepFactory):
         meta['task_basename'] = task_basename
         meta['task_name'] = os.path.join(out_dir, task_basename)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        meta['post'] = meta.get('post', []) + [self.clear_ortho_tmp]
+        append_to(meta, 'post', self.clear_ortho_tmp)
         meta['update_out_filename'] = self.update_out_filename
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
@@ -618,14 +555,14 @@ class Concatenate(StepFactory):
         application <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : str(self.ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 }
 
 
-class BuildBorderMask(StepFactory):
+class BuildBorderMask(OTBStepFactory):
     """
     Factory that prepares the first step that generates border maks as
     described in :ref:`Border mask generation` documentation.
@@ -643,30 +580,12 @@ class BuildBorderMask(StepFactory):
         """
         Constructor.
         """
-        super().__init__('BandMath', 'BuildBorderMask', param_in='il', param_out='out')
-        self.__ram_per_process = cfg.ram_per_process
-        self.__tmpdir          = cfg.tmpdir
-
-    def output_directory(self, meta):
-        """
-        If dumped to a file, the result shall go in a temporary directory.
-        """
-        tile_name = meta['tile_name']
-        return os.path.join(self.__tmpdir, 'S2', tile_name)
-
-    def build_step_output_filename(self, meta):
-        """
-        Provide the output filename.
-        """
-        filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tif")
-        return os.path.join(self.output_directory(meta), filename)
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        Provide the typical temporary output filename.
-        """
-        filename = meta['basename'].replace(".tif", "_BorderMask_TMP.tmp.tif")
-        return os.path.join(self.output_directory(meta), filename)
+        super().__init__(cfg,
+                appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=['.tif', '_BorderMask_TMP.tif']
+                )
 
     def set_output_pixel_type(self, app, meta):
         """
@@ -680,7 +599,7 @@ class BuildBorderMask(StepFactory):
         <Applications/app_BandMath>` for computing border mask.
         """
         params = {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : str(self.ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
@@ -690,7 +609,7 @@ class BuildBorderMask(StepFactory):
         return params
 
 
-class SmoothBorderMask(StepFactory):
+class SmoothBorderMask(OTBStepFactory):
     """
     Factory that prepares the first step that smoothes border maks as
     described in :ref:`Border mask generation` documentation.
@@ -705,40 +624,13 @@ class SmoothBorderMask(StepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__(
-                'BinaryMorphologicalOperation', 'SmoothBorderMask',
-                param_in='in', param_out='out')
-        self.__ram_per_process = cfg.ram_per_process
-        self.__outdir          = cfg.output_preprocess
-        self.__tmpdir          = cfg.tmpdir
-
-    def tmp_directory(self, meta):
-        """
-        Directory used to store temporary files before they are renamed into
-        their final version.
-        """
-        return os.path.join(self.__tmpdir, 'S2', meta['tile_name'])
-
-    def output_directory(self, meta):
-        """
-        SmoothBorderMask result files will be stored in
-        :file:`{out}/{tile_name}`.
-        """
-        return os.path.join(self.__outdir, meta['tile_name'])
-
-    def build_step_output_filename(self, meta):
-        """
-        Returns the names of :class:`SmoothBorderMask` result files.
-        """
-        filename = meta['basename'].replace(".tif", "_BorderMask.tif")
-        return os.path.join(self.output_directory(meta), filename)
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        Returns the names of :class:`SmoothBorderMask` temporary result files.
-        """
-        filename = meta['basename'].replace(".tif", "_BorderMask.tmp.tif")
-        return os.path.join(self.tmp_directory(meta), filename)
+        super().__init__(cfg,
+                appname='BinaryMorphologicalOperation', name='SmoothBorderMask',
+                param_in='in', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_filename=['.tif', '_BorderMask.tif']
+                )
 
     def set_output_pixel_type(self, app, meta):
         """
@@ -754,7 +646,7 @@ class SmoothBorderMask(StepFactory):
         masks.
         """
         return {
-                'ram'                   : str(self.__ram_per_process),
+                'ram'                   : str(self.ram_per_process),
                 # 'progress'            : 'false',
                 self.param_in           : in_filename(meta),
                 # self.param_out          : out_filename(meta),
