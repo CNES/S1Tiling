@@ -68,7 +68,7 @@ from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
-from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from s1tiling.libs.otbwrappers import ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 from s1tiling.libs import exits
 
 # Graphs
@@ -363,10 +363,10 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
 
         pipelines = PipelineDescriptionSequence(config)
         if cache_before_ortho:
-            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False)
-            pipelines.register_pipeline([OrthoRectify],                          'OrthoRectify',    product_required=False)
+            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
+            pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
         else:
-            pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False)
+            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
 
         pipelines.register_pipeline([Concatenate],                                              product_required=True)
         if config.mask_cond:

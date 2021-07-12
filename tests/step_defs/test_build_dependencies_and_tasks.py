@@ -5,7 +5,7 @@ import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, MergeStep, FirstStep, to_dask_key
-from s1tiling.libs.otbwrappers import AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from s1tiling.libs.otbwrappers import ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
 # ======================================================================
@@ -127,7 +127,10 @@ def tasks():
 
 @given('A pipeline that calibrates and orthorectifies')
 def given_pipeline_ortho(pipelines):
-    pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False)
+    # pipelines.register_pipeline([ExtractSentinel1Metadata], 'ExtractS1Meta', product_required=False)
+    pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
+    # pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
+            'FullOrtho', product_required=False, is_name_incremental=True)
 
 @given('that concatenates')
 def given_pipeline_concat(pipelines):

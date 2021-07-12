@@ -316,7 +316,7 @@ class StepFactory(ABC):
     def __init__(self, name, *unused_argv, **kwargs):
         assert name
         self._name    = name
-        logger.debug("new StepFactory(%s)", name)
+        # logger.debug("new StepFactory(%s)", name)
 
     @property
     def name(self):
@@ -374,16 +374,16 @@ class StepFactory(ABC):
         """
         pass
 
-    def complete_meta(self, meta):  # to be overridden
+    def update_filename_meta(self, meta):  # to be overridden
         """
         Duplicates, completes, and return, the `meta` dictionary with specific
-        information for the current factory.
+        information for the current factory regarding tasks analysis.
 
         This method is used:
 
         - while analysing the dependencies to build the task graph -- in this
           use case the relevant information are the file names and paths.
-        - before instanciating a new :class:`Step`
+        - and indirectly before instanciating a new :class:`Step`
 
         Other metadata not filled here:
 
@@ -399,8 +399,15 @@ class StepFactory(ABC):
         meta.pop('task_name', None)
         meta.pop('task_basename', None)
         meta.pop('update_out_filename', None)
-        meta.pop('out_extended_filename_complement', None)
         return meta
+
+    def complete_meta(self, meta):  # to be overridden
+        """
+        Duplicates, completes, and return, the `meta` dictionary with specific
+        information for the current factory regarding :class:`Step` instanciation.
+        """
+        meta.pop('out_extended_filename_complement', None)
+        return self.update_filename_meta(meta)
 
     def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
         """
@@ -631,9 +638,9 @@ class PipelineDescription:
         if self.__is_name_incremental:
             res = input_meta
             for step in self.__factory_steps:
-                res = step.complete_meta(res)
+                res = step.update_filename_meta(res)
         else:
-            res = self.__factory_steps[-1].complete_meta(input_meta)
+            res = self.__factory_steps[-1].update_filename_meta(input_meta)
         logger.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
         return res
 
@@ -1002,7 +1009,8 @@ class OTBStepFactory(StepFactory):
         ``gen_output_dir`` and ``gen_output_filename``.
         """
         super().__init__(*argv, **kwargs)
-        is_a_final_step = gen_output_dir != gen_tmp_dir
+        is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
+        # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
 
         self._in                   = kwargs.get('param_in',  'in')
         self._out                  = kwargs.get('param_out', 'out')
@@ -1013,7 +1021,7 @@ class OTBStepFactory(StepFactory):
         self.__ram_per_process     = cfg.ram_per_process
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
+        logger.debug("new OTBStepFactory(%s) -> app=%s // TMPDIR=%s  OUT=%s", self.name, appname, self.__tmpdir, self.__outdir)
 
     @property
     def appname(self):
@@ -1058,9 +1066,12 @@ class OTBStepFactory(StepFactory):
         """
         Returns the pathless basename of the produced file (internal).
         """
-        filename = meta['basename']
-        if self.__gen_output_filename:
-            filename = filename.replace(*self.__gen_output_filename)
+        if isinstance(self.__gen_output_filename, str):
+            filename = self.__gen_output_filename.format(**meta)
+        else:
+            filename = meta['basename']
+            if self.__gen_output_filename:
+                filename = filename.replace(*self.__gen_output_filename)
         return filename
 
     def build_step_output_filename(self, meta):

@@ -68,6 +68,68 @@ def has_too_many_NoData(image, threshold, nodata):
     return nbNoData > threshold
 
 
+class ExtractSentinel1Metadata(StepFactory):
+    """
+    Factory that takes care of extracting meta data from S1 input files.
+
+    Note: At this moment it needs to be used on a separate pipeline to make
+    sure the meta is updated when calling :fun:`PipelineDescription.expected`.
+    """
+    def __init__(self, cfg):
+        super().__init__(cfg, 'ExtractSentinel1Metadata')
+
+    def parameters(self, meta):
+        """
+        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+        no parameters are returned.
+        """
+        return None
+
+    def output_directory(self, meta):
+        """
+        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+        there is no output directory.
+        """
+        raise TypeError("An ExtractSentinel1Metadata step don't produce anything!")
+
+    def build_step_output_filename(self, meta):
+        """
+        Forward the output filename.
+        """
+        return meta['out_filename']
+
+    def build_step_output_tmp_filename(self, meta):
+        """
+        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+        there is no temporary filename.
+        """
+        return self.build_step_output_filename(meta)
+
+    def update_filename_meta(self, meta):
+        """
+        Complete meta information such as filenames, GDAL metadata from
+        information found in the current S1 image filename.
+        """
+        meta = super().update_filename_meta(meta)
+        manifest                = meta['manifest']
+        image                   = in_filename(meta)   # meta['in_filename']
+
+        # TODO: if the manifest is no longer here, we may need to look into the geom instead
+        # It'd actually be better
+
+        meta['origin_s1_image']  = meta['basename']  # Will be used to remember the reference image
+        meta['flying_unit_code'] = Utils.get_platform_from_s1_raster(image)
+        meta['polarisation']     = Utils.get_polar_from_s1_raster(image)
+        meta['orbit_direction']  = Utils.get_orbit_direction(manifest)
+        meta['orbit']            = '{:0>3d}'.format(Utils.get_relative_orbit(manifest))
+        meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
+
+        # meta['task_basename']    = 'ExtractS1Meta_%s' % (meta['basename'], )
+        meta['task_name']        = 'ExtractS1Meta_%s' % (meta['basename'], )
+        # meta['task_name']        = 'ExtractS1Meta_%s' % (os.path.join(out_dir, meta['basename']), )
+        return meta
+
+
 class AnalyseBorders(StepFactory):
     """
     StepFactory that analyses whether image borders need to be cut as
@@ -296,12 +358,13 @@ class OrthoRectify(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
         super().__init__(cfg,
                 appname='OrthoRectification', name='OrthoRectification',
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
-                gen_output_filename=None  # Will get overridden
+                gen_output_filename=fname_fmt
                 )
         self.__ram_per_process      = cfg.ram_per_process
         self.__out_spatial_res      = cfg.out_spatial_res
@@ -313,24 +376,20 @@ class OrthoRectify(OTBStepFactory):
         # Some workaround when ortho is not sequenced long with calibration
         self.__calibration_type     = cfg.calibration_type
 
-    def build_step_output_filename(self, meta):
-        """
-        The actual output filename will be built in :func:`complete_meta()`.
-        """
-        return None
-
-    def build_step_output_tmp_filename(self, meta):
-        """
-        The actual temporary output filename will be built in
-        :func:`complete_meta()`.
-        """
-        return None
-
     def complete_meta(self, meta):
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
         """
+        meta = super().complete_meta(meta)
+        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
+        append_to(meta, 'post', self.add_ortho_metadata)
+
+        # Some workaround when ortho is not sequenced long with calibration
+        meta['calibration_type'] = self.__calibration_type
+
+        return meta
+        # V0
         meta = super().complete_meta(meta)
         manifest                = meta['manifest']
         image                   = in_filename(meta)   # meta['in_filename']
@@ -409,10 +468,47 @@ class OrthoRectify(OTBStepFactory):
         """
         Returns the parameters to use with :std:doc:`OrthoRectification OTB
         application <Applications/app_OrthoRectification>`.
-
-        The parameters have been precomputed in :func:`complete_meta()`.
         """
-        return meta['params.ortho']
+        image                   = in_filename(meta)   # meta['in_filename']
+        tile_name               = meta['tile_name']
+        tile_origin             = meta['tile_origin']
+        logger.debug("OrthoRectify.parameters(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
+        out_utm_zone            = tile_name[0:2]
+        out_utm_northern        = (tile_name[2] >= 'N')
+        in_epsg                 = 4326
+        out_epsg                = 32600 + int(out_utm_zone)
+        if not out_utm_northern:
+            out_epsg = out_epsg + 100
+
+        x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
+        lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
+
+        if not out_utm_northern and y_coord < 0:
+            y_coord += 10000000.
+            lry     += 10000000.
+
+        spacing = self.__out_spatial_res
+        logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
+        parameters = {
+                'opt.ram'          : str(self.__ram_per_process),
+                # 'progress'       : 'false',
+                self.param_in      : in_filename(meta),
+                # self.param_out     : out_filename,
+                'interpolator'     : self.__interpolation_method,
+                'outputs.spacingx' : spacing,
+                'outputs.spacingy' : -spacing,
+                'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
+                'outputs.sizey'    : int(round(abs(lry - y_coord) / spacing)),
+                'opt.gridspacing'  : self.__grid_spacing,
+                'map'              : 'utm',
+                'map.utm.zone'     : int(out_utm_zone),
+                'map.utm.northhem' : out_utm_northern,
+                'outputs.ulx'      : x_coord,
+                'outputs.uly'      : y_coord,
+                'elev.dem'         : self.__tmp_srtm_dir,
+                'elev.geoid'       : self.__GeoidFile
+                }
+        return parameters
 
     def add_ortho_metadata(self, meta):
         """
@@ -478,16 +574,7 @@ class Concatenate(OTBStepFactory):
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         logger.debug("concatenation.out_tmp_filename for %s updated to %s", meta['task_name'], meta['out_filename'])
 
-    def complete_meta(self, meta):
-        """
-        Precompute output basename from the input file(s).
-        Makes sure the :std:doc:`Synthetize OTB application
-        <Applications/app_Synthetize>` would compress its result file,
-        through extended filename.
-
-        In concatenation case, the task_name needs to be overridden to stay
-        unique and common to all inputs.
-        """
+    def update_filename_meta(self, meta):
         meta = meta.copy()
         out_file = out_filename(meta)
         out_dir = self.output_directory(meta)
@@ -504,12 +591,25 @@ class Concatenate(OTBStepFactory):
             task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
             meta['basename'] = out_file
             logger.debug("Only one file to concatenate, just move it (%s)", out_file)
-        meta = super().complete_meta(meta)  # Needs a valid basename
+        meta = super().update_filename_meta(meta)  # Needs a valid basename
         meta['task_basename'] = task_basename
         meta['task_name'] = os.path.join(out_dir, task_basename)
+        meta['update_out_filename']              = self.update_out_filename
+        return meta
+
+    def complete_meta(self, meta):
+        """
+        Precompute output basename from the input file(s).
+        Makes sure the :std:doc:`Synthetize OTB application
+        <Applications/app_Synthetize>` would compress its result file,
+        through extended filename.
+
+        In concatenation case, the task_name needs to be overridden to stay
+        unique and common to all inputs.
+        """
+        meta = super().complete_meta(meta)  # Needs a valid basename
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.clear_ortho_tmp)
-        meta['update_out_filename'] = self.update_out_filename
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta
@@ -670,7 +770,7 @@ class SARDEMProjection(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        super().__init__(
+        super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
