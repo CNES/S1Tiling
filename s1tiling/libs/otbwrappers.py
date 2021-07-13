@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, OTBStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
+from .otbpipeline import StepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
 from . import Utils
 from ..__meta__ import __version__
 
@@ -592,8 +592,8 @@ class Concatenate(OTBStepFactory):
             meta['basename'] = out_file
             logger.debug("Only one file to concatenate, just move it (%s)", out_file)
         meta = super().update_filename_meta(meta)  # Needs a valid basename
-        meta['task_basename'] = task_basename
-        meta['task_name'] = os.path.join(out_dir, task_basename)
+        meta['task_basename']                    = task_basename
+        meta['task_name']                        = os.path.join(out_dir, task_basename)
         meta['update_out_filename']              = self.update_out_filename
         return meta
 
@@ -754,6 +754,55 @@ class SmoothBorderMask(OTBStepFactory):
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
                 }
+
+# ======================================================================
+# Applications used to produce LIA
+
+class AgglomerateDEM(ExecutableStepFactory):
+    """
+    Factory that produce a :class:`Step` that build a VRT from a list of DEM.
+    """
+
+    def __init__(self, cfg, *args, **kwargs):
+        """
+        constructor
+        """
+        fname_fmt = 'DEM_{basename}.vrt'
+        super().__init__(cfg,
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=fname_fmt,
+                name="AgglomerateDEM", exename='gdalbuildvrt',
+                *args, **kwargs)
+        self.__srtm_db_filepath = cfg.srtm_db_filepath
+
+    def complete_meta(self, meta):
+        """
+        Factory that takes care of extracting meta data from S1 input files.
+        """
+        meta = super().complete_meta(meta)
+        # find DEMs that intersect the input image
+        meta['srtms'] = Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath)
+        logger.error("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        return meta
+
+    def parameters(self, meta):
+        return None
+        return [options.srtm_file] + [os.path.join(options.srtm_dir, s) for s in options.srtms]
+
+    # def create_step(self, input: Step, in_memory: bool, previous_steps):
+    #     assert issubclass(type(input), AbstractStep)
+    #     meta = self.complete_meta(input.meta)
+    #     # TODO: the step returned shall execute
+    #     execute(['gdalbuildvrt', options.srtm_file] + [os.path.join(options.srtm_dir, s) for s in options.srtms], options.dryrun)
+    #     # w/:
+    #     def execute(params, dryrun):
+    #         msg = ' '.join([str(p) for p in params])
+    #         logging.info('$> '+msg)
+    #         if not dryrun:
+    #             with ExecutionTimer(msg, True) as t:
+    #                 subprocess.run(args=params, check=True)
+    #     return AbstractStep(**meta)
 
 
 class SARDEMProjection(OTBStepFactory):
