@@ -33,6 +33,7 @@
 import fnmatch
 import logging
 import os
+from pathlib import Path
 import re
 import sys
 from timeit import default_timer as timer
@@ -119,6 +120,18 @@ def get_shape(manifest):
     return poly
 
 
+def get_s1image_poly(s1image):
+    if isinstance(s1image, str):
+        manifest = Path(s1image).parents[1] / 'manifest.safe'
+    else:
+        manifest = image.get_manifest()
+
+    logging.debug("Manifest: %s", manifest)
+    assert(manifest.exists())
+    poly = get_shape(manifest)
+    return poly
+
+
 def get_tile_origin_intersect_by_s1(grid_path, image):
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
@@ -145,6 +158,29 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
         if intersection.GetArea() != 0:
             intersect_tile.append(current_tile.GetField('NAME'))
     return intersect_tile
+
+
+def find_srtm_intersecting_raster(s1image, srtm_db_filepath):
+    """
+    Searches the SRTM tiles that intersect the S1 Image.
+    """
+    # srtm_layer = Layer(srtm_shapefile)
+    srtm_tiles = {}
+    poly = get_s1image_poly(s1image)
+    logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
+
+    srtm_shapefile = srtm_db_filepath
+    assert(srtm_shapefile)
+    assert(os.path.isfile(srtm_shapefile))
+    srtm_layer = Layer(srtm_shapefile, driver_name='GPKG')
+    for tile in srtm_layer:
+        tile_footprint = tile.GetGeometryRef()
+        intersection = poly.Intersection(tile_footprint)
+        if intersection.GetArea() > 0.0:
+            # logging.debug("Tile: %s", tile)
+            file = tile.GetField('id')
+            srtm_tiles[file] = 1
+    return sorted(srtm_tiles.keys())
 
 
 def get_orbit_direction(manifest):
