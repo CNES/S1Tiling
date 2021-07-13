@@ -809,6 +809,10 @@ class SARDEMProjection(OTBStepFactory):
     """
     Factory that prepares TODO
 
+    SARDEMProjection application puts a DEM file into SAR geometry and estimates two additional coordinates.
+    In all for each point of the DEM input four components are calculated:
+    C (colunm into SAR image), L (line into SAR image), Z and Y.
+
     Requires the following information from the configuration object:
 
     - `ram_per_process`
@@ -821,11 +825,52 @@ class SARDEMProjection(OTBStepFactory):
     def __init__(self, cfg):
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
-                param_in='in', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                param_in=['insar', 'indem'], param_out='out',
+                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=None
                 )
+
+    def complete_meta(self, meta):
+        """
+        Complete meta information with hook for updating image metadata
+        w/ directiontoscandemc, directiontoscandeml and gain.
+        """
+        meta = super().complete_meta(meta)
+        append_to(meta, 'post', self.add_image_metadata)
+        return meta
+
+    def add_image_metadata(self, meta):
+        """
+        Post-application hook used to complete GDAL metadata.
+        """
+        fullpath = out_filename(meta)
+        logger.debug('Set metadata in %s', fullpath)
+        dst = gdal.Open(fullpath, gdal.GA_Update)
+
+        dst.SetMetadataItem('TIFFTAG_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
+        dst.SetMetadataItem('ORBIT',                    meta['orbit'])
+        dst.SetMetadataItem('ORBIT_DIRECTION',          meta['orbit_direction'])
+        dst.SetMetadataItem('TIFFTAG_SOFTWARE',         'S1 Tiling v'+__version__)
+        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(in_filename(meta), meta['srtms']))
+
+        acquisition_time = meta['acquisition_time']
+        date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
+        if acquisition_time[9] == 'x':
+            date += ' 00:00:00'
+        else:
+            date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
+        dst.SetMetadataItem('ACQUISITION_DATETIME', date)
+
+        assert self.app
+        meta['directiontoscandeml'] = self.app.GetParameterInt('directiontoscandeml')
+        meta['directiontoscandemc'] = self.app.GetParameterInt('directiontoscandemc')
+        meta['gain']                = self.app.GetParameterFloat('gain')
+        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', meta['directiontoscandeml'])
+        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', meta['directiontoscandemc'])
+        dst.SetMetadataItem('PRJ.GAIN',                meta['gain'])
+        del dst
 
     def parameters(self, meta):
         """
@@ -833,9 +878,153 @@ class SARDEMProjection(OTBStepFactory):
         :std:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
+        nodata = meta.get('nodata', -32768)
+        indem = quivabien('dem')
         return {
-                'ram'                   : str(self.__ram_per_process),
-                # 'progress'            : 'false',
-                self.param_in           : in_filename(meta),
-                # self.param_out          : out_filename(meta),
+                'ram'        : str(self.__ram_per_process),
+                'insar'      : in_filename(meta),
+                'indem'      : indem,
+                'withxyz'    : True,
+                'nodata'     : nodata
                 }
+
+
+class SARCartesianMeanEstimation(OTBStepFactory):
+    """
+    Factory that prepares TODO
+
+    SARCartesianMeanEstimation estimates a simulated cartesian mean image thanks to a DEM file.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+
+    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
+    """
+    def __init__(self, cfg):
+        super().__init__(cfg,
+                appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
+                param_in=['insar', 'indem', 'indemproj'], param_out='out',
+                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=None
+                )
+
+    def complete_meta(self, meta):
+        """
+        Complete meta information with hook for updating image metadata
+        w/ directiontoscandemc, directiontoscandeml and gain.
+        """
+        meta = super().complete_meta(meta)
+        if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
+            self.fetch_direction(meta)
+        return meta
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`SARCartesianMeanEstimation OTB application
+        <Applications/app_SARCartesianMeanEstimation>` to TODO.
+        """
+        indem     = quivabien('dem')
+        indemproj = quivabien('demproj')
+        return {
+                'ram'             : str(self.__ram_per_process),
+                'insar'           : in_filename(meta),
+                'indem'           : indem,
+                'indemproj'       : indemproj,
+                'indirectiondemc' : meta['directiontoscandemc'],
+                'indirectiondeml' : meta['directiontoscandeml'],
+                'mlran'           : 1,
+                'mlazi'           : 1,
+                }
+
+
+class ComputeNormals(OTBStepFactory):
+    """
+    Factory that prepares TODO
+
+    ComputeNormals computes surface normals.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+
+    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
+    """
+    def __init__(self, cfg):
+        super().__init__(cfg,
+                appname='ExtractNormalVector', name='ComputeNormals',
+                param_in='xyz', param_out='out',
+                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=None
+                )
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`ExtractNormalVector OTB application
+        <Applications/app_ExtractNormalVector>` to TODO.
+        """
+        xyz = quivabien('xyz')
+        return {
+                'ram'             : str(self.__ram_per_process),
+                'xyz'             : xyz,
+                }
+
+
+class ComputeLIA(OTBStepFactory):
+    """
+    Factory that prepares TODO
+
+    ComputeLIA computes surface normals.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+
+    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
+    """
+    def __init__(self, cfg):
+        super().__init__(cfg,
+                appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
+                param_in=['in.normals', 'in.xyz'], param_out=['out.lia', 'out.sin'],
+                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=None
+                )
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`SARComputeLocalIncidenceAngle OTB application
+        <Applications/app_SARComputeLocalIncidenceAngle>` to TODO.
+        """
+        xyz     = quivabien('xyz')
+        normals = quivabien('normals')
+        return {
+                'ram'             : str(self.__ram_per_process),
+                'in.xyz'          : xyz,
+                'in.normals'      : normals,
+                }
+
+
