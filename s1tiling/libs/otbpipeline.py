@@ -161,16 +161,31 @@ def files_exist(files):
         return True
 
 
+
+def execute(params, dryrun):
+    """
+    Helper function to execute any external command.
+
+    And log its execution, measure the time it takes.
+    """
+    msg = ' '.join([str(p) for p in params])
+    logging.info('$> '+msg)
+    if not dryrun:
+        with ExecutionTimer(msg, True) as t:
+            subprocess.run(args=params, check=True)
+
+
 class AbstractStep:
     """
     Internal root class for all actual `Step` s.
 
-    There are three kinds of steps:
+    There are four kinds of steps:
 
     - :class:`FirstStep` that contains information about input files
     - :class:`Step` that registers an otbapplication binding
     - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to force storing of
       the resulting file.
+    - :class:`ExecutableStep` executes external applications
 
     The step will contain information like the current input file, the current output
     file...
@@ -230,6 +245,27 @@ class AbstractStep:
         Makes sure that steps with applications are releasing the application
         """
         pass
+
+
+class ExecutableStep(AbstractStep):
+    """
+    Generic step for calling any external application.
+    """
+    def __init__(self, exename, *argv, **kwargs):
+        """
+        constructor
+        """
+        super().__init__(None, *argv, **kwargs)
+        self._exename = exename
+
+    def execute_and_write_output(self):  # pylint: disable=no-self-use
+        dryrun = self.meta.get('dryrun', False)
+        logger.debug("ExecutableStep: %s (%s)", self, self.meta)
+        execute([self.exename]+ self.parameters(meta), dryrun)
+        if 'post' in self.meta and not dryrun:
+            for hook in self.meta['post']:
+                hook(self.meta)
+        self.meta['pipe'] = [self.out_filename]
 
 
 class _StepWithOTBApplication(AbstractStep):
@@ -629,6 +665,7 @@ class PipelineDescription:
             self.__name = name
         else:
             self.__name = '|'.join([step.name for step in self.__factory_steps])
+        # logger.debug("New pipeline: %s; required: %s, incremental: %s", '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
 
     def expected(self, input_meta):
         """
@@ -663,11 +700,16 @@ class PipelineDescription:
         """
         Instanciates the pipeline specified.
 
-        Note: It systematically register a :class:`Store` step at the end.
+        Note: It systematically registers a :class:`Store` step at the end
+        if any :class:`StepFactory` is actually an :class:`OTBStepFactory`
         """
         pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, file)
-        for factory_step in self.__factory_steps + [Store('noappname')]:
+        need_OTB_store = False
+        for factory_step in self.__factory_steps + []:
             pipeline.push(factory_step)
+            need_OTB_store = need_OTB_store or isinstance(factory_step, OTBStepFactory)  # TODO: use a dedicated function
+        if need_OTB_store:
+            pipeline.push(Store('noappname'))
         return pipeline
 
 
@@ -990,14 +1032,15 @@ def commit_otb_application(tmp_filename, out_fn):
     assert not os.path.isfile(tmp_filename)
 
 
-class OTBStepFactory(StepFactory):
+class _FileProducingStepFactory(StepFactory):
     """
-    Abstract StepFactory for all OTB Applications.
+    Abstract class that factorizes filename transformations and parameter
+    handling for Steps that produce files, either with OTB or through external
+    calls.
 
-    This step aims at factoring recurring definitions.
+    :func:`create_step`  is kind of _abstract_ at this point.
     """
     def __init__(self, cfg,
-            appname,
             gen_tmp_dir, gen_output_dir, gen_output_filename,
             *argv, **kwargs):
         """
@@ -1012,40 +1055,13 @@ class OTBStepFactory(StepFactory):
         is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
         # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
 
-        self._in                   = kwargs.get('param_in',  'in')
-        self._out                  = kwargs.get('param_out', 'out')
-        self._appname              = appname
         self.__gen_tmp_dir         = gen_tmp_dir
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        logger.debug("new OTBStepFactory(%s) -> app=%s // TMPDIR=%s  OUT=%s", self.name, appname, self.__tmpdir, self.__outdir)
-
-    @property
-    def appname(self):
-        """
-        OTB Application property.
-        """
-        return self._appname
-
-    @property
-    def param_in(self):
-        """
-        Name of the "in" parameter used by the OTB Application.
-        Default is likely to be "in", whie some applications use "io.in", often "il" for list of
-        files...
-        """
-        return self._in
-
-    @property
-    def param_out(self):
-        """
-        Name of the "out" parameter used by the OTB Application.
-        Default is likely to be "out", whie some applications use "io.out".
-        """
-        return self._out
+        logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
     def output_directory(self, meta):
         """
@@ -1114,6 +1130,58 @@ class OTBStepFactory(StepFactory):
         Property ram_per_process
         """
         return self.__ram_per_process
+
+
+class OTBStepFactory(_FileProducingStepFactory):
+    """
+    Abstract StepFactory for all OTB Applications.
+
+    This step aims at factoring recurring definitions.
+    """
+    def __init__(self, cfg,
+            appname,
+            gen_tmp_dir, gen_output_dir, gen_output_filename,
+            *argv, **kwargs):
+        """
+        Constructor
+
+        See :func:`output_directory`, :func:`tmp_directory`,
+        :func:`build_step_output_filename` and
+        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
+        ``gen_output_dir`` and ``gen_output_filename``.
+        """
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
+        # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
+
+        self._in                   = kwargs.get('param_in',  'in')
+        self._out                  = kwargs.get('param_out', 'out')
+        self._appname              = appname
+        logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
+
+    @property
+    def appname(self):
+        """
+        OTB Application property.
+        """
+        return self._appname
+
+    @property
+    def param_in(self):
+        """
+        Name of the "in" parameter used by the OTB Application.
+        Default is likely to be "in", whie some applications use "io.in", often "il" for list of
+        files...
+        """
+        return self._in
+
+    @property
+    def param_out(self):
+        """
+        Name of the "out" parameter used by the OTB Application.
+        Default is likely to be "out", whie some applications use "io.out".
+        """
+        return self._out
 
     def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
         """
@@ -1185,10 +1253,46 @@ class OTBStepFactory(StepFactory):
         return Step(app, **meta)
 
 
+class ExecutableStepFactory(_FileProducingStepFactory):
+    # TODO: Factorize out _FileProducingStepFactory
+    # - directory
+    # - temp name VS final name
+    """
+    Abstract StepFactory for executing any external program.
+
+    This step aims at factoring recurring definitions.
+    """
+    def __init__(self, cfg,
+            exename,
+            gen_tmp_dir, gen_output_dir, gen_output_filename,
+            *argv, **kwargs):
+        """
+        Constructor
+
+        See :func:`output_directory`, :func:`tmp_directory`,
+        :func:`build_step_output_filename` and
+        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
+        ``gen_output_dir`` and ``gen_output_filename``.
+        """
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        self._exename              = exename
+        logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
+
+    def create_step(self, input: AbstractStep, in_memory: bool, previous_steps):
+        logger.debug("Directly execute %s step", self.name)
+        assert issubclass(type(input), AbstractStep)
+        meta = self.complete_meta(input.meta)
+        res = ExecutableStep(self._exename, **meta)
+        return res
+
+
 class Store(StepFactory):
     """
     Factory for Artificial Step that forces the result of the previous app
     to be stored on disk by breaking in-memory connection.
+
+    While it could be used manually, it's meant to be automatically append
+    at the end of a pipeline if any step is actually related to OTB.
     """
     def __init__(self, appname, *argv, **kwargs):
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
@@ -1200,6 +1304,7 @@ class Store(StepFactory):
         OTB Application.
         """
         if input.is_first_step:
+            assert False  # Should no longer happen!
             # Special case of by-passed inputs
             meta = input.meta.copy()
             return AbstractStep(**meta)
