@@ -42,6 +42,37 @@ import osgeo  # To test __version__
 from osgeo import osr
 
 
+class Layer:
+    """
+    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
+    """
+    def __init__(self, grid, driver_name="ESRI Shapefile"):
+        self.__grid        = grid
+        self.__driver      = ogr.GetDriverByName(driver_name)
+        self.__data_source = self.__driver.Open(self.__grid, 0)
+        self.__layer       = self.__data_source.GetLayer()
+
+    def __iter__(self):
+        return self.__layer.__iter__()
+
+    def reset_reading(self):
+        """
+        Reset feature reading to start on the first feature.
+
+        This affects iteration.
+        """
+        return self.__layer.ResetReading()
+
+    def find_tile_named(self, tile_name_field):
+        """
+        Search for a tile that maches the name.
+        """
+        for tile in self.__layer:
+            if tile.GetField('NAME') in tile_name_field:
+                return tile
+        return None
+
+
 def get_relative_orbit(manifest):
     """
     Returns the relative orbit number of the product.

@@ -47,43 +47,12 @@ from osgeo import ogr
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_files, list_dirs
+from .Utils import get_shape, list_files, list_dirs, Layer
 from .S1DateAcquisition import S1DateAcquisition
 
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
-
-
-class Layer:
-    """
-    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
-    """
-    def __init__(self, grid, driver_name="ESRI Shapefile"):
-        self.__grid        = grid
-        self.__driver      = ogr.GetDriverByName(driver_name)
-        self.__data_source = self.__driver.Open(self.__grid, 0)
-        self.__layer       = self.__data_source.GetLayer()
-
-    def __iter__(self):
-        return self.__layer.__iter__()
-
-    def reset_reading(self):
-        """
-        Reset feature reading to start on the first feature.
-
-        This affects iteration.
-        """
-        return self.__layer.ResetReading()
-
-    def find_tile_named(self, tile_name_field):
-        """
-        Search for a tile that maches the name.
-        """
-        for tile in self.__layer:
-            if tile.GetField('NAME') in tile_name_field:
-                return tile
-        return None
 
 
 def product_property(prod, key, default=None):
