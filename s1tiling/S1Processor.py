@@ -412,5 +412,8 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
         if nb_error_detected > 0:
             sys.exit(exits.TASK_FAILED)
 
+        client.close()
+        cluster.close()
+
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     main()
