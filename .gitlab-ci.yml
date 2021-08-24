@@ -5,10 +5,13 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
+    OTB_VERSION: 7.3.0
 
-image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
-
+#
+# Tests and documentation
+#
 .common:
+    image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb${OTB_VERSION}
     variables:
     # cache:
     #     key: packages
@@ -138,3 +141,44 @@ pages:
     - master
     - develop
     - /^[0-9]+\.[0-9]+.*/
+
+#======================================================================
+#
+# Docker generation
+#
+.prepare-docker-config: &prepare-docker-config
+  - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
+           > /kaniko/.docker/config.json
+
+.common-docker-build:
+  image:
+    name: gcr.io/kaniko-project/executor:v1.6.0-debug
+    entrypoint: [""]
+  before_script:
+    - *prepare-docker-config
+  script:
+    - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
+    - sh $CI_PROJECT_DIR/docker/version_name.sh
+    - echo "> docker pull $CI_REGISTRY_IMAGE/${OS}-otb${OTB_VERSION}:$(sh $CI_PROJECT_DIR/docker/version_name.sh)"
+    - /kaniko/executor --cleanup
+                       --verbosity info
+                       --context $CI_PROJECT_DIR/
+                       --dockerfile $CI_PROJECT_DIR/docker/Dockerfile
+                       --destination $CI_REGISTRY_IMAGE:$(sh $CI_PROJECT_DIR/docker/version_name.sh)-${OS}-otb${OTB_VERSION}
+                       --build-arg CI_PROJECT_DIR
+                       --build-arg OTB_VERSION
+                       --build-arg S1TILING_VERSION=$(sh $CI_PROJECT_DIR/docker/version_name.sh)
+
+# Effective stages
+
+ubuntu-user:
+  extends: .common-docker-build
+  stage: deploy
+  variables:
+    OS: ubuntu
+    STEP: user
+  only:
+  - /^[0-9]+\.[0-9]+.*/
+  - /^80-provide.*/
+
+# vim: set sw=2:

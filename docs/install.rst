@@ -9,8 +9,11 @@ Installation
    :local:
    :depth: 3
 
+Manual installation with pip
+----------------------------
+
 OTB & GDAL dependency
----------------------
++++++++++++++++++++++
 
 S1 Tiling depends on `OTB 7.2+ <https://www.orfeo-toolbox.org/CookBook-7.2/>`_.
 First install OTB on your platform. See the `related documentation
@@ -55,7 +58,7 @@ version.
    information.
 
 Possible conflicts on Python version
-++++++++++++++++++++++++++++++++++++
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `eodag <https://github.com/CS-SI/eodag>`_ requires ``xarray`` which in turn
 requires at least Python 3.6 while default OTB 7.2 binaries are built with
@@ -73,7 +76,7 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
     ctest3 -S share/otb/swig/build_wrapping.cmake -VV
 
 Conflicts between rasterio default wheel and OTB binaries
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
    **TL;DR** In the case you install **other programs alongside S1Tiling** in
@@ -120,7 +123,7 @@ GDAL and rasterio version of GDAL to be identical.
 
 
 S1 Tiling installation
-----------------------
+++++++++++++++++++++++
 
 Then you can install S1 Tiling thanks to `pip`.
 
@@ -156,8 +159,66 @@ Then you can install S1 Tiling thanks to `pip`.
     ignored.
 
 Extra packages
---------------
+++++++++++++++
 
 You may want to install extra packages like `bokeh
 <https://pypi.org/project/bokeh/>`_ to monitor the execution of the multiple
 processing by Dask.
+
+
+Using S1Tiling with a docker
+----------------------------
+
+As the installation of S1Tiling could be tedious, versions ready to be used are
+provided as Ubuntu 18.04 dockers.
+
+You can browse the full list of available dockers in `S1Tiling registry
+<https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
+Their naming scheme is
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.3.0`,
+with the version being either ``develop``, ``latest`` or the version number of
+a recent release.
+
+The docker, containing the version of S1Tiling of which you're reading the
+documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
+
+.. code-block:: bash
+
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.3.0
+
+or even directly used with
+
+
+.. code-block:: bash
+
+    docker run                            \
+        -v /localpath/to/MNT:/MNT         \
+        -v "$(pwd)":/data                 \
+        -v $HOME/.config/eodag:/eo_config \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.3.0 \
+        /data/MyS1ToS2.cfg
+
+.. note::
+
+    This examle considers:
+
+    - SRTM's are available on local host through :file:`/localpath/to/MNT/` and
+      they will be mounted into the docker as :file:`/MNT/`.
+    - Logs and output files will be produced in current working directory (i.e.
+      :file:`$(pwd)`) which will be mounted as :file:`data/`.
+    - EODAG configuration file to be in :file:`$HOME/.config/eodag` which will
+      be mounted as :file:`/eo_config/`.
+    - A :ref:`configuration file <request-config-file>` named
+      :file:`MyS1ToS2.cfg` is present in current working directory.
+    - And it relates to the volumes mounted in the docker in the following way:
+
+        .. code-block:: ini
+
+            [Paths]
+            output : /data/data_out
+            srtm : /MNT/SRTM_30_hgt
+            ...
+            [DataSource]
+            eodagConfig : /eo_config/eodag.yml
+            ...
+
