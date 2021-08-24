@@ -43,10 +43,20 @@ image: $BUILD_IMAGE_REGISTRY/s1tiling-dockers/s1tiling-dev:ubuntu-otb7.3.0
         INSTALL_TYPE: docs
     extends: .common
 
-.common-tests:
+.common-dev:
     variables:
         INSTALL_TYPE: dev
     extends: .common
+
+# Package
+package:
+    extends: .common-dev
+    stage: build
+    script:
+    - python3 setup.py sdist bdist_wheel
+    artifacts:
+        paths:
+            - dist/
 
 # Run tests
 pytest:
@@ -54,7 +64,7 @@ pytest:
     variables:
         KUBERNETES_CPU_REQUEST: 4
         KUBERNETES_MEMORY_REQUEST: 4Gi
-    extends: .common-tests
+    extends: .common-dev
     stage: test
     script:
     - test -d baseline || mkdir baseline
@@ -87,6 +97,23 @@ test-doc:
     - master
     - develop
     - /^[0-9]+\.[0-9]+.*/
+
+# Package
+#
+# Requires the following variables:
+# - TWINE_PASSWORD
+# - TWINE_USERNAME
+pypi:
+    extends: .common-dev
+    stage: deploy
+    script:
+    # Upload only EGG as Wheel as formal dependency to gdal.
+    - python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
+    dependencies:
+        - package
+    only:
+        # - tags
+        - /^[0-9]+\.[0-9]+.*/
 
 # Upload latest documentation when develop/master branches are updated
 pages:
