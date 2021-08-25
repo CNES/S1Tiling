@@ -139,21 +139,21 @@ Here is a short list of the actions to do for each new release.
 
        git push --tags
 
-8. Prepare the packets for pipy
 
-  .. code::
+   .. note::
 
-      python3 setup.py sdist bdist_wheel
+       From there on, the CI will automatically take care of registering the
+       source distribution (only; and not the wheel!) on pypi as if we had
+       manually ran
 
-9. Push to pipy
+       .. code::
 
-  .. note::
+           # Prepare the packets for pipy
+           python3 setup.py sdist bdist_wheel
 
-      You need an account on [PyPi](https://pypi.org/) with maintener level for S1Tiling project
+           # Push to pipy
+           python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
-  .. code::
 
-      python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
-
-10. Update :file:`__meta__.py` version to the next expected version.
+8. Update :file:`__meta__.py` version to the next expected version.
     Do not use the `rcX` suffix for the moment.
