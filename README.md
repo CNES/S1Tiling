@@ -50,8 +50,7 @@ regarding OTB and GDAL installation.
   * click
   * eodag
   * numpy
-  * gdal, ogr
-  * rasterio
+  * gdal
   * yaml
   * Dask"distributed"
   * bokeh (to display Dask dashboard)

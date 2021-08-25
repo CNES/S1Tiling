@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =========================================================================
+#   Program:   S1Processor
+#
 #   Copyright 2017-2021 (c) CESBIO. All rights reserved.
 #
 #   This file is part of S1Tiling project
@@ -25,17 +27,14 @@
 #
 # =========================================================================
 
-"""
-Holds project meta-information for setup.py
-"""
-
-from __future__ import unicode_literals
-
-__title__ = "S1Tiling"
-__description__ = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
-__version__ = "0.2.0rc6"
-__author__ = "Thierry KOLECK"
-__author_email__ = "Thierry.Koleck@cnes.fr"
-__url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
-__license__ = "Apache 2.0"
-__copyright__ = "Copyright 2017-2021, CESBIO"
+TASK_FAILED         = 66
+DOWNLOAD_ERROR      = 67
+OFFLINE_DATA        = 68
+OUTPUT_DISK_FULL    = 69
+TMP_DISK_FULL       = 70
+CORRUPTED_DATA_SAFE = 71
+CONFIG_ERROR        = 72
+NO_S2_TILE          = 73
+NO_S1_IMAGE         = 74
+MISSING_SRTM        = 75
+MISSING_GEOID       = 76
