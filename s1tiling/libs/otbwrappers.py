@@ -767,7 +767,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         constructor
         """
-        fname_fmt = 'DEM_{basename}.vrt'
+        fname_fmt = 'DEM_{rootname}.vrt'
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
@@ -823,13 +823,14 @@ class SARDEMProjection(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
+        fname_fmt = 'S1_on_DEM_{basename}'
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
                 param_in=['insar', 'indem'], param_out='out',
                 # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=None
+                gen_output_filename=fname_fmt,
                 )
 
     def complete_meta(self, meta):
@@ -907,13 +908,14 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
+        fname_fmt = 'XYZ_{basename}'
         super().__init__(cfg,
                 appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
                 param_in=['insar', 'indem', 'indemproj'], param_out='out',
                 # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=None
+                gen_output_filename=fname_fmt,
                 )
 
     def complete_meta(self, meta):
@@ -964,13 +966,14 @@ class ComputeNormals(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
+        fname_fmt = 'Normals_{basename}'
         super().__init__(cfg,
                 appname='ExtractNormalVector', name='ComputeNormals',
                 param_in='xyz', param_out='out',
                 # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=None
+                gen_output_filename=fname_fmt,
                 )
 
     def parameters(self, meta):
@@ -1004,13 +1007,14 @@ class ComputeLIA(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
+        fname_fmt = 'LIA_{basename}'
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 param_in=['in.normals', 'in.xyz'], param_out=['out.lia', 'out.sin'],
                 # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=None
+                gen_output_filename=fname_fmt,
                 )
 
     def parameters(self, meta):

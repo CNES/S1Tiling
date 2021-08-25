@@ -68,7 +68,9 @@ from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
-from s1tiling.libs.otbwrappers import ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask
+from s1tiling.libs.otbwrappers import (
+        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
+        AgglomerateDEM)
 from s1tiling.libs import exits
 
 # Graphs

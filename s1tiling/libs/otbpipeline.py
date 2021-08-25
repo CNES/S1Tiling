@@ -109,7 +109,7 @@ def get_task_name(meta):
     Helper accessor to the task name related to a `Step`.
 
     By default, the task name is stored in `out_filename` key.
-    In the case of reducing :class:`MargeStep`, a dedicated name shall be
+    In the case of reducing :class:`MergeStep`, a dedicated name shall be
     provided. See :class:`Concatenate`
 
     Important, task names shall be unique and attributed to a single step.
@@ -159,7 +159,6 @@ def files_exist(files):
             if not os.path.isfile(file):
                 return False
         return True
-
 
 
 def execute(params, dryrun):
@@ -526,27 +525,36 @@ class Pipeline:
         self.__do_watch_ram = do_watch_ram
         self.__name         = name
         self.__output       = output
-        self.__input        = None
+        self.__inputs       = []
 
     def __repr__(self):
         return self.name
 
-    def set_input(self, input: AbstractStep):
+    def set_inputs(self, inputs: list):
         """
-        Set the input of the instanciated pipeline.
-        The `input` is expected to be either an :class:`AbstractStep` or a
-        list of :class:`AbstractStep` in which case it'll be internally
-        registered as a :class:`MergeStep`.
+        Set the input(s) of the instanciated pipeline.
+        The `inputs` is parameter expected to be a list of {'key': [metas...]} that'll
+        get tranformed into a dictionary of {'key': :class:`AbstractStep`}.
+
+        Some :class:`AbstractStep` will actually be :class:`MergeStep` instances.
         """
-        assert isinstance(input, (list, AbstractStep))
-        if isinstance(input, list):
-            if len(input) == 1:
-                self.__input = input[0]
+        logger.debug("Pipeline(%s).set_inputs(%s)", self.__name, inputs)
+        # all_keys = set().union(*(input.keys() for input in inputs))
+        all_keys = inputs.keys()
+        for key in all_keys:
+            # inputs_associated_to_key = [input[key] for input in inputs if key in input]
+            inputs_associated_to_key = inputs[key]
+            if len(inputs_associated_to_key) == 1:
+                self.__inputs.append({key: FirstStep(**inputs_associated_to_key[0])})
             else:
-                assert input
-                self.__input = MergeStep(input)
-        else:
-            self.__input = input
+                self.__inputs.append({key: MergeStep(inputs_associated_to_key)})
+
+    @property
+    def _input_filenames(self):
+        """
+        Property _input_filenames
+        """
+        return [input[k].out_filename for input in self.__inputs for k in input]
 
     @property
     def name(self):
@@ -556,7 +564,7 @@ class Pipeline:
         registered :class:`StepFactory` s.
         """
         appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
-        return '%s -> %s from %s' % (appname, self.__output, self.__input.out_filename)
+        return '%s -> %s from %s' % (appname, self.__output, self._input_filenames)
 
     @property
     def output(self):
@@ -588,6 +596,7 @@ class Pipeline:
         3. Return the resulting output filename, or the caught errors.
         """
         assert self.__input
+        TODO()
         if not files_exist(self.__input.out_filename) and not self.__input.meta.get('dryrun', False):
             msg = "Cannot execute %s as %s doesn't exist" % (self, self.__input.out_filename)
             logger.warning(msg)
@@ -653,7 +662,7 @@ class PipelineDescription:
     - can tell the expected product name given an input.
     - tells whether its product is required
     """
-    def __init__(self, factory_steps, name=None, product_required=False, is_name_incremental=False):
+    def __init__(self, factory_steps, name=None, product_required=False, is_name_incremental=False, inputs=None):
         """
         constructor
         """
@@ -665,6 +674,7 @@ class PipelineDescription:
             self.__name = name
         else:
             self.__name = '|'.join([step.name for step in self.__factory_steps])
+        self.__inputs              = inputs
         # logger.debug("New pipeline: %s; required: %s, incremental: %s", '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
 
     def expected(self, input_meta):
@@ -678,7 +688,23 @@ class PipelineDescription:
                 res = step.update_filename_meta(res)
         else:
             res = self.__factory_steps[-1].update_filename_meta(input_meta)
-        logger.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
+        logger.debug("expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
+        return res
+
+    @property
+    def inputs(self):
+        """
+        Property inputs
+        """
+        return self.__inputs
+
+    @property
+    def sources(self):
+        """
+        Property sources
+        """
+        # logger.debug("SOURCES(%s) = %s", self.name, self.__inputs)
+        res = [(val if isinstance(val, str) else val.name) for (key,val) in self.__inputs.items()]
         return res
 
     @property
@@ -727,9 +753,14 @@ def register_task(tasks, key, value, debug_otb):
     """
     Helper function to register a task named `key` in the right format
     depending on `debug_otb` flag.
+    This function also takes care of possible redundancies: no task will
+    be actually registered twice.
     """
     if debug_otb:
-        tasks.append([key, value])
+        if key not in (k for k,_ in tasks):
+            tasks.append([key, value])
+        else:
+            logger.debug("Task %s already registered => ignore its registration", key)
     else:
         tasks[key] = value
 
@@ -753,6 +784,83 @@ def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
             inputs.append(start.meta)
     return inputs
 
+
+class InputInfo:
+    def __init__(self, input_meta):
+        """
+        constructor
+        """
+        self.__basename = input_meta['basename']
+        self.__tasks    = {task_name(input_meta): input_meta}
+
+    @property
+    def basename(self):
+        """
+        Property basename
+        """
+        return self.__basename
+
+    @property
+    def tasks(self):
+        """
+        Property tasks
+        """
+        return self.__tasks
+
+
+class TaskInputInfo:
+    def __init__(self, pipeline):
+        """
+        constructor
+        """
+        self.__pipeline    = pipeline
+        self._inputs       = {}   # map<source, meta / meta list>
+        self._dependencies = []  # task names
+
+    def add_input(self, origin, input_meta):
+        if origin not in self._inputs:
+            self._inputs[origin] = [input_meta]
+        else:
+            self._inputs[origin].append(input_meta)
+
+    @property
+    def pipeline(self):
+        """
+        Property pipeline
+        """
+        return self.__pipeline
+
+    @property
+    def inputs(self):
+        """
+        Property inputs
+        """
+        return self._inputs
+
+    @property
+    def dependencies(self):
+        """
+        Property dependencies
+        """
+        return self.__dependencies
+
+    @property
+    def input_task_names(self):
+        """
+        Property task names
+        """
+        logger.debug('input_task_names(%s) --> %s', self.pipeline.name, self.inputs)
+        # TODO: use input_metas?
+        tns = [get_task_name(meta) for inputs in self.inputs.values() for meta in inputs]
+        return tns
+
+    @property
+    def input_metas(self):
+        """
+        Property input_metas
+        """
+        metas = [meta for inputs in self.inputs.values() for meta in inputs]
+        return metas
 
 class PipelineDescriptionSequence:
     """
@@ -782,55 +890,85 @@ class PipelineDescriptionSequence:
         steps = [FS(self.__cfg) for FS in factory_steps]
         pipeline = PipelineDescription(steps, *args, **kwargs)
         self.__pipelines.append(pipeline)
+        return pipeline
 
     def _build_dependencies(self, tile_name, raster_list, dryrun):
         """
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
         """
-        inputs = generate_first_steps_from_manifests(
+        first_inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
                 dryrun=dryrun)
 
+        pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
+        logger.debug('FIRST: %s', pipelines_outputs['basename'])
+
         required = {}     # (first batch) Final products identified as _needed to be produced_
         previous = {}     # Graph of deps: for a product tells how it's produced (pipeline + inputs)
         task_names_to_output_files_table = {}
-        # +-> TODO: cache previous in order to remember which files already exist or not
-        #     the difficult part is to flag as "generation successful" of not
+        # +-> TODO: cache previous in order to remember which files already exists or not
+        #     the difficult part is to flag as "generation successful" or not
         for pipeline in self.__pipelines:
+            logger.debug('#############################################################################')
             logger.debug('Analysing |%s| dependencies', pipeline.name)
-            logger.debug('FROM inputs: %s', inputs)
-            next_inputs = []
-            for input in inputs:
-                expected = pipeline.expected(input)
-                expected_taskname = get_task_name(expected)
-                logger.debug('  %s <-- from input: %s', expected_taskname, input)
-                logger.debug('  --> %s', expected)
-                # We cannot analyse early whether a task product is already
-                # there as some product have names that depend on all inputs
-                # (see Concatenate).
-                # This is why the full dependencies tree is produced at this
-                # time. Unrequired parts will be trimmed in the next task
-                # producing step.
-                if expected_taskname not in previous:
-                    next_inputs.append(expected)
-                    previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
-                elif get_task_name(input) not in (get_task_name(m) for m in previous[expected_taskname]['inputs']):
-                    previous[expected_taskname]['inputs'].append(input)
-                    logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation. Updating %s ...', expected_taskname, expected)
-                    update_out_filename(expected, previous[expected_taskname])
-                    logger.debug('...to (%s)', expected)
-                    already_registered_next_input = [ni for ni in next_inputs if get_task_name(ni) == expected_taskname]
-                    assert len(already_registered_next_input) == 1
-                    update_out_filename(already_registered_next_input[0], previous[expected_taskname])
-                if pipeline.product_is_required:
-                    required[expected_taskname] = expected
-                task_names_to_output_files_table[expected_taskname] = out_filename(expected)
-            inputs = next_inputs
+            logger.debug('Sources --> %s', pipeline.sources)
+            outputs = []
 
+            for origin, sources in pipeline.inputs.items():
+                source_name = sources if isinstance(sources, str) else sources.name
+                logger.debug('Checking sources from %s origin: %s', origin, source_name)
+                # res = [(val if isinstance(val, str) else val.name) for (key,val) in self.__inputs.items()]
+                inputs = [output for output in pipelines_outputs[source_name]]
+
+                # Locate all inputs for the current pipeline
+                # -> Select all inputs for pipeline sources from pipelines_outputs
+                # inputs = [output for source in pipeline.sources for output in pipelines_outputs[source]]
+                logger.debug('===========================================================================')
+                logger.debug('FROM all inputs as %s: %s', origin, inputs)
+                # TODO: + for origin in pipeline.sources
+                for input in inputs:  # inputs are meta
+                    logger.debug('----------------------------------------------------------------------')
+                    logger.debug('* GIVEN "%s": %s', origin, input)
+                    expected = pipeline.expected(input)
+                    expected_taskname = get_task_name(expected)
+                    logger.debug('  %s <-- from input: %s', expected_taskname, input)
+                    logger.debug('  --> %s', expected)
+                    # We cannot analyse early whether a task product is already
+                    # there as some product have names that depend on all inputs
+                    # (see Concatenate).
+                    # This is why the full dependencies tree is produced at this
+                    # time. Unrequired parts will be trimmed in the next task
+                    # producing step.
+                    if expected_taskname not in previous:
+                        outputs.append(expected)
+                        # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
+                        # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [InputInfo(input)]}
+                        previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
+                        previous[expected_taskname].add_input(origin, input)
+                        logger.debug('This is a new product: %s, with a source from %s', expected_taskname, origin)
+                    elif get_task_name(input) not in previous[expected_taskname].input_task_names:
+                        # previous[expected_taskname]['inputs'].append(input)
+                        previous[expected_taskname].add_input(origin, input)
+                        logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation. Updating %s ...', expected_taskname, expected)
+                        update_out_filename(expected, previous[expected_taskname])
+                        logger.debug('...to (%s)', expected)
+                        already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == expected_taskname]
+                        assert len(already_registered_next_input) == 1
+                        update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                    if pipeline.product_is_required:
+                        required[expected_taskname] = expected
+                    task_names_to_output_files_table[expected_taskname] = out_filename(expected)
+
+            pipelines_outputs[pipeline.name] = outputs
+
+        logger.debug('#############################################################################')
+        logger.debug('#############################################################################')
+        logger.debug('#############################################################################')
         required_task_names = set()
         for name, meta in required.items():
+            logger.debug("check task_name: %s", name)
             if product_exists(meta):
                 logger.debug("Ignoring %s as the product already exist", name)
                 previous[name] = False  # for the next log
@@ -838,14 +976,17 @@ class PipelineDescriptionSequence:
                 required_task_names.add(name)
 
         logger.debug("Dependencies found:")
-        for path, prev in previous.items():
+        for task_name, prev in previous.items():
             if prev:
-                logger.debug('- %s requires %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
+                # logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [m['out_filename'] for m in prev.inputs])
+                logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, prev.inputs)
             else:
-                logger.debug('- %s already exists, no need to produce it', path)
+                logger.debug('- %s already exists, no need to produce it', task_name)
         return required_task_names, previous, task_names_to_output_files_table
 
-    def _build_tasks_from_dependencies(self, required, previous, task_names_to_output_files_table, debug_otb, do_watch_ram):  # pylint: disable=no-self-use
+    def _build_tasks_from_dependencies(self,
+            required, previous, task_names_to_output_files_table,
+            debug_otb, do_watch_ram):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -863,25 +1004,27 @@ class PipelineDescriptionSequence:
             for task_name in required:
                 assert previous[task_name]
                 base_task_name = to_dask_key(task_name)
-                task_inputs = previous[task_name]['inputs']
-                # logger.debug('%s --> %s', task_name, task_inputs)
-                input_files = [to_dask_key(m['out_filename']) for m in task_inputs]
+                task_inputs    = previous[task_name].inputs
+                pipeline_descr = previous[task_name].pipeline
+                input_task_keys = [to_dask_key(tn) for tn in previous[task_name].input_task_names]
+                assert list(input_task_keys)
+                logger.debug('%s(%s) --> %s', task_name, list(input_task_keys), task_inputs)
                 # TODO: check whether the pipeline shall be instanciated w/
                 # file_name of task_name
                 output_filename = task_names_to_output_files_table[task_name]
-                pipeline_instance = previous[task_name]['pipeline'].instanciate(output_filename, True, True, do_watch_ram)
-                pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
-                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_files), debug_otb)
-                logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, previous[task_name]['pipeline'].name, input_files)
+                pipeline_instance = pipeline_descr.instanciate(output_filename, True, True, do_watch_ram)
+                pipeline_instance.set_inputs(task_inputs)
+                logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, pipeline_descr.name, list(input_task_keys))
+                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys), debug_otb)
 
-                for t in task_inputs:  # check whether the inputs need to be produced as well
+                for t in previous[task_name].input_metas:  # check whether the inputs need to be produced as well
                     tn = get_task_name(t)
                     logger.debug('processing task %s', t)
                     if not product_exists(t):
-                        logger.info('  => Need to register production of %s (for %s)', tn, previous[task_name]['pipeline'].name)
+                        logger.info('  => Need to register production of %s (for %s)', tn, pipeline_descr.name)
                         new_required.add(tn)
                     else:
-                        logger.info('  => Starting %s from existing %s', previous[task_name]['pipeline'].name, tn)
+                        logger.info('  => Starting %s from existing %s', pipeline_descr.name, tn)
                         register_task(tasks, to_dask_key(tn), FirstStep(**t), debug_otb)
             required = new_required
         return tasks
@@ -1083,7 +1226,8 @@ class _FileProducingStepFactory(StepFactory):
         Returns the pathless basename of the produced file (internal).
         """
         if isinstance(self.__gen_output_filename, str):
-            filename = self.__gen_output_filename.format(**meta)
+            rootname = os.path.splitext(meta['basename'])[0]
+            filename = self.__gen_output_filename.format(**meta, rootname=rootname)
         else:
             filename = meta['basename']
             if self.__gen_output_filename:
