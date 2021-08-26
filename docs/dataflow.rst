@@ -156,6 +156,8 @@ It uses the following parameters from the request configuration file:
 
 - :ref:`[Processing].orthorectification_gridspacing
   <Processing.orthorectification_gridspacing>`
+- :ref:`[Processing].orthorectification_interpolation_method
+  <Processing.orthorectification_interpolation_method>`
 - :ref:`[Paths].srtm <paths.srtm>`
 - :ref:`[Paths].geoid_file <paths.geoid_file>`
 

@@ -107,7 +107,7 @@ Here is a short list of the actions to do for each new release.
 
 3. Handle all the issues associated for the related milestone.
 
-4. Push ``develop`` branch and wait for the doc to be completely updated.
+4. Push ``develop`` branch.
 
    .. code::
 
@@ -119,18 +119,10 @@ Here is a short list of the actions to do for each new release.
 
        git checkout master && git merge develop
 
-5. Push ``master`` branch and wait for the doc to be completely updated.
-
-   .. important::
-
-       Given current limitations in the generation of the documentation
-       (multiple tags/branches) cannot be generated simultaneously, **we have
-       to wait for the documentation for `develop` branch to be updated**
-       before pushing ``master`` branch.
+5. Push ``master`` branch.
 
    .. code::
 
-       # WAIT...
        git checkout master && git push
 
 
@@ -141,32 +133,27 @@ Here is a short list of the actions to do for each new release.
        git tag -a "${version}"
        # And fill in version information
 
-7. Wait the doc to be updated, then
-
-   .. important::
-
-       Given current limitations in the generation of the documentation
-       (multiple tags/branches) cannot be generated simultaneously, **we have
-       to wait for the documentation for `master` branch to be updated**
-       before pushing the new tag.
+7. Push the tag
 
    .. code::
 
        git push --tags
 
-8. Prepare the packets for pipy
 
-  .. code::
+   .. note::
 
-      python3 setup.py sdist bdist_wheel
+       From there on, the CI will automatically take care of registering the
+       source distribution (only; and not the wheel!) on pypi as if we had
+       manually ran
 
-9. Push to pipy
+       .. code::
 
-  .. code::
+           # Prepare the packets for pipy
+           python3 setup.py sdist bdist_wheel
 
-      python3 -m twine upload --repository s1tiling dist/S1Tiling-${version}*
+           # Push to pipy
+           python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
-10. Update :file:`__meta__.py` version to the next expected version.
+
+8. Update :file:`__meta__.py` version to the next expected version.
     Do not use the `rcX` suffix for the moment.
-
-

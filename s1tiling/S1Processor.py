@@ -56,7 +56,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
+from pathlib import Path
 import sys
+
 import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
@@ -91,19 +93,19 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
-    tiles_to_process = []
+
+    logger.info('Requested tiles: %s', cfg.tile_list)
 
     all_requested = False
-
-    for tile in cfg.tile_list:
-        if tile == "ALL":
-            all_requested = True
-            break
-        elif True:  # s1_file_manager.tile_exists(tile):
-            tiles_to_process.append(tile)
-        else:
-            logger.info("Tile %s does not exist, skipping ...", tile)
-    logger.info('Requested tiles: %s', cfg.tile_list)
+    tiles_to_process = []
+    if cfg.tile_list[0] == "ALL":
+        all_requested = True
+    else:
+        for tile in cfg.tile_list:
+            if s1_file_manager.tile_exists(tile):
+                tiles_to_process.append(tile)
+            else:
+                logger.warning("Tile %s does not exist, skipping ...", tile)
 
     # We can not require both to process all tiles covered by downloaded products
     # and and download all tiles
@@ -118,6 +120,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                     100 * cfg.TileToProductOverlapRatio, tiles_to_process)
 
+    logger.info('The following tiles will be process: %s', tiles_to_process)
     return tiles_to_process
 
 
@@ -154,16 +157,16 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
     return tiles_to_process_checked, needed_srtm_tiles
 
 
-def check_srtm_tiles(cfg, srtm_tiles):
+def check_srtm_tiles(cfg, srtm_tiles_id, srtm_suffix='.hgt'):
     """
     Check the SRTM tiles exist on disk.
     """
     res = True
-    for srtm_tile in srtm_tiles:
-        tile_path = os.path.join(cfg.srtm, srtm_tile)
-        if not os.path.exists(tile_path):
+    for srtm_tile in srtm_tiles_id:
+        tile_path_hgt = Path(cfg.srtm, srtm_tile + srtm_suffix)
+        if not tile_path_hgt.exists():
             res = False
-            logger.critical("%s is missing!", tile_path)
+            logger.critical("%s is missing!", tile_path_hgt)
     return res
 
 
@@ -277,39 +280,7 @@ def process_one_tile(
                     raise
 
 
-# Main code
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option()
-@click.option(
-        "--cache-before-ortho/--no-cache-before-ortho",
-        is_flag=True,
-        default=False,
-        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
-
-        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
-@click.option(
-        "--searched_items_per_page",
-        default=20,
-        help="Number of products simultaneously requested by eodag"
-        )
-@click.option(
-        "--dryrun",
-        is_flag=True,
-        help="Display the processing shall would be realized, but none is done.")
-@click.option(
-        "--debug-otb",
-        is_flag=True,
-        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
-@click.option(
-        "--watch-ram",
-        is_flag=True,
-        help="Trigger investigation mode for watching memory usage")
-@click.option(
-        "--graphs", "debug_tasks",
-        is_flag=True,
-        help="Generate SVG images showing task graphs of the processing flows")
-@click.argument('config_filename', type=click.Path(exists=True))
-def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
+def s1_process(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -409,5 +380,44 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
         if nb_error_detected > 0:
             sys.exit(exits.TASK_FAILED)
 
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.version_option()
+@click.option(
+        "--cache-before-ortho/--no-cache-before-ortho",
+        is_flag=True,
+        default=False,
+        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
+
+        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
+@click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
+         debug_tasks, cache_before_ortho, config_filename):
+    """
+    This function is used as entry point to create console scripts with setuptools.
+    """
+    s1_process( searched_items_per_page, dryrun, debug_otb, watch_ram,
+                debug_tasks, cache_before_ortho, config_filename)
+
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    main()
+    run()

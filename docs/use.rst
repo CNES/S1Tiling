@@ -131,6 +131,16 @@ You can use this :download:`this template
                       password: THEPASSWORD
 
 
+      .. _DataSource.nb_parallel_processes:
+  * - ``nb_parallel_processes``
+    - Number of parallel downloads (+ unzip) of source products.
+
+      .. warning::
+
+          Don't abuse this setting as the data provider may not support too many
+          parallel requests.
+
+
       .. _DataSource.roi_by_tiles:
   * - ``roi_by_tiles``
     - The Region of Interest (ROI) for downloading is specified in roi_by_tiles
@@ -206,12 +216,6 @@ You can use this :download:`this template
       unspecified, it'll point automatically to the `Features.shp` shapefile
       resource shipped with S1 Tiling.
 
-      .. _Processing.srtm_shapefile:
-  * - ``srtm_shapefile``
-    - Path and filename of the SRTM shape definition (ESRI Shapefile). If left
-      unspecified, it'll point automatically to the `srtm.shp` shapefile
-      resource shipped with S1 Tiling.
-
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
     - Grid spacing (in meters) for the interpolator in the orthorectification
@@ -220,6 +224,17 @@ You can use this :download:`this template
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
       A nice value is 4 x output_spatial_resolution
+
+      .. _Processing.orthorectification_interpolation_method:
+  * - ``orthorectification_interpolation_method``
+    - Interpolation method used in the orthorectification process
+      for more information, please consult the `OTB OrthoRectification
+      application
+      <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
+
+      Default value is set to nearest neighbor interpolation (nn) to keep compatibilty with previous results
+      By the way linear method could be more interesting.
+      Note that the bco method is not currently supported
 
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
