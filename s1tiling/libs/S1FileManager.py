@@ -240,6 +240,8 @@ class S1FileManager:
         self.nb_images        = 0
 
         self.__tmpsrtmdir     = None
+        self.__caching_option = cfg.cache_srtm_by
+        assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
         self.vh_pattern       = "measurement/*vh*-???.tiff"
@@ -314,9 +316,11 @@ class S1FileManager:
 
     def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """
-        Generate the temporary directory for SRTM tiles on the fly
-        And populate it with symbolic link to the actual SRTM tiles
+        Generate the temporary directory for SRTM tiles on the fly,
+        and either populate it with symbolic links to the actual SRTM
+        tiles, or copies of the actual SRTM tiles.
         """
+        assert self.__caching_option in ['copy', 'symlink']
         if not self.__tmpsrtmdir:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
@@ -325,10 +329,13 @@ class S1FileManager:
             for srtm_tile in srtm_tiles_id:
                 srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
                 srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
-                logger.debug('ln -s %s  <-- %s',
-                    srtm_tile_filepath,
-                    srtm_tile_filelink)
-                srtm_tile_filelink.symlink_to(srtm_tile_filepath)
+                if self.__caching_option == 'symlink':
+                    logger.debug('- ln -s %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
+                    srtm_tile_filelink.symlink_to(srtm_tile_filepath)
+                else:
+                    logger.debug('- cp %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
+                    shutil.copy2(srtm_tile_filepath, srtm_tile_filelink)
+
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):

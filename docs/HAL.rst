@@ -270,13 +270,22 @@ cluster like HAL.
          intensive computation on nodes not dedicated to computations.
 
   * - :ref:`[PATHS].srtm <paths.srtm>`
-    - SRTM files are stored in
+    - Original SRTM files are stored in
       :file:`/work/datalake/static_aux/MNT/SRTM_30_hgt`.
 
       .. code:: ini
 
           [PATHS]
           srtm : /work/datalake/static_aux/MNT/SRTM_30_hgt
+
+  * - :ref:`[Processing].cache_srtm_by <Processing.cache_srtm_by>`
+    - SRTM files should be **copied** locally on :ref:`[PATHS].tmp
+      <paths.tmp>` instead of being symlinked over the GPFS.
+
+      .. code:: ini
+
+          [Processing]
+          cache_srtm_by : copy
 
   * - :ref:`[Processing].nb_otb_threads <Processing.nb_otb_threads>`
     - This is the number of threads that will be used by each OTB application
@@ -369,6 +378,7 @@ S1 Tiling request file: :file:`S1Processor.cfg`
       ...
 
       [Processing]
+      cache_srtm_by: copy
       # Let's use the exported environment variables thanks to "%()s" syntax
       nb_parallel_processes: %(NB_OTB_PIPELINES)s
       nb_otb_threads: %(NB_OTB_THREADS)s
