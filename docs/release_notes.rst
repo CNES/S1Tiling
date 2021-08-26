@@ -18,6 +18,9 @@ Bug fixed
 Optimizations
 +++++++++++++
 
+- Downloading and unzipping of Sentinel-1 products is done in parallel
+  (`!31 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/31>`_)
+
 
 Version 0.2
 -----------
@@ -30,7 +33,7 @@ Improvements
 
 - Provide the possibility to use linear interpolation for orthorectification step
 - Support OTB 7.3
-- Various return code after execution are now provided ((`#72 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/72>`_)
+- Various return code after execution are now provided (`#72 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/72>`_)
 - Improved architecture to help maintenance
 - Project stability has been improved
 
