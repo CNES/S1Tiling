@@ -101,8 +101,10 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
+            "pytest-bdd",
             "pytest-check",
             "pytest-icdiff",
+            "pytest-mock",
             "pylint",
             ],
         "docs": [
@@ -143,7 +145,7 @@ setup(
     scripts = ['s1tiling/S1Processor.py'],
     entry_points = {
         'console_scripts': [
-            'S1Processor = s1tiling.S1Processor:main',
+            'S1Processor = s1tiling.S1Processor:run',
         ],
     },
 )

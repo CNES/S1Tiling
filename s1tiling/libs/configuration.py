@@ -124,12 +124,12 @@ class Configuration():
         if config.has_section('PEPS'):
             logging.critical('Since version 2.0, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(exits.CONFIG_ERROR)
-        self.eodagConfig       = config.get('DataSource', 'eodagConfig', fallback=None)
-        self.download          = config.getboolean('DataSource', 'download')
-        self.ROI_by_tiles      = config.get('DataSource', 'roi_by_tiles')
-        self.first_date        = config.get('DataSource', 'first_date')
-        self.last_date         = config.get('DataSource', 'last_date')
-        self.polarisation      = config.get('DataSource', 'polarisation')
+        self.eodagConfig               = config.get('DataSource', 'eodagConfig', fallback=None)
+        self.download                  = config.getboolean('DataSource', 'download')
+        self.ROI_by_tiles              = config.get('DataSource', 'roi_by_tiles')
+        self.first_date                = config.get('DataSource', 'first_date')
+        self.last_date                 = config.get('DataSource', 'last_date')
+        self.polarisation              = config.get('DataSource', 'polarisation')
         if   self.polarisation == 'VV-VH':
             self.polarisation = 'VV VH'
         elif self.polarisation == 'HH-HV':
@@ -138,6 +138,9 @@ class Configuration():
             logging.critical("Parameter [polarisation] must be HH-HV or VV-VH")
             logging.critical("Please correct it the config file ")
             sys.exit(exits.CONFIG_ERROR)
+        if self.download:
+            self.nb_download_processes = config.getint('DataSource', 'nb_parallel_processes')
+
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
