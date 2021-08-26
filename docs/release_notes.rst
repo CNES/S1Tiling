@@ -3,6 +3,22 @@
 Release notes
 =============
 
+Version 0.3
+-----------
+
+This version is a minor release with critical but non trivial fixes before
+version 1.0.0
+
+Improvements
+++++++++++++
+
+Bug fixed
++++++++++
+
+Optimizations
++++++++++++++
+
+
 Version 0.2
 -----------
 

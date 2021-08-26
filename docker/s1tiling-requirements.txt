@@ -1,0 +1,15 @@
+# This specific requirement file is defined explicitly without
+# gdal so the already installed version in xxx-base docker isn't
+# overwritten with an incorrect version comming from s1tiling wheel.
+#
+# It's important the version of GDAL Python bindind matches GDAL version
+# that comes with OTB; not the version used when S1Tiling wheel has been
+# created.
+click
+dask[distributed]
+eodag
+graphviz
+numpy
+objgraph
+pympler
+pyyaml
