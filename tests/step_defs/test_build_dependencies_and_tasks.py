@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import logging
+from pathlib import Path
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
@@ -64,6 +65,8 @@ def maskfile(idx):
 # ======================================================================
 # Mocks
 
+resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
+
 class Configuration():
     def __init__(self, tmpdir, outputdir, *argv):
         """
@@ -72,6 +75,7 @@ class Configuration():
         self.GeoidFile                         = 'UNUSED HERE'
         self.calibration_type                  = 'sigma'
         self.grid_spacing                      = 40
+        self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
         self.override_azimuth_cut_threshold_to = None
@@ -79,6 +83,8 @@ class Configuration():
         self.removethermalnoise                = True
         self.tmp_srtm_dir                      = 'UNUSED HERE'
         self.tmpdir                            = tmpdir
+        self.srtm_db_filepath                  = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        assert self.srtm_db_filepath.is_file()
 
 def isfile(filename, existing_files):
     # assert False
