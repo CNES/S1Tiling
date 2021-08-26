@@ -131,6 +131,16 @@ You can use this :download:`this template
                       password: THEPASSWORD
 
 
+      .. _DataSource.nb_parallel_processes:
+  * - ``nb_parallel_processes``
+    - Number of parallel downloads (+ unzip) of source products.
+
+      .. warning::
+
+          Don't abuse this setting as the data provider may not support too many
+          parallel requests.
+
+
       .. _DataSource.roi_by_tiles:
   * - ``roi_by_tiles``
     - The Region of Interest (ROI) for downloading is specified in roi_by_tiles

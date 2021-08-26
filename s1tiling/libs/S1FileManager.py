@@ -31,15 +31,16 @@
 """ This module contains the S1FileManager class"""
 
 import fnmatch
+from functools import partial
 import glob
 import logging
+import multiprocessing
 import os
 from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
-import zipfile
 
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
@@ -49,6 +50,7 @@ import numpy as np
 from s1tiling.libs import exits
 from .Utils import get_shape, list_files, list_dirs
 from .S1DateAcquisition import S1DateAcquisition
+from .otbpipeline import mp_worker_config
 
 setup_logging(verbose=1)
 
@@ -181,6 +183,55 @@ def discard_small_redundant(products, id=None):
     return res
 
 
+def _download_and_extract_one_product(dag, raw_directory, product):
+    """
+    Takes care of downloading exactly one remote product and unzipping it,
+    if required.
+
+    Some products are already unzipped on the fly by eodag.
+    """
+    logging.info("Starting download of %s...", product)
+    ok_msg = "Successful download (and extraction) of %s" % (product, )  # because eodag'll clear product
+    file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
+    path = dag.download(
+            product,      # EODAG will clear this variable
+            extract=True  # Let's eodag do the job
+            )
+    logging.debug(ok_msg)
+    if os.path.exists(file) :
+        try:
+            logger.debug('Removing downloaded ZIP: %s', file)
+            os.remove(file)
+        except OSError:
+            pass
+    return path
+
+
+def _parallel_download_and_extraction_of_products(dag, raw_directory, products, nb_procs, tile_name):
+    """
+    Takes care of downloading exactly all remote products and unzipping them,
+    if required, in parallel.
+    """
+    paths = []
+    log_queue = multiprocessing.Queue()
+    log_queue_listener = logging.handlers.QueueListener(log_queue)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory)
+    with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
+        log_queue_listener.start()
+        try:
+            for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                logger.info("%s correctly downloaded", result)
+                logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
+                paths.append(result)
+        finally:
+            pool.close()
+            pool.join()
+            log_queue_listener.stop()  # no context manager for QueueListener unfortunately
+
+    # paths returns the list of .SAFE directories
+    return paths
+
+
 class S1FileManager:
     """ Class to manage processed files (downloads, checks) """
     def __init__(self, cfg):
@@ -298,7 +349,7 @@ class S1FileManager:
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
             tile_out_dir, tile_name, polarization,
-            searched_items_per_page, dryrun):
+            searched_items_per_page,dryrun):
         """
         Process with the call to eodag download.
         """
@@ -379,19 +430,11 @@ class S1FileManager:
             paths = [p.as_dict()['id'] for p in products] # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
-        paths = dag.download_all(
-                products[:],  # pass a copy because eodag modifies the list
-                )
-        # paths returns the list of .SAFE directories
+
+        paths = _parallel_download_and_extraction_of_products(
+                dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
+                tile_name)
         logger.info("Remote S1 products saved into %s", paths)
-        # And clean temporary files
-        for product in products:
-            file = os.path.join(self.cfg.raw_directory, product.as_dict()['id']) + '.zip'
-            try:
-                logger.debug('Removing downloaded ZIP: %s', file)
-                os.remove(file)
-            except OSError:
-                pass
         return paths
 
     def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
