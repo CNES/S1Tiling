@@ -101,8 +101,10 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
+            "pytest-bdd",
             "pytest-check",
             "pytest-icdiff",
+            "pytest-mock",
             "pylint",
             ],
         "docs": [

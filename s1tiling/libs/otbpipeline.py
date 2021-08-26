@@ -102,11 +102,48 @@ def out_filename(meta):
     return meta.get('out_filename')
 
 
+def get_task_name(meta):
+    """
+    Helper accessor to the task name related to a `Step`.
+
+    By default, the task name is stored in `out_filename` key.
+    In the case of reducing :class:`MargeStep`, a dedicated name shall be
+    provided. See :class:`Concatenate`
+
+    Important, task names shall be unique and attributed to a single step.
+    """
+    if 'task_name' in meta:
+        return meta['task_name']
+    else:
+        return out_filename(meta)
+
+
 def out_extended_filename_complement(meta):
     """
     Helper accessor to the extended filename to use to produce the image.
     """
     return meta.get('out_extended_filename_complement', '')
+
+
+def product_exists(meta):
+    """
+    Helper accessor that teels whether the product described by the metadata
+    already exists.
+    """
+    if 'does_product_exist' in meta:
+        return meta['does_product_exist']()
+    else:
+        return os.path.isfile(out_filename(meta))
+
+
+def update_out_filename(updated_meta, with_meta):
+    """
+    Helper function to update the `out_filename` from metadata.
+    Meant to be used metadata associated to products made of several inputs
+    like Concatenate.
+    """
+    if 'update_out_filename' in updated_meta:
+        updated_meta['update_out_filename'](updated_meta, with_meta)
 
 
 def files_exist(files):
@@ -375,13 +412,19 @@ class StepFactory(ABC):
 
         Other metadata not filled here:
 
+        - :func:`get_task_name` which is deduced from `out_filename`  by default
         - :func:`out_extended_filename_complement`
         """
         meta = meta.copy()
-        meta['in_filename']      = out_filename(meta)
-        meta['out_filename']     = self.build_step_output_filename(meta)
-        meta['out_tmp_filename'] = self.build_step_output_tmp_filename(meta)
-        meta['pipe']             = meta.get('pipe', []) + [self.__class__.__name__]
+        meta['in_filename']        = out_filename(meta)
+        meta['out_filename']       = self.build_step_output_filename(meta)
+        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
+        meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
+        meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
+        meta.pop('task_name', None)
+        meta.pop('task_basename', None)
+        meta.pop('update_out_filename', None)
+        meta.pop('out_extended_filename_complement', None)
         return meta
 
     def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
@@ -588,6 +631,7 @@ class Pipeline:
             steps.append(step)
 
         res = steps[-1].out_filename
+        assert res == self.output
         steps = None
         return Outcome(res)
 
@@ -664,12 +708,7 @@ class PipelineDescription:
                 res = step.complete_meta(res)
         else:
             res = self.__factory_steps[-1].complete_meta(input_meta)
-        # out_pathname = self.__factory_steps[-1].build_step_output_filename(res)
-        out_pathname = out_filename(res)
-        # logger.debug('%s / %s', dir, out_filename(res))
-        # out_pathname = os.path.join(dir, out_filename(res))
-        res['out_pathname'] = out_pathname
-        logger.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_pathname)
+        logger.debug("%s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
         return res
 
     @property
@@ -705,7 +744,19 @@ def to_dask_key(pathname):
     - Strip directory name
     - Replace '-' with '_' as Dask has a special interpretation for '-' in key names.
     """
-    return Path(pathname).stem.replace('-', '_')
+    # return Path(pathname).stem.replace('-', '_')
+    return pathname.replace('-', '_')
+
+
+def register_task(tasks, key, value, debug_otb):
+    """
+    Helper function to register a task named `key` in the right format
+    depending on `debug_otb` flag.
+    """
+    if debug_otb:
+        tasks.append([key, value])
+    else:
+        tasks[key] = value
 
 
 def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
@@ -713,6 +764,8 @@ def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
     inputs = []
+    # Log commented and kept for filling in unit tests
+    # logger.debug('Generate first steps from: %s', raster_list)
     for raster, tile_origin in raster_list:
         manifest = raster.get_manifest()
         for image in raster.get_images_list():
@@ -765,68 +818,96 @@ class PipelineDescriptionSequence:
                 raster_list=raster_list,
                 dryrun=dryrun)
 
-        required = set()  # (first batch) Final products identified as _needed to be produced_
+        required = {}     # (first batch) Final products identified as _needed to be produced_
         previous = {}     # Graph of deps: for a product tells how it's produced (pipeline + inputs)
+        task_names_to_output_files_table = {}
         # +-> TODO: cache previous in order to remember which files already exist or not
         #     the difficult part is to flag as "generation successful" of not
         for pipeline in self.__pipelines:
             logger.debug('Analysing |%s| dependencies', pipeline.name)
+            logger.debug('FROM inputs: %s', inputs)
             next_inputs = []
             for input in inputs:
                 expected = pipeline.expected(input)
-                next_inputs.append(expected)
-                expected_pathname = expected['out_pathname']
-                if os.path.isfile(expected_pathname):
-                    previous[expected_pathname] = False  # File exists
-                else:
-                    if expected_pathname not in previous:
-                        previous[expected_pathname] = {'pipeline': pipeline, 'inputs': [input]}
-                    elif not input['out_filename'] in (m['out_filename'] for m in previous[expected_pathname]['inputs']):
-                        previous[expected_pathname]['inputs'].append(input)
-                    if pipeline.product_is_required:
-                        required.add(expected_pathname)
+                expected_taskname = get_task_name(expected)
+                logger.debug('  %s <-- from input: %s', expected_taskname, input)
+                logger.debug('  --> %s', expected)
+                # We cannot analyse early whether a task product is already
+                # there as some product have names that depend on all inputs
+                # (see Concatenate).
+                # This is why the full dependencies tree is produced at this
+                # time. Unrequired parts will be trimmed in the next task
+                # producing step.
+                if expected_taskname not in previous:
+                    next_inputs.append(expected)
+                    previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
+                elif get_task_name(input) not in (get_task_name(m) for m in previous[expected_taskname]['inputs']):
+                    previous[expected_taskname]['inputs'].append(input)
+                    logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation. Updating %s ...', expected_taskname, expected)
+                    update_out_filename(expected, previous[expected_taskname])
+                    logger.debug('...to (%s)', expected)
+                    already_registered_next_input = [ni for ni in next_inputs if get_task_name(ni) == expected_taskname]
+                    assert len(already_registered_next_input) == 1
+                    update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                if pipeline.product_is_required:
+                    required[expected_taskname] = expected
+                task_names_to_output_files_table[expected_taskname] = out_filename(expected)
             inputs = next_inputs
+
+        required_task_names = set()
+        for name, meta in required.items():
+            if product_exists(meta):
+                logger.debug("Ignoring %s as the product already exist", name)
+                previous[name] = False  # for the next log
+            else:
+                required_task_names.add(name)
 
         logger.debug("Dependencies found:")
         for path, prev in previous.items():
             if prev:
-                logger.debug('- %s may require %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
+                logger.debug('- %s requires %s on %s', path, prev['pipeline'].name, [m['out_filename'] for m in prev['inputs']])
             else:
                 logger.debug('- %s already exists, no need to produce it', path)
-        return required, previous
+        return required_task_names, previous, task_names_to_output_files_table
 
-    def _build_tasks_from_dependencies(self, required, previous, debug_otb, do_watch_ram):  # pylint: disable=no-self-use
+    def _build_tasks_from_dependencies(self, required, previous, task_names_to_output_files_table, debug_otb, do_watch_ram):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
         In case debug_otb is true, instead of a dictionary of tasks, an ordered list of tasks is
         returned in order to process sequentially each pipeline.
+
+        `previous` is lade of:
+        - "pipeline": reference to the :class:`PipelineDescription`
+        - "inputs": list of the inputs (metadata)
         """
         tasks = {} if not debug_otb else []
+        logger.debug('Building all tasks')
         while required:
             new_required = set()
-            for file in required:
-                assert previous[file]
-                base_file = to_dask_key(file)
-                task_inputs = previous[file]['inputs']
-                # logger.debug('%s --> %s', file, task_inputs)
+            for task_name in required:
+                assert previous[task_name]
+                base_task_name = to_dask_key(task_name)
+                task_inputs = previous[task_name]['inputs']
+                # logger.debug('%s --> %s', task_name, task_inputs)
                 input_files = [to_dask_key(m['out_filename']) for m in task_inputs]
-                pipeline_instance = previous[file]['pipeline'].instanciate(file, True, True, do_watch_ram)
+                # TODO: check whether the pipeline shall be instanciated w/
+                # file_name of task_name
+                output_filename = task_names_to_output_files_table[task_name]
+                pipeline_instance = previous[task_name]['pipeline'].instanciate(output_filename, True, True, do_watch_ram)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
-                if debug_otb:
-                    tasks.append([base_file, (execute4dask, pipeline_instance, input_files)])
-                else:
-                    tasks[base_file] = (execute4dask, pipeline_instance, input_files)
-                logger.debug('TASKS[%s] += %s(%s)', base_file, previous[file]['pipeline'].name, input_files)
+                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_files), debug_otb)
+                logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, previous[task_name]['pipeline'].name, input_files)
 
                 for t in task_inputs:  # check whether the inputs need to be produced as well
-                    if not os.path.isfile(t['out_filename']):
-                        logger.debug('Need to register %s', t['out_filename'])
-                        new_required.add(t['out_filename'])
-                    elif debug_otb:
-                        tasks.append([to_dask_key(t['out_filename']), FirstStep(**t)])
+                    tn = get_task_name(t)
+                    logger.debug('processing task %s', t)
+                    if not product_exists(t):
+                        logger.info('  => Need to register production of %s (for %s)', tn, previous[task_name]['pipeline'].name)
+                        new_required.add(tn)
                     else:
-                        tasks[to_dask_key(t['out_filename'])] = FirstStep(**t)
+                        logger.info('  => Starting %s from existing %s', previous[task_name]['pipeline'].name, tn)
+                        register_task(tasks, to_dask_key(tn), FirstStep(**t), debug_otb)
             required = new_required
         return tasks
 
@@ -839,7 +920,7 @@ class PipelineDescriptionSequence:
             :raster_list: List of rasters that intersect the tile.
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
-        required, previous = self._build_dependencies(
+        required, previous, task_names_to_output_files_table = self._build_dependencies(
                 tile_name=tile_name,
                 raster_list=raster_list,
                 dryrun=dryrun)
@@ -849,6 +930,7 @@ class PipelineDescriptionSequence:
         tasks = self._build_tasks_from_dependencies(
                 required=required,
                 previous=previous,
+                task_names_to_output_files_table=task_names_to_output_files_table,
                 debug_otb=debug_otb,
                 do_watch_ram=do_watch_ram)
 

@@ -12,6 +12,10 @@ version 1.0.0
 Improvements
 ++++++++++++
 
+- Don't remove timestamp from final products when no concatenation is done
+  (`#69 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/69>`_).
+  Up to now timetag was always changed to ``txxxxxx``
+
 Bug fixed
 +++++++++
 
