@@ -282,39 +282,7 @@ def process_one_tile(
                     raise
 
 
-# Main code
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option()
-@click.option(
-        "--cache-before-ortho/--no-cache-before-ortho",
-        is_flag=True,
-        default=False,
-        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
-
-        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
-@click.option(
-        "--searched_items_per_page",
-        default=20,
-        help="Number of products simultaneously requested by eodag"
-        )
-@click.option(
-        "--dryrun",
-        is_flag=True,
-        help="Display the processing shall would be realized, but none is done.")
-@click.option(
-        "--debug-otb",
-        is_flag=True,
-        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
-@click.option(
-        "--watch-ram",
-        is_flag=True,
-        help="Trigger investigation mode for watching memory usage")
-@click.option(
-        "--graphs", "debug_tasks",
-        is_flag=True,
-        help="Generate SVG images showing task graphs of the processing flows")
-@click.argument('config_filename', type=click.Path(exists=True))
-def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
+def s1_process(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -376,43 +344,89 @@ def main(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cac
 
         # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
 
-        if not debug_otb:
-            clean_logs(config.log_config, config.nb_procs)
-            cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
-            client = Client(cluster)
-            client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
-        else:
-            client = None
+        try:
+            if not debug_otb:
+                clean_logs(config.log_config, config.nb_procs)
+                cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
+                client = Client(cluster)
+                client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
+            else:
+                client = None
 
-        log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
-        results = []
-        for idx, tile_it in enumerate(tiles_to_process_checked):
-            with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
-                res = process_one_tile(
-                        tile_it, idx, len(tiles_to_process_checked),
-                        s1_file_manager, pipelines, client,
-                        searched_items_per_page=searched_items_per_page,
-                        debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
-                results += res
+            log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
+            results = []
+            for idx, tile_it in enumerate(tiles_to_process_checked):
+                with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
+                    res = process_one_tile(
+                            tile_it, idx, len(tiles_to_process_checked),
+                            s1_file_manager, pipelines, client,
+                            searched_items_per_page=searched_items_per_page,
+                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
+                    results += res
 
-        nb_error_detected = 0
-        for res in results:
-            if not bool(res):
-                nb_error_detected += 1
-
-        if nb_error_detected > 0:
-            logger.warning('Execution report: %s errors detected', nb_error_detected)
-        else:
-            logger.info('Execution report: no error detected')
-
-        if results:
+            nb_error_detected = 0
             for res in results:
-                logger.log(log_level(res), ' - %s', res)
-        else:
-            logger.info(' -> Nothing has been executed')
+                if not bool(res):
+                    nb_error_detected += 1
 
-        if nb_error_detected > 0:
-            sys.exit(exits.TASK_FAILED)
+            if nb_error_detected > 0:
+                logger.warning('Execution report: %s errors detected', nb_error_detected)
+            else:
+                logger.info('Execution report: no error detected')
+
+            if results:
+                for res in results:
+                    logger.log(log_level(res), ' - %s', res)
+            else:
+                logger.info(' -> Nothing has been executed')
+
+            if nb_error_detected > 0:
+                sys.exit(exits.TASK_FAILED)
+
+        finally:  # Make sure Dask objects are ALWAYS released
+            if client:
+                client.close()
+                cluster.close()
+
+
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.version_option()
+@click.option(
+        "--cache-before-ortho/--no-cache-before-ortho",
+        is_flag=True,
+        default=False,
+        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
+
+        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
+@click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
+         debug_tasks, cache_before_ortho, config_filename):
+    """
+    This function is used as entry point to create console scripts with setuptools.
+    """
+    s1_process( searched_items_per_page, dryrun, debug_otb, watch_ram,
+                debug_tasks, cache_before_ortho, config_filename)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    main()
+    run()
