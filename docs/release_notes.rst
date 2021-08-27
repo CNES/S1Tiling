@@ -16,6 +16,9 @@ Improvements
   (`#69 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/69>`_).
   Up to now timetag was always changed to ``txxxxxx``
 
+- Permit also to filter polarisation only on ``VV``, ``VH``, ``HV``, or ``HH``
+  (`#92 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/92>`_).
+
 Bug fixed
 +++++++++
 

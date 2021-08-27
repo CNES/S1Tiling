@@ -363,13 +363,17 @@ class S1FileManager:
         products = []
         page = 1
         while True:
+            assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
+            # In case only 'VV' or 'VH' is requested, we still need to
+            # request 'VV VH' to the data provider through eodag.
+            dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
                     productType=product_type,
                     start=first_date, end=last_date,
                     box=extent,
                     # If we have eodag v1.6, we try to filter product during the search request
-                    polarizationMode=polarization,
+                    polarizationMode=dag_polarization_param,
                     sensorMode="IW"
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
@@ -385,7 +389,7 @@ class S1FileManager:
         # -> This filter is required with eodag < v1.6, it's redundant w/ v1.6+
         products = [p for p in products
                 if (    product_property(p, "sensorMode",       "") == "IW"
-                    and product_property(p, "polarizationMode", "") == polarization)
+                    and product_property(p, "polarizationMode", "") == dag_polarization_param)
                 ]
         logger.debug("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
         if not products:  # no need to continue
@@ -501,10 +505,10 @@ class S1FileManager:
             logger.debug("# Safe dir: %s", safe_dir)
             logger.debug("  all tiffs: %s", list(all_tiffs))
 
-            vv_images = filter_images_or_ortho('vv', all_tiffs)
-            vh_images = filter_images_or_ortho('vh', all_tiffs)
-            hv_images = filter_images_or_ortho('hv', all_tiffs)
-            hh_images = filter_images_or_ortho('hh', all_tiffs)
+            vv_images = filter_images_or_ortho('vv', all_tiffs) if self.cfg.polarisation in ['VV', 'VV VH'] else None
+            vh_images = filter_images_or_ortho('vh', all_tiffs) if self.cfg.polarisation in ['VH', 'VV VH'] else None
+            hv_images = filter_images_or_ortho('hv', all_tiffs) if self.cfg.polarisation in ['HV', 'HH HV'] else None
+            hh_images = filter_images_or_ortho('hh', all_tiffs) if self.cfg.polarisation in ['HH', 'HH HV'] else None
 
             for image in vv_images + vh_images + hv_images + hh_images:
                 if image not in self.processed_filenames:
