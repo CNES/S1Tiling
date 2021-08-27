@@ -155,7 +155,7 @@ You can use this :download:`this template
 
       .. _DataSource.polarisation:
   * - ``polarisation``
-    - Defines the polarisation mode of the products to downloads.
+    - Defines the polarisation mode of the products to download and process.
       Only six values are valid: ``HH-HV``, ``VV-VH``, ``VV``, ``VH``, ``HV``,
       and ``HH``.
 

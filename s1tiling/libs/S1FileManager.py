@@ -295,7 +295,7 @@ class S1FileManager:
         all exist
         """
         for path in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
-            if not os.path.exists(path):
+            if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
     def ensure_tile_workspaces_exist(self, tile_name):
@@ -505,10 +505,10 @@ class S1FileManager:
             logger.debug("# Safe dir: %s", safe_dir)
             logger.debug("  all tiffs: %s", list(all_tiffs))
 
-            vv_images = filter_images_or_ortho('vv', all_tiffs) if self.cfg.polarisation in ['VV', 'VV VH'] else None
-            vh_images = filter_images_or_ortho('vh', all_tiffs) if self.cfg.polarisation in ['VH', 'VV VH'] else None
-            hv_images = filter_images_or_ortho('hv', all_tiffs) if self.cfg.polarisation in ['HV', 'HH HV'] else None
-            hh_images = filter_images_or_ortho('hh', all_tiffs) if self.cfg.polarisation in ['HH', 'HH HV'] else None
+            vv_images = filter_images_or_ortho('vv', all_tiffs) if self.cfg.polarisation in ['VV', 'VV VH'] else []
+            vh_images = filter_images_or_ortho('vh', all_tiffs) if self.cfg.polarisation in ['VH', 'VV VH'] else []
+            hv_images = filter_images_or_ortho('hv', all_tiffs) if self.cfg.polarisation in ['HV', 'HH HV'] else []
+            hh_images = filter_images_or_ortho('hh', all_tiffs) if self.cfg.polarisation in ['HH', 'HH HV'] else []
 
             for image in vv_images + vh_images + hv_images + hh_images:
                 if image not in self.processed_filenames:

@@ -2,11 +2,14 @@
 # -*- coding: utf-8 -*-
 import fnmatch
 import logging
+import os
 from pathlib import Path
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
+import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
 # ======================================================================
 # Scenarios
@@ -34,120 +37,172 @@ FILES = [
             }
         ]
 
+TMPDIR = 'TMP'
 INPUT  = 'data_raw'
+OUTPUT = 'OUTPUT'
+
+def safe_dir(idx):
+    s1dir  = FILES[idx]['s1dir']
+    return f'{INPUT}/{s1dir}/{s1dir}.SAFE'
 
 def input_file(idx):
     s1dir  = FILES[idx]['s1dir']
     s1file = FILES[idx]['s1file']
     return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
-def raster_vv(idx):
-    s1dir  = FILES[idx]['s1dir']
-    return (S1DateAcquisition(
-        f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx)]),
-        [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
+def input_file_vv(idx):
+    assert idx < 2
+    return input_file(idx)
 
-def raster_vh(idx):
-    s1dir  = FILES[idx-2]['s1dir']
-    return (S1DateAcquisition(
-        f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx)]),
-        [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
+def input_file_vh(idx):
+    assert idx < 2
+    return input_file(idx+2)
 
 # ======================================================================
 # Mocks
 
-# resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
-
 class Configuration():
-    def __init__(self, *argv):
+    def __init__(self, inputdir, tmpdir, outputdir, *argv):
         """
         constructor
         """
-        self.first_date      = '2020-01-01'
-        self.last_date       = '2020-01-10'
-        self.download        = False
-        self.raw_directory   = INPUT
-        # self.polarisation    = polarisation
+        self.first_date        = '2020-01-01'
+        self.last_date         = '2020-01-10'
+        self.download          = False
+        self.raw_directory     = inputdir
+        self.tmpdir            = tmpdir
+        self.output_preprocess = outputdir
 
 def isfile(filename, existing_files):
-    # assert False
     res = filename in existing_files
-    logging.debug("isfile(%s) = %s ∈ %s", filename, res, existing_files)
+    logging.debug("mock.isfile(%s) = %s ∈ %s", filename, res, existing_files)
+    return res
+
+def isdir(dirname, existing_dirs):
+    res = dirname in existing_dirs
+    logging.debug("mock.isdir(%s) = %s ∈ %s", dirname, res, existing_dirs)
+    return res
+
+class MockDirEntry:
+    def __init__(self, pathname):
+        """
+        constructor
+        """
+        self.path = pathname
+        # `name`: relative to scandir...
+        self.name = os.path.relpath(pathname, INPUT)
+
+
+def list_dirs(dir, pat, known_dirs):
+    logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
+    return [MockDirEntry(kd) for kd in known_dirs]
+
+def glob(pat, known_files):
+    res = [fn for fn in known_files if fnmatch.fnmatch(fn, pat)]
+    logging.debug('mock.glob(%s) ---> %s', pat, res)
     return res
 
 @pytest.fixture
-def raster_list():
+def known_files():
+    kf = []
+    return kf
+
+@pytest.fixture
+def known_dirs():
+    kd = set()
+    return kd
+
+@pytest.fixture
+def image_list():
     rl = []
     return rl
 
 @pytest.fixture
-def configuration():
-    cfg = Configuration()
+def configuration(mocker):
+    known_dirs = [INPUT, TMPDIR, OUTPUT, safe_dir(0), safe_dir(1)]
+    mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
+    cfg = Configuration(INPUT, TMPDIR, OUTPUT)
     return cfg
+
+def dirname(path, depth):
+    for i in range(depth):
+        path = os.path.dirname(path)
+    return path
 
 # ======================================================================
 # Given steps
 
-def _declare_know_files(mocker, patterns):
+def _declare_know_files(mocker, known_files, known_dirs, patterns):
+    # logging.debug('_declare_know_files(%s)', patterns)
     all_files = [input_file(idx) for idx in range(len(FILES))]
+    # logging.debug('- all_files: %s', all_files)
     files = []
     for pattern in patterns:
-        files += [fn for fn in all_files if fnmatch.fnmatch(fn, pattern)]
-    logging.debug('Mocking w/ %s', files)
-    mocker.patch('s1tiling.libs.Utils.list_dirs', return_value=files)
+        files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    known_files.extend(files)
+    known_dirs.update([dirname(fn, 3) for fn in known_files])
+    logging.debug('Mocking w/ %s --> %s', patterns, files)
+    # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
+    # mocker.patch('s1tiling.libs.S1FileManager.list_dirs', return_value=files)
+    mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
+    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
 
 
 @given('All files are known')
-def given_all_files_are_know(mocker):
-    _declare_know_files(mocker, ['vv', 'vh'])
+def given_all_files_are_know(mocker, known_files, known_dirs):
+    _declare_know_files(mocker, known_files, known_dirs, ['vv', 'vh'])
 
 @given('All VV files are known')
-def given_all_VV_files_are_know(mocker):
-    _declare_know_files(mocker, ['vv'])
+def given_all_VV_files_are_know(mocker, known_files, known_dirs):
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'])
 
 @given('All VH files are known')
-def given_all_VH_files_are_know(mocker):
-    _declare_know_files(mocker, ['vh'])
+def given_all_VH_files_are_know(mocker, known_files, known_dirs):
+    _declare_know_files(mocker, known_files, known_dirs, ['vh'])
+
 
 # ======================================================================
 # When steps
 
-@when('VV-VH files are searched')
-def when_searching_VV_VH(configuration, raster_list):
-    configuration.polarisation = 'VV VH'
+def _search(configuration, image_list, polarisation):
+    configuration.polarisation = polarisation
     manager = S1FileManager(configuration)
-    raster_list.extend(manager._update_s1_img_list())
+    manager._update_s1_img_list()
+    logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
+    for p in manager.get_raster_list():
+        for im in p.get_images_list():
+            image_list.append(im)
+
+@when('VV-VH files are searched')
+def when_searching_VV_VH(configuration, image_list, mocker):
+    _search(configuration, image_list, 'VV VH')
 
 @when('VV files are searched')
-def when_searching_VV(configuration, raster_list):
-    configuration.polarisation = 'VV'
-    raster_list.extend(manager._update_s1_img_list())
+def when_searching_VV(configuration, image_list, mocker):
+    _search(configuration, image_list, 'VV')
 
 @when('VH files are searched')
-def when_searching_VH(configuration, raster_list):
-    configuration.polarisation = 'VH'
-    raster_list.extend(manager._update_s1_img_list())
+def when_searching_VH(configuration, image_list, mocker):
+    _search(configuration, image_list, 'VH')
 
 
 # ======================================================================
 # Then steps
 
 @then('No (other) files are found')
-def then_no_other_files_are_found(raster_list):
-    assert len(raster_list) == 0
+def then_no_other_files_are_found(image_list):
+    assert len(image_list) == 0
 
 @then('VV files are found')
-def then_VV_files_are_found(raster_list):
-    assert len(products) >= 2
+def then_VV_files_are_found(image_list):
+    assert len(image_list) >= 2
     for i in [0, 1]:
-        assert raster_vv(i) in raster_list
-        raster_list.remove(raster_vv(i))
+        assert input_file_vv(i) in image_list
+        image_list.remove(input_file_vv(i))
 
 @then('VH files are found')
-def then_VH_files_are_found(raster_list):
-    assert len(products) >= 2
+def then_VH_files_are_found(image_list):
+    assert len(image_list) >= 2
     for i in [0, 1]:
-        assert raster_vh(i) in raster_list
-        raster_list.remove(raster_vh(i))
+        assert input_file_vh(i) in image_list
+        image_list.remove(input_file_vh(i))
