@@ -225,20 +225,14 @@ class Calibrate(StepFactory):
         Returns the parameters to use with :std:doc:`SARCalibration OTB
         application <Applications/app_SARCalibration>`.
         """
-        params = {
+        return {
                 'ram'           : str(self.__ram_per_process),
                 # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
+                'removenoise'   : self.__removethermalnoise
                 }
-        if otb_version() < '7.4.0':
-            # The noise parameter needs to be set to False to perform the thermal noise removal
-            params['noise'] = not(self.__removethermalnoise)
-        else:  # From 7.4.0 onward actually
-            params['removenoise'] = self.__removethermalnoise
-
-        return params
 
 
 class CutBorders(StepFactory):
