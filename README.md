@@ -62,6 +62,10 @@ regarding OTB and GDAL installation.
 
 https://docs.dask.org/en/latest/setup/single-distributed.html
 
+# Community
+
+[![S1Tiling Discourse (status)](https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.orfeo-toolbox.org%2F)](https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11)
+
 # Copyright
 
 >   Copyright (c) CESBIO. All rights reserved.

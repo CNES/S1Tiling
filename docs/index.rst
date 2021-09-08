@@ -13,12 +13,16 @@ S1Tiling |release| -- documentation
 :raw-html:`<br>`
 |Badge Fury|
 |Badge doc|
+|Badge discourse|
 :raw-html:`<br>`
 |License|
 |Python Versions|
 
 .. |Badge Fury| image:: https://badge.fury.io/py/S1Tiling.svg
    :target: https://badge.fury.io/py/S1Tiling
+
+.. |Badge discourse| image:: https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.orfeo-toolbox.org%2F
+   :target: https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11
 
 .. |License| image:: https://img.shields.io/pypi/l/s1tiling.svg
    :target: https://pypi.org/project/s1tiling/
