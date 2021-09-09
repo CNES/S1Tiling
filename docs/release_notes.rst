@@ -3,27 +3,38 @@
 Release notes
 =============
 
+Version 0.4
+-----------
+
+v0.4 Improvements
++++++++++++++++++
+
+- Permit also to filter polarisation only on ``VV``, ``VH``, ``HV``, or ``HH``
+  (`#92 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/92>`_).
+
+
 Version 0.3
 -----------
 
 This version is a minor release with critical but non trivial fixes before
 version 1.0.0
 
-Improvements
-++++++++++++
+v0.3 Improvements
++++++++++++++++++
 
 - Don't remove timestamp from final products when no concatenation is done
   (`#69 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/69>`_).
   Up to now timetag was always changed to ``txxxxxx``
+- Update to support noise removal which has been fixed in OTB 7.4.0. This
+  processing is now disabled with prior versions of OTB
+  (`#89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/89>`,
+  `#95 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/95>`_).
+- Dask ``cluster`` and ``client`` handles are always closed. This avoids memory
+  leaks from other programs that wish to use S1Tiling as a library.
+  (`!50 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/50>`_)
 
-- Permit also to filter polarisation only on ``VV``, ``VH``, ``HV``, or ``HH``
-  (`#92 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/92>`_).
-
-Bug fixed
-+++++++++
-
-Optimizations
-+++++++++++++
+v0.3 Optimizations
+++++++++++++++++++
 
 - Downloading and unzipping of Sentinel-1 products is done in parallel
   (`!31 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/31>`_)
@@ -35,8 +46,8 @@ Version 0.2
 This version is a major release where the project architecture has been
 completely changed to enable multiple improvements and optimizations.
 
-Improvements
-++++++++++++
+v0.2 Improvements
++++++++++++++++++
 
 - Provide the possibility to use linear interpolation for orthorectification step
 - Support OTB 7.3
@@ -80,8 +91,8 @@ Improvements
     - Log level are supported
     - A summary of the successfully of failed computations is provided.
 
-Bug fixed
-+++++++++
+v0.2 Bug fixed
+++++++++++++++
 
 - Fix thermnal noise usage ((`#84 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/84>`_)
 - Fix pylint error ((`#82 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/82>`_)
@@ -94,8 +105,8 @@ Bug fixed
 - List of requested S2 tiles syntax has been relaxed
   (https://github.com/CNES/S1Tiling/issues/2)
 
-Optimizations
-+++++++++++++
+v0.2 Optimizations
+++++++++++++++++++
 
 - Disk usage has been minimized: most OTB applications are chained into memory
   (`#4 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/4>`_,
@@ -115,8 +126,8 @@ Optimizations
 - When there is only one file to concatenate, it's simply renamed
   (`#24 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/24>`_).
 
-Breaking changes
-++++++++++++++++
+v0.2 Breaking changes
++++++++++++++++++++++
 
 - Previous :ref:`configuration files <request-config-file>` will need to be
   updated:

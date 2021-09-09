@@ -127,8 +127,6 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
@@ -140,6 +138,7 @@ setup(
             "Bug Tracker": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues",
             "Documentation": "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest",
             "Source Code": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
+            "Community": "https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11",
             },
 
     scripts = ['s1tiling/S1Processor.py'],
