@@ -24,7 +24,7 @@
 #          Luc HERMITTE     (CS Group France)
 #
 # =========================================================================
-ARG OTB_VERSION=7.3.0
+ARG OTB_VERSION=7.4.0
 ARG REPOSITORY=registry.orfeo-toolbox.org/s1-tiling/s1tiling-dockers
 FROM ${REPOSITORY}/s1tiling-base:ubuntu-otb${OTB_VERSION}
 # This ARG needs to be after the FROM in order to not be cleared

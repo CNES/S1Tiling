@@ -43,6 +43,7 @@ import sys
 import yaml
 
 from s1tiling.libs import exits
+from .otbpipeline import otb_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
@@ -150,6 +151,9 @@ class Configuration():
 
         self.calibration_type   = config.get('Processing', 'calibration')
         self.removethermalnoise = config.getboolean('Processing', 'remove_thermal_noise')
+        if self.removethermalnoise and otb_version() < '7.4.0':
+            logging.critical("ERROR: OTB %s does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '%s'", otb_version(), configFile)
+            sys.exit(exits.CONFIG_ERROR)
 
         self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 

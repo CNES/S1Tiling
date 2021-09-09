@@ -231,8 +231,7 @@ class Calibrate(StepFactory):
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
-                # The noise parameter need to set to false to perform the thermal noise
-                'noise'         : not(self.__removethermalnoise)
+                'removenoise'   : self.__removethermalnoise
                 }
 
 

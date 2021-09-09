@@ -5,7 +5,7 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
-    OTB_VERSION: 7.3.0
+    OTB_VERSION: 7.4.0
 
 #
 # Tests and documentation

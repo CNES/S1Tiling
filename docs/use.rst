@@ -220,6 +220,10 @@ You can use this :download:`this template
   * - ``remove_thermal_noise``
     - Shall the thermal noise be removed?
 
+      .. important::
+
+         This feature requires a version of OTB >= 7.4.0
+
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``
     - Pixel size (in meters) of the output images
