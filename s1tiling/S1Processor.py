@@ -260,7 +260,7 @@ def process_one_tile(
                     filename='tasks-%s-%s.svg' % (tile_idx + 1, tile_name))
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
         nb_tries = 2
-        for run in range(1, nb_tries+1):
+        for run_attemp in range(1, nb_tries+1):
             try:
                 results = client.get(dsk, required_products)
                 return results
@@ -273,7 +273,7 @@ def process_one_tile(
                 # but then, how do we clean up futures and all??
                 client.restart()
                 # Update the list of remaining tasks
-                if run < nb_tries:
+                if run_attemp < nb_tries:
                     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
                 else:
