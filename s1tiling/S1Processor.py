@@ -280,7 +280,7 @@ def process_one_tile(
                     raise
 
 
-def s1_process(config_filename,
+def s1_process(config_opt,
                searched_items_per_page=20,
                dryrun=False,
                debug_otb=False,
@@ -299,7 +299,12 @@ def s1_process(config_filename,
 
       Parameters have to be set by the user in the S1Processor.cfg file
     """
-    config = Configuration(config_filename)
+    # The config_opt can be either the configuration filename or an already initialized configuration object
+    if isinstance(config_opt, str):
+        config = Configuration(config_opt)
+    else:
+        config = config_opt
+
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     global logger
     logger = logging.getLogger('s1tiling')
