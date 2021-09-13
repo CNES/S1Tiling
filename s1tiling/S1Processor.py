@@ -280,7 +280,13 @@ def process_one_tile(
                     raise
 
 
-def s1_process(searched_items_per_page, dryrun, debug_otb, watch_ram, debug_tasks, cache_before_ortho, config_filename):
+def s1_process(config_filename,
+               searched_items_per_page=20,
+               dryrun=False,
+               debug_otb=False,
+               watch_ram=False,
+               debug_tasks=False,
+               cache_before_ortho=False):
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -423,8 +429,13 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
     """
     This function is used as entry point to create console scripts with setuptools.
     """
-    s1_process( searched_items_per_page, dryrun, debug_otb, watch_ram,
-                debug_tasks, cache_before_ortho, config_filename)
+    s1_process( config_filename,
+                searched_items_per_page=searched_items_per_page,
+                dryrun=dryrun,
+                debug_otb=debug_otb,
+                watch_ram=watch_ram,
+                debug_tasks=debug_tasks,
+                cache_before_ortho=cache_before_ortho)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     run()
