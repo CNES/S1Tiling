@@ -488,7 +488,10 @@ class StepFactory(ABC):
                 lg_from = 'app'
 
             self.set_output_pixel_type(app, meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+            logger.debug('Register app: %s (from %s) %s -%s %s',
+                    self.appname, lg_from,
+                    ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()),
+                    self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
             try:
                 app.SetParameters(parameters)
             except Exception:
@@ -620,7 +623,7 @@ class Pipeline:
         """
         assert self.__input
         if not files_exist(self.__input.out_filename) and not self.__input.meta.get('dryrun', False):
-            msg = "Cannot execute %s as %s doesn't exist" % (self, self.__input.out_filename)
+            msg = "Cannot execute %s as input %s doesn't exist" % (self, self.__input.out_filename)
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
@@ -754,7 +757,15 @@ def register_task(tasks, key, value, debug_otb):
     depending on `debug_otb` flag.
     """
     if debug_otb:
-        tasks.append([key, value])
+        # append() at the end to keep the list sorted, or update the registered value
+        ts = [x for x in tasks if x[0] == key]
+        if ts:
+            kv = ts[0]
+            logging.error('UPD TASKS[%s] <- %s', key, value)
+            kv[1] = value
+        else:
+            logging.error('ADD TASKS[%s] = %s', key, value)
+            tasks.append([key, value])
     else:
         tasks[key] = value
 
