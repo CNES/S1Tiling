@@ -242,10 +242,16 @@ def process_one_tile(
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
-        for product, how in reversed(dsk):
+        tasks = list(Utils.tsort(dsk, dsk.keys(),
+            lambda dask_task_data : [] if isinstance(dask_task_data, FirstStep) else dask_task_data[2])
+            )
+        logger.debug('%s tasks', len(tasks))
+        for product in reversed(tasks):
+            how = dsk[product]
             logger.debug('- task: %s <-- %s', product, how)
         logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
-        for product, how in reversed(dsk):
+        for product in reversed(tasks):
+            how = dsk[product]
             logger.info('- execute: %s <-- %s', product, how)
             if not issubclass(type(how), FirstStep):
                 results += [how[0](*list(how)[1:])]
