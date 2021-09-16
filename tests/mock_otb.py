@@ -118,12 +118,6 @@ class MockApplication:
         """
         return re.sub(r'\?.*$', '', self.out_filename)
 
-    # def set_expectations(self, cmdline, pixel_types):
-    #     assert cmdline
-    #     self.__expectations['cmdline'] = cmdline
-    #     if pixel_types:
-    #         self.__expectations['pixel_types'] = pixel_types
-
     def execute_and_write_output(self, is_top_level):
         # Simulate app at the start of the pipeline first
         for k in k_input_keys:
@@ -136,12 +130,9 @@ class MockApplication:
     def ExecuteAndWriteOutput(self):
         self.execute_and_write_output(True)
         # register output as a known file from now on
-        # self.__mock_ctx.known_files.append(self.unextended_out_filename)
         file_produced = self.__mock_ctx.tmp_to_out(self.out_filename)
         logging.debug('Register new know file %s -> %s', self.out_filename, file_produced)
         self.__mock_ctx.known_files.append(file_produced)
-        # assert self.__params == self.__expectations['cmdline']
-        # assert self.__pixel_types == get(self.__expectations, 'pixel_types', {})
 
 
 class OTBApplicationsMockContext:
@@ -165,7 +156,6 @@ class OTBApplicationsMockContext:
         return self.__known_files
 
     def tmp_to_out(self, tmp_filename):
-        # TODO: Handle App|>App|>file and file|>App|App
         parts = tmp_filename.split('|>')
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
         return res
@@ -184,8 +174,6 @@ class OTBApplicationsMockContext:
         if pixel_types:
             expectation['pixel_types'] = pixel_types
         self.__expectations.append(expectation)
-        # app = self.__find_right_app(appname)
-        # app.set_expectations(cmdline, pixel_types)
 
     def _remaining_expectations_as_str(self, appname = None):
         if appname:
@@ -203,11 +191,26 @@ class OTBApplicationsMockContext:
                 return params[kv]
 
     def _update_input_to_root_filename(self, params):
-        for kv in k_input_keys:
-            if kv in params:
-                if isinstance(params[kv], MockApplication):
-                    params[kv] = self._update_input_to_root_filename(params[kv].parameters) + '|>'+params[kv].appname
-                return params[kv]
+        assert isinstance(params, dict) # of parameters
+        in_param_keys = [kv for kv in k_input_keys if kv in params]
+        for kv in in_param_keys:
+            if isinstance(params[kv], MockApplication):
+                updated = self._update_input_to_root_filename(params[kv].parameters)
+                if isinstance(updated, list):
+                    updated = [u + '|>'+params[kv].appname for u in updated]
+                else:
+                    updated = updated + '|>'+params[kv].appname
+                params[kv] = updated
+            elif isinstance(params[kv], list):
+                ps = []
+                for p in params[kv]:
+                    if isinstance(p, MockApplication):
+                        p = self._update_input_to_root_filename(p.parameters) + '|>'+params[kv].appname
+                    ps.append(p)
+                    assert isinstance(p, str)
+                params[kv] = ps
+                assert isinstance(params[kv], list) # of str...
+            return params[kv]
 
     def assert_app_is_expected(self, appname, params, pixel_types):
         # Find out what the root input filename is (as we may not have any
@@ -221,18 +224,11 @@ class OTBApplicationsMockContext:
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
                     exp['cmdline']['elev.dem'] = self.__configuration.tmp_srtm_dir
-            ## Fix output filename:
-            ## - Ignore .tmp from filename
-            ## - TODO: calls to OTB applications produce files in temporary directory...
-            #for kv in k_output_keys:
-            #    if kv in params and isinstance(params[kv], str):
-            #        # params[kv] = params[kv].replace('.tmp', '')
-            #        params[kv] = self.tmp_to_out(params[kv])
-            # And the check...
             assert params.keys() == exp['cmdline'].keys(), f'actual={params.keys()} != expected={exp["cmdline"].keys()}'
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:
-                assert pixel_types == exp.get('pixel_types', {})
+                exp_pixel_type = exp.get('pixel_types', {})
+                assert pixel_types == exp_pixel_type, f'Pixel type set to "{pixel_types}" for {appname}. "{exp_pixel_type}" was expected.'
                 logging.debug('Expectation found for %s', params)
                 # logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
                 self.__expectations.remove(exp)

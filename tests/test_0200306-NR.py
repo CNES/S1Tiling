@@ -7,6 +7,8 @@ import pathlib
 import shutil
 import subprocess
 
+import otbApplication as otb
+
 # from unittest.mock import Mock
 from unittest.mock import patch
 # import unittest.mock
@@ -422,19 +424,19 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
             }, None)
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
-            'il'       : file_db.concatfile(None),
+            'il'       : [file_db.concatfile(None)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+file_db.tmp_maskfile(None),
-            }, None)
+            }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
+            'in'       : [file_db.concatfile(None)+'|>BandMath'],
             'ram'      : '2048',
-            'in'       : 'BandMath|>'+file_db.concatfile(None),
-            'out'      : file_db.tmp_maskfile(None),
             'structype': 'ball',
             'xradius'  : 5,
             'yradius'  : 5,
-            'filter'   : 'opening'
-            }, None)
+            'filter'   : 'opening',
+            'out'      : file_db.tmp_maskfile(None),
+            }, {'out': otb.ImagePixelType_uint8})
 
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
