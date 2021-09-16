@@ -395,8 +395,7 @@ def s1_process(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
-            if nb_error_detected > 0:
-                sys.exit(exits.TASK_FAILED)
+            return nb_error_detected
 
         finally:  # Make sure Dask objects are ALWAYS released
             if client:
@@ -439,14 +438,18 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
          debug_tasks, cache_before_ortho, config_filename):
     """
     This function is used as entry point to create console scripts with setuptools.
+
+    Returns the number of tasks that could not be processed.
     """
-    s1_process( config_filename,
+    nb_error_detected = s1_process( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
+    if nb_error_detected > 0:
+        sys.exit(exits.TASK_FAILED)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     run()
