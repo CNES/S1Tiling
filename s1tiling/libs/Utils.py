@@ -421,3 +421,55 @@ def remove_files(files):
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
+
+
+class TopologicalSorter:
+    """
+    Depth-first topological_sort implementation
+    """
+    def __init__(self, dag, fetch_successor_function=None):
+        """
+        constructor
+        """
+        self.__table = dag
+        if fetch_successor_function:
+            self.__successor_fetcher = fetch_successor_function
+            self.__successors        = self.__successors_lazy
+        else:
+            self.__successors        = self.__successors_direct
+
+    def depth(self, start_nodes):
+        results = []
+        visited_nodes = {}
+        self.__recursive_depth_first(start_nodes, results, visited_nodes)
+        return reversed(results)
+
+    def __successors_lazy(self, node):
+        node_info = self.__table.get(node, None)
+        # logging.debug('node:%s ; infos=%s', node, node_info)
+        return self.__successor_fetcher(node_info) if node_info else []
+
+    def __successors_direct(self, node):
+        return self.__table.get(node, [])
+
+    def __recursive_depth_first(self, start_nodes, results, visited_nodes):
+        # logging.debug('start_nodes: %s', start_nodes)
+        for node in start_nodes:
+            visited = visited_nodes.get(node, 0)
+            if   visited == 1:
+                continue # done
+            elif visited == 2:
+                raise ValueError(f"Tsort: cyclic graph detected {node}")
+            visited_nodes[node] = 2 # visiting
+            succs = self.__successors(node)
+            try:
+                self.__recursive_depth_first(succs, results, visited_nodes)
+            except ValueError as e:
+                # raise e.'>'.node
+                raise e
+            visited_nodes[node] = 1 # visited
+            results.append(node)
+
+def tsort(dag, start_nodes, fetch_successor_function=None):
+    ts = TopologicalSorter(dag, fetch_successor_function)
+    return ts.depth(start_nodes)
