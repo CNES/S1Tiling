@@ -57,3 +57,12 @@ In other words,
 
 This Q/A is tracked in `S1Tiling issue #70
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/70>`_.
+
+Q: How can I ask another question?
+----------------------------------
+
+You can contact us and ask any question related to S1Tiling on `S1Tiling
+discourse forum <https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11>`_.
+
+If you think your issue is a bug, please follow the :ref:`procedure described
+in the contributing guide <reporting bugs>`.
