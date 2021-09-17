@@ -488,7 +488,10 @@ class StepFactory(ABC):
                 lg_from = 'app'
 
             self.set_output_pixel_type(app, meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+            logger.debug('Register app: %s (from %s) %s -%s %s',
+                    self.appname, lg_from,
+                    ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()),
+                    self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
             try:
                 app.SetParameters(parameters)
             except Exception:
@@ -620,7 +623,7 @@ class Pipeline:
         """
         assert self.__input
         if not files_exist(self.__input.out_filename) and not self.__input.meta.get('dryrun', False):
-            msg = "Cannot execute %s as %s doesn't exist" % (self, self.__input.out_filename)
+            msg = "Cannot execute %s as input %s doesn't exist" % (self, self.__input.out_filename)
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
@@ -671,7 +674,8 @@ def execute4dask(pipeline, *args, **unused_kwargs):
                 w.tr = tracker.SummaryTracker()
             w.tr.print_diff()
         return res
-    except Exception as ex:  # pylint: disable=broad-except
+    except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
+    # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('Parameters for %s were: %s', pipeline, args)
         return Outcome(ex).add_related_filename(pipeline.output)
@@ -748,15 +752,11 @@ def to_dask_key(pathname):
     return pathname.replace('-', '_')
 
 
-def register_task(tasks, key, value, debug_otb):
+def register_task(tasks, key, value):
     """
-    Helper function to register a task named `key` in the right format
-    depending on `debug_otb` flag.
+    Register a task named `key` in the right format.
     """
-    if debug_otb:
-        tasks.append([key, value])
-    else:
-        tasks[key] = value
+    tasks[key] = value
 
 
 def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
@@ -881,7 +881,7 @@ class PipelineDescriptionSequence:
         - "pipeline": reference to the :class:`PipelineDescription`
         - "inputs": list of the inputs (metadata)
         """
-        tasks = {} if not debug_otb else []
+        tasks = {}
         logger.debug('Building all tasks')
         while required:
             new_required = set()
@@ -896,7 +896,7 @@ class PipelineDescriptionSequence:
                 output_filename = task_names_to_output_files_table[task_name]
                 pipeline_instance = previous[task_name]['pipeline'].instanciate(output_filename, True, True, do_watch_ram)
                 pipeline_instance.set_input([FirstStep(**m) for m in task_inputs])
-                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_files), debug_otb)
+                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_files))
                 logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, previous[task_name]['pipeline'].name, input_files)
 
                 for t in task_inputs:  # check whether the inputs need to be produced as well
@@ -907,7 +907,7 @@ class PipelineDescriptionSequence:
                         new_required.add(tn)
                     else:
                         logger.info('  => Starting %s from existing %s', previous[task_name]['pipeline'].name, tn)
-                        register_task(tasks, to_dask_key(tn), FirstStep(**t), debug_otb)
+                        register_task(tasks, to_dask_key(tn), FirstStep(**t))
             required = new_required
         return tasks
 

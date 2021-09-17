@@ -113,6 +113,7 @@ pypi:
     # Upload only EGG as Wheel as formal dependency to gdal.
     - python3 -m pip install --upgrade twine
     - echo python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
+    # TODO: test the variables exist!
     - python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
     dependencies:
         - package
