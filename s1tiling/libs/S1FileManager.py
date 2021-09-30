@@ -240,6 +240,8 @@ class S1FileManager:
         self.nb_images        = 0
 
         self.__tmpsrtmdir     = None
+        self.__caching_option = cfg.cache_srtm_by
+        assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
         self.vh_pattern       = "measurement/*vh*-???.tiff"
@@ -295,7 +297,7 @@ class S1FileManager:
         all exist
         """
         for path in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
-            if not os.path.exists(path):
+            if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
     def ensure_tile_workspaces_exist(self, tile_name):
@@ -314,9 +316,11 @@ class S1FileManager:
 
     def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """
-        Generate the temporary directory for SRTM tiles on the fly
-        And populate it with symbolic link to the actual SRTM tiles
+        Generate the temporary directory for SRTM tiles on the fly,
+        and either populate it with symbolic links to the actual SRTM
+        tiles, or copies of the actual SRTM tiles.
         """
+        assert self.__caching_option in ['copy', 'symlink']
         if not self.__tmpsrtmdir:
             # copy all needed SRTM file in a temp directory for orthorectification processing
             self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
@@ -325,10 +329,13 @@ class S1FileManager:
             for srtm_tile in srtm_tiles_id:
                 srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
                 srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
-                logger.debug('ln -s %s  <-- %s',
-                    srtm_tile_filepath,
-                    srtm_tile_filelink)
-                srtm_tile_filelink.symlink_to(srtm_tile_filepath)
+                if self.__caching_option == 'symlink':
+                    logger.debug('- ln -s %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
+                    srtm_tile_filelink.symlink_to(srtm_tile_filepath)
+                else:
+                    logger.debug('- cp %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
+                    shutil.copy2(srtm_tile_filepath, srtm_tile_filelink)
+
         return self.__tmpsrtmdir.name
 
     def keep_X_latest_S1_files(self, threshold):
@@ -363,13 +370,17 @@ class S1FileManager:
         products = []
         page = 1
         while True:
+            assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
+            # In case only 'VV' or 'VH' is requested, we still need to
+            # request 'VV VH' to the data provider through eodag.
+            dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
                     productType=product_type,
                     start=first_date, end=last_date,
                     box=extent,
                     # If we have eodag v1.6, we try to filter product during the search request
-                    polarizationMode=polarization,
+                    polarizationMode=dag_polarization_param,
                     sensorMode="IW"
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
@@ -385,7 +396,7 @@ class S1FileManager:
         # -> This filter is required with eodag < v1.6, it's redundant w/ v1.6+
         products = [p for p in products
                 if (    product_property(p, "sensorMode",       "") == "IW"
-                    and product_property(p, "polarizationMode", "") == polarization)
+                    and product_property(p, "polarizationMode", "") == dag_polarization_param)
                 ]
         logger.debug("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
         if not products:  # no need to continue
@@ -501,10 +512,10 @@ class S1FileManager:
             logger.debug("# Safe dir: %s", safe_dir)
             logger.debug("  all tiffs: %s", list(all_tiffs))
 
-            vv_images = filter_images_or_ortho('vv', all_tiffs)
-            vh_images = filter_images_or_ortho('vh', all_tiffs)
-            hv_images = filter_images_or_ortho('hv', all_tiffs)
-            hh_images = filter_images_or_ortho('hh', all_tiffs)
+            vv_images = filter_images_or_ortho('vv', all_tiffs) if self.cfg.polarisation in ['VV', 'VV VH'] else []
+            vh_images = filter_images_or_ortho('vh', all_tiffs) if self.cfg.polarisation in ['VH', 'VV VH'] else []
+            hv_images = filter_images_or_ortho('hv', all_tiffs) if self.cfg.polarisation in ['HV', 'HH HV'] else []
+            hh_images = filter_images_or_ortho('hh', all_tiffs) if self.cfg.polarisation in ['HH', 'HH HV'] else []
 
             for image in vv_images + vh_images + hv_images + hh_images:
                 if image not in self.processed_filenames:

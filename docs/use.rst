@@ -155,8 +155,9 @@ You can use this :download:`this template
 
       .. _DataSource.polarisation:
   * - ``polarisation``
-    - Defines the polarisation mode of the products to downloads.
-      Only two values are valid: ``HH-HV`` and ``VV-VH``.
+    - Defines the polarisation mode of the products to download and process.
+      Only six values are valid: ``HH-HV``, ``VV-VH``, ``VV``, ``VH``, ``HV``,
+      and ``HH``.
 
       .. _DataSource.first_date:
   * - ``first_date``
@@ -197,6 +198,20 @@ You can use this :download:`this template
 
   * - Option
     - Description
+
+      .. _Processing.cache_srtm_by:
+  * - ``cache_srtm_by``
+    - Tells whether SRTM files are copied in a temporary directory, or if
+      symbolic links are to be created.
+
+      For performance reasons with OTB 7.X, it's better to regroup the minimal
+      subset of the SRTM files required for processing. Symbolic links work
+      fine most of the time, however if the files are on a remote shared
+      filesystem (GPFS, NAS...), performances will be degraded. In those cases,
+      it's better to copy the required SRTM files on a local filesystem.
+
+      Two values are supported for this option: ``copy`` and ``symlink``.
+      (default: ``symlink``).
 
       .. _Processing.calibration:
   * - ``calibration``

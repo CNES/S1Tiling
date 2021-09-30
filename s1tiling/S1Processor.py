@@ -242,10 +242,16 @@ def process_one_tile(
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
-        for product, how in reversed(dsk):
+        tasks = list(Utils.tsort(dsk, dsk.keys(),
+            lambda dask_task_data : [] if isinstance(dask_task_data, FirstStep) else dask_task_data[2])
+            )
+        logger.debug('%s tasks', len(tasks))
+        for product in reversed(tasks):
+            how = dsk[product]
             logger.debug('- task: %s <-- %s', product, how)
         logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
-        for product, how in reversed(dsk):
+        for product in reversed(tasks):
+            how = dsk[product]
             logger.info('- execute: %s <-- %s', product, how)
             if not issubclass(type(how), FirstStep):
                 results += [how[0](*list(how)[1:])]
@@ -280,7 +286,7 @@ def process_one_tile(
                     raise
 
 
-def s1_process(config_filename,
+def s1_process(config_opt,
                searched_items_per_page=20,
                dryrun=False,
                debug_otb=False,
@@ -299,7 +305,12 @@ def s1_process(config_filename,
 
       Parameters have to be set by the user in the S1Processor.cfg file
     """
-    config = Configuration(config_filename)
+    # The config_opt can be either the configuration filename or an already initialized configuration object
+    if isinstance(config_opt, str):
+        config = Configuration(config_opt)
+    else:
+        config = config_opt
+
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     global logger
     logger = logging.getLogger('s1tiling')
@@ -384,8 +395,7 @@ def s1_process(config_filename,
             else:
                 logger.info(' -> Nothing has been executed')
 
-            if nb_error_detected > 0:
-                sys.exit(exits.TASK_FAILED)
+            return nb_error_detected
 
         finally:  # Make sure Dask objects are ALWAYS released
             if client:
@@ -428,14 +438,18 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
          debug_tasks, cache_before_ortho, config_filename):
     """
     This function is used as entry point to create console scripts with setuptools.
+
+    Returns the number of tasks that could not be processed.
     """
-    s1_process( config_filename,
+    nb_error_detected = s1_process( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
+    if nb_error_detected > 0:
+        sys.exit(exits.TASK_FAILED)
 
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     run()
