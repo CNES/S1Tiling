@@ -359,6 +359,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
     # known_files = [ file_db.input_file_vv(0) ]
     # logging.error('os.path.isfile: %s', os.path.isfile)
     # mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
     # logging.error('mock.isfile: %s', os.path.isfile)
     # assert not os.path.isfile('foo')
     # assert os.path.isfile(file_db.input_file_vv(0))
