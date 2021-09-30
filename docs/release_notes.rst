@@ -22,6 +22,8 @@ v0.3 Improvements
 - Dask ``cluster`` and ``client`` handles are always closed. This avoids memory
   leaks from other programs that wish to use S1Tiling as a library.
   (`!50 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/50>`_)
+- Permit also to filter polarisation only on ``VV``, ``VH``, ``HV``, or ``HH``
+  (`#92 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/92>`_).
 
 v0.3 Optimizations
 ++++++++++++++++++

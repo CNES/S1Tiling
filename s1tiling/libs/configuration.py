@@ -135,9 +135,9 @@ class Configuration():
             self.polarisation = 'VV VH'
         elif self.polarisation == 'HH-HV':
             self.polarisation = 'HH HV'
-        else:
-            logging.critical("Parameter [polarisation] must be HH-HV or VV-VH")
-            logging.critical("Please correct it the config file ")
+        elif self.polarisation not in ['VV', 'VH', 'HH', 'HV']:
+            logging.critical("Parameter [polarisation] must be either HH-HV, VV-VH, HH, HV, VV or VH")
+            logging.critical("Please correct the config file ")
             sys.exit(exits.CONFIG_ERROR)
         if self.download:
             self.nb_download_processes = config.getint('DataSource', 'nb_parallel_processes')
