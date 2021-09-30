@@ -210,7 +210,7 @@ You can use this :download:`this template
       it's better to copy the required SRTM files on a local filesystem.
 
       Two values are supported for this option: ``copy`` and ``symlink``.
-      (default).
+      (default: ``symlink``).
 
       .. _Processing.calibration:
   * - ``calibration``
