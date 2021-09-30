@@ -72,6 +72,7 @@ class Configuration():
         self.raw_directory     = inputdir
         self.tmpdir            = tmpdir
         self.output_preprocess = outputdir
+        self.cache_srtm_by     = 'symlink'
 
 def isfile(filename, existing_files):
     res = filename in existing_files
