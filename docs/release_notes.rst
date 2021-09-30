@@ -29,6 +29,10 @@ v0.3 Optimizations
 - Downloading and unzipping of Sentinel-1 products is done in parallel
   (`!31 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/31>`_)
 
+- Support copying or symlinking SRTM files into a local temporary directory.
+  Previously, SRTM files were always symlinked.
+  (`#94 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/94>`_).
+
 
 Version 0.2
 -----------

@@ -142,9 +142,13 @@ class Configuration():
         if self.download:
             self.nb_download_processes = config.getint('DataSource', 'nb_parallel_processes')
 
-
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
+        self.cache_srtm_by      = config.get('Processing', 'cache_srtm_by', fallback='symlink')
+        if self.cache_srtm_by not in ['symlink', 'copy']:
+            logging.critical("Unexpected value for Processing.cache_srtm_by option: '%s' is neither 'copy' no 'symlink'", self.cache_srtm_by)
+            sys.exit(exits.CONFIG_ERROR)
+
         self.calibration_type   = config.get('Processing', 'calibration')
         self.removethermalnoise = config.getboolean('Processing', 'remove_thermal_noise')
         if self.removethermalnoise and otb_version() < '7.4.0':
