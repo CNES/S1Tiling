@@ -15,7 +15,7 @@ Manual installation with pip
 OTB & GDAL dependency
 +++++++++++++++++++++
 
-S1 Tiling depends on OTB 7.2+, but we recommend the latest, `OTB 7.4
+S1 Tiling depends on OTB 7.3+, but we recommend the latest, `OTB 7.4
 <https://www.orfeo-toolbox.org/CookBook-7.4/>`_ at the time.
 First install OTB on your platform. See the `related documentation
 <https://www.orfeo-toolbox.org/CookBook-7.4/Installation.html>`_ to install OTB
