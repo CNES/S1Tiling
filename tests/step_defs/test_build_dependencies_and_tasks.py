@@ -99,6 +99,7 @@ class Configuration():
         self.tmp_srtm_dir                      = 'UNUSED HERE'
         self.tmpdir                            = tmpdir
         self.srtm_db_filepath                  = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        self.cache_srtm_by                     = 'symlink'
         assert self.srtm_db_filepath.is_file()
 
 def isfile(filename, existing_files):

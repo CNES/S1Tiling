@@ -277,8 +277,13 @@ class Calibrate(OTBStepFactory):
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
-                'removenoise'   : self.__removethermalnoise
                 }
+        if otb_version() >= '7.4.0':
+            params['removenoise'] = self.__removethermalnoise
+        else:
+            # Don't try to do anything, let's keep the noise
+            params['noise']       = True
+        return params
 
 
 class CutBorders(OTBStepFactory):
