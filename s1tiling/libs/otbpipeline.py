@@ -675,6 +675,7 @@ class PipelineDescription:
             self.__name = name
         else:
             self.__name = '|'.join([step.name for step in self.__factory_steps])
+        assert inputs
         self.__inputs              = inputs
         # logger.debug("New pipeline: %s; required: %s, incremental: %s", '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
 
@@ -853,6 +854,7 @@ class TaskInputInfo:
         """
         metas = [meta for inputs in self.inputs.values() for meta in inputs]
         return metas
+
 
 class PipelineDescriptionSequence:
     """
@@ -1079,17 +1081,18 @@ class MergeStep(AbstractStep):
 
     - no application executed
     """
-    def __init__(self, steps, *argv, **kwargs):
-        meta = {**(steps[0]._meta), **kwargs}  # kwargs override step0.meta
+    def __init__(self, input_steps_metas, *argv, **kwargs):
+        # meta = {**(input_steps_metas[0]._meta), **kwargs}  # kwargs override step0.meta
+        meta = {**(input_steps_metas[0]), **kwargs}  # kwargs override step0.meta
         super().__init__(*argv, **meta)
-        self.__steps = steps
-        self._meta['out_filename'] = [out_filename(s._meta) for s in steps]
+        self.__input_steps_metas = input_steps_metas
+        self._meta['out_filename'] = [out_filename(s) for s in input_steps_metas]
 
     def __str__(self):
-        return 'MergeStep%s' % (self.__steps,)
+        return 'MergeStep%s' % (self.__input_steps_metas,)
 
     def __repr__(self):
-        return 'MergeStep%s' % (self.__steps,)
+        return 'MergeStep%s' % (self.__input_steps_metas,)
 
 
 class StoreStep(_StepWithOTBApplication):

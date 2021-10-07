@@ -129,6 +129,11 @@ def pipelines():
     return pd
 
 @pytest.fixture
+def last_pipeline():
+    lp = []
+    return lp
+
+@pytest.fixture
 def raster_list():
     rl = []
     return rl
@@ -147,21 +152,30 @@ def tasks():
 # Given steps
 
 @given('A pipeline that calibrates and orthorectifies')
-def given_pipeline_ortho(pipelines):
+def given_pipeline_ortho(pipelines, last_pipeline):
     # pipelines.register_pipeline([ExtractSentinel1Metadata], 'ExtractS1Meta', product_required=False)
-    pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
+    pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
     # pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
-            'FullOrtho', product_required=False, is_name_incremental=True)
+            'FullOrtho', product_required=False, is_name_incremental=True
+            , inputs={'in': 'basename'}
+            )
+    last_pipeline.append(pipeline)
 
 @given('that concatenates')
-def given_pipeline_concat(pipelines):
-    pipelines.register_pipeline([Concatenate], product_required=True)
+def given_pipeline_concat(pipelines, last_pipeline):
+    pipeline = pipelines.register_pipeline([Concatenate], product_required=True
+            , inputs={'in': last_pipeline[-1]}
+            )
+    last_pipeline.append(pipeline)
 
 @given('that <builds> masks')
-def given_pipeline_concat(pipelines, builds):
+def given_pipeline_concat(pipelines, builds, last_pipeline):
     if builds == 'builds':
-        # logging.error('REGISTER MASKS')
-        pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+        # logging.info('REGISTER MASKS')
+        pipeline = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
+            , inputs={'in': last_pipeline[-1]}
+                )
+        last_pipeline.append(pipeline)
 
 @given('A pipeline that computes LIA')
 def given_pipeline_ortho(pipelines):
@@ -224,7 +238,7 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
     res = pipelines._build_tasks_from_dependencies(required=required, previous=previous, task_names_to_output_files_table=task2outfile_map,
             debug_otb=DEBUG_OTB, do_watch_ram=False)
     assert isinstance(res, dict)
-    # logging.error("tasks (%s) = %s", type(res), res)
+    # logging.info("tasks (%s) = %s", type(res), res)
     tasks.update(res)
 
 # ======================================================================
@@ -237,7 +251,8 @@ def then_require_txxxxxx_and_mask(dependencies, a):
         expected_fn += [maskfile(None)]
 
     required, previous, task2outfile_map = dependencies
-    # logging.error("required (%s) = %s", type(required), required)
+    # logging.info("required (%s) = %s", type(required), required)
+    # logging.info("expected_fn (%s) = %s", type(expected_fn), expected_fn)
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
@@ -253,30 +268,33 @@ def then_depends_on_2_ortho_files(dependencies, a):
     # logging.info("previous (%s) = %s", type(previous), previous)
 
     if a == 'a':
-        assert maskfile(None) in required
-        prev_msk = previous[maskfile(None)]
-        assert 'inputs' in prev_msk
-        msk_inputs = prev_msk['inputs']
-        assert len(msk_inputs) == 1
-        input = msk_inputs[0]
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key == concatfile(None)
+        expected_fn = maskfile(None)
+        prev_expected = previous[expected_fn]
+        expected_input_groups = prev_expected.inputs
+        assert len(expected_input_groups) == 1
+        for key, inputs in expected_input_groups.items():
+            assert key == 'in'  # May change in the future...
+            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(None)])
 
-    s2_product = concatfile(None)
-    prev_s2 = previous[s2_product]
-    assert 'inputs' in prev_s2
-    s2_inputs = prev_s2['inputs']
-    assert len(s2_inputs) == 2
-    for input in s2_inputs:
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key in previous
-        assert 'inputs' in previous[key]
-        ortho_inputs = previous[key]['inputs']
-        assert len(ortho_inputs) == 1
-        assert 'out_filename' in ortho_inputs[0]
-        assert ortho_inputs[0]['out_filename'] in [input_file(0), input_file(1)]
+    expected_fn = concatfile(None)
+    assert expected_fn in required
+    prev_expected = previous[expected_fn]
+    expected_input_groups = prev_expected.inputs
+    assert len(expected_input_groups) == 1
+    for key, inputs in expected_input_groups.items():
+        assert key == 'in'  # May change in the future...
+        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(0), orthofile(1)])
+
+    for i in range(2):
+        expected_fn = orthofile(i)
+        prev_expected = previous[expected_fn]
+        expected_input_groups = prev_expected.inputs
+        assert len(expected_input_groups) == 1
+        for key, inputs in expected_input_groups.items():
+            assert key == 'in'  # May change in the future...
+            assert len(inputs) == 1
+            assert [inp['out_filename'] for inp in inputs][0] == input_file(i)
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then('a t-chrono S2 file is required, and <a> mask is required')
@@ -289,7 +307,7 @@ def then_require_tchrono_outline(dependencies, known_file_numbers, a):
 
     required, previous, task2outfile_map = dependencies
     req_files = [task2outfile_map[t] for t in required]
-    # logging.error("required (%s) = %s", type(required), required)
+    # logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     assert concatfile(None) not in req_files
@@ -302,86 +320,59 @@ def then_require_tchrono_outline(dependencies, known_file_numbers, a):
     else:
         assert maskfile(known_file) not in req_files
 
+
 @then('it depends on one ortho file (and one S1 input), and <a> mask on a concatenated product')
-def then_depends_on_one_ortho_file(dependencies, a):
-    required, previous, task2outfile_map = dependencies
-    # logging.info("previous (%s) = %s", type(previous), previous)
-    if a == 'a':
-        assert maskfile(0) in required
-        prev_msk = previous[maskfile(0)]
-        assert 'inputs' in prev_msk
-        msk_inputs = prev_msk['inputs']
-        assert len(msk_inputs) == 1
-        input = msk_inputs[0]
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key == concatfile(0)
-
-    s2_product_task = concatfile(None)
-    assert s2_product_task in required
-    prev_s2 = previous[s2_product_task]
-
-    assert 'inputs' in prev_s2
-    s2_inputs = prev_s2['inputs']
-    assert len(s2_inputs) == 1
-    for input in s2_inputs:
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key in previous
-        assert 'inputs' in previous[key]
-        ortho_inputs = previous[key]['inputs']
-        assert len(ortho_inputs) == 1
-        assert 'out_filename' in ortho_inputs[0]
-        assert ortho_inputs[0]['out_filename'] in [input_file(0)]
+def then_depends_on_first_ortho_file(dependencies, known_file_numbers, a):
+    __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
 
 @then('it depends on second ortho file (and second S1 input), and <a> mask on a concatenated product')
-def then_depends_on_second_ortho_file(dependencies, a):
+def then_depends_on_second_ortho_file(dependencies, a, known_file_numbers):
+    __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
+
+def __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a):
     required, previous, task2outfile_map = dependencies
     # logging.info("previous (%s) = %s", type(previous), previous)
+    assert len(known_file_numbers) == 1
+    known_file = known_file_numbers[0]
     if a == 'a':
-        assert maskfile(1) in required
-        prev_msk = previous[maskfile(1)]
-        assert 'inputs' in prev_msk
-        msk_inputs = prev_msk['inputs']
-        assert len(msk_inputs) == 1
-        input = msk_inputs[0]
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key == concatfile(1)
+        expected_fn = maskfile(known_file)
+        prev_expected = previous[expected_fn]
+        expected_input_groups = prev_expected.inputs
+        assert len(expected_input_groups) == 1
+        for key, inputs in expected_input_groups.items():
+            assert key == 'in'  # May change in the future...
+            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(known_file)])
 
-    s2_product_task = concatfile(None)
-    assert s2_product_task in required
-    prev_s2 = previous[s2_product_task]
+    expected_fn = concatfile(None)
+    assert expected_fn in required
+    prev_expected = previous[expected_fn]
+    expected_input_groups = prev_expected.inputs
+    assert len(expected_input_groups) == 1
+    for key, inputs in expected_input_groups.items():
+        assert key == 'in'  # May change in the future...
+        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(known_file)])
 
-    # s2_product_task = list(required)[0]
-    # prev_s2 = previous[s2_product_task]
+    for i in [known_file]:
+        expected_fn = orthofile(i)
+        prev_expected = previous[expected_fn]
+        expected_input_groups = prev_expected.inputs
+        assert len(expected_input_groups) == 1
+        for key, inputs in expected_input_groups.items():
+            assert key == 'in'  # May change in the future...
+            assert len(inputs) == 1
+            assert [inp['out_filename'] for inp in inputs][0] == input_file(i)
 
-    assert 'inputs' in prev_s2
-    s2_inputs = prev_s2['inputs']
-    assert len(s2_inputs) == 1
-    for input in s2_inputs:
-        assert 'out_filename' in input
-        key = input['out_filename']
-        assert key in previous
-        assert 'inputs' in previous[key]
-        ortho_inputs = previous[key]['inputs']
-        assert len(ortho_inputs) == 1
-        assert 'out_filename' in ortho_inputs[0]
-        assert ortho_inputs[0]['out_filename'] in [input_file(1)]
 
 # ----------------------------------------------------------------------
 # Helpers
-def assert_orthorectify_product_number(idx, tasks):
-    ortho = to_dask_key(orthofile(idx))
-    assert ortho in tasks
-    task = tasks[ortho]
-    pipeline = task[1]
-    assert pipeline.output == ortho
-    assert isinstance(pipeline, Pipeline)
-    assert pipeline._Pipeline__name == 'FullOrtho'
-    inputs = pipeline._Pipeline__input
-    # logging.error("inputs: %s", inputs)
-    assert isinstance(inputs, FirstStep)
+def assert_orthorectify_product_number(idx, tasks, task2outfile_map):
+    expectations = {
+            orthofile(idx): {'pipeline': 'FullOrtho',
+                'input_steps': {
+                    input_file(idx): ['in', FirstStep],
+                    }}
+            }
+    _check_registered_task(expectations, tasks, [orthofile(idx)], task2outfile_map)
 
 def assert_dont_orthorectify_product_number(idx, tasks):
     ortho = to_dask_key(orthofile(idx))
@@ -397,44 +388,64 @@ def assert_dont_start_from_s1_image_number(idx, tasks):
     input = to_dask_key(input_file(idx))
     assert input not in tasks
 
+def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
+    for req_taskname in task_names:
+        ex_output        = req_taskname
+        assert ex_output in expectations, f"Task {ex_output} isn't expected (expectations: {list(expectations.keys())})"
+        ex               = expectations[ex_output]
+        ex_pipeline_name = ex['pipeline']
+        ex_in_steps      = ex['input_steps']
+        logging.info("TASKS: %s", tasks.keys())
+        req_task_key = to_dask_key(req_taskname)
+        assert req_task_key in tasks
+        req_task = tasks[req_task_key]
+        logging.info("req_task: %s", req_task)
+
+        req_pipeline = req_task[1]
+        assert req_pipeline.output == task2outfile_map[ex_output]
+        assert isinstance(req_pipeline, Pipeline)
+        assert req_pipeline._Pipeline__name == ex_pipeline_name
+        req_inputs = req_pipeline._Pipeline__inputs
+        logging.info("inputs: %s", req_inputs)
+        for ex_in_file, ex_in_info in ex_in_steps.items():
+            ex_in_key, ex_in_step = ex_in_info
+            matching_input = [inp[ex_in_key] for inp in req_inputs if ex_in_key in inp]
+            assert len(matching_input) == 1, f"No {ex_in_key} key in {[inp.keys() for inp in req_inputs]}"
+            assert isinstance(matching_input[0], ex_in_step)
+            assert ex_in_file in matching_input[0].out_filename
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then('a concatenation task is registered and produces txxxxxxx S2 file and <a> mask')
 def then_concatenate_2_files_(tasks, dependencies, a):
     expectations = {
             # MergeStep as there are two inputs
-            concatfile(None): {'pipeline': 'Concatenation', 'input_step': MergeStep}
+            concatfile(None): {'pipeline': 'Concatenation',
+                'input_steps': {
+                    orthofile(0): ['in', MergeStep],
+                    orthofile(1): ['in', MergeStep],
+                    }}
             }
     if a != 'no':
-        expectations[maskfile(None)] = {'pipeline': 'GenerateMask', 'input_step': FirstStep}
+        expectations[maskfile(None)] = {'pipeline': 'GenerateMask',
+                'input_steps': {
+                    concatfile(None): ['in', FirstStep]}}
     required, previous, task2outfile_map = dependencies
-    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
     assert len(required) == len(expectations)
-    for req_taskname in required:
-        ex_output        = req_taskname
-        ex               = expectations[ex_output]
-        ex_pipeline_name = ex['pipeline']
-        ex_in_step       = ex['input_step']
-        assert req_taskname in tasks
-        req_task = tasks[req_taskname]
+    assert concatfile(None) in required
+    _check_registered_task(expectations, tasks, required, task2outfile_map)
 
-        req_pipeline = req_task[1]
-        assert req_pipeline.output == ex_output
-        assert isinstance(req_pipeline, Pipeline)
-        assert req_pipeline._Pipeline__name == ex_pipeline_name
-        req_inputs = req_pipeline._Pipeline__input
-        assert isinstance(req_inputs, ex_in_step)
-        # logging.error("inputs: %s", req_inputs)
 
 @then('two orthorectification tasks are registered')
 def then_orthorectify_two_products(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
-    # logging.error("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert len(tasks) >= 5
 
     for i in (0, 1):
-        assert_orthorectify_product_number(i, tasks)
+        assert_orthorectify_product_number(i, tasks, task2outfile_map)
 
     for i in (0, 1):
         assert_start_from_s1_image_number(i, tasks)
@@ -445,45 +456,40 @@ def then_concatenate_1_files(tasks, dependencies, known_file_numbers, a):
     assert len(known_file_numbers) == 1
     known_file = known_file_numbers[0]
     expectations = {
-            # FirstStep as there is only one input
-            concatfile(known_file): {'pipeline': 'Concatenation', 'input_step': FirstStep}
+            # Task name is in txxxxxx, but file name is not
+            concatfile(None): {'pipeline': 'Concatenation',
+                'input_steps': {
+                    # FirstStep as there is only one input
+                    orthofile(known_file): ['in', FirstStep],
+                    }}
             }
     if a != 'no':
-        expectations[maskfile(known_file)] = {'pipeline': 'GenerateMask', 'input_step': FirstStep}
+        expectations[maskfile(known_file)] = {'pipeline': 'GenerateMask',
+                'input_steps': {
+                    concatfile(known_file): ['in', FirstStep]}}
 
     required, previous, task2outfile_map = dependencies
-    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert task2outfile_map[concatfile(None)] == concatfile(known_file)
+    # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    assert len(tasks) >= 1
+    assert len(tasks) >= 1, f'Only {len(tasks)} tasks are registered instead of 0+ : {list(tasks.keys())}'
     assert len(required) == len(expectations)
-    for req_taskname in required:
-        ex_output        = task2outfile_map[req_taskname]
-        ex               = expectations[ex_output]
-        ex_pipeline_name = ex['pipeline']
-        ex_in_step       = ex['input_step']
-        assert req_taskname in tasks
-        req_task = tasks[req_taskname]
+    assert concatfile(None) in required
+    _check_registered_task(expectations, tasks, required, task2outfile_map)
 
-        req_pipeline = req_task[1]
-        assert req_pipeline.output == ex_output
-        assert isinstance(req_pipeline, Pipeline)
-        assert req_pipeline._Pipeline__name == ex_pipeline_name
-        req_inputs = req_pipeline._Pipeline__input
-        assert isinstance(req_inputs, ex_in_step)
-        # logging.error("inputs: %s", req_inputs)
 
 @then('a single orthorectification task is registered')
 def then_orthorectify_one_product(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
-    # logging.error("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert len(tasks) >= 3
-    assert_orthorectify_product_number(0, tasks)
+    assert_orthorectify_product_number(0, tasks, task2outfile_map)
     assert_start_from_s1_image_number(0, tasks)
 
 @then('no orthorectification tasks is registered')
 def then_dont_orthorectify_any_product(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
-    # logging.error("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
     for i in (0, 1):
         assert_dont_orthorectify_product_number(i, tasks)
         assert_dont_start_from_s1_image_number(i, tasks)
@@ -497,7 +503,7 @@ def but_dont_orthorectify_the_second_product(tasks, dependencies):
 @then('it depends on the existing FullOrtho tmp product')
 def depend_on_the_existing_fullortho_product(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
-    # logging.error("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
     ortho = to_dask_key(orthofile(1))
     assert ortho in tasks
@@ -509,7 +515,7 @@ def depend_on_the_existing_fullortho_product(tasks, dependencies):
 @then('it depends on two existing FullOrtho tmp products')
 def depend_on_two_existing_fullortho_products(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
-    # logging.error("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
     for i in (0, 1):
         ortho = to_dask_key(orthofile(i))
@@ -520,6 +526,8 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies):
         assert_dont_start_from_s1_image_number(i, tasks)
 
 # ----------------------------------------------------------------------
+# -- LIA tests
+# ----------------------------------------------------------------------
 
 @then('a LIA image is required')
 def then_LIA_image_is_required(dependencies):
@@ -527,7 +535,7 @@ def then_LIA_image_is_required(dependencies):
 
     expected_fn = [LIA_file()]
 
-    # logging.error("required (%s) = %s", type(required), required)
+    # logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
@@ -549,7 +557,7 @@ def LIA_depends_on_XYZ_image(dependencies):
         assert key == 'xyz'
         assert len(inputs) == 1
         input = inputs[0]
-        # logging.error('Inputs from %s: %s', expected_inputs, input)
+        # logging.info('Inputs from %s: %s', expected_inputs, input)
         assert 'out_filename' in input
         xyz_file = input["out_filename"]
         assert xyz_file == XYZ_file()
@@ -614,31 +622,6 @@ def DEM_depends_on_BASE(dependencies):
     insar_as_input = insar_as_inputs[0]
     assert insar_as_input['out_filename'] == input_file(0)
 
-def _check_registered_task(expectations, tasks, task_names):
-    for req_taskname in task_names:
-        ex_output        = req_taskname
-        ex               = expectations[ex_output]
-        ex_pipeline_name = ex['pipeline']
-        ex_in_steps      = ex['input_steps']
-        logging.error("TASKS: %s", tasks.keys())
-        req_task_key = to_dask_key(req_taskname)
-        assert req_task_key in tasks
-        req_task = tasks[req_task_key]
-        logging.error("req_task: %s", req_task)
-
-        req_pipeline = req_task[1]
-        assert req_pipeline.output == ex_output
-        assert isinstance(req_pipeline, Pipeline)
-        assert req_pipeline._Pipeline__name == ex_pipeline_name
-        req_inputs = req_pipeline._Pipeline__inputs
-        logging.error("inputs: %s", req_inputs)
-        for ex_in_file, ex_in_info in ex_in_steps.items():
-            ex_in_key, ex_in_step = ex_in_info
-            matching_input = [inp[ex_in_key] for inp in req_inputs if ex_in_key in inp]
-            assert len(matching_input) == 1
-            assert isinstance(matching_input[0], ex_in_step)
-            assert ex_in_file in matching_input[0].out_filename
-
 @then('a LIA task is registered')
 def them_a_LIA_task_is_registered(tasks, dependencies):
     expectations = {
@@ -653,7 +636,7 @@ def them_a_LIA_task_is_registered(tasks, dependencies):
     assert len(tasks) >= 3
     assert len(required) == len(expectations)
     assert LIA_file() in required
-    _check_registered_task(expectations, tasks, required)
+    _check_registered_task(expectations, tasks, required, task2outfile_map)
 
 @then('a XYZ task is registered')
 def them_a_XYZ_task_is_registered(tasks, dependencies):
@@ -668,7 +651,7 @@ def them_a_XYZ_task_is_registered(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [XYZ_file()])
+    _check_registered_task(expectations, tasks, [XYZ_file()], task2outfile_map)
 
 @then('a DEMPROJ task is registered')
 def them_a_DEMPROJ_task_is_registered(tasks, dependencies):
@@ -682,7 +665,7 @@ def them_a_DEMPROJ_task_is_registered(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [DEMPROJ_file()])
+    _check_registered_task(expectations, tasks, [DEMPROJ_file()], task2outfile_map)
 
 @then('a DEM task is registered')
 def them_a_DEM_task_is_registered(tasks, dependencies):
@@ -695,5 +678,5 @@ def them_a_DEM_task_is_registered(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [DEM_file()])
+    _check_registered_task(expectations, tasks, [DEM_file()], task2outfile_map)
 
