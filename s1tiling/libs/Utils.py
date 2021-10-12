@@ -43,6 +43,21 @@ import osgeo  # To test __version__
 from osgeo import osr
 
 
+def flatten_stringlist(itr):
+    """
+    Flatten a list of lists.
+    But don't decompose string.
+    """
+    if type(itr) in (str,bytes):
+        yield itr
+    else:
+        for x in itr:
+            try:
+                yield from flatten_stringlist(x)
+            except TypeError:
+                yield x
+
+
 class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
