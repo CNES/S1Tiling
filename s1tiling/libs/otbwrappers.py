@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
+from .otbpipeline import StepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type
 from . import Utils
 from ..__meta__ import __version__
 
@@ -271,7 +271,7 @@ class Calibrate(OTBStepFactory):
         Returns the parameters to use with :std:doc:`SARCalibration OTB
         application <Applications/app_SARCalibration>`.
         """
-        return {
+        params = {
                 'ram'           : str(self.ram_per_process),
                 # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
@@ -370,7 +370,6 @@ class OrthoRectify(OTBStepFactory):
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=fname_fmt
                 )
-        self.__ram_per_process      = cfg.ram_per_process
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
         self.__grid_spacing         = cfg.grid_spacing
@@ -442,7 +441,7 @@ class OrthoRectify(OTBStepFactory):
         spacing = self.__out_spatial_res
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         meta['params.ortho'] = {
-                'opt.ram'          : str(self.__ram_per_process),
+                'opt.ram'          : str(self.ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename,
@@ -494,7 +493,7 @@ class OrthoRectify(OTBStepFactory):
         spacing = self.__out_spatial_res
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         parameters = {
-                'opt.ram'          : str(self.__ram_per_process),
+                'opt.ram'          : str(self.ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename,
@@ -627,11 +626,13 @@ class Concatenate(OTBStepFactory):
             logger.debug('Cleaning concatenated files: %s', meta['files_to_remove'])
             Utils.remove_files(meta['files_to_remove'])
 
-    def create_step(self, input: Step, in_memory: bool, previous_steps):
+    def create_step(self, inputs: Step, in_memory: bool, previous_steps):
         """
         :func:`create_step` is overridden in :class:`Concatenate` case in
         order to by-pass Concatenation in case there is only a single file.
         """
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
         # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
         if isinstance(input.out_filename, list) and len(input.out_filename) == 1:
             # This situation should not happen any more, we now a single string as input.
@@ -640,7 +641,7 @@ class Concatenate(OTBStepFactory):
         elif isinstance(input.out_filename, str):
             concat_in_filename = input.out_filename
         else:
-            return super().create_step(input, in_memory, previous_steps)
+            return super().create_step(inputs, in_memory, previous_steps)
         # Back to a single file input case
         logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
         meta = self.complete_meta(input.meta)
@@ -886,7 +887,7 @@ class SARDEMProjection(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         indem = quivabien('dem')
         return {
-                'ram'        : str(self.__ram_per_process),
+                'ram'        : str(self.ram_per_process),
                 'insar'      : in_filename(meta),
                 'indem'      : indem,
                 'withxyz'    : True,
@@ -941,7 +942,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         indem     = quivabien('dem')
         indemproj = quivabien('demproj')
         return {
-                'ram'             : str(self.__ram_per_process),
+                'ram'             : str(self.ram_per_process),
                 'insar'           : in_filename(meta),
                 'indem'           : indem,
                 'indemproj'       : indemproj,
@@ -988,7 +989,7 @@ class ComputeNormals(OTBStepFactory):
         """
         xyz = quivabien('xyz')
         return {
-                'ram'             : str(self.__ram_per_process),
+                'ram'             : str(self.ram_per_process),
                 'xyz'             : xyz,
                 }
 
@@ -1030,7 +1031,7 @@ class ComputeLIA(OTBStepFactory):
         xyz     = quivabien('xyz')
         normals = quivabien('normals')
         return {
-                'ram'             : str(self.__ram_per_process),
+                'ram'             : str(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
                 }

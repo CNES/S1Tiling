@@ -21,7 +21,7 @@ import s1tiling.libs.configuration
 
 
 # ======================================================================
-# Full prcessing versions
+# Full processing versions
 # ======================================================================
 
 def remove_dirs(dir_list):

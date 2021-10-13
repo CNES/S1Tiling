@@ -125,7 +125,7 @@ def known_files():
 def pipelines():
     # TODO: propagate --tmpdir to scenario runners
     config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT)
-    pd = PipelineDescriptionSequence(config)
+    pd = PipelineDescriptionSequence(config, dryrun=True)
     return pd
 
 @pytest.fixture
@@ -229,7 +229,7 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', return_value='DES')
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  return_value=7)
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
-    dependencies.extend(pipelines._build_dependencies(TILE, raster_list, dryrun=True))
+    dependencies.extend(pipelines._build_dependencies(TILE, raster_list))
 
 @when('tasks are generated')
 def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):

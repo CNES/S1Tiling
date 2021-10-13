@@ -36,6 +36,7 @@ from pathlib import Path
 import re
 import copy
 from abc import ABC, abstractmethod
+from itertools import filterfalse
 import logging
 import logging.handlers
 import multiprocessing
@@ -161,6 +162,13 @@ def files_exist(files):
         return True
 
 
+def is_running_dry(meta):
+    """
+    Helper function to test whether metadata has ``dryrun`` property set to True.
+    """
+    return meta.get('dryrun', False)
+
+
 def execute(params, dryrun):
     """
     Helper function to execute any external command.
@@ -258,7 +266,7 @@ class ExecutableStep(AbstractStep):
         self._exename = exename
 
     def execute_and_write_output(self):  # pylint: disable=no-self-use
-        dryrun = self.meta.get('dryrun', False)
+        dryrun = is_running_dry(self.meta)
         logger.debug("ExecutableStep: %s (%s)", self, self.meta)
         execute([self.exename]+ self.parameters(meta), dryrun)
         if 'post' in self.meta and not dryrun:
@@ -340,6 +348,16 @@ class Step(_StepWithOTBApplication):
         Method to call on the last step of a pipeline.
         """
         raise TypeError("A normal Step is not meant to be the last step of a pipeline!!!")
+
+
+def _check_input_step_type(inputs):
+    """
+    Internal helpder function that checks :func:`StepFactory.create_step()`
+    ``inputs`` parameters is of the expected type, i.e.:
+    list of dictionaries {'key': :class:`AbstractStep`}
+    """
+    assert all(issubclass(type(inp), dict) for inp in inputs), f"Inputs not of expected type: {inputs}"
+    assert all(issubclass(type(step), AbstractStep) for inp in inputs for _, step in inp.items()), f"Inputs not of expected type: {inputs}"
 
 
 class StepFactory(ABC):
@@ -444,13 +462,27 @@ class StepFactory(ABC):
         meta.pop('out_extended_filename_complement', None)
         return self.update_filename_meta(meta)
 
-    def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
+    def _get_canonical_input(self, inputs):
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+        By default, if there is only one input, this will be the one returned.
+        Steps will multiple inputs will need to override this method.
+        """
+        _check_input_step_type(inputs)
+        if len(inputs) == 1:
+            return list(inputs[0].values())[0]
+        else:
+            # If this error is raised, this means the current step has several
+            # inputs, it it need to tell how the "main" input is found.
+            raise TypeError("No way to handle a multiple inputs step from StepFactory.")
+
+    def create_step(self, inputs: AbstractStep, in_memory: bool, unused_previous_steps):
         """
         Instanciates the step related to the current :class:`StepFactory`,
-        that consumes results from the previous `input` step.
+        that consumes results from the previous `input` steps.
 
         1. This methods starts by updating metadata information through
-        :func:`complete_meta()` on the `input` metadata.
+        :func:`complete_meta()` on the ``input`` metadatas.
 
         2. in case the new step isn't related to an OTB application,
         nothing specific is done, we'll just return an :class:`AbstractStep`
@@ -460,7 +492,8 @@ class StepFactory(ABC):
         release all OTB Application objects.
         """
         # TODO: distinguish step description & step
-        assert issubclass(type(input), AbstractStep)
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta)
 
         # Return previous app?
@@ -518,11 +551,12 @@ class Pipeline:
     Internal class only meant to be used by  :class:`Pool`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory, do_watch_ram, name=None, output=None):
+    def __init__(self, do_measure, in_memory, do_watch_ram, name=None, dryrun=False, output=None):
         self.__pipeline     = []
         self.__do_measure   = do_measure
         self.__in_memory    = in_memory
         self.__do_watch_ram = do_watch_ram
+        self.__dryrun       = dryrun
         self.__name         = name
         self.__output       = output
         self.__inputs       = []
@@ -595,20 +629,24 @@ class Pipeline:
         2. Incrementaly create the steps of the pipeline.
         3. Return the resulting output filename, or the caught errors.
         """
-        assert self.__input
-        TODO()
-        if not files_exist(self.__input.out_filename) and not self.__input.meta.get('dryrun', False):
-            msg = "Cannot execute %s as input %s doesn't exist" % (self, self.__input.out_filename)
+        assert self.__inputs
+        logger.info("INPUTS: %s", self.__inputs)
+        tested_files = list(Utils.flatten_stringlist([v.out_filename for inp in self.__inputs for _,v in inp.items()]))
+        logger.info("TESTING: %s", tested_files)
+        missing_inputs = list(filterfalse(files_exist, tested_files))
+        if len(missing_inputs) > 0 and not self.__dryrun:
+            msg = "Cannot execute %s as the following input(s) %s do(es)n't exist" % (self, missing_inputs)
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
         assert self.__pipeline  # shall not be empty!
-        steps = [self.__input]
+        steps = [self.__inputs]
         for crt in self.__pipeline:
             step = crt.create_step(steps[-1], self.__in_memory, steps)
-            steps.append(step)
+            steps.append([{'__last': step}])
 
-        res = steps[-1].out_filename
+        assert len(steps[-1]) == 1
+        res = steps[-1][0]['__last'].out_filename
         assert res == self.output
         steps = None
         return Outcome(res)
@@ -663,7 +701,7 @@ class PipelineDescription:
     - can tell the expected product name given an input.
     - tells whether its product is required
     """
-    def __init__(self, factory_steps, name=None, product_required=False, is_name_incremental=False, inputs=None):
+    def __init__(self, factory_steps, dryrun, name=None, product_required=False, is_name_incremental=False, inputs=None):
         """
         constructor
         """
@@ -671,6 +709,7 @@ class PipelineDescription:
         self.__factory_steps       = factory_steps
         self.__is_name_incremental = is_name_incremental
         self.__is_product_required = product_required
+        self.__dryrun              = dryrun
         if name:
             self.__name = name
         else:
@@ -731,7 +770,7 @@ class PipelineDescription:
         Note: It systematically registers a :class:`Store` step at the end
         if any :class:`StepFactory` is actually an :class:`OTBStepFactory`
         """
-        pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, file)
+        pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, self.__dryrun, file)
         need_OTB_store = False
         for factory_step in self.__factory_steps + []:
             pipeline.push(factory_step)
@@ -860,13 +899,14 @@ class PipelineDescriptionSequence:
     """
     List of :class:`PipelineDescription` objects
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg, dryrun):
         """
         constructor
         """
         assert cfg
-        self.__cfg       = cfg
-        self.__pipelines = []
+        self.__cfg        = cfg
+        self.__pipelines  = []
+        self.__dryrun     = dryrun
 
     def register_pipeline(self, factory_steps, *args, **kwargs):
         """
@@ -882,11 +922,12 @@ class PipelineDescriptionSequence:
                                   deduced from the last step.
         """
         steps = [FS(self.__cfg) for FS in factory_steps]
-        pipeline = PipelineDescription(steps, *args, **kwargs)
+        assert 'dryrun' not in kwargs
+        pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
         self.__pipelines.append(pipeline)
         return pipeline
 
-    def _build_dependencies(self, tile_name, raster_list, dryrun):
+    def _build_dependencies(self, tile_name, raster_list):
         """
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
@@ -894,7 +935,7 @@ class PipelineDescriptionSequence:
         first_inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
-                dryrun=dryrun)
+                dryrun=self.__dryrun)
 
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
@@ -1023,7 +1064,7 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
-    def generate_tasks(self, tile_name, raster_list, debug_otb=False, dryrun=False, do_watch_ram=False):
+    def generate_tasks(self, tile_name, raster_list, debug_otb=False, do_watch_ram=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -1034,8 +1075,7 @@ class PipelineDescriptionSequence:
         """
         required, previous, task_names_to_output_files_table = self._build_dependencies(
                 tile_name=tile_name,
-                raster_list=raster_list,
-                dryrun=dryrun)
+                raster_list=raster_list)
 
         # Generate the actual list of tasks
         final_products = [to_dask_key(p) for p in required]
@@ -1136,7 +1176,7 @@ class StoreStep(_StepWithOTBApplication):
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
         with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
-            if not self.meta.get('dryrun', False):
+            if not is_running_dry(self.meta):
                 # TODO: catch execute failure, and report it!
                 # logger.info("START %s", pipeline_name)
                 with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
@@ -1147,7 +1187,7 @@ class StoreStep(_StepWithOTBApplication):
                             self.tmp_filename + out_extended_filename_complement(self.meta))
                     self._app.ExecuteAndWriteOutput()
                 commit_otb_application(self.tmp_filename, self.out_filename)
-        if 'post' in self.meta and not self.meta.get('dryrun', False):
+        if 'post' in self.meta and not is_running_dry(self.meta):
             for hook in self.meta['post']:
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]
@@ -1322,7 +1362,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         return self._out
 
-    def create_step(self, input: AbstractStep, in_memory: bool, unused_previous_steps):
+    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1345,13 +1385,13 @@ class OTBStepFactory(_FileProducingStepFactory):
         used in :func:`Store.create_step()` where it's eventually used to
         release all OTB Application objects.
         """
-        # TODO: distinguish step description & step
-        assert issubclass(type(input), AbstractStep)
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta)
         assert self.appname
 
         # Otherwise: step with an OTB application...
-        if meta.get('dryrun', False):
+        if is_running_dry(meta):
             logger.warning('DRY RUN mode: ignore step and OTB Application creation')
             lg_from = input.out_filename if input.is_first_step else 'app'
             logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
@@ -1420,9 +1460,10 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         self._exename              = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
-    def create_step(self, input: AbstractStep, in_memory: bool, previous_steps):
+    def create_step(self, inputs: list, in_memory: bool, previous_steps):
         logger.debug("Directly execute %s step", self.name)
-        assert issubclass(type(input), AbstractStep)
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta)
         res = ExecutableStep(self._exename, **meta)
         return res
@@ -1439,12 +1480,14 @@ class Store(StepFactory):
     def __init__(self, appname, *argv, **kwargs):
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
 
-    def create_step(self, input: Step, in_memory: bool, previous_steps):
+    def create_step(self, inputs: Step, in_memory: bool, previous_steps):
         """
         Specializes :func:`create_step()` to trigger
         :func:`execute_and_write_output()` on the last step that relates to an
         OTB Application.
         """
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
         if input.is_first_step:
             assert False  # Should no longer happen!
             # Special case of by-passed inputs
@@ -1458,8 +1501,10 @@ class Store(StepFactory):
             # logger.debug("Collecting memory!")
             # Collect memory now!
             res.release_app()
-            for step in previous_steps:
-                step.release_app()
+            for inps in previous_steps:
+                for inp in inps:
+                    for _, step in inp.items():
+                        step.release_app()
         return res
 
     # abstract methods...

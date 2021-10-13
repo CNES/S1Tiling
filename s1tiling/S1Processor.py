@@ -240,7 +240,7 @@ def process_one_tile(
         return []
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
+            debug_otb=debug_otb, do_watch_ram=do_watch_ram)
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
@@ -283,7 +283,7 @@ def process_one_tile(
                 # Update the list of remaining tasks
                 if run_attemp < nb_tries:
                     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=do_watch_ram)
+                            debug_otb=debug_otb, do_watch_ram=do_watch_ram)
                 else:
                     raise
 
@@ -348,16 +348,25 @@ def s1_process(config_opt,
 
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
-        pipelines = PipelineDescriptionSequence(config)
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
         if cache_before_ortho:
             pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
             pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
         else:
-            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
+            # pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
+            ortho = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True
+                    , inputs={'in': 'basename'}
+                    )
 
-        pipelines.register_pipeline([Concatenate],                                              product_required=True)
+        # pipelines.register_pipeline([Concatenate],                                              product_required=True)
+        concat = pipelines.register_pipeline([Concatenate], product_required=True
+                , inputs={'in': ortho}
+                )
         if config.mask_cond:
-            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+            # pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+            mask = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
+                    , inputs={'in': concat}
+                    )
 
         # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
 
