@@ -442,8 +442,12 @@ class StepFactory(ABC):
 
         - :func:`get_task_name` which is deduced from `out_filename`  by default
         - :func:`out_extended_filename_complement`
+
+        It's possible to inject some other metadata (that could be used from
+        :func:`_get_canonical_input()` for instance) thanks to :func:`_update_filename_meta_pre_hook()`.
         """
         meta = meta.copy()
+        self._update_filename_meta_pre_hook(meta)
         meta['in_filename']        = out_filename(meta)
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
@@ -453,6 +457,15 @@ class StepFactory(ABC):
         meta.pop('task_basename', None)
         meta.pop('update_out_filename', None)
         return meta
+
+    def _update_filename_meta_pre_hook(self, meta):  # to be overridden
+        """
+        Hook meant to be overridden to complete product metadata before
+        they are used to produce filenames or tasknames.
+
+        Called from :func:`update_filename_meta()`
+        """
+        pass
 
     def complete_meta(self, meta):  # to be overridden
         """

@@ -65,16 +65,16 @@ def maskfile(idx):
         return f'{OUTPUT}/{TILE}/{FILES[idx]["orthofile"]}_BorderMask.tif'
 
 def DEM_file():
-    return f'{TMPDIR}/S1/DEM_s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.vrt'
+    return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
 
 def DEMPROJ_file():
-    return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
 
 def XYZ_file():
-    return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
 
 def LIA_file():
-    return f'{TMPDIR}/S1/LIA_s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
 
 # ======================================================================
 # Mocks

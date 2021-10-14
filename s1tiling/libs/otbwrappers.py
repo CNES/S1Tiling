@@ -763,6 +763,10 @@ class SmoothBorderMask(OTBStepFactory):
 # ======================================================================
 # Applications used to produce LIA
 
+def remove_polarization_marks(name):
+    return re.sub(r'[hv][hv]-|[HV][HV]_', '', name)
+
+
 class AgglomerateDEM(ExecutableStepFactory):
     """
     Factory that produce a :class:`Step` that build a VRT from a list of DEM.
@@ -772,7 +776,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         constructor
         """
-        fname_fmt = 'DEM_{rootname}.vrt'
+        fname_fmt = 'DEM_{polarless_rootname}.vrt'
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
@@ -780,6 +784,12 @@ class AgglomerateDEM(ExecutableStepFactory):
                 name="AgglomerateDEM", exename='gdalbuildvrt',
                 *args, **kwargs)
         self.__srtm_db_filepath = cfg.srtm_db_filepath
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        rootname = os.path.splitext(meta['polarless_basename'])[0]
+        meta['polarless_rootname'] = rootname
 
     def complete_meta(self, meta):
         """
@@ -828,7 +838,7 @@ class SARDEMProjection(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        fname_fmt = 'S1_on_DEM_{basename}'
+        fname_fmt = 'S1_on_DEM_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
                 param_in=['insar', 'indem'], param_out='out',
@@ -837,6 +847,10 @@ class SARDEMProjection(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
     def complete_meta(self, meta):
         """
@@ -913,7 +927,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
-        fname_fmt = 'XYZ_{basename}'
+        fname_fmt = 'XYZ_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
                 param_in=['insar', 'indem', 'indemproj'], param_out='out',
@@ -922,6 +936,10 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
     def complete_meta(self, meta):
         """
@@ -971,7 +989,7 @@ class ComputeNormals(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
-        fname_fmt = 'Normals_{basename}'
+        fname_fmt = 'Normals_{polarless_basename}'
         super().__init__(cfg,
                 appname='ExtractNormalVector', name='ComputeNormals',
                 param_in='xyz', param_out='out',
@@ -980,6 +998,10 @@ class ComputeNormals(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
     def parameters(self, meta):
         """
@@ -1012,7 +1034,7 @@ class ComputeLIA(OTBStepFactory):
     Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
-        fname_fmt = 'LIA_{basename}'
+        fname_fmt = 'LIA_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 param_in=['in.normals', 'in.xyz'], param_out=['out.lia', 'out.sin'],
@@ -1021,6 +1043,10 @@ class ComputeLIA(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
     def parameters(self, meta):
         """
