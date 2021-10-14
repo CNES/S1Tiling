@@ -14,7 +14,6 @@ from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 # ======================================================================
 # Scenarios
 scenarios('../features/build_dependencies_and_tasks.feature', '../features/normlim.feature')
-# scenarios('../features/build_dependencies_and_tasks.feature')
 
 # ======================================================================
 # Test Data
@@ -395,18 +394,18 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
         ex               = expectations[ex_output]
         ex_pipeline_name = ex['pipeline']
         ex_in_steps      = ex['input_steps']
-        logging.info("TASKS: %s", tasks.keys())
+        logging.debug("TASKS: %s", tasks.keys())
         req_task_key = to_dask_key(req_taskname)
         assert req_task_key in tasks
         req_task = tasks[req_task_key]
-        logging.info("req_task: %s", req_task)
+        logging.debug("req_task: %s", req_task)
 
         req_pipeline = req_task[1]
         assert req_pipeline.output == task2outfile_map[ex_output]
         assert isinstance(req_pipeline, Pipeline)
         assert req_pipeline._Pipeline__name == ex_pipeline_name
         req_inputs = req_pipeline._Pipeline__inputs
-        logging.info("inputs: %s", req_inputs)
+        logging.debug("inputs: %s", req_inputs)
         for ex_in_file, ex_in_info in ex_in_steps.items():
             ex_in_key, ex_in_step = ex_in_info
             matching_input = [inp[ex_in_key] for inp in req_inputs if ex_in_key in inp]

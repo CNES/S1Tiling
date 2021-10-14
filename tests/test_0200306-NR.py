@@ -9,9 +9,7 @@ import subprocess
 
 import otbApplication as otb
 
-# from unittest.mock import Mock
 from unittest.mock import patch
-# import unittest.mock
 
 # import pytest_check
 from .helpers import otb_compare, comparable_metadata
@@ -320,7 +318,6 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
-    # mocker.patch('s1tiling.libs.S1FileManager.list_dirs', return_value=files)
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
     mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
     mocker.patch('os.path.isfile', lambda file : isfile(file, known_files))
@@ -356,14 +353,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
     logging.info("Full mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), '33NWB')
-    # known_files = [ file_db.input_file_vv(0) ]
-    # logging.error('os.path.isfile: %s', os.path.isfile)
-    # mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
-    # logging.error('mock.isfile: %s', os.path.isfile)
-    # assert not os.path.isfile('foo')
-    # assert os.path.isfile(file_db.input_file_vv(0))
-    # assert not os.path.isfile(file_db.input_file_vv(1))
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
     known_files = application_mocker.known_files
@@ -375,7 +365,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
         input_file = file_db.input_file_vv(i)
         expected_ortho_file = file_db.orthofile(i)
 
-        #SARCalibration -ram '4096' -in '/home/luc/dev/S1tiling/tests/20200306-NR/data_raw-pol/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953.SAFE/measurement/s1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-002.tiff' -lut 'sigma' -removenoise False
+        # SARCalibration -ram '4096' -in '/home/luc/dev/S1tiling/tests/20200306-NR/data_raw-pol/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953.SAFE/measurement/s1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-002.tiff' -lut 'sigma' -removenoise False
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
@@ -395,7 +385,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
             'out'              : 'OrthoRectification|>'+file_db.tmp_orthofile(i),
             }, None)
 
-        #  OrthoRectification (from app) -opt.ram '4096' -interpolator 'nn' -outputs.spacingx '10.0' -outputs.spacingy '-10.0' -outputs.sizex 10980 -outputs.sizey 10980 -opt.gridspacing '40.0' -map 'utm' -map.utm.zone 33 -map.utm.northhem True -outputs.ulx '499979.99999484676' -outputs.uly '200040.0000009411' -elev.dem '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/tmpuv76wv2i' -elev.geoid '/home/luc/dev/S1tiling/s1tiling/s1tiling/resources/Geoid/egm96.grd'
+        # OrthoRectification (from app) -opt.ram '4096' -interpolator 'nn' -outputs.spacingx '10.0' -outputs.spacingy '-10.0' -outputs.sizex 10980 -outputs.sizey 10980 -opt.gridspacing '40.0' -map 'utm' -map.utm.zone 33 -map.utm.northhem True -outputs.ulx '499979.99999484676' -outputs.uly '200040.0000009411' -elev.dem '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/tmpuv76wv2i' -elev.geoid '/home/luc/dev/S1tiling/s1tiling/s1tiling/resources/Geoid/egm96.grd'
         application_mocker.set_expectations('OrthoRectification', {
             'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
             'opt.ram'         : '2048',
@@ -414,7 +404,6 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
             'elev.geoid'      : configuration.GeoidFile,
             'io.out'          : file_db.tmp_orthofile(i),
             }, None)
-#
 
     for i in range(1):
         # Synthetize -ram '4096' -il '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044150.tif' '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044215.tif'
