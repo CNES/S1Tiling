@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Copyright 2017-2021 (c) CESBIO. All rights reserved.
+#   Copyright 2017-2021 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -38,4 +38,4 @@ __author__ = "Thierry KOLECK"
 __author_email__ = "Thierry.Koleck@cnes.fr"
 __url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
 __license__ = "Apache 2.0"
-__copyright__ = "Copyright 2017-2021, CESBIO"
+__copyright__ = "Copyright 2017-2021, CNES"
