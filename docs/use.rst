@@ -131,8 +131,8 @@ You can use this :download:`this template
                       password: THEPASSWORD
 
 
-      .. _DataSource.nb_parallel_processes:
-  * - ``nb_parallel_processes``
+      .. _DataSource.nb_parallel_downloads:
+  * - ``nb_parallel_downloads``
     - Number of parallel downloads (+ unzip) of source products.
 
       .. warning::
