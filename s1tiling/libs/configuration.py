@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CESBIO. All rights reserved.
+#   Copyright 2017-2021 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -140,7 +140,7 @@ class Configuration():
             logging.critical("Please correct the config file ")
             sys.exit(exits.CONFIG_ERROR)
         if self.download:
-            self.nb_download_processes = config.getint('DataSource', 'nb_parallel_processes')
+            self.nb_download_processes = config.getint('DataSource', 'nb_parallel_downloads', fallback=1)
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
@@ -201,6 +201,8 @@ class Configuration():
         logging.debug("- last_date                      : %s", self.last_date)
         logging.debug("- polarisation                   : %s", self.polarisation)
         logging.debug("- roi_by_tiles                   : %s", self.ROI_by_tiles)
+        if self.download:
+            logging.debug("- nb_parallel_downloads          : %s", self.nb_download_processes)
         logging.debug("[Processing]")
         logging.debug("- calibration                    : %s", self.calibration_type)
         logging.debug("- mode                           : %s", self.Mode)

@@ -14,10 +14,10 @@ Q: How can I fix "`proj_create_from_database: ellipsoid not found"` messages?
 
 A: Just ignore the *error*. As far as we known, it has no incidence.
 
-This message is produced by current version of GDAL (used by OTB 7.3) on
-Sentinel-1 products with an "unnamed ellipsoid". If you execute ``gdalinfo`` on
-these Sentinel-1 products you will also observe the *error*, independently of
-S1Tiling.
+This message is produced by current version of GDAL (used by OTB 7.3 and 7.4)
+on Sentinel-1 products with an "unnamed ellipsoid". If you execute ``gdalinfo``
+on these Sentinel-1 products you will also observe the *error*, independently
+of S1Tiling or OTB.
 
 Example:
 
@@ -50,10 +50,11 @@ different spaces.
 
 In other words,
 
-- execute for instance S1Tiling from, for instance,
-  :file:`${PBS_O_WORKDIR}/${PBS_JOBID}`, -- unlike :file:`${TMPDIR}/`, on PBS
-  :file:`${PBS_O_WORKDIR}/${PBS_JOBID}` will persist job execution.
-- and set :ref:`[PATHS].tmp <paths.tmp>` to :file:`${TMPDIR}/whatever`.
+- execute S1Tiling from, for instance,
+  :file:`${{PBS_O_WORKDIR}}/${{PBS_JOBID}}`, -- indeed, unlike :file:`${{TMPDIR}}/`,
+  :file:`${{PBS_O_WORKDIR}}/${{PBS_JOBID}}` will persist job execution on PBS.
+- and set :ref:`[PATHS].tmp <paths.tmp>` to
+  :file:`${{TMPDIR}}/whatever-${{PBS_JOBID}}`.
 
 This Q/A is tracked in `S1Tiling issue #70
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/70>`_.

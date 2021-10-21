@@ -15,7 +15,7 @@ Sentinel-1 data is ortho-rectified on the Sentinel-2 grid to promote joint use
 of both missions.
 
 S1Tiling was developed within the CNES radar service, in collaboration with
-CESBIO, to generate time series of calibrated, ortho-rectified and filtered
+CNES, to generate time series of calibrated, ortho-rectified and filtered
 Sentinel-1 images on any terrestrial region of the Earth. The tool benefits for
 the SAR ortho-rectification application
 [from the Orfeo Tool Box](https://www.orfeo-toolbox.org/).
@@ -68,7 +68,7 @@ https://docs.dask.org/en/latest/setup/single-distributed.html
 
 # Copyright
 
->   Copyright (c) CESBIO. All rights reserved.
+>   Copyright (c) CNES. All rights reserved.
 >
 >   Licensed under the Apache License, Version 2.0 (the "License");
 >   you may not use this file except in compliance with the License.

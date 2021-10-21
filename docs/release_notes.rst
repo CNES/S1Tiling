@@ -17,7 +17,7 @@ v0.3 Improvements
   Up to now timetag was always changed to ``txxxxxx``
 - Update to support noise removal which has been fixed in OTB 7.4.0. This
   processing is now disabled with prior versions of OTB
-  (`#89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/89>`,
+  (`#89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/89>`_,
   `#95 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/95>`_).
 - Dask ``cluster`` and ``client`` handles are always closed. This avoids memory
   leaks from other programs that wish to use S1Tiling as a library.

@@ -34,7 +34,7 @@ of both missions.
            :align: left
 
 S1Tiling was developed within the CNES radar service, in collaboration with
-CESBIO, to generate time series of calibrated, ortho-rectified and filtered
+CNES, to generate time series of calibrated, ortho-rectified and filtered
 Sentinel-1 images on any terrestrial region of the Earth. The tool benefits for
 the SAR ortho-rectification application
 `from the Orfeo Tool Box <https://www.orfeo-toolbox.org/>`_.

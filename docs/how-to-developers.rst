@@ -157,7 +157,7 @@ Here is a short list of the actions to do for each new release.
        .. code::
 
            # Prepare the packets for pipy
-           python3 setup.py sdist bdist_wheel
+           python3 setup.py sdist
 
            # Push to pipy
            python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
