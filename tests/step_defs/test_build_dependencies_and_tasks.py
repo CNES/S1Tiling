@@ -29,6 +29,16 @@ FILES = [
             's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
             's1file': 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
             'orthofile': 's1a_33NWB_vv_DES_007_20200108t044215'
+            },
+        {
+            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+            's1file': 's1a-iw-grd-vh-20200108t044150-20200108t044215-030704-038506-001.tiff',
+            'orthofile': 's1a_33NWB_vh_DES_007_20200108t044150'
+            },
+        {
+            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+            's1file': 's1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-001.tiff',
+            'orthofile': 's1a_33NWB_vh_DES_007_20200108t044215'
             }
         ]
 
@@ -37,12 +47,23 @@ INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
 TILE   = '33NWB'
 
+def polarization(idx):
+    return ['vv', 'vh'][idx]
+
 def input_file(idx):
     s1dir  = FILES[idx]['s1dir']
     s1file = FILES[idx]['s1file']
     return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
 def raster_vv(idx):
+    s1dir  = FILES[idx]['s1dir']
+    return (S1DateAcquisition(
+        f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
+        [input_file(idx)]),
+        [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
+
+def raster_vh(idx):
+    idx = 2 + idx
     s1dir  = FILES[idx]['s1dir']
     return (S1DateAcquisition(
         f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
@@ -195,6 +216,16 @@ def given_one_S1_image(raster_list, known_files, known_file_numbers):
     known_file_numbers.append(0)
     return raster_list
 
+@given('a pair of VV + VH S1 images')
+def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_numbers):
+    known_files.append(input_file(0))
+    known_files.append(input_file(2))
+    raster_list.append(raster_vv(0))
+    raster_list.append(raster_vh(0))
+    known_file_numbers.append(0)
+    known_file_numbers.append(2)
+    return raster_list
+
 @given('two S1 images')
 def given_two_S1_images(raster_list, known_files, known_file_numbers):
     known_files.extend([input_file(0), input_file(1)])
@@ -224,7 +255,7 @@ def given_two_FullOrtho_tmp_images(raster_list, known_files, known_file_numbers)
 
 @when('dependencies are analysed')
 def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, known_files):
-    # print("raster_list: %s" % (raster_list,))
+    logging.debug("raster_list: %s" % (raster_list,))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', return_value='DES')
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  return_value=7)
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
@@ -572,7 +603,7 @@ def XYZ_depends_on_DEM_DEMPROJ_and_BASE(dependencies):
     assert {'indem', 'insar', 'indemproj'} == set(expected_inputs.keys())
 
     insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1
+    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
     assert insar_as_input['out_filename'] == input_file(0)
 
@@ -597,7 +628,7 @@ def DEMPROJ_depends_on_DEM_and_BASE(dependencies):
     assert {'indem', 'insar'} == set(expected_inputs.keys())
 
     insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1
+    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
     assert insar_as_input['out_filename'] == input_file(0)
 
@@ -617,7 +648,7 @@ def DEM_depends_on_BASE(dependencies):
     assert {'insar'} == set(expected_inputs.keys())
 
     insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1
+    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
     assert insar_as_input['out_filename'] == input_file(0)
 

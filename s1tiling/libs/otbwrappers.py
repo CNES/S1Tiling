@@ -790,6 +790,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
+        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -851,6 +852,7 @@ class SARDEMProjection(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -940,6 +942,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -1002,6 +1005,7 @@ class ComputeNormals(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        # meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
 
     def parameters(self, meta):
         """
@@ -1047,6 +1051,7 @@ class ComputeLIA(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        # meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
 
     def parameters(self, meta):
         """

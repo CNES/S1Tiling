@@ -859,14 +859,23 @@ class TaskInputInfo:
         constructor
         """
         self.__pipeline    = pipeline
-        self._inputs       = {}   # map<source, meta / meta list>
+        self._inputs       = {}  # map<source, meta / meta list>
         self._dependencies = []  # task names
 
-    def add_input(self, origin, input_meta):
+    def add_input(self, origin, input_meta, destination_meta):
         if origin not in self._inputs:
+            logger.debug('add_input[%s]: first time <<-- %s', origin, input_meta)
             self._inputs[origin] = [input_meta]
+            return True
+        logger.debug('add_input[%s]: not empty <<-- %s', origin, input_meta)
+        logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
+        if f'reduce_inputs_{origin}' in destination_meta.keys():
+            # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s', origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
+            self._inputs[origin] = [destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta])]
+            return False
         else:
             self._inputs[origin].append(input_meta)
+            return True
 
     @property
     def pipeline(self):
@@ -953,8 +962,8 @@ class PipelineDescriptionSequence:
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
-        required = {}     # (first batch) Final products identified as _needed to be produced_
-        previous = {}     # Graph of deps: for a product tells how it's produced (pipeline + inputs)
+        required = {}  # (first batch) Final products identified as _needed to be produced_
+        previous = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs): Map<TaskInputInfo>
         task_names_to_output_files_table = {}
         # +-> TODO: cache previous in order to remember which files already exists or not
         #     the difficult part is to flag as "generation successful" or not
@@ -994,17 +1003,19 @@ class PipelineDescriptionSequence:
                         # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
                         # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [InputInfo(input)]}
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
-                        previous[expected_taskname].add_input(origin, input)
+                        previous[expected_taskname].add_input(origin, input, expected)
                         logger.debug('This is a new product: %s, with a source from %s', expected_taskname, origin)
                     elif get_task_name(input) not in previous[expected_taskname].input_task_names:
                         # previous[expected_taskname]['inputs'].append(input)
-                        previous[expected_taskname].add_input(origin, input)
-                        logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation. Updating %s ...', expected_taskname, expected)
-                        update_out_filename(expected, previous[expected_taskname])
-                        logger.debug('...to (%s)', expected)
-                        already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == expected_taskname]
-                        assert len(already_registered_next_input) == 1
-                        update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                        if previous[expected_taskname].add_input(origin, input, expected):
+                            logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
+                            update_out_filename(expected, previous[expected_taskname])
+                            logger.debug('...to (%s)', expected)
+                            already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == expected_taskname]
+                            assert len(already_registered_next_input) == 1
+                            update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                        else:
+                            logger.debug('The %s task depends on one more input, but only one will be kept.\n%s has been updated.', expected_taskname, expected)
                     if pipeline.product_is_required:
                         required[expected_taskname] = expected
                     task_names_to_output_files_table[expected_taskname] = out_filename(expected)
