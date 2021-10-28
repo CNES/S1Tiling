@@ -188,7 +188,7 @@ def given_pipeline_concat(pipelines, last_pipeline):
             )
     last_pipeline.append(pipeline)
 
-@given('that <builds> masks')
+@given(parsers.parse('that {builds} masks'))
 def given_pipeline_concat(pipelines, builds, last_pipeline):
     if builds == 'builds':
         # logging.info('REGISTER MASKS')
@@ -274,7 +274,7 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 # ======================================================================
 # Then steps
 
-@then('a txxxxxx S2 file is required, and <a> mask is required')
+@then(parsers.parse('a txxxxxx S2 file is required, and {a} mask is required'))
 def then_require_txxxxxx_and_mask(dependencies, a):
     expected_fn = [concatfile(None)]
     if a != 'no':
@@ -292,7 +292,7 @@ def then_require_txxxxxx_and_mask(dependencies, a):
     assert maskfile(0)   not in required
     assert maskfile(1)   not in required
 
-@then('it depends on 2 ortho files (and two S1 inputs), and <a> mask on a concatenated product')
+@then(parsers.parse('it depends on 2 ortho files (and two S1 inputs), and {a} mask on a concatenated product'))
 def then_depends_on_2_ortho_files(dependencies, a):
     required, previous, task2outfile_map = dependencies
     # logging.info("previous (%s) = %s", type(previous), previous)
@@ -327,7 +327,7 @@ def then_depends_on_2_ortho_files(dependencies, a):
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-@then('a t-chrono S2 file is required, and <a> mask is required')
+@then(parsers.parse('a t-chrono S2 file is required, and {a} mask is required'))
 def then_require_tchrono_outline(dependencies, known_file_numbers, a):
     assert len(known_file_numbers) == 1
     known_file = known_file_numbers[0]
@@ -351,11 +351,11 @@ def then_require_tchrono_outline(dependencies, known_file_numbers, a):
         assert maskfile(known_file) not in req_files
 
 
-@then('it depends on one ortho file (and one S1 input), and <a> mask on a concatenated product')
+@then(parsers.parse('it depends on one ortho file (and one S1 input), and {a} mask on a concatenated product'))
 def then_depends_on_first_ortho_file(dependencies, known_file_numbers, a):
     __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
 
-@then('it depends on second ortho file (and second S1 input), and <a> mask on a concatenated product')
+@then(parsers.parse('it depends on second ortho file (and second S1 input), and {a} mask on a concatenated product'))
 def then_depends_on_second_ortho_file(dependencies, a, known_file_numbers):
     __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
 
@@ -445,7 +445,7 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
             assert ex_in_file in matching_input[0].out_filename
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-@then('a concatenation task is registered and produces txxxxxxx S2 file and <a> mask')
+@then(parsers.parse('a concatenation task is registered and produces txxxxxxx S2 file and {a} mask'))
 def then_concatenate_2_files_(tasks, dependencies, a):
     expectations = {
             # MergeStep as there are two inputs
@@ -481,7 +481,7 @@ def then_orthorectify_two_products(tasks, dependencies):
         assert_start_from_s1_image_number(i, tasks)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-@then('a concatenation task is registered and produces t-chrono S2 file, and <a> mask')
+@then(parsers.parse('a concatenation task is registered and produces t-chrono S2 file, and {a} mask'))
 def then_concatenate_1_files(tasks, dependencies, known_file_numbers, a):
     assert len(known_file_numbers) == 1
     known_file = known_file_numbers[0]
