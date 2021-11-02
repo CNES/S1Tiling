@@ -29,9 +29,9 @@ Feature: Norlim
         And   tasks are generated
 
         # TODO:
-        # - need to check a reduction of type 'any()': any one between vh or vv
+        # - [X] need to check a reduction of type 'any()': any one between vh or vv
         # is good: just keep one
-        # - Same thing for multiple images at the same date after ortho: keep
+        # - [ ] Same thing for multiple images at the same date after ortho: keep
         # only one LIA
         Then  a LIA image is required
         And   LIA depends on XYZ image

@@ -20,26 +20,45 @@ scenarios('../features/build_dependencies_and_tasks.feature', '../features/norml
 
 DEBUG_OTB = False
 FILES = [
+        # 08 jan 2020
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file': 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
-            'orthofile': 's1a_33NWB_vv_DES_007_20200108t044150'
+            's1file': 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044150',
+            'polygon': [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
             },
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file': 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
-            'orthofile': 's1a_33NWB_vv_DES_007_20200108t044215'
+            's1file': 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044215',
+            'polygon': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)]
+            },
+        # 20 jan 2020
+        {
+            's1dir': 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
+            's1file': 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120t044214',
+            'polygon' : [(13.917237, -0.370036), (16.143806, -0.850946), (16.461067, 0.660948), (14.233396, 1.137315), (13.917237, -0.370036)]
             },
         {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file': 's1a-iw-grd-vh-20200108t044150-20200108t044215-030704-038506-001.tiff',
-            'orthofile': 's1a_33NWB_vh_DES_007_20200108t044150'
+            's1dir': 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
+            's1file': 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120T044149',
+            'polygon' : [(14.233942, 1.137292), (16.461086, 0.661038), (16.775522, 2.173408), (14.545794, 2.645211), (14.233942, 1.137292)]
             },
-        {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file': 's1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-001.tiff',
-            'orthofile': 's1a_33NWB_vh_DES_007_20200108t044215'
-            }
+        # 02 feb 2020
+        #{
+        #    's1dir': 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
+        #    's1file': 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-001.tiff',
+        #    'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120t044214',
+        #    'polygon' : [(13.91733, -0.370053), (16.1439, -0.850965), (16.461174, 0.661021), (14.233503, 1.137389), (13.91733, -0.370053)]
+        #    },
+        #{
+        #    's1dir': 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
+        #    's1file': 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-001.tiff',
+        #    'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044149',
+        #    'polygon' : [(14.233961, 1.137385), (16.461193, 0.661111), (16.775606, 2.173392), (14.54579, 2.645215), (14.233961, 1.137385)]
+        #    },
         ]
 
 TMPDIR = 'TMP'
@@ -50,40 +69,42 @@ TILE   = '33NWB'
 def polarization(idx):
     return ['vv', 'vh'][idx]
 
-def input_file(idx):
+def input_file(idx, polarity):
     s1dir  = FILES[idx]['s1dir']
-    s1file = FILES[idx]['s1file']
+    s1file = FILES[idx]['s1file'].format(polarity=polarity)
     return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
 def raster_vv(idx):
     s1dir  = FILES[idx]['s1dir']
     return (S1DateAcquisition(
         f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx)]),
-        [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
+        [input_file(idx, 'vv')]),
+        FILES[idx]['polygon'])
 
 def raster_vh(idx):
-    idx = 2 + idx
     s1dir  = FILES[idx]['s1dir']
     return (S1DateAcquisition(
         f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx)]),
-        [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
+        [input_file(idx, 'vh')]),
+        FILES[idx]['polygon'])
 
-def orthofile(idx):
-    return f'{TMPDIR}/S2/{TILE}/{FILES[idx]["orthofile"]}.tif'
+def orthofile(idx, polarity):
+    file = FILES[idx]["orthofile"].format(polarity=polarity)
+    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
 
-def concatfile(idx):
+def concatfile(idx, polarity):
     if idx is None:
-        return f'{OUTPUT}/{TILE}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif'
+        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx.tif'
     else:
-        return f'{OUTPUT}/{TILE}/{FILES[idx]["orthofile"]}.tif'
+        file = FILES[idx]["orthofile"].format(polarity=polarity)
+        return f'{OUTPUT}/{TILE}/{file}.tif'
 
-def maskfile(idx):
+def maskfile(idx, polarity):
     if idx is None:
-        return f'{OUTPUT}/{TILE}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif'
+        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx_BorderMask.tif'
     else:
-        return f'{OUTPUT}/{TILE}/{FILES[idx]["orthofile"]}_BorderMask.tif'
+        file = FILES[idx]["orthofile"].format(polarity=polarity)
+        return f'{OUTPUT}/{TILE}/{file}_BorderMask.tif'
 
 def DEM_file():
     return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
@@ -132,7 +153,7 @@ def isfile(filename, existing_files):
 # Fixtures
 
 @pytest.fixture
-def known_file_numbers():
+def known_file_ids():
     fn = []
     return fn
 
@@ -210,42 +231,55 @@ def given_pipeline_ortho(pipelines):
             inputs={'xyz': xyz})
 
 @given('a single S1 image')
-def given_one_S1_image(raster_list, known_files, known_file_numbers):
-    known_files.append(input_file(0))
+def given_one_S1_image(raster_list, known_files, known_file_ids):
+    known_files.append(input_file(0, 'vv'))
     raster_list.append(raster_vv(0))
-    known_file_numbers.append(0)
+    known_file_ids.append((0, 'vv'))
     return raster_list
 
 @given('a pair of VV + VH S1 images')
-def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_numbers):
-    known_files.append(input_file(0))
-    known_files.append(input_file(2))
+def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids):
+    known_files.append(input_file(0, 'vv'))
+    known_files.append(input_file(0, 'vh'))
     raster_list.append(raster_vv(0))
     raster_list.append(raster_vh(0))
-    known_file_numbers.append(0)
-    known_file_numbers.append(2)
+    known_file_ids.append((0, 'vv'))
+    known_file_ids.append((0, 'vh'))
+    return raster_list
+
+@given('a series of S1 images')
+def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids):
+    known_files.append(input_file(0, 'vv'))
+    known_files.append(input_file(1, 'vv'))
+    known_files.append(input_file(2, 'vv'))
+    raster_list.append(raster_vv(0))
+    raster_list.append(raster_vv(1))
+    raster_list.append(raster_vv(2))
+    known_file_ids.append((0, 'vv'))
+    known_file_ids.append((1, 'vv'))
+    known_file_ids.append((2, 'vv'))
     return raster_list
 
 @given('two S1 images')
-def given_two_S1_images(raster_list, known_files, known_file_numbers):
-    known_files.extend([input_file(0), input_file(1)])
-    known_file_numbers.extend([0, 1])
+def given_two_S1_images(raster_list, known_files, known_file_ids):
+    known_files.extend([input_file(0, 'vv'), input_file(1, 'vv')])
+    known_file_ids.extend([(0, 'vv'), (1, 'vv')])
     raster_list.append(raster_vv(0))
     raster_list.append(raster_vv(1))
     return raster_list
 
 @given('a FullOrtho tmp image')
-def given_one_FullOrtho_tmp_image(raster_list, known_files, known_file_numbers):
-    known_file_numbers.append(1)
-    known_files.append(orthofile(1))
+def given_one_FullOrtho_tmp_image(raster_list, known_files, known_file_ids):
+    known_file_ids.append((1, 'vv'))
+    known_files.append(orthofile(1, 'vv'))
     raster_list.append(raster_vv(1))
     return raster_list
 
 @given('two FullOrtho tmp images')
-def given_two_FullOrtho_tmp_images(raster_list, known_files, known_file_numbers):
-    known_file_numbers.extend([0, 1])
-    known_files.append(orthofile(0))
-    known_files.append(orthofile(1))
+def given_two_FullOrtho_tmp_images(raster_list, known_files, known_file_ids):
+    known_file_ids.extend([(0, 'vv'), (1, 'vv')])
+    known_files.append(orthofile(0, 'vv'))
+    known_files.append(orthofile(1, 'vv'))
     raster_list.append(raster_vv(0))
     raster_list.append(raster_vv(1))
     return raster_list
@@ -276,9 +310,9 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 
 @then(parsers.parse('a txxxxxx S2 file is required, and {a} mask is required'))
 def then_require_txxxxxx_and_mask(dependencies, a):
-    expected_fn = [concatfile(None)]
+    expected_fn = [concatfile(None, 'vv')]
     if a != 'no':
-        expected_fn += [maskfile(None)]
+        expected_fn += [maskfile(None, 'vv')]
 
     required, previous, task2outfile_map = dependencies
     # logging.info("required (%s) = %s", type(required), required)
@@ -287,10 +321,10 @@ def then_require_txxxxxx_and_mask(dependencies, a):
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
         assert fn in required
-    assert concatfile(0) not in required
-    assert concatfile(1) not in required
-    assert maskfile(0)   not in required
-    assert maskfile(1)   not in required
+    assert concatfile(0, 'vv') not in required
+    assert concatfile(1, 'vv') not in required
+    assert maskfile(0, 'vv')   not in required
+    assert maskfile(1, 'vv')   not in required
 
 @then(parsers.parse('it depends on 2 ortho files (and two S1 inputs), and {a} mask on a concatenated product'))
 def then_depends_on_2_ortho_files(dependencies, a):
@@ -298,124 +332,125 @@ def then_depends_on_2_ortho_files(dependencies, a):
     # logging.info("previous (%s) = %s", type(previous), previous)
 
     if a == 'a':
-        expected_fn = maskfile(None)
+        expected_fn = maskfile(None, 'vv')
         prev_expected = previous[expected_fn]
         expected_input_groups = prev_expected.inputs
         assert len(expected_input_groups) == 1
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
-            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(None)])
+            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(None, 'vv')])
 
-    expected_fn = concatfile(None)
+    expected_fn = concatfile(None, 'vv')
     assert expected_fn in required
     prev_expected = previous[expected_fn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
     for key, inputs in expected_input_groups.items():
         assert key == 'in'  # May change in the future...
-        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(0), orthofile(1)])
+        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(0, 'vv'), orthofile(1, 'vv')])
 
     for i in range(2):
-        expected_fn = orthofile(i)
+        expected_fn = orthofile(i, 'vv')
         prev_expected = previous[expected_fn]
         expected_input_groups = prev_expected.inputs
         assert len(expected_input_groups) == 1
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == input_file(i)
+            assert [inp['out_filename'] for inp in inputs][0] == input_file(i, 'vv')
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a t-chrono S2 file is required, and {a} mask is required'))
-def then_require_tchrono_outline(dependencies, known_file_numbers, a):
-    assert len(known_file_numbers) == 1
-    known_file = known_file_numbers[0]
-    expected_fn = [concatfile(known_file)]
+def then_require_tchrono_outline(dependencies, known_file_ids, a):
+    assert len(known_file_ids) == 1
+    known_file_id            = known_file_ids[0]
+    known_file_number, polar = known_file_id
+    expected_fn = [concatfile(*known_file_id)]
     if a != 'no':
-        expected_fn += [maskfile(known_file)]
+        expected_fn += [maskfile(*known_file_id)]
 
     required, previous, task2outfile_map = dependencies
     req_files = [task2outfile_map[t] for t in required]
     # logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
-    assert concatfile(None) not in req_files
-    assert maskfile(None)   not in req_files
-    assert concatfile(1-known_file) not in req_files
-    assert maskfile(1-known_file)   not in req_files
-    assert concatfile(known_file) in req_files
+    assert concatfile(None, polar)                not in req_files
+    assert maskfile(None, polar)                  not in req_files
+    assert concatfile(1-known_file_number, polar) not in req_files
+    assert maskfile(1-known_file_number, polar)   not in req_files
+    assert concatfile(known_file_number, polar)       in req_files
     if a == 'a':
-        assert maskfile(known_file)     in req_files
+        assert maskfile(known_file_number, polar)     in req_files
     else:
-        assert maskfile(known_file) not in req_files
+        assert maskfile(known_file_number, polar) not in req_files
 
 
 @then(parsers.parse('it depends on one ortho file (and one S1 input), and {a} mask on a concatenated product'))
-def then_depends_on_first_ortho_file(dependencies, known_file_numbers, a):
-    __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
+def then_depends_on_first_ortho_file(dependencies, known_file_ids, a):
+    __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a)
 
 @then(parsers.parse('it depends on second ortho file (and second S1 input), and {a} mask on a concatenated product'))
-def then_depends_on_second_ortho_file(dependencies, a, known_file_numbers):
-    __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a)
+def then_depends_on_second_ortho_file(dependencies, a, known_file_ids):
+    __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a)
 
-def __then_depends_on_a_single_ortho_file(dependencies, known_file_numbers, a):
+def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a):
     required, previous, task2outfile_map = dependencies
     # logging.info("previous (%s) = %s", type(previous), previous)
-    assert len(known_file_numbers) == 1
-    known_file = known_file_numbers[0]
+    assert len(known_file_ids) == 1
+    known_file_number, polar = known_file_ids[0]
     if a == 'a':
-        expected_fn = maskfile(known_file)
+        expected_fn = maskfile(known_file_number, polar)
         prev_expected = previous[expected_fn]
         expected_input_groups = prev_expected.inputs
         assert len(expected_input_groups) == 1
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
-            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(known_file)])
+            assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(known_file_number, polar)])
 
-    expected_fn = concatfile(None)
+    expected_fn = concatfile(None, polar)
     assert expected_fn in required
     prev_expected = previous[expected_fn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
     for key, inputs in expected_input_groups.items():
         assert key == 'in'  # May change in the future...
-        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(known_file)])
+        assert set([inp['out_filename'] for inp in inputs]) == set([orthofile(known_file_number, polar)])
 
-    for i in [known_file]:
-        expected_fn = orthofile(i)
+    for i in [known_file_number]:
+        expected_fn = orthofile(i, polar)
         prev_expected = previous[expected_fn]
         expected_input_groups = prev_expected.inputs
         assert len(expected_input_groups) == 1
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == input_file(i)
+            assert [inp['out_filename'] for inp in inputs][0] == input_file(i, polar)
 
 
 # ----------------------------------------------------------------------
 # Helpers
 def assert_orthorectify_product_number(idx, tasks, task2outfile_map):
     expectations = {
-            orthofile(idx): {'pipeline': 'FullOrtho',
+            orthofile(idx, 'vv'): {'pipeline': 'FullOrtho',
                 'input_steps': {
-                    input_file(idx): ['in', FirstStep],
+                    input_file(idx, 'vv'): ['in', FirstStep],
                     }}
             }
-    _check_registered_task(expectations, tasks, [orthofile(idx)], task2outfile_map)
+    _check_registered_task(expectations, tasks, [orthofile(idx, 'vv')], task2outfile_map)
 
 def assert_dont_orthorectify_product_number(idx, tasks):
-    ortho = to_dask_key(orthofile(idx))
+    ortho = to_dask_key(orthofile(idx, 'vv'))
     assert (ortho not in tasks) or isinstance(tasks[ortho], FirstStep)
 
 def assert_start_from_s1_image_number(idx, tasks):
-    input = to_dask_key(input_file(idx))
+    input = to_dask_key(input_file(idx, 'vv'))
     assert input in tasks
     task = tasks[input]
     assert isinstance(task, FirstStep)
 
 def assert_dont_start_from_s1_image_number(idx, tasks):
-    input = to_dask_key(input_file(idx))
+    input = to_dask_key(input_file(idx, 'vv'))
     assert input not in tasks
 
 def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
@@ -449,22 +484,22 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
 def then_concatenate_2_files_(tasks, dependencies, a):
     expectations = {
             # MergeStep as there are two inputs
-            concatfile(None): {'pipeline': 'Concatenation',
+            concatfile(None, 'vv'): {'pipeline': 'Concatenation',
                 'input_steps': {
-                    orthofile(0): ['in', MergeStep],
-                    orthofile(1): ['in', MergeStep],
+                    orthofile(0, 'vv'): ['in', MergeStep],
+                    orthofile(1, 'vv'): ['in', MergeStep],
                     }}
             }
     if a != 'no':
-        expectations[maskfile(None)] = {'pipeline': 'GenerateMask',
+        expectations[maskfile(None, 'vv')] = {'pipeline': 'GenerateMask',
                 'input_steps': {
-                    concatfile(None): ['in', FirstStep]}}
+                    concatfile(None, 'vv'): ['in', FirstStep]}}
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
     assert len(required) == len(expectations)
-    assert concatfile(None) in required
+    assert concatfile(None, 'vv') in required
     _check_registered_task(expectations, tasks, required, task2outfile_map)
 
 
@@ -482,29 +517,29 @@ def then_orthorectify_two_products(tasks, dependencies):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a concatenation task is registered and produces t-chrono S2 file, and {a} mask'))
-def then_concatenate_1_files(tasks, dependencies, known_file_numbers, a):
-    assert len(known_file_numbers) == 1
-    known_file = known_file_numbers[0]
+def then_concatenate_1_files(tasks, dependencies, known_file_ids, a):
+    assert len(known_file_ids) == 1
+    known_file_number, polar = known_file_ids[0]
     expectations = {
             # Task name is in txxxxxx, but file name is not
-            concatfile(None): {'pipeline': 'Concatenation',
+            concatfile(None, 'vv'): {'pipeline': 'Concatenation',
                 'input_steps': {
                     # FirstStep as there is only one input
-                    orthofile(known_file): ['in', FirstStep],
+                    orthofile(known_file_number, 'vv'): ['in', FirstStep],
                     }}
             }
     if a != 'no':
-        expectations[maskfile(known_file)] = {'pipeline': 'GenerateMask',
+        expectations[maskfile(known_file_number, 'vv')] = {'pipeline': 'GenerateMask',
                 'input_steps': {
-                    concatfile(known_file): ['in', FirstStep]}}
+                    concatfile(known_file_number, 'vv'): ['in', FirstStep]}}
 
     required, previous, task2outfile_map = dependencies
-    assert task2outfile_map[concatfile(None)] == concatfile(known_file)
+    assert task2outfile_map[concatfile(None, 'vv')] == concatfile(known_file_number, 'vv')
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 1, f'Only {len(tasks)} tasks are registered instead of 0+ : {list(tasks.keys())}'
     assert len(required) == len(expectations)
-    assert concatfile(None) in required
+    assert concatfile(None, 'vv') in required
     _check_registered_task(expectations, tasks, required, task2outfile_map)
 
 
@@ -535,7 +570,7 @@ def depend_on_the_existing_fullortho_product(tasks, dependencies):
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
-    ortho = to_dask_key(orthofile(1))
+    ortho = to_dask_key(orthofile(1, 'vv'))
     assert ortho in tasks
     task = tasks[ortho]
     assert isinstance(task, FirstStep)
@@ -548,7 +583,7 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies):
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
     for i in (0, 1):
-        ortho = to_dask_key(orthofile(i))
+        ortho = to_dask_key(orthofile(i, 'vv'))
         assert ortho in tasks
         task = tasks[ortho]
         assert isinstance(task, FirstStep)
@@ -570,10 +605,10 @@ def then_LIA_image_is_required(dependencies):
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
         assert fn in required
-    assert concatfile(0) not in required
-    assert concatfile(1) not in required
-    assert maskfile(0)   not in required
-    assert maskfile(1)   not in required
+    assert concatfile(0, 'vv') not in required
+    assert concatfile(1, 'vv') not in required
+    assert maskfile(0, 'vv')   not in required
+    assert maskfile(1, 'vv')   not in required
 
 @then('LIA depends on XYZ image')
 def LIA_depends_on_XYZ_image(dependencies):
@@ -605,7 +640,7 @@ def XYZ_depends_on_DEM_DEMPROJ_and_BASE(dependencies):
     insar_as_inputs = expected_inputs['insar']
     assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0)
+    assert insar_as_input['out_filename'] == input_file(0, 'vv')
 
     indem_as_inputs = expected_inputs['indem']
     assert len(indem_as_inputs) == 1
@@ -630,7 +665,7 @@ def DEMPROJ_depends_on_DEM_and_BASE(dependencies):
     insar_as_inputs = expected_inputs['insar']
     assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0)
+    assert insar_as_input['out_filename'] == input_file(0, 'vv')
 
     indem_as_inputs = expected_inputs['indem']
     assert len(indem_as_inputs) == 1
@@ -650,7 +685,7 @@ def DEM_depends_on_BASE(dependencies):
     insar_as_inputs = expected_inputs['insar']
     assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
     insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0)
+    assert insar_as_input['out_filename'] == input_file(0, 'vv')
 
 @then('a LIA task is registered')
 def them_a_LIA_task_is_registered(tasks, dependencies):
@@ -675,7 +710,7 @@ def them_a_XYZ_task_is_registered(tasks, dependencies):
                 'input_steps': {
                     DEM_file():     ['indem',     FirstStep],
                     DEMPROJ_file(): ['indemproj', FirstStep],
-                    input_file(0):  ['insar',     FirstStep],
+                    input_file(0, 'vv'):  ['insar',     FirstStep],
                     }}
             }
     required, previous, task2outfile_map = dependencies
@@ -689,7 +724,7 @@ def them_a_DEMPROJ_task_is_registered(tasks, dependencies):
             DEMPROJ_file(): {'pipeline': 'SARDEMProjection',
                 'input_steps': {
                     DEM_file():     ['indem',     FirstStep],
-                    input_file(0):  ['insar',     FirstStep],
+                    input_file(0, 'vv'):  ['insar',     FirstStep],
                     }}
             }
     required, previous, task2outfile_map = dependencies
@@ -702,7 +737,7 @@ def them_a_DEM_task_is_registered(tasks, dependencies):
     expectations = {
             DEM_file(): {'pipeline': 'AgglomerateDEM',
                 'input_steps': {
-                    input_file(0):  ['insar',     FirstStep],
+                    input_file(0, 'vv'):  ['insar',     FirstStep],
                     }}
             }
     required, previous, task2outfile_map = dependencies
