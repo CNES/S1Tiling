@@ -793,6 +793,11 @@ class PipelineDescription:
         return pipeline
 
 
+    def __repr__(self):
+        res = f'PipelineDescription: {self.name} ## Sources: {self.sources}'
+        return res
+
+
 def to_dask_key(pathname):
     """
     Generate a simplified graph key name from a full pathname.
@@ -858,9 +863,9 @@ class TaskInputInfo:
         """
         constructor
         """
-        self.__pipeline    = pipeline
-        self._inputs       = {}  # map<source, meta / meta list>
-        self._dependencies = []  # task names
+        self.__pipeline     = pipeline
+        self._inputs        = {}  # map<source, meta / meta list>
+        self.__dependencies = []  # task names
 
     def add_input(self, origin, input_meta, destination_meta):
         if origin not in self._inputs:
@@ -871,7 +876,7 @@ class TaskInputInfo:
         logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
         if f'reduce_inputs_{origin}' in destination_meta.keys():
             # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s', origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
-            self._inputs[origin] = [destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta])]
+            self._inputs[origin] = destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta])
             return False
         else:
             self._inputs[origin].append(input_meta)
@@ -915,6 +920,16 @@ class TaskInputInfo:
         """
         metas = [meta for inputs in self.inputs.values() for meta in inputs]
         return metas
+
+    def __repr__(self):
+        res = f'TaskInputInfo:\n- inputs:\n'
+        for k, inps in self.inputs.items():
+            res += f'  - "{k}":\n'
+            for val in inps:
+                res += f'    - {val}\n'
+        res += f'- dependencies: {self.dependencies}\n'
+        res += f'- pipeline: {self.pipeline}\n'
+        return res
 
 
 class PipelineDescriptionSequence:
@@ -975,7 +990,7 @@ class PipelineDescriptionSequence:
 
             for origin, sources in pipeline.inputs.items():
                 source_name = sources if isinstance(sources, str) else sources.name
-                logger.debug('Checking sources from %s origin: %s', origin, source_name)
+                logger.debug('Checking sources from "%s" origin: %s', origin, source_name)
                 # res = [(val if isinstance(val, str) else val.name) for (key,val) in self.__inputs.items()]
                 inputs = [output for output in pipelines_outputs[source_name]]
 
@@ -983,7 +998,7 @@ class PipelineDescriptionSequence:
                 # -> Select all inputs for pipeline sources from pipelines_outputs
                 # inputs = [output for source in pipeline.sources for output in pipelines_outputs[source]]
                 logger.debug('===========================================================================')
-                logger.debug('FROM all inputs as %s: %s', origin, inputs)
+                logger.debug('FROM all inputs as "%s": %s', origin, inputs)
                 # TODO: + for origin in pipeline.sources
                 for input in inputs:  # inputs are meta
                     logger.debug('----------------------------------------------------------------------')
@@ -1014,9 +1029,12 @@ class PipelineDescriptionSequence:
                             already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == expected_taskname]
                             assert len(already_registered_next_input) == 1
                             update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                            # Can't we simply override the already_registered_next_input with expected fields?
+                            already_registered_next_input[0].update(expected)
                         else:
                             logger.debug('The %s task depends on one more input, but only one will be kept.\n%s has been updated.', expected_taskname, expected)
                     if pipeline.product_is_required:
+                        # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
                     task_names_to_output_files_table[expected_taskname] = out_filename(expected)
 

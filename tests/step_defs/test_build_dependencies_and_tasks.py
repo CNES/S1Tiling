@@ -8,7 +8,8 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, MergeStep, FirstStep, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA)
+        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
+        OrthoRectifyLIA, ConcatenateLIA)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
 # ======================================================================
@@ -22,16 +23,20 @@ DEBUG_OTB = False
 FILES = [
         # 08 jan 2020
         {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file': 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-001.tiff',
+            's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+            's1file'   : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-001.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044150',
-            'polygon': [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
+            'root'     : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001',
+            'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044150',
+            'polygon'  : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
             },
         {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file': 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-001.tiff',
+            's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+            's1file'   : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-001.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044215',
-            'polygon': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)]
+            'root'     : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001',
+            'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044215',
+            'polygon'  : [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)]
             },
         # 20 jan 2020
         {
@@ -47,18 +52,18 @@ FILES = [
             'polygon' : [(14.233942, 1.137292), (16.461086, 0.661038), (16.775522, 2.173408), (14.545794, 2.645211), (14.233942, 1.137292)]
             },
         # 02 feb 2020
-        #{
-        #    's1dir': 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
-        #    's1file': 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-001.tiff',
-        #    'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120t044214',
-        #    'polygon' : [(13.91733, -0.370053), (16.1439, -0.850965), (16.461174, 0.661021), (14.233503, 1.137389), (13.91733, -0.370053)]
-        #    },
-        #{
-        #    's1dir': 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
-        #    's1file': 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-001.tiff',
-        #    'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044149',
-        #    'polygon' : [(14.233961, 1.137385), (16.461193, 0.661111), (16.775606, 2.173392), (14.54579, 2.645215), (14.233961, 1.137385)]
-        #    },
+        {
+            's1dir': 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
+            's1file': 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044214',
+            'polygon' : [(13.91733, -0.370053), (16.1439, -0.850965), (16.461174, 0.661021), (14.233503, 1.137389), (13.91733, -0.370053)]
+            },
+        {
+            's1dir': 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
+            's1file': 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-001.tiff',
+            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044149',
+            'polygon' : [(14.233961, 1.137385), (16.461193, 0.661111), (16.775606, 2.173392), (14.54579, 2.645215), (14.233961, 1.137385)]
+            },
         ]
 
 TMPDIR = 'TMP'
@@ -106,17 +111,40 @@ def maskfile(idx, polarity):
         file = FILES[idx]["orthofile"].format(polarity=polarity)
         return f'{OUTPUT}/{TILE}/{file}_BorderMask.tif'
 
-def DEM_file():
-    return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
+def DEM_file(idx=None):
+    if idx is None:
+        return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
+    else:
+        file = FILES[idx]["root"].format(kind='DEM')
+        return f'{TMPDIR}/S1/{file}.vrt'
 
-def DEMPROJ_file():
-    return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+def DEMPROJ_file(idx=None):
+    if idx is None:
+        return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    else:
+        file = FILES[idx]["root"].format(kind='S1_on_DEM')
+        return f'{TMPDIR}/S1/{file}.tiff'
 
-def XYZ_file():
-    return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+def XYZ_file(idx=None):
+    if idx is None:
+        return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    else:
+        file = FILES[idx]["root"].format(kind='XYZ')
+        return f'{TMPDIR}/S1/{file}.tiff'
 
-def LIA_file():
-    return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+def LIA_file(idx=None):
+    if idx is None:
+        return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    else:
+        file = FILES[idx]["root"].format(kind='LIA')
+        return f'{TMPDIR}/S1/{file}.tiff'
+
+def ortho_LIA_file(idx):
+    file  = FILES[idx]['orthoLIA']
+    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+
+def S2_LIA_file():
+    return f'{OUTPUT}/{TILE}/LIA_s1a_33NWB_DES_007.tif'
 
 # ======================================================================
 # Mocks
@@ -162,6 +190,11 @@ def known_files():
     kf = []
     return kf
 
+@pytest.fixture()
+def expected_files_id():
+    ex = []
+    return ex
+
 @pytest.fixture
 def pipelines():
     # TODO: propagate --tmpdir to scenario runners
@@ -194,9 +227,7 @@ def tasks():
 
 @given('A pipeline that calibrates and orthorectifies')
 def given_pipeline_ortho(pipelines, last_pipeline):
-    # pipelines.register_pipeline([ExtractSentinel1Metadata], 'ExtractS1Meta', product_required=False)
     pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
-    # pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
             , inputs={'in': 'basename'}
             )
@@ -220,7 +251,6 @@ def given_pipeline_concat(pipelines, builds, last_pipeline):
 
 @given('A pipeline that computes LIA')
 def given_pipeline_ortho(pipelines):
-    # pipelines.register_pipeline([ExtractSentinel1Metadata], 'ExtractS1Meta', product_required=False)
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
@@ -230,6 +260,21 @@ def given_pipeline_ortho(pipelines):
     lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA], 'Normals|LIA', product_required=True, is_name_incremental=True,
             inputs={'xyz': xyz})
 
+@given('A pipeline that fully computes in LIA S2 geometry')
+def given_pipeline_ortho_n_concat_LIA(pipelines):
+    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
+            inputs={'insar': 'basename'})
+    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', product_required=False, is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation], 'SARCartesianMeanEstimation', product_required=False,
+            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA], 'Normals|LIA', product_required=False, is_name_incremental=True,
+            inputs={'xyz': xyz})
+    ortho = pipelines.register_pipeline([OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
+            inputs={'in': lia})
+    concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=True, is_name_incremental=False,
+            inputs={'in': ortho})
+
 @given('a single S1 image')
 def given_one_S1_image(raster_list, known_files, known_file_ids):
     known_files.append(input_file(0, 'vv'))
@@ -238,26 +283,24 @@ def given_one_S1_image(raster_list, known_files, known_file_ids):
     return raster_list
 
 @given('a pair of VV + VH S1 images')
-def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids):
+def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
     known_files.append(input_file(0, 'vv'))
     known_files.append(input_file(0, 'vh'))
     raster_list.append(raster_vv(0))
     raster_list.append(raster_vh(0))
     known_file_ids.append((0, 'vv'))
     known_file_ids.append((0, 'vh'))
+    expected_files_id.append(0)
     return raster_list
 
-@given('a series of S1 images')
-def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids):
-    known_files.append(input_file(0, 'vv'))
-    known_files.append(input_file(1, 'vv'))
-    known_files.append(input_file(2, 'vv'))
-    raster_list.append(raster_vv(0))
-    raster_list.append(raster_vv(1))
-    raster_list.append(raster_vv(2))
-    known_file_ids.append((0, 'vv'))
-    known_file_ids.append((1, 'vv'))
-    known_file_ids.append((2, 'vv'))
+@given('a series of S1 VV images')
+def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
+    for i in range(6):
+        known_files.append(input_file(i, 'vv'))
+        raster_list.append(raster_vv(i))
+        known_file_ids.append((i, 'vv'))
+    for i in [0, 1]:  # Only the first 2 should be kept. TODO: support coverage
+        expected_files_id.append(i)
     return raster_list
 
 @given('two S1 images')
@@ -320,7 +363,7 @@ def then_require_txxxxxx_and_mask(dependencies, a):
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
-        assert fn in required
+        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
     assert concatfile(0, 'vv') not in required
     assert concatfile(1, 'vv') not in required
     assert maskfile(0, 'vv')   not in required
@@ -594,154 +637,256 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies):
 # -- LIA tests
 # ----------------------------------------------------------------------
 
-@then('a LIA image is required')
+@then('a single LIA image is required')
 def then_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [LIA_file()]
 
-    # logging.info("required (%s) = %s", type(required), required)
+    logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
-    assert len(required) == len(expected_fn)
+    assert len(required) == len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
     for fn in expected_fn:
-        assert fn in required
-    assert concatfile(0, 'vv') not in required
-    assert concatfile(1, 'vv') not in required
-    assert maskfile(0, 'vv')   not in required
-    assert maskfile(1, 'vv')   not in required
+        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
 
-@then('LIA depends on XYZ image')
-def LIA_depends_on_XYZ_image(dependencies):
+@then('a single S2 LIA image is required')
+def then_S2_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = LIA_file()
-    prev_expected = previous[expected_fn]
-    expected_inputs = prev_expected.inputs
-    assert len(expected_inputs) == 1
-    for key, inputs in expected_inputs.items():
-        assert key == 'xyz'
-        assert len(inputs) == 1
-        input = inputs[0]
-        # logging.info('Inputs from %s: %s', expected_inputs, input)
-        assert 'out_filename' in input
-        xyz_file = input["out_filename"]
-        assert xyz_file == XYZ_file()
+    expected_fn = [S2_LIA_file()]
 
-@then('XYZ depends on DEM, DEMPROJ and BASE')
-def XYZ_depends_on_DEM_DEMPROJ_and_BASE(dependencies):
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) == len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
+
+@then('concat LIA depends on 2 ortho LIA images')
+def concat_LIA_depends_on_2_ortho_LIA_images(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = XYZ_file()
+    expected_fn = S2_LIA_file()
+    assert expected_fn in required
     prev_expected = previous[expected_fn]
-    expected_inputs = prev_expected.inputs
-    assert len(expected_inputs) == 3
-    assert {'indem', 'insar', 'indemproj'} == set(expected_inputs.keys())
+    expected_input_groups = prev_expected.inputs
+    assert len(expected_input_groups) == 1
+    for key, inputs in expected_input_groups.items():
+        assert key == 'in'  # May change in the future...
+        assert set([inp['out_filename'] for inp in inputs]) == set([ortho_LIA_file(0), ortho_LIA_file(1)])
 
-    insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
-    insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0, 'vv')
 
-    indem_as_inputs = expected_inputs['indem']
-    assert len(indem_as_inputs) == 1
-    indem_as_input = indem_as_inputs[0]
-    assert indem_as_input['out_filename'] == DEM_file()
-
-    indemproj_as_inputs = expected_inputs['indemproj']
-    assert len(indemproj_as_inputs) == 1
-    indemproj_as_input = indemproj_as_inputs[0]
-    assert indemproj_as_input['out_filename'] == DEMPROJ_file()
-
-@then('DEMPROJ depends on DEM and BASE')
-def DEMPROJ_depends_on_DEM_and_BASE(dependencies):
+@then('2 ortho LIA images depend on two LIA images')
+def two_ortho_LIA_depend_on_two_LIA_images(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = DEMPROJ_file()
-    prev_expected = previous[expected_fn]
-    expected_inputs = prev_expected.inputs
-    assert len(expected_inputs) == 2
-    assert {'indem', 'insar'} == set(expected_inputs.keys())
+    for i in [0, 1]:  # Only the first 2 dates should be used
+        expected_fn = ortho_LIA_file(i)
+        prev_expected = previous[expected_fn]
+        expected_input_groups = prev_expected.inputs
+        assert len(expected_input_groups) == 1
+        for key, inputs in expected_input_groups.items():
+            assert key == 'in'  # May change in the future...
+            assert len(inputs) == 1
+            assert [inp['out_filename'] for inp in inputs][0] == LIA_file(i)
 
-    insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
-    insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0, 'vv')
 
-    indem_as_inputs = expected_inputs['indem']
-    assert len(indem_as_inputs) == 1
-    indem_as_input = indem_as_inputs[0]
-    assert indem_as_input['out_filename'] == DEM_file()
-
-@then('DEM depends on BASE')
-def DEM_depends_on_BASE(dependencies):
+@then('LIA images depend on XYZ images')
+def LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = DEM_file()
-    prev_expected = previous[expected_fn]
-    expected_inputs = prev_expected.inputs
-    assert len(expected_inputs) == 1
-    assert {'insar'} == set(expected_inputs.keys())
+    for i in expected_files_id:
+        expected_fn = LIA_file(i)
+        # assert expected_fn not in required  # Depends on the scenario...
+        prev_expected = previous[expected_fn]
+        expected_inputs = prev_expected.inputs
+        assert len(expected_inputs) == 1
+        for key, inputs in expected_inputs.items():
+            assert key == 'xyz'
+            assert len(inputs) == 1
+            input = inputs[0]
+            # logging.info('Inputs from %s: %s', expected_inputs, input)
+            assert 'out_filename' in input
+            xyz_file = input["out_filename"]
+            assert xyz_file == XYZ_file(i)
 
-    insar_as_inputs = expected_inputs['insar']
-    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
-    insar_as_input = insar_as_inputs[0]
-    assert insar_as_input['out_filename'] == input_file(0, 'vv')
+@then('XYZ images depend on DEM, DEMPROJ and BASE images')
+def XYZ_depend_on_DEM_DEMPROJ_and_BASE(dependencies, expected_files_id):
+    required, previous, task2outfile_map = dependencies
 
-@then('a LIA task is registered')
-def them_a_LIA_task_is_registered(tasks, dependencies):
+    for i in expected_files_id:
+        expected_fn = XYZ_file(i)
+        prev_expected = previous[expected_fn]
+        expected_inputs = prev_expected.inputs
+        assert len(expected_inputs) == 3
+        assert {'indem', 'insar', 'indemproj'} == set(expected_inputs.keys())
+
+        insar_as_inputs = expected_inputs['insar']
+        assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
+        insar_as_input = insar_as_inputs[0]
+        assert insar_as_input['out_filename'] == input_file(i, 'vv')
+
+        indem_as_inputs = expected_inputs['indem']
+        assert len(indem_as_inputs) == 1
+        indem_as_input = indem_as_inputs[0]
+        assert indem_as_input['out_filename'] == DEM_file(i)
+
+        indemproj_as_inputs = expected_inputs['indemproj']
+        assert len(indemproj_as_inputs) == 1
+        indemproj_as_input = indemproj_as_inputs[0]
+        assert indemproj_as_input['out_filename'] == DEMPROJ_file(i)
+
+@then('DEMPROJ images depend on DEM and BASE images')
+def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id):
+    required, previous, task2outfile_map = dependencies
+
+    for i in expected_files_id:
+        expected_fn = DEMPROJ_file(i)
+        prev_expected = previous[expected_fn]
+        expected_inputs = prev_expected.inputs
+        assert len(expected_inputs) == 2
+        assert {'indem', 'insar'} == set(expected_inputs.keys())
+
+        insar_as_inputs = expected_inputs['insar']
+        assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
+        insar_as_input = insar_as_inputs[0]
+        assert insar_as_input['out_filename'] == input_file(i, 'vv')
+
+        indem_as_inputs = expected_inputs['indem']
+        assert len(indem_as_inputs) == 1
+        indem_as_input = indem_as_inputs[0]
+        assert indem_as_input['out_filename'] == DEM_file(i)
+
+@then('DEM images depend on BASE images')
+def DEM_depends_on_BASE(dependencies, expected_files_id):
+    required, previous, task2outfile_map = dependencies
+
+    for i in expected_files_id:
+        expected_fn = DEM_file(i)
+        prev_expected = previous[expected_fn]
+        expected_inputs = prev_expected.inputs
+        assert len(expected_inputs) == 1
+        assert {'insar'} == set(expected_inputs.keys())
+
+        insar_as_inputs = expected_inputs['insar']
+        assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
+        insar_as_input = insar_as_inputs[0]
+        assert insar_as_input['out_filename'] == input_file(i, 'vv')
+
+@then('a concat LIA task is registered')
+def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+    out = S2_LIA_file()
     expectations = {
-            LIA_file(): {'pipeline': 'Normals|LIA',
-                'input_steps': {
-                    XYZ_file(): ['xyz', FirstStep]
-                    }}
+            out: {'pipeline': 'ConcatLIA',
+                'input_steps': {}}
             }
+    for i in expected_files_id:
+        expectations[out]['input_steps'][ortho_LIA_file(i)] = ['in', MergeStep]
+
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    assert len(tasks) >= 2 + len(expected_files_id)
+    assert len(required) == len(expectations)
+    for i in expected_files_id:
+        assert ortho_LIA_file(i) not in required
+    _check_registered_task(expectations, tasks, required, task2outfile_map)
+
+@then('ortho LIA task(s) is(/are) registered')
+def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = ortho_LIA_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'OrthoLIA',
+                'input_steps': {LIA_file(i) : ['in', FirstStep]}
+                }
+
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    assert len(tasks) >= 2 + len(expected_files_id)
+    for i in expected_files_id:
+        assert ortho_LIA_file(i) not in required
+        assert LIA_file(i) not in required
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+@then('LIA task(s) is(/are) registered')
+def then_a_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = LIA_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'Normals|LIA',
+                'input_steps': {
+                    XYZ_file(i): ['xyz', FirstStep]
+                    }
+                }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
-    assert len(required) == len(expectations)
-    assert LIA_file() in required
-    _check_registered_task(expectations, tasks, required, task2outfile_map)
+    # assert len(required) == len(expectations)
+    # assert LIA_file() not in required
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('a XYZ task is registered')
-def them_a_XYZ_task_is_registered(tasks, dependencies):
-    expectations = {
-            XYZ_file(): {'pipeline': 'SARCartesianMeanEstimation',
+@then('XYZ task(s) is(/are) registered')
+def then_a_XYZ_task_is_registered(tasks, dependencies, expected_files_id):
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = XYZ_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'SARCartesianMeanEstimation',
                 'input_steps': {
-                    DEM_file():     ['indem',     FirstStep],
-                    DEMPROJ_file(): ['indemproj', FirstStep],
-                    input_file(0, 'vv'):  ['insar',     FirstStep],
-                    }}
-            }
+                    DEM_file(i):          ['indem',     FirstStep],
+                    DEMPROJ_file(i):      ['indemproj', FirstStep],
+                    input_file(i, 'vv'):  ['insar',     FirstStep],
+                    }
+                }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [XYZ_file()], task2outfile_map)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('a DEMPROJ task is registered')
-def them_a_DEMPROJ_task_is_registered(tasks, dependencies):
-    expectations = {
-            DEMPROJ_file(): {'pipeline': 'SARDEMProjection',
+@then('DEMPROJ task(s) is(/are) registered')
+def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id):
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = DEMPROJ_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'SARDEMProjection',
                 'input_steps': {
-                    DEM_file():     ['indem',     FirstStep],
-                    input_file(0, 'vv'):  ['insar',     FirstStep],
-                    }}
-            }
+                    DEM_file(i):          ['indem',     FirstStep],
+                    input_file(i, 'vv'):  ['insar',     FirstStep],
+                    }
+                }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [DEMPROJ_file()], task2outfile_map)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('a DEM task is registered')
-def them_a_DEM_task_is_registered(tasks, dependencies):
-    expectations = {
-            DEM_file(): {'pipeline': 'AgglomerateDEM',
+@then('DEM task(s) is(/are) registered')
+def then_a_DEM_task_is_registered(tasks, dependencies, expected_files_id):
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = DEM_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'AgglomerateDEM',
                 'input_steps': {
-                    input_file(0, 'vv'):  ['insar',     FirstStep],
-                    }}
-            }
+                    input_file(i, 'vv'):  ['insar',     FirstStep],
+                    }
+                }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
-    _check_registered_task(expectations, tasks, [DEM_file()], task2outfile_map)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 

@@ -112,7 +112,8 @@ class ExtractSentinel1Metadata(StepFactory):
         """
         meta = super().update_filename_meta(meta)
         manifest                = meta['manifest']
-        image                   = in_filename(meta)   # meta['in_filename']
+        # image                   = in_filename(meta)   # meta['in_filename']
+        image                   = meta['basename']
 
         # TODO: if the manifest is no longer here, we may need to look into the geom instead
         # It'd actually be better
@@ -790,7 +791,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
-        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -852,7 +853,7 @@ class SARDEMProjection(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -942,7 +943,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def complete_meta(self, meta):
         """
@@ -1005,7 +1006,7 @@ class ComputeNormals(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        # meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
+        # meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def parameters(self, meta):
         """
@@ -1051,7 +1052,7 @@ class ComputeLIA(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta):
         # Ignore polarization in filenames
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        # meta['reduce_inputs_insar'] = lambda inputs : inputs[0] # TODO!!!
+        # meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def parameters(self, meta):
         """
@@ -1065,6 +1066,218 @@ class ComputeLIA(OTBStepFactory):
                 'ram'             : str(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
+                }
+
+
+class OrthoRectifyLIA(OTBStepFactory):
+    """
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_OrthoRectification` on LIA maps.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `out_spatial_res`
+    - `GeoidFile`
+    - `grid_spacing`
+    - `tmp_srtm_dir`
+
+    Requires the following information from the metadata dictionary
+
+    - base name -- to generate typical output filename
+    - input filename
+    - output filename
+    - `manifest`
+    - `tile_name`
+    - `tile_origin`
+    """
+    def __init__(self, cfg):
+        """
+        Constructor.
+        Extract and cache configuration options.
+        """
+        fname_fmt = 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
+        super().__init__(cfg,
+                appname='OrthoRectification', name='OrthoRectification',
+                param_in='io.in', param_out='io.out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=fname_fmt
+                )
+        self.__out_spatial_res      = cfg.out_spatial_res
+        self.__GeoidFile            = cfg.GeoidFile
+        self.__grid_spacing         = cfg.grid_spacing
+        self.__interpolation_method = cfg.interpolation_method
+        self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
+        self.__tmpdir               = cfg.tmpdir
+        # Some workaround when ortho is not sequenced long with calibration
+        self.__calibration_type     = cfg.calibration_type
+
+    def complete_meta(self, meta):
+        """
+        Complete meta information such as filenames, GDAL metadata from
+        information found in the current S1 image filename.
+        """
+        meta = super().complete_meta(meta)
+        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
+        append_to(meta, 'post', self.add_ortho_metadata)
+
+        # Some workaround when ortho is not sequenced long with calibration
+        meta['calibration_type'] = self.__calibration_type
+
+        return meta
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`OrthoRectification OTB
+        application <Applications/app_OrthoRectification>`.
+        """
+        image                   = in_filename(meta)   # meta['in_filename']
+        tile_name               = meta['tile_name']
+        tile_origin             = meta['tile_origin']
+        logger.debug("OrthoRectifyLIA.parameters(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
+        out_utm_zone            = tile_name[0:2]
+        out_utm_northern        = (tile_name[2] >= 'N')
+        in_epsg                 = 4326
+        out_epsg                = 32600 + int(out_utm_zone)
+        if not out_utm_northern:
+            out_epsg = out_epsg + 100
+
+        x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
+        lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
+
+        if not out_utm_northern and y_coord < 0:
+            y_coord += 10000000.
+            lry     += 10000000.
+
+        spacing = self.__out_spatial_res
+        logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
+        parameters = {
+                'opt.ram'          : str(self.ram_per_process),
+                # 'progress'       : 'false',
+                self.param_in      : in_filename(meta),
+                # self.param_out     : out_filename,
+                'interpolator'     : self.__interpolation_method,
+                'outputs.spacingx' : spacing,
+                'outputs.spacingy' : -spacing,
+                'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
+                'outputs.sizey'    : int(round(abs(lry - y_coord) / spacing)),
+                'opt.gridspacing'  : self.__grid_spacing,
+                'map'              : 'utm',
+                'map.utm.zone'     : int(out_utm_zone),
+                'map.utm.northhem' : out_utm_northern,
+                'outputs.ulx'      : x_coord,
+                'outputs.uly'      : y_coord,
+                'elev.dem'         : self.__tmp_srtm_dir,
+                'elev.geoid'       : self.__GeoidFile
+                }
+        return parameters
+
+    def add_ortho_metadata(self, meta):
+        """
+        Post-application hook used to complete GDAL metadata.
+        """
+        fullpath = out_filename(meta)
+        logger.debug('Set metadata in %s', fullpath)
+        dst = gdal.Open(fullpath, gdal.GA_Update)
+
+        dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
+        dst.SetMetadataItem('TIFFTAG_DATETIME',           str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
+        dst.SetMetadataItem('ORTHORECTIFIED',             'true')
+        # dst.SetMetadataItem('CALIBRATION',                str(meta['calibration_type']))
+        dst.SetMetadataItem('SPATIAL_RESOLUTION',         str(self.__out_spatial_res))
+        dst.SetMetadataItem('IMAGE_TYPE',                 'GRD-LIA')
+        dst.SetMetadataItem('FLYING_UNIT_CODE',           meta['flying_unit_code'])
+        # dst.SetMetadataItem('POLARIZATION',               meta['polarisation'])
+        dst.SetMetadataItem('ORBIT',                      meta['orbit'])
+        dst.SetMetadataItem('ORBIT_DIRECTION',            meta['orbit_direction'])
+        dst.SetMetadataItem('TIFFTAG_SOFTWARE',           'S1 Tiling v'+__version__)
+        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION',   'Orthorectified Sentinel-'+meta['flying_unit_code'][1:].upper()+' IW GRD on S2 tile')
+
+        acquisition_time = meta['acquisition_time']
+        date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
+        if acquisition_time[9] == 'x':
+            date += ' 00:00:00'
+        else:
+            date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
+        dst.SetMetadataItem('ACQUISITION_DATETIME', date)
+        del dst
+
+
+class ConcatenateLIA(OTBStepFactory):
+    """
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_Synthetize` on LIA images.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(self, cfg):
+        fname_fmt = 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        super().__init__(cfg,
+                appname='Synthetize', name='Concatenation',
+                param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_filename=fname_fmt
+                )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        # Ignore polarization in filenames
+        # meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        # rootname = os.path.splitext(meta['polarless_basename'])[0]
+        # meta['polarless_rootname'] = rootname
+        # Sort by acquisition time, keep all the oldest (same date)
+        def reduce_LIAs(inputs):
+            # TODO: Analyse S2 cover for each pair of S1 images took on a same day
+            dates = [re.sub('txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs]
+            min_date = min(dates)
+            logger.debug('acquisition_time: %s ==> %s', dates, min_date)
+            return [inp for inp in inputs if re.sub('txxxxxx|t\d+', '', inp['acquisition_time']) == min_date]
+        meta['reduce_inputs_in'] = reduce_LIAs
+
+    def complete_meta(self, meta):
+        """
+        Precompute output basename from the input file(s).
+        Makes sure the :std:doc:`Synthetize OTB application
+        <Applications/app_Synthetize>` would compress its result file,
+        through extended filename.
+
+        In concatenation case, the task_name needs to be overridden to stay
+        unique and common to all inputs.
+        """
+        meta = super().complete_meta(meta)  # Needs a valid basename
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        append_to(meta, 'post', self.clear_ortho_tmp)
+
+        # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
+        return meta
+
+    def clear_ortho_tmp(self, meta):
+        """
+        Takes care of removing the orthorectified subtiles from the temporary
+        directory once the concatenation has been done.
+        """
+        if 'files_to_remove' in meta:
+            logger.debug('Cleaning concatenated files: %s', meta['files_to_remove'])
+            Utils.remove_files(meta['files_to_remove'])
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`Synthetize OTB
+        application <Applications/app_Synthetize>`.
+        """
+        return {
+                'ram'              : str(self.ram_per_process),
+                # 'progress'       : 'false',
+                self.param_in      : in_filename(meta),
+                # self.param_out     : out_filename(meta),
                 }
 
 
