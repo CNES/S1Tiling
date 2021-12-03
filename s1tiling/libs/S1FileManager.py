@@ -596,7 +596,12 @@ class S1FileManager:
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()
-                intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
+                # intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
+                intersect_raster.append( {
+                    'raster': image,
+                    'tile_origin': [(point[0], point[1]) for point in points[:-1]],
+                    'tile_coverage': intersection.GetArea() / tile_footprint.GetArea()
+                    })
 
         return intersect_raster
 

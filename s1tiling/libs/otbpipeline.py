@@ -822,12 +822,16 @@ def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
     inputs = []
     # Log commented and kept for filling in unit tests
     # logger.debug('Generate first steps from: %s', raster_list)
-    for raster, tile_origin in raster_list:
+    # for raster, tile_origin in raster_list:
+    for raster_info in raster_list:
+        raster = raster_info['raster']  # Actually a S1DateAcquisition object...
+
         manifest = raster.get_manifest()
         for image in raster.get_images_list():
             start = FirstStep(
                     tile_name=tile_name,
-                    tile_origin=tile_origin,
+                    tile_origin=raster_info['tile_origin'],
+                    tile_coverage=raster_info['tile_coverage'],
                     manifest=manifest,
                     basename=image,
                     dryrun=dryrun)

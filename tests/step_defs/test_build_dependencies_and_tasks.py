@@ -11,6 +11,7 @@ from s1tiling.libs.otbwrappers import (
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
         OrthoRectifyLIA, ConcatenateLIA)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
+from s1tiling.libs.Utils import get_shape_from_polygon
 
 # ======================================================================
 # Scenarios
@@ -36,7 +37,7 @@ FILES = [
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044215',
             'root'     : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001',
             'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044215',
-            'polygon'  : [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)]
+            'polygon'  : [(13.917268, -0.370174), (16.143845, -0.851051), (16.461084, 0.660845), (14.233407, 1.137179), (13.917268, -0.370174)]
             },
         # 20 jan 2020
         {
@@ -71,6 +72,21 @@ INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
 TILE   = '33NWB'
 
+def compute_coverage(image_footprint_polygon, reference_tile_footprint_polygon):
+    image_footprint          = get_shape_from_polygon(image_footprint_polygon[:4])
+    reference_tile_footprint = get_shape_from_polygon(reference_tile_footprint_polygon[:4])
+    intersection = image_footprint.Intersection(reference_tile_footprint)
+    coverage = intersection.GetArea() / reference_tile_footprint.GetArea()
+    assert coverage > 0   # We wouldn't have selected this pair S2 tile + S1 image otherwise
+    assert coverage <= 1  # the ratio intersection / S2 tile should be <= 1!!
+    return coverage
+
+def tile_origins(tile_name):
+    origins = {
+            '33NWB': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)],
+            }
+    return origins[tile_name]
+
 def polarization(idx):
     return ['vv', 'vh'][idx]
 
@@ -79,19 +95,21 @@ def input_file(idx, polarity):
     s1file = FILES[idx]['s1file'].format(polarity=polarity)
     return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
-def raster_vv(idx):
+def raster(idx, polarity):
+    S2_tile_origin = tile_origins(TILE)
     s1dir  = FILES[idx]['s1dir']
-    return (S1DateAcquisition(
-        f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx, 'vv')]),
-        FILES[idx]['polygon'])
+    coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
+    logging.debug("coverage of %s by %s = %s", TILE, FILES[idx]['s1dir'], coverage)
+    return {
+            'raster': S1DateAcquisition(f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe', [input_file(idx, 'vv')]),
+            'tile_origin': S2_tile_origin,
+            'tile_coverage': coverage
+        }
 
+def raster_vv(idx):
+    return raster(idx, 'vv')
 def raster_vh(idx):
-    s1dir  = FILES[idx]['s1dir']
-    return (S1DateAcquisition(
-        f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-        [input_file(idx, 'vh')]),
-        FILES[idx]['polygon'])
+    return raster(idx, 'vh')
 
 def orthofile(idx, polarity):
     file = FILES[idx]["orthofile"].format(polarity=polarity)

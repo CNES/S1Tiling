@@ -118,12 +118,12 @@ def get_origin(manifest):
         raise Exception("Coordinates not found in " + str(manifest))
 
 
-def get_shape(manifest):
+def get_shape_from_polygon(polygon):
     """
     Returns the shape of the footprint of the S1 product.
     """
-    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
 
+    nw_coord, ne_coord, se_coord, sw_coord = polygon
     poly = ogr.Geometry(ogr.wkbPolygon)
     ring = ogr.Geometry(ogr.wkbLinearRing)
     ring.AddPoint(nw_coord[1], nw_coord[0], 0)
@@ -134,6 +134,13 @@ def get_shape(manifest):
     poly.AddGeometry(ring)
     return poly
 
+
+def get_shape(manifest):
+    """
+    Returns the shape of the footprint of the S1 product.
+    """
+    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
+    return get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
 
 def get_s1image_poly(s1image):
     if isinstance(s1image, str):
