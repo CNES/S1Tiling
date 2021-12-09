@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type
+from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type
 from . import Utils
 from ..__meta__ import __version__
 
@@ -73,7 +73,7 @@ class ExtractSentinel1Metadata(StepFactory):
     Factory that takes care of extracting meta data from S1 input files.
 
     Note: At this moment it needs to be used on a separate pipeline to make
-    sure the meta is updated when calling :fun:`PipelineDescription.expected`.
+    sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
     def __init__(self, cfg):
         super().__init__(cfg, 'ExtractSentinel1Metadata')
@@ -124,6 +124,8 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['orbit_direction']  = Utils.get_orbit_direction(manifest)
         meta['orbit']            = '{:0>3d}'.format(Utils.get_relative_orbit(manifest))
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
+        meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
+
 
         # meta['task_basename']    = 'ExtractS1Meta_%s' % (meta['basename'], )
         meta['task_name']        = 'ExtractS1Meta_%s' % (meta['basename'], )
@@ -569,7 +571,7 @@ class Concatenate(OTBStepFactory):
                 gen_output_filename=None
                 )
 
-    def update_out_filename(self, meta, with_meta):
+    def update_out_filename(self, meta, with_task_info):
         # tester input list
         # basename = un truc ou l'autre en fonction nb inputs (old value ou taskname)
         # out_file = basename
@@ -770,7 +772,7 @@ def remove_polarization_marks(name):
 
 class AgglomerateDEM(ExecutableStepFactory):
     """
-    Factory that produce a :class:`Step` that build a VRT from a list of DEM.
+    Factory that produces a :class:`Step` that build a VRT from a list of DEM files.
     """
 
     def __init__(self, cfg, *args, **kwargs):
@@ -787,7 +789,12 @@ class AgglomerateDEM(ExecutableStepFactory):
         self.__srtm_db_filepath = cfg.srtm_db_filepath
 
     def _update_filename_meta_pre_hook(self, meta):
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
+        provide names clear from polar related informations.
+        """
         # Ignore polarization in filenames
+        assert 'polarless_basename' not in meta
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
@@ -804,31 +811,19 @@ class AgglomerateDEM(ExecutableStepFactory):
         return meta
 
     def parameters(self, meta):
-        return None
         return [options.srtm_file] + [os.path.join(options.srtm_dir, s) for s in options.srtms]
-
-    # def create_step(self, input: Step, in_memory: bool, previous_steps):
-    #     assert issubclass(type(input), AbstractStep)
-    #     meta = self.complete_meta(input.meta)
-    #     # TODO: the step returned shall execute
-    #     execute(['gdalbuildvrt', options.srtm_file] + [os.path.join(options.srtm_dir, s) for s in options.srtms], options.dryrun)
-    #     # w/:
-    #     def execute(params, dryrun):
-    #         msg = ' '.join([str(p) for p in params])
-    #         logging.info('$> '+msg)
-    #         if not dryrun:
-    #             with ExecutionTimer(msg, True) as t:
-    #                 subprocess.run(args=params, check=True)
-    #     return AbstractStep(**meta)
 
 
 class SARDEMProjection(OTBStepFactory):
     """
-    Factory that prepares TODO
+    Factory that prepares steps that run :std:doc:`Applications/app_SARDEMProjection`
+    as described in :ref:`Normals computation` documentation.
 
-    SARDEMProjection application puts a DEM file into SAR geometry and estimates two additional coordinates.
-    In all for each point of the DEM input four components are calculated:
-    C (colunm into SAR image), L (line into SAR image), Z and Y.
+    :std:doc:`Applications/app_SARDEMProjection` application puts a DEM file
+    into SAR geometry and estimates two additional coordinates.
+    For each point of the DEM input four components are calculated:
+    C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
+    components into projection are also computed for our needs.
 
     Requires the following information from the configuration object:
 
@@ -844,15 +839,22 @@ class SARDEMProjection(OTBStepFactory):
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
                 param_in=['insar', 'indem'], param_out='out',
-                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
+        provide names clear from polar related informations.
+        """
         # Ignore polarization in filenames
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        if 'polarless_basename' in meta:
+            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        else:
+            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def complete_meta(self, meta):
@@ -914,9 +916,12 @@ class SARDEMProjection(OTBStepFactory):
 
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
-    Factory that prepares TODO
+    Factory that prepares steps that run :std:doc:`Applications/app_SARCartesianMeanEstimation`
+    as described in :ref:`Normals computation` documentation.
 
-    SARCartesianMeanEstimation estimates a simulated cartesian mean image thanks to a DEM file.
+
+    :std:doc:`Applications/app_SARCartesianMeanEstimation` estimates a
+    simulated cartesian mean image thanks to a DEM file.
 
     Requires the following information from the configuration object:
 
@@ -927,22 +932,28 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     - input filename
     - output filename
 
-    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
+    Note: It cannot be chained in memory because of the ``directiontoscandem*`` parameters.
     """
     def __init__(self, cfg):
         fname_fmt = 'XYZ_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
                 param_in=['insar', 'indem', 'indemproj'], param_out='out',
-                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
+        provide names clear from polar related informations.
+        """
         # Ignore polarization in filenames
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        if 'polarless_basename' in meta:
+            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        else:
+            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
     def complete_meta(self, meta):
@@ -959,7 +970,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         """
         Returns the parameters to use with
         :std:doc:`SARCartesianMeanEstimation OTB application
-        <Applications/app_SARCartesianMeanEstimation>` to TODO.
+        <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
+        coordinates of each point of the origin S1 image.
         """
         indem     = quivabien('dem')
         indemproj = quivabien('demproj')
@@ -977,9 +989,13 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
 class ComputeNormals(OTBStepFactory):
     """
-    Factory that prepares TODO
+    Factory that prepares steps that run
+    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    as described in :ref:`Normals computation` documentation.
 
-    ComputeNormals computes surface normals.
+
+    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    computes surface normals.
 
     Requires the following information from the configuration object:
 
@@ -989,30 +1005,31 @@ class ComputeNormals(OTBStepFactory):
 
     - input filename
     - output filename
-
-    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
         fname_fmt = 'Normals_{polarless_basename}'
         super().__init__(cfg,
                 appname='ExtractNormalVector', name='ComputeNormals',
                 param_in='xyz', param_out='out',
-                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata.
+        """
         # Ignore polarization in filenames
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        # meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        assert 'polarless_basename' in meta
+        assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
 
     def parameters(self, meta):
         """
         Returns the parameters to use with
         :std:doc:`ExtractNormalVector OTB application
-        <Applications/app_ExtractNormalVector>` to TODO.
+        <Applications/app_ExtractNormalVector>` to generate surface normals
+        for each point of the origin S1 image.
         """
         xyz = quivabien('xyz')
         return {
@@ -1023,9 +1040,13 @@ class ComputeNormals(OTBStepFactory):
 
 class ComputeLIA(OTBStepFactory):
     """
-    Factory that prepares TODO
+    Factory that prepares steps that run
+    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    as described in :ref:`Normals computation` documentation.
 
-    ComputeLIA computes surface normals.
+
+    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    computes Local Incidende Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1035,30 +1056,29 @@ class ComputeLIA(OTBStepFactory):
 
     - input filename
     - output filename
-
-    Note: It cannot be chained in memory because of the directiontoscandem* parameters.
     """
     def __init__(self, cfg):
         fname_fmt = 'LIA_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 param_in=['in.normals', 'in.xyz'], param_out=['out.lia', 'out.sin'],
-                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'DEM', '{tile_name}'),
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt,
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
-        # Ignore polarization in filenames
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        # meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata.
+        """
+        assert 'polarless_basename' in meta
+        assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
 
     def parameters(self, meta):
         """
         Returns the parameters to use with
         :std:doc:`SARComputeLocalIncidenceAngle OTB application
-        <Applications/app_SARComputeLocalIncidenceAngle>` to TODO.
+        <Applications/app_SARComputeLocalIncidenceAngle>`.
         """
         xyz     = quivabien('xyz')
         normals = quivabien('normals')
@@ -1219,28 +1239,34 @@ class ConcatenateLIA(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        fname_fmt = 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt = 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         super().__init__(cfg,
                 appname='Synthetize', name='Concatenation',
                 param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=fname_fmt
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
-        # Ignore polarization in filenames
-        # meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        # rootname = os.path.splitext(meta['polarless_basename'])[0]
-        # meta['polarless_rootname'] = rootname
-        # Sort by acquisition time, keep all the oldest (same date)
-        def reduce_LIAs(inputs):
-            # TODO: Analyse S2 cover for each pair of S1 images took on a same day
-            dates = [re.sub('txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs]
-            min_date = min(dates)
-            logger.debug('acquisition_time: %s ==> %s', dates, min_date)
-            return [inp for inp in inputs if re.sub('txxxxxx|t\d+', '', inp['acquisition_time']) == min_date]
-        meta['reduce_inputs_in'] = reduce_LIAs
+    def update_filename_meta(self, meta):
+        meta = super().update_filename_meta(meta)
+        meta['update_out_filename'] = self.update_out_filename
+        return meta
+
+    def update_out_filename(self, meta, with_task_info):
+        inputs = with_task_info.inputs['in']
+        dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
+        assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
+        date = min(dates)
+        logger.debug('[ConcatenateLIA] at %s:', date)
+        coverage = 0.
+        for inp in inputs:
+            if re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) == date:
+                s1_cov = inp['tile_coverage']
+                coverage += s1_cov
+                logger.debug(' - %s => %s', inp['basename'], s1_cov)
+        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
+        meta['tile_coverage'] = coverage
 
     def complete_meta(self, meta):
         """
@@ -1281,3 +1307,59 @@ class ConcatenateLIA(OTBStepFactory):
                 }
 
 
+class SelectBestCoverage(_FileProducingStepFactory):
+    """
+    StepFactory that helps select only one path after LIA concatenation:
+    the one that have the best coverage of the S2 tile target.
+
+    If several concatenated products have the same coverage, the oldest one
+    will be selected.
+
+    The coverage is extracted from ``tile_coverage`` step metadata.
+
+    The step produced does nothing: it only only rename the selected product
+    into the final expected name. Note: in LIA case two files will actually
+    renamed.
+
+    """
+    def __init__(self, cfg):
+        # TODO: support other types of products. Idea: have a class hierarchy where leaf classes
+        # inject the exact filenames
+        fname_fmt = 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        super().__init__(cfg, name='SelectBestCoverage',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_filename=fname_fmt
+                )
+
+    def _update_filename_meta_pre_hook(self, meta):
+        """
+        Inject the :func:`reduce_LIAs` hook in step metadata.
+        """
+        def reduce_LIAs(inputs):
+            """
+            Select the concatenated pair of LIA files that have the best coverage of the considered S2 tile
+            """
+            # TODO: quid if different dates have best different coverage on a set of tiles?
+            # How to avoid computing LIA again and again on a same S1 zone?
+            dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
+            best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
+            logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
+            for inp in inputs:
+                logger.debug(' - %s: %s', inp['acquisition_day'], inp['tile_coverage'])
+            return [best_covered_input]
+
+        meta['reduce_inputs_in'] = reduce_LIAs
+
+    def create_step(self, inputs: list, in_memory: bool, previous_steps):
+        logger.debug("Directly execute %s step", self.name)
+        _check_input_step_type(inputs)
+        input = self._get_canonical_input(inputs)
+        meta = self.complete_meta(input.meta)
+        res = NullStep('move', **meta)
+        return res
+
+    def parameters(self, meta):
+        # TODO: improve the class hierarchy
+        raise TypeError('Nothing is executed actually in SelectBestCoverage')
+        return None

@@ -1262,7 +1262,7 @@ class _FileProducingStepFactory(StepFactory):
     handling for Steps that produce files, either with OTB or through external
     calls.
 
-    :func:`create_step`  is kind of _abstract_ at this point.
+    :func:`create_step`  is kind of *abstract* at this point.
     """
     def __init__(self, cfg,
             gen_tmp_dir, gen_output_dir, gen_output_filename,

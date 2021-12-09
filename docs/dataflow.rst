@@ -221,6 +221,13 @@ The actual generation is done in two steps:
 
 This step produces the :ref:`border mask files <mask-files>`.
 
+.. index:: Normals computation
+
+Normals computation
++++++++++++++++++++
+
+TBC
+
 
 .. _data-caches:
 

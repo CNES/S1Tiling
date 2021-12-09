@@ -51,6 +51,7 @@ Feature: Norlim
 
         Then  a single S2 LIA image is required
         # TODO fix the dependencies
+        And   final LIA image has been selected from one concat LIA
         And   concat LIA depends on 2 ortho LIA images
         And   2 ortho LIA images depend on two LIA images
         And   LIA images depend on XYZ images
@@ -58,6 +59,7 @@ Feature: Norlim
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
+        And   a select LIA task is registered
         And   a concat LIA task is registered
         And   ortho LIA task(s) is(/are) registered
         And   LIA task(s) is(/are) registered

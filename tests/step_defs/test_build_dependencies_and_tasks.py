@@ -9,7 +9,7 @@ from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, Mer
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
-        OrthoRectifyLIA, ConcatenateLIA)
+        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 from s1tiling.libs.Utils import get_shape_from_polygon
 
@@ -164,6 +164,9 @@ def ortho_LIA_file(idx):
 def S2_LIA_file():
     return f'{OUTPUT}/{TILE}/LIA_s1a_33NWB_DES_007.tif'
 
+def S2_LIA_preselect_file():
+    return f'{TMPDIR}/S2/{TILE}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+
 # ======================================================================
 # Mocks
 
@@ -290,8 +293,10 @@ def given_pipeline_ortho_n_concat_LIA(pipelines):
             inputs={'xyz': xyz})
     ortho = pipelines.register_pipeline([OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
             inputs={'in': lia})
-    concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=True, is_name_incremental=False,
+    concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=False, is_name_incremental=True,
             inputs={'in': ortho})
+    select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, is_name_incremental=True,
+            inputs={'in': concat})
 
 @given('a single S1 image')
 def given_one_S1_image(raster_list, known_files, known_file_ids):
@@ -679,12 +684,24 @@ def then_S2_LIA_image_is_required(dependencies):
     for fn in expected_fn:
         assert fn in required, f'Expected {fn} not find in computed requirements {required}'
 
+@then('final LIA image has been selected from one concat LIA')
+def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies):
+    required, previous, task2outfile_map = dependencies
+    expected_fn = S2_LIA_file()
+    assert expected_fn in required
+    prev_expected = previous[expected_fn]
+    expected_input_groups = prev_expected.inputs
+    assert len(expected_input_groups) == 1
+    for key, inputs in expected_input_groups.items():
+        assert key == 'in'  # May change in the future...
+        assert set([inp['out_filename'] for inp in inputs]) == set([S2_LIA_preselect_file()])
+
 @then('concat LIA depends on 2 ortho LIA images')
 def concat_LIA_depends_on_2_ortho_LIA_images(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = S2_LIA_file()
-    assert expected_fn in required
+    expected_fn = S2_LIA_preselect_file()
+    assert expected_fn not in required
     prev_expected = previous[expected_fn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
@@ -790,24 +807,46 @@ def DEM_depends_on_BASE(dependencies, expected_files_id):
         insar_as_input = insar_as_inputs[0]
         assert insar_as_input['out_filename'] == input_file(i, 'vv')
 
+
+@then('a select LIA task is registered')
+def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+    out = S2_LIA_file()
+    expectations = {
+            out: {'pipeline': 'SelectLIA',
+                'input_steps': {
+                    S2_LIA_preselect_file(): ['in', FirstStep]
+                    }}
+            }
+
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    assert len(tasks) >= 3
+    assert len(required) == len(expectations)
+    assert S2_LIA_preselect_file() not in required
+    _check_registered_task(expectations, tasks, required, task2outfile_map)
+
+
 @then('a concat LIA task is registered')
 def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id):
-    out = S2_LIA_file()
+    out = S2_LIA_preselect_file()
     expectations = {
             out: {'pipeline': 'ConcatLIA',
                 'input_steps': {}}
             }
+    dest = [out]
     for i in expected_files_id:
         expectations[out]['input_steps'][ortho_LIA_file(i)] = ['in', MergeStep]
 
     required, previous, task2outfile_map = dependencies
-    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 2 + len(expected_files_id)
     assert len(required) == len(expectations)
     for i in expected_files_id:
         assert ortho_LIA_file(i) not in required
-    _check_registered_task(expectations, tasks, required, task2outfile_map)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
 
 @then('ortho LIA task(s) is(/are) registered')
 def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id):

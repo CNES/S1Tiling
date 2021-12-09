@@ -13,7 +13,7 @@ Design notes
 
 .. contents:: Contents:
    :local:
-   :depth: 3
+   :depth: 4
 
 
 .. _dev_pipeline:
@@ -89,10 +89,26 @@ Step Factories
    :show-inheritance:
    :undoc-members:
 
+``_FileProducingStepFactory``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.otbpipeline._FileProducingStepFactory
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 ``OTBStepFactory``
 ~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: s1tiling.libs.otbpipeline.OTBStepFactory
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+``ExecutableStepFactory``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.otbpipeline.ExecutableStepFactory
    :members:
    :show-inheritance:
    :undoc-members:
@@ -147,6 +163,20 @@ Step types are usually instantiated automatically.
    :members:
    :show-inheritance:
 
+``ExecutableStep``
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.otbpipeline.ExecutableStep
+   :members:
+   :show-inheritance:
+
+``_StepWithOTBApplication``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.otbpipeline._StepWithOTBApplication
+   :members:
+   :show-inheritance:
+
 
 Existing processings
 ++++++++++++++++++++
@@ -155,51 +185,123 @@ The :ref:`domain processings <processings>` are defined through
 :class:`StepFactory` subclasses, which in turn will instantiate domain unaware
 subclasses of :class:`AbstractStep` for the actual processing.
 
+Main processings
+~~~~~~~~~~~~~~~~
+
+``ExtractSentinel1Metadata``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.ExtractSentinel1Metadata
+   :members:
+   :show-inheritance:
+
 ``AnalyseBorders``
-~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.AnalyseBorders
    :members:
    :show-inheritance:
 
 ``Calibrate``
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.Calibrate
    :members:
    :show-inheritance:
 
 ``CutBorders``
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.CutBorders
    :members:
    :show-inheritance:
 
 ``OrthoRectify``
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.OrthoRectify
    :members:
    :show-inheritance:
 
 ``Concatenate``
-~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.Concatenate
    :members:
    :show-inheritance:
 
 ``BuildBorderMask``
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.BuildBorderMask
    :members:
    :show-inheritance:
 
 ``SmoothBorderMask``
-~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: s1tiling.libs.otbwrappers.SmoothBorderMask
+   :members:
+   :show-inheritance:
+
+Processings for advanced calibration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These processings permit to produce Local Incidende Angles Maps for
+σ\ :sub:`0`\ :sup:`NORMLIM` calibration.
+
+``AgglomerateDEM``
+^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.AgglomerateDEM
+   :members:
+   :show-inheritance:
+
+``SARDEMProjection``
+^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.SARDEMProjection
+   :members:
+   :show-inheritance:
+
+``SARCartesianMeanEstimation``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
+   :members:
+   :show-inheritance:
+
+``ComputeNormals``
+^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.ComputeNormals
+   :members:
+   :show-inheritance:
+
+``ComputeLIA``
+^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.ComputeLIA
+   :members:
+   :show-inheritance:
+
+``OrthoRectifyLIA``
+^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.OrthoRectifyLIA
+   :members:
+   :show-inheritance:
+
+``ConcatenateLIA``
+^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.ConcatenateLIA
+   :members:
+   :show-inheritance:
+
+``SelectBestCoverage``
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.SelectBestCoverage
    :members:
    :show-inheritance:
