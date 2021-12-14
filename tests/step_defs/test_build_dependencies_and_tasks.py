@@ -250,14 +250,14 @@ def tasks():
 def given_pipeline_ortho(pipelines, last_pipeline):
     pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
-            , inputs={'in': 'basename'}
+            # , inputs={'in': 'basename'}
             )
     last_pipeline.append(pipeline)
 
 @given('that concatenates')
 def given_pipeline_concat(pipelines, last_pipeline):
     pipeline = pipelines.register_pipeline([Concatenate], product_required=True
-            , inputs={'in': last_pipeline[-1]}
+            # , inputs={'in': last_pipeline[-1]}
             )
     last_pipeline.append(pipeline)
 
@@ -266,7 +266,7 @@ def given_pipeline_concat(pipelines, builds, last_pipeline):
     if builds == 'builds':
         # logging.info('REGISTER MASKS')
         pipeline = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
-            , inputs={'in': last_pipeline[-1]}
+            # , inputs={'in': last_pipeline[-1]}
                 )
         last_pipeline.append(pipeline)
 

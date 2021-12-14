@@ -234,6 +234,7 @@ def process_one_tile(
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+        logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
 
     if len(intersect_raster_list) == 0:
         logger.info("No intersection with tile %s", tile_name)
@@ -353,22 +354,11 @@ def s1_process(config_opt,
             pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
             pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
         else:
-            # pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
-            ortho = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True
-                    , inputs={'in': 'basename'}
-                    )
+            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
 
-        # pipelines.register_pipeline([Concatenate],                                              product_required=True)
-        concat = pipelines.register_pipeline([Concatenate], product_required=True
-                , inputs={'in': ortho}
-                )
+        pipelines.register_pipeline([Concatenate],                                              product_required=True)
         if config.mask_cond:
-            # pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
-            mask = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
-                    , inputs={'in': concat}
-                    )
-
-        # filtering_processor = S1FilteringProcessor.S1FilteringProcessor(config)
+            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
 
         try:
             if not debug_otb:

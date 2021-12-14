@@ -964,6 +964,9 @@ class PipelineDescriptionSequence:
         """
         steps = [FS(self.__cfg) for FS in factory_steps]
         assert 'dryrun' not in kwargs
+        if 'inputs' not in kwargs:
+            # Register the last pipeline as 'in' if nothing is specified
+            kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
         self.__pipelines.append(pipeline)
         return pipeline
