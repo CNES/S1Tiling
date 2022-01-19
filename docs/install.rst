@@ -74,7 +74,7 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
     source otbenv.profile
     # Load module on HAL
     module load gcc
-    ctest3 -S share/otb/swig/build_wrapping.cmake -VV
+    ctest -S share/otb/swig/build_wrapping.cmake -VV
 
 Conflicts between rasterio default wheel and OTB binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
