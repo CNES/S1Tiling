@@ -865,7 +865,7 @@ class PipelineDescriptionSequence:
         required_task_names = set()
         for name, meta in required.items():
             if product_exists(meta):
-                logger.debug("Ignoring %s as the product already exist", name)
+                logger.debug("Ignoring %s as the product already exists", name)
                 previous[name] = False  # for the next log
             else:
                 required_task_names.add(name)
