@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, in_filename, out_filename, Step, AbstractStep, otb_version
+from .otbpipeline import StepFactory, in_filename, out_filename, get_task_name, Step, AbstractStep, otb_version
 from . import Utils
 from ..__meta__ import __version__
 
@@ -568,18 +568,30 @@ class Concatenate(StepFactory):
             task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
             meta['basename'] = task_basename
             logger.debug("Concatenation result of %s goes into %s", out_file, meta['basename'])
-            # meta['does_product_exist'] = lambda : os.path.isfile(task_name(meta))
         else:
             _, out_file = os.path.split(out_file)
             task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
             meta['basename'] = out_file
             logger.debug("Only one file to concatenate, just move it (%s)", out_file)
+            # We need to be sure neither out_filename(meta) nor task_name(meta) (i.e. txxxxxx file) exist
+            # when there is just a single input file
+            def check_product(meta):
+                task_name       = get_task_name(meta)
+                filename        = out_filename(meta)
+                exist_task_name = os.path.isfile(task_name)
+                exist_file_name = os.path.isfile(filename)
+                logger.debug('Checking concatenation product:\n- %s => %s\n- %s => %s',
+                        task_name, '∃' if exist_task_name else '∅',
+                        filename,  '∃' if exist_file_name else '∅')
+                return exist_task_name or exist_file_name
         meta = super().complete_meta(meta)  # Needs a valid basename
         meta['task_basename'] = task_basename
         meta['task_name'] = os.path.join(out_dir, task_basename)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['post'] = meta.get('post', []) + [self.clear_ortho_tmp]
         meta['update_out_filename'] = self.update_out_filename
+        if not isinstance(out_file, list):  # Needs to be defined late
+            meta['does_product_exist'] = lambda : check_product(meta)
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta

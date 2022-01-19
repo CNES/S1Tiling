@@ -127,7 +127,7 @@ def out_extended_filename_complement(meta):
 
 def product_exists(meta):
     """
-    Helper accessor that teels whether the product described by the metadata
+    Helper accessor that tells whether the product described by the metadata
     already exists.
     """
     if 'does_product_exist' in meta:
@@ -420,7 +420,15 @@ class StepFactory(ABC):
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
-        meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
+        def check_product(meta):
+            filename        = out_filename(meta)
+            exist_file_name = os.path.isfile(filename)
+            logger.debug('Checking %s product: %s => %s',
+                    self.__class__.__name__,
+                    filename, '∃' if exist_file_name else '∅')
+            return exist_file_name
+        meta['does_product_exist'] = lambda : check_product(meta)
+        # meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
         meta.pop('task_name', None)
         meta.pop('task_basename', None)
         meta.pop('update_out_filename', None)
