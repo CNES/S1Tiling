@@ -271,7 +271,6 @@ def process_one_tile(
                 results = client.get(dsk, required_products)
                 return results
             except KilledWorker as e:
-                logger.critical('%s', dir(e))
                 logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
                         e.last_worker.name, e.task, tile_name, e, run, nb_tries)
                 # TODO: don't overwrite previous logs
