@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, in_filename, out_filename, get_task_name, Step, AbstractStep, otb_version
+from .otbpipeline import StepFactory, in_filename, out_filename, get_task_name, Step, AbstractStep, otb_version, ram
 from . import Utils
 from ..__meta__ import __version__
 
@@ -226,7 +226,7 @@ class Calibrate(StepFactory):
         application <Applications/app_SARCalibration>`.
         """
         params = {
-                'ram'           : str(self.__ram_per_process),
+                'ram'           : ram(self.__ram_per_process),
                 # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
@@ -294,7 +294,7 @@ class CutBorders(StepFactory):
         application <Applications/app_ResetMargin>`.
         """
         params = {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : ram(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
@@ -421,7 +421,7 @@ class OrthoRectify(StepFactory):
         spacing = self.__out_spatial_res
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         meta['params.ortho'] = {
-                'opt.ram'          : str(self.__ram_per_process),
+                'opt.ram'          : ram(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename,
@@ -634,7 +634,7 @@ class Concatenate(StepFactory):
         application <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : ram(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
@@ -696,7 +696,7 @@ class BuildBorderMask(StepFactory):
         <Applications/app_BandMath>` for computing border mask.
         """
         params = {
-                'ram'              : str(self.__ram_per_process),
+                'ram'              : ram(self.__ram_per_process),
                 # 'progress'       : 'false',
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
@@ -770,7 +770,7 @@ class SmoothBorderMask(StepFactory):
         masks.
         """
         return {
-                'ram'                   : str(self.__ram_per_process),
+                'ram'                   : ram(self.__ram_per_process),
                 # 'progress'            : 'false',
                 self.param_in           : in_filename(meta),
                 # self.param_out          : out_filename(meta),

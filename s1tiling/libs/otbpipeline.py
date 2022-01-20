@@ -70,6 +70,18 @@ def otb_version():
     return otb_version._version
 
 
+def ram(r):
+    """
+    The expected type for the RAM parameter in OTB application changes between OTB 7.x and OTB 8.0.
+    This function provides an abstraction that takes care of the exact type expected.
+    """
+    if otb_version() >= '8.0.0':
+        assert isinstance(r, int)
+        return r
+    else:
+        return str(r)
+
+
 def as_app_shell_param(param):
     """
     Internal function used to stringigy value to appear like a a parameter for a program

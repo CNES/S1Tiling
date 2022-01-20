@@ -18,6 +18,8 @@ from .helpers import otb_compare, comparable_metadata
 from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob, dirname
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
+import s1tiling.libs.configuration
+from s1tiling.libs.otbpipeline import ram as param_ram
 
 
 # ======================================================================
@@ -377,7 +379,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
 
         #SARCalibration -ram '4096' -in '/home/luc/dev/S1tiling/tests/20200306-NR/data_raw-pol/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953.SAFE/measurement/s1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-002.tiff' -lut 'sigma' -removenoise False
         application_mocker.set_expectations('SARCalibration', {
-            'ram'        : '2048',
+            'ram'        : param_ram(2048),
             'in'         : input_file,
             'lut'        : 'sigma',
             'removenoise': False,
@@ -387,7 +389,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
         # ResetMargin (from app) -ram '4096' -threshold.x 1000 -threshold.y.start 0 -threshold.y.end 0 -mode 'threshold'
         application_mocker.set_expectations('ResetMargin', {
             'in'               : input_file+'|>SARCalibration',
-            'ram'              : '2048',
+            'ram'              : param_ram(2048),
             'threshold.x'      : 1000,
             'threshold.y.start': 0,
             'threshold.y.end'  : 0,
@@ -398,7 +400,7 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
         #  OrthoRectification (from app) -opt.ram '4096' -interpolator 'nn' -outputs.spacingx '10.0' -outputs.spacingy '-10.0' -outputs.sizex 10980 -outputs.sizey 10980 -opt.gridspacing '40.0' -map 'utm' -map.utm.zone 33 -map.utm.northhem True -outputs.ulx '499979.99999484676' -outputs.uly '200040.0000009411' -elev.dem '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/tmpuv76wv2i' -elev.geoid '/home/luc/dev/S1tiling/s1tiling/s1tiling/resources/Geoid/egm96.grd'
         application_mocker.set_expectations('OrthoRectification', {
             'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
-            'opt.ram'         : '2048',
+            'opt.ram'         : param_ram(2048),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -419,19 +421,19 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
     for i in range(1):
         # Synthetize -ram '4096' -il '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044150.tif' '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044215.tif'
         application_mocker.set_expectations('Synthetize', {
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'il'       : [file_db.orthofile(2*i), file_db.orthofile(2*i+1)],
             'out'      : file_db.tmp_concatfile(None),
             }, None)
         application_mocker.set_expectations('BandMath', {
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile(None)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+file_db.tmp_maskfile(None),
             }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [file_db.concatfile(None)+'|>BandMath'],
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'structype': 'ball',
             'xradius'  : 5,
             'yradius'  : 5,
