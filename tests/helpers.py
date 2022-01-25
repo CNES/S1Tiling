@@ -33,6 +33,11 @@ def comparable_metadata(image):
 
     md.pop('TIFFTAG_DATETIME',  None)
     md.pop('PROCESSED_DATETIME', None)
+    md.pop('TileHintX', None)
+    md.pop('TileHintY', None)
+    md.pop('METADATATYPE', None)
+    md.pop('OTB_VERSION', None)
+    md.pop('DataType', None)
 
     if 'TIFFTAG_SOFTWARE' in md:
         # logging.error('PERFECT')
