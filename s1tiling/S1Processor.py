@@ -70,7 +70,7 @@ from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEM)
+        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
 from s1tiling.libs import exits
 
 # Graphs
@@ -289,24 +289,17 @@ def process_one_tile(
                     raise
 
 
-def s1_process(config_opt,
-               searched_items_per_page=20,
-               dryrun=False,
-               debug_otb=False,
-               watch_ram=False,
-               debug_tasks=False,
-               cache_before_ortho=False):
+def do_process_with_pipeline(config_opt,
+        pipeline_builder,
+        searched_items_per_page=20,
+        dryrun=False,
+        debug_otb=False,
+        watch_ram=False,
+        debug_tasks=False,
+        ):
     """
-      On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
-
-      It performs the following steps:
-      1. Download S1 images from S1 data provider (through eodag)
-      2. Calibrate the S1 images to gamma0
-      3. Orthorectify S1 images and cut their on geometric tiles
-      4. Concatenate images from the same orbit on the same tile
-      5. Build mask files
-
-      Parameters have to be set by the user in the S1Processor.cfg file
+    Internal function for executing pipelines.
+    # TODO: parametrize tile loop, product download...
     """
     # The config_opt can be either the configuration filename or an already initialized configuration object
     if isinstance(config_opt, str):
@@ -349,16 +342,7 @@ def s1_process(config_opt,
 
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
-        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
-        if cache_before_ortho:
-            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
-            pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
-        else:
-            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
-
-        pipelines.register_pipeline([Concatenate],                                              product_required=True)
-        if config.mask_cond:
-            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+        pipelines = pipeline_builder(config, dryrun=dryrun)
 
         try:
             if not debug_otb:
@@ -402,6 +386,95 @@ def s1_process(config_opt,
             if client:
                 client.close()
                 cluster.close()
+
+
+def s1_process(config_opt,
+        searched_items_per_page=20,
+        dryrun=False,
+        debug_otb=False,
+        watch_ram=False,
+        debug_tasks=False,
+        cache_before_ortho=False):
+    """
+      On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
+
+      It performs the following steps:
+      1. Download S1 images from S1 data provider (through eodag)
+      2. Calibrate the S1 images to gamma0
+      3. Orthorectify S1 images and cut their on geometric tiles
+      4. Concatenate images from the same orbit on the same tile
+      5. Build mask files
+
+      Parameters have to be set by the user in the S1Processor.cfg file
+    """
+    def builder(config, dryrun):
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
+        if cache_before_ortho:
+            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
+            pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
+        else:
+            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
+
+        pipelines.register_pipeline([Concatenate],                                              product_required=True)
+        if config.mask_cond:
+            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+
+        return pipelines
+
+    return do_process_with_pipeline(config_opt, builder,
+            searched_items_per_page=searched_items_per_page,
+            dryrun=dryrun,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+            )
+
+
+def s1_process_lia(config_opt,
+        searched_items_per_page=20,
+        dryrun=False,
+        debug_otb=False,
+        watch_ram=False,
+        debug_tasks=False,
+        ):
+    """
+      Generate Local Incidence Angle Maps on S2 geometry.
+
+      1. Determine the S1 products to process
+          Given a list of S2 tiles, we first determine the day that'll the best
+          coverage of each S2 tile in terms of S1 products.
+
+          In case there is no single day that gives the best coverage for all
+          S2 tiles, we try to determine the best solution that minimizes the
+          number of S1 products to download and process.
+      2. Process these S1 products
+    """
+    def builder(config, dryrun):
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
+        dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
+                inputs={'insar': 'basename'})
+        demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
+                inputs={'insar': 'basename', 'indem': dem})
+        xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
+                inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+        lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],                     'Normals|LIA', is_name_incremental=True,
+                inputs={'xyz': xyz})
+
+        # "inputs" parameter doesn't need to be specified in the following pipeline declarations
+        # but we still use it for clarity!
+        ortho  = pipelines.register_pipeline([OrthoRectifyLIA],    'OrthoLIA',                         inputs={'in': lia})
+        concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
+        select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, inputs={'in': concat})
+
+        return pipelines
+
+    return do_process_with_pipeline(config_opt, builder,
+            searched_items_per_page=searched_items_per_page,
+            dryrun=dryrun,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+            )
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
