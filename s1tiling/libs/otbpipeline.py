@@ -264,11 +264,12 @@ class ExecutableStep(AbstractStep):
         """
         super().__init__(None, *argv, **kwargs)
         self._exename = exename
+        # logger.debug('ExecutableStep %s constructed', self._exename)
 
-    def execute_and_write_output(self):  # pylint: disable=no-self-use
+    def execute_and_write_output(self, parameters):  # pylint: disable=no-self-use
         dryrun = is_running_dry(self.meta)
         logger.debug("ExecutableStep: %s (%s)", self, self.meta)
-        execute([self.exename]+ self.parameters(meta), dryrun)
+        execute([self._exename]+ parameters, dryrun)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
@@ -1515,6 +1516,8 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta)
         res = ExecutableStep(self._exename, **meta)
+        parameters = self.parameters(meta)
+        res.execute_and_write_output(parameters)
         return res
 
 
@@ -1528,6 +1531,7 @@ class Store(StepFactory):
     """
     def __init__(self, appname, *argv, **kwargs):
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
+        # logger.debug('Creating Store Factory: %s', appname)
 
     def create_step(self, inputs: Step, in_memory: bool, previous_steps):
         """
@@ -1543,6 +1547,7 @@ class Store(StepFactory):
             meta = input.meta.copy()
             return AbstractStep(**meta)
 
+        # logger.debug('Creating StoreStep from %s', input)
         res = StoreStep(input)
         try:
             res.execute_and_write_output()
