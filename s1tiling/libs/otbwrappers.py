@@ -773,6 +773,9 @@ def remove_polarization_marks(name):
 class AgglomerateDEM(ExecutableStepFactory):
     """
     Factory that produces a :class:`Step` that build a VRT from a list of DEM files.
+
+    The choice has been made to name the VRT file after the basename of the
+    root S1 product and not the names of the DEM tiles.
     """
 
     def __init__(self, cfg, *args, **kwargs):
@@ -787,6 +790,7 @@ class AgglomerateDEM(ExecutableStepFactory):
                 name="AgglomerateDEM", exename='gdalbuildvrt',
                 *args, **kwargs)
         self.__srtm_db_filepath = cfg.srtm_db_filepath
+        self.__srtm_dir         = cfg.srtm
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -806,12 +810,12 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         meta = super().complete_meta(meta)
         # find DEMs that intersect the input image
-        meta['srtms'] = Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath)
-        logger.error("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath))
+        logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
     def parameters(self, meta):
-        return [options.srtm_file] + [os.path.join(options.srtm_dir, s) for s in options.srtms]
+        return [out_filename(meta)] + [os.path.join(self.__srtm_dir, s+'.hgt') for s in meta['srtms']]
 
 
 class SARDEMProjection(OTBStepFactory):
