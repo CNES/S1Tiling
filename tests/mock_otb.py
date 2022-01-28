@@ -11,18 +11,28 @@ k_output_keys = ['io.out', 'out']
 
 
 def isfile(filename, existing_files):
+    """
+    Mock-replacement for :func:`os.path.isfile`
+    """
     res = filename in existing_files
     logging.debug("mock.isfile(%s) = %s ∈ %s", filename, res, existing_files)
     return res
 
 
 def isdir(dirname, existing_dirs):
+    """
+    Mock-replacement for :func:`os.path.isdir`
+    """
     res = dirname in existing_dirs
     logging.debug("mock.isdir(%s) = %s ∈ %s", dirname, res, existing_dirs)
     return res
 
 
 class MockDirEntry:
+    """
+    Mock-replacement for :class:`os.DirEntry` type returned by :func:`scandir`
+    and :func:`listdir` functions.
+    """
     def __init__(self, pathname, inputdir):
         """
         constructor
@@ -33,29 +43,42 @@ class MockDirEntry:
 
 
 def list_dirs(dir, pat, known_dirs, inputdir):
+    """
+    Mock-replacement for :func:`Utils.list_dirs`
+    """
     logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
     return [MockDirEntry(kd, inputdir) for kd in known_dirs]
 
 
 def glob(pat, known_files):
+    """
+    Mock-replacement for :func:`glob.glob`
+    """
     res = [fn for fn in known_files if fnmatch.fnmatch(fn, pat)]
     logging.debug('mock.glob(%s) ---> %s', pat, res)
     return res
 
 
 def dirname(path, depth):
+    """
+    Helper function to return dirname at ``depth`` up-level.
+    """
     for i in range(depth):
         path = os.path.dirname(path)
     return path
 
 
-
 def _as_cmdline_call(d):
-    line = ' '.join(["-%s '%s'" %(k, v) for k,v in d.items()])
-    return line
+    if isinstance(d, dict):
+        return ' '.join(["-%s '%s'" %(k, v) for k,v in d.items()])
+    else:
+        return ' '.join(d)
 
 
-class MockApplication:
+class MockOTBApplication:
+    """
+    Mock-replacement for :class:`otbApplication.Application`
+    """
     def __init__(self, appname, mock_ctx):
         """
         Constructor that answers to
@@ -121,7 +144,7 @@ class MockApplication:
     def execute_and_write_output(self, is_top_level):
         # Simulate app at the start of the pipeline first
         for k in k_input_keys:
-            if k in self.parameters and isinstance(self.parameters[k], MockApplication):
+            if k in self.parameters and isinstance(self.parameters[k], MockOTBApplication):
                 logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
                 self.parameters[k].execute_and_write_output(False)
         logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.__params))
@@ -134,10 +157,61 @@ class MockApplication:
         logging.debug('Register new know file %s -> %s', self.out_filename, file_produced)
         self.__mock_ctx.known_files.append(file_produced)
 
+class CommandLine:
+    """
+    Helper class that contains either:
+    - a dictionary of "-paramname value"
+    - or a sequenced list of parameters
+    """
+    def __init__(self, exename, parameters):
+        """
+        constructor
+        """
+        self.__exename    = exename
+        if isinstance(parameters, list):
+            self.__parameters = [exename] + parameters
+        else:
+            self.__parameters = parameters
+
+    def __contains__(self, key):
+        """
+        Implements "in" operator
+        """
+        assert self.is_dict(), 'Current command-line is not a dictionary of "--key value"'
+        return key in self.__parameters
+
+    def __setitem__(self, key, value):
+        """
+        Implements Write-only [] operator
+        """
+        assert self.is_dict(), 'Current command-line is not a dictionary of "--key value"'
+        self.__parameters[key] = value
+
+    def is_dict(self):
+        """
+        Tells whether the current command-line is a dictionary of "--key value"'
+        """
+        return isinstance(self.__parameters, dict)
+
+    def assert_have_same_keys(self, actual_parameters):
+        assert isinstance(actual_parameters, dict) and self.is_dict()
+        actual_keys   = actual_parameters.keys()
+        expected_keys = self.__parameters.keys()
+        assert actual_keys == expected_keys, f'actual={actual_keys} != expected={expected_keys}'
+
+    def __eq__(self, rhs):
+        """
+        Implements == operator
+        """
+        logging.debug('CMP expected: %s\nactual: %s\n--> %s', self.__parameters, rhs, self.__parameters == rhs)
+        return self.__parameters == rhs
+
+    def __str__(self):
+        return _as_cmdline_call(self.__parameters)
 
 class OTBApplicationsMockContext:
     """
-    «class documentation»
+    Mocking context where OTB/S1Tiling expected application calls are cached.
     """
 
     def __init__(self, cfg, mocker, tmp_to_out_map):
@@ -149,7 +223,10 @@ class OTBApplicationsMockContext:
         self.__configuration  = cfg
         self.__known_files    = []
         self.__tmp_to_out_map = tmp_to_out_map
+
+        self.__known_files.append(cfg.srtm_db_filepath)
         mocker.patch('s1tiling.libs.otbpipeline.otb.Registry.CreateApplication', lambda a : self.create_application(a))
+        mocker.patch('s1tiling.libs.otbpipeline.execute', lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
 
     @property
     def known_files(self):
@@ -160,9 +237,14 @@ class OTBApplicationsMockContext:
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
         return res
 
+    def execute_process(self, cmdlinelist, dryrun):
+        msg = ' '.join([str(p) for p in cmdlinelist])
+        logging.info('Mocking execution of: %s', msg)
+        self.assert_execution_is_expected(cmdlinelist)
+
     def create_application(self, appname):
         logging.info('Creating mocked application: %s', appname)
-        app = MockApplication(appname, self)
+        app = MockOTBApplication(appname, self)
         self.__applications.append(app)
         return app
 
@@ -170,23 +252,25 @@ class OTBApplicationsMockContext:
         self.__applications = []
 
     def set_expectations(self, appname, cmdline, pixel_types):
-        expectation = {'cmdline': cmdline, 'appname': appname}
+        expectation = {'cmdline': CommandLine(appname, cmdline), 'appname': appname}
         if pixel_types:
             expectation['pixel_types'] = pixel_types
         self.__expectations.append(expectation)
 
     def _remaining_expectations_as_str(self, appname = None):
         if appname:
-            msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations if appname == exp['appname']]
+            msgs = [ f"\n * {exp['appname']} {exp['cmdline']}" for  exp in self.__expectations if appname == exp['appname']]
+            # msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations if appname == exp['appname']]
         else:
-            msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations]
+            msgs = [ f"\n * {exp['appname']} {exp['cmdline']}" for  exp in self.__expectations]
+            # msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations]
         msg = ('(%s)' % len(msgs,)) + ''.join(msgs)
         return msg
 
     def _update_output_to_final_filename(self, params):
         for kv in k_output_keys:
             if kv in params:
-                if isinstance(params[kv], MockApplication):
+                if isinstance(params[kv], MockOTBApplication):
                     params[kv] =  params[kv].appname + '|>' + self._update_output_to_final_filename(params[kv].parameters)
                 return params[kv]
 
@@ -194,7 +278,7 @@ class OTBApplicationsMockContext:
         assert isinstance(params, dict) # of parameters
         in_param_keys = [kv for kv in k_input_keys if kv in params]
         for kv in in_param_keys:
-            if isinstance(params[kv], MockApplication):
+            if isinstance(params[kv], MockOTBApplication):
                 updated = self._update_input_to_root_filename(params[kv].parameters)
                 if isinstance(updated, list):
                     updated = [u + '|>'+params[kv].appname for u in updated]
@@ -204,7 +288,7 @@ class OTBApplicationsMockContext:
             elif isinstance(params[kv], list):
                 ps = []
                 for p in params[kv]:
-                    if isinstance(p, MockApplication):
+                    if isinstance(p, MockOTBApplication):
                         p = self._update_input_to_root_filename(p.parameters) + '|>'+params[kv].appname
                     ps.append(p)
                     assert isinstance(p, str)
@@ -219,23 +303,42 @@ class OTBApplicationsMockContext:
         self._update_output_to_final_filename(params)
         # logging.info('SEARCHING %s %s among %s', appname, _as_cmdline_call(params), self._remaining_expectations_as_str())
         for exp in self.__expectations:
+            # logging.debug('TEST %s agains %s', appname, exp)
             if appname != exp['appname']:
                 continue
+            assert exp['cmdline'].is_dict()
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
                     exp['cmdline']['elev.dem'] = self.__configuration.tmp_srtm_dir
-            assert params.keys() == exp['cmdline'].keys(), f'actual={params.keys()} != expected={exp["cmdline"].keys()}'
+            exp['cmdline'].assert_have_same_keys(params)
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:
                 exp_pixel_type = exp.get('pixel_types', {})
                 assert pixel_types == exp_pixel_type, f'Pixel type set to "{pixel_types}" for {appname}. "{exp_pixel_type}" was expected.'
                 logging.debug('Expectation found for %s', params)
-                # logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
+                logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
                 self.__expectations.remove(exp)
-                # logging.info('REMAINING: %s', self._remaining_expectations_as_str())
+                logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
-        logging.error('NOT FOUND')
+        logging.error('Expectation NOT FOUND')
         assert False, f"Cannot find any matching expectation for {appname} {_as_cmdline_call(params)} among {self._remaining_expectations_as_str(appname)}"
+
+    def assert_execution_is_expected(self, cmdlinelist):
+        # self._update_input_to_root_filename(cmdlinelist)
+        # self._update_output_to_final_filename(cmdlinelist)
+        assert len(cmdlinelist) > 0
+        appname = cmdlinelist[0]
+        for exp in self.__expectations:
+            if appname != exp['appname']:
+                continue
+            if cmdlinelist == exp['cmdline']:
+                logging.debug('Expectation found for %s', _as_cmdline_call(cmdlinelist))
+                logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
+                self.__expectations.remove(exp)
+                logging.info('REMAINING: %s', self._remaining_expectations_as_str())
+                return  # Found! => return "true"
+        logging.error('Expectation NOT FOUND')
+        assert False, f"Cannot find any matching expectation for {appname} {_as_cmdline_call(cmdlinelist)} among {self._remaining_expectations_as_str(appname)}"
 
     def assert_all_have_been_executed(self):
         assert len(self.__expectations) == 0, f"The following applications haven't executed: {self._remaining_expectations_as_str()}"
