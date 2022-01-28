@@ -49,6 +49,7 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram,
     args = ['python3', src_dir / 's1tiling/S1Processor.py', test_file]
     if watch_ram:
         args.append('--watch-ram')
+    # args.append('--cache-before-ortho')
     logging.info('Running: %s', args)
     return subprocess.call(args, cwd=crt_dir)
 
@@ -170,6 +171,8 @@ class FileDB:
                 'tmp_cal_ok'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
                 'tmp_ortho_ready': 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
                 'tmp_orthofile'  : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
+                'vrt'            : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt',
+                'dem_coverage'   : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
                 },
             {
                 's1dir'          : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
@@ -180,6 +183,8 @@ class FileDB:
                 'tmp_cal_ok'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tiff',
                 'tmp_ortho_ready': 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tiff',
                 'tmp_orthofile'  : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
+                'vrt'            : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.vrt',
+                'dem_coverage'   : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
                 }
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
@@ -303,6 +308,11 @@ class FileDB:
     def dem_file(self):
         return f'{self.__tmp_dir}/TMP'
 
+    def vrtfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["vrt"]}'
+    def dem_coverage(self, idx):
+        return self.FILES[idx]['dem_coverage']
+
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
 
@@ -326,7 +336,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('s1tiling.libs.otbpipeline.commit_otb_application', lambda tmp, out : True)
 
 
-def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -431,5 +441,57 @@ def test_33NWB_202001_NR_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, do
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
+    application_mocker.assert_all_have_been_executed()
+
+
+def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    os.environ['S1TILING_TEST_DOWNLOAD']       = 'False'
+    os.environ['S1TILING_TEST_OVERRIDE_CUT_Y'] = 'False' # keep everything
+
+    os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
+    os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
+    os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
+    os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
+    os.environ['S1TILING_TEST_RAM']                = str(ram)
+
+    tile_name = '33NWB'
+    images = [
+            f'{tile_name}/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
+            f'{tile_name}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
+            ]
+    baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file)
+    configuration.calibration = 'sigma0 normlim'
+    logging.info("Sigma0 NORMLIM mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name)
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+
+    for idx in range(2):
+        cov               = file_db.dem_coverage(idx)
+        exp_srtm_names    = sorted(cov)
+        # out_path          = f'{tmpdir}/S1'
+        # exp_out_vrt       = '%s/DEM_%s.vrt' % (out_path, '_'.join(exp_srtm_names))
+        # exp_out_vrt       = '%s/%s' % (out_path, file_db.vrtfile(idx))
+        exp_out_vrt       = file_db.vrtfile(idx)
+        exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
+        application_mocker.set_expectations('gdalbuildvrt', [exp_out_vrt] + exp_in_srtm_files, None)
+
+    s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False,
+            debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
 

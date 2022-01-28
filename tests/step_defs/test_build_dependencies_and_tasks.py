@@ -129,7 +129,7 @@ def maskfile(idx, polarity):
         file = FILES[idx]["orthofile"].format(polarity=polarity)
         return f'{OUTPUT}/{TILE}/{file}_BorderMask.tif'
 
-def DEM_file(idx=None):
+def DEM_file(idx):
     if idx is None:
         return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
     else:
@@ -188,6 +188,7 @@ class Configuration():
         self.removethermalnoise                = True
         self.tmp_srtm_dir                      = 'UNUSED HERE'
         self.tmpdir                            = tmpdir
+        self.srtm                              = 'UNUSED HERE'
         self.srtm_db_filepath                  = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
         self.cache_srtm_by                     = 'symlink'
         assert self.srtm_db_filepath.is_file()
