@@ -128,6 +128,16 @@ def out_extended_filename_complement(meta):
     return meta.get('out_extended_filename_complement', '')
 
 
+def _fetch_input_data(key, inputs):
+    """
+    Helper function that extract the meta data associated to a key from a
+    multiple-inputs list of inputs.
+    """
+    keys = set().union(*(input.keys() for input in inputs))
+    assert key in keys, f"Cannot find input '{key}' among {keys}"
+    return [input[key] for input in inputs if key in input.keys()][0]
+
+
 def product_exists(meta):
     """
     Helper accessor that teels whether the product described by the metadata

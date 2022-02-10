@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type
+from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data
 from . import Utils
 from ..__meta__ import __version__
 
@@ -132,6 +132,26 @@ class ExtractSentinel1Metadata(StepFactory):
         # meta['task_name']        = 'ExtractS1Meta_%s' % (os.path.join(out_dir, meta['basename']), )
         return meta
 
+    def _get_canonical_input(self, inputs):
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+        By default, if there is only one input, this will be the one returned.
+        Steps will multiple inputs will need to override this method.
+        """
+        _check_input_step_type(inputs)
+        assert len(inputs) == 2, f'Expecting 2 inputs. {len(inputs)} are found: {keys}'
+        keys = set().union(*(input.keys() for input in inputs))
+        assert 'insar' in keys
+        return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Complete meta information with inputs
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
+        return meta
+
 
 class AnalyseBorders(StepFactory):
     """
@@ -180,11 +200,11 @@ class AnalyseBorders(StepFactory):
         """
         return self.build_step_output_filename(meta)
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Complete meta information with Cutting thresholds.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
 
         cut_overlap_range   = 1000  # Number of columns to cut on the sides. Here 500pixels = 5km
         cut_overlap_azimuth = 1600  # Number of lines to cut at the top or the bottom
@@ -261,11 +281,11 @@ class Calibrate(OTBStepFactory):
         self.__calibration_type   = cfg.calibration_type
         self.__removethermalnoise = cfg.removethermalnoise
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Complete GDAL metadata with the kind of calibration done.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         meta['calibration_type'] = self.__calibration_type
         return meta
 
@@ -382,12 +402,12 @@ class OrthoRectify(OTBStepFactory):
         # Some workaround when ortho is not sequenced long with calibration
         self.__calibration_type     = cfg.calibration_type
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.add_ortho_metadata)
 
@@ -396,7 +416,7 @@ class OrthoRectify(OTBStepFactory):
 
         return meta
         # V0
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         manifest                = meta['manifest']
         image                   = in_filename(meta)   # meta['in_filename']
         # image                   = meta['basename']
@@ -603,7 +623,7 @@ class Concatenate(OTBStepFactory):
         meta['update_out_filename']              = self.update_out_filename
         return meta
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Precompute output basename from the input file(s).
         Makes sure the :std:doc:`Synthetize OTB application
@@ -613,7 +633,7 @@ class Concatenate(OTBStepFactory):
         In concatenation case, the task_name needs to be overridden to stay
         unique and common to all inputs.
         """
-        meta = super().complete_meta(meta)  # Needs a valid basename
+        meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.clear_ortho_tmp)
 
@@ -647,7 +667,7 @@ class Concatenate(OTBStepFactory):
             return super().create_step(inputs, in_memory, previous_steps)
         # Back to a single file input case
         logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        meta = self.complete_meta(input.meta)
+        meta = self.complete_meta(input.meta, inputs)
         res = AbstractStep(**meta)
         logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
         if not meta.get('dryrun', False):
@@ -804,11 +824,11 @@ class AgglomerateDEM(ExecutableStepFactory):
         meta['polarless_rootname'] = rootname
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Factory that takes care of extracting meta data from S1 input files.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         # find DEMs that intersect the input image
         meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath))
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
@@ -861,13 +881,15 @@ class SARDEMProjection(OTBStepFactory):
 
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Complete meta information with hook for updating image metadata
         w/ directiontoscandemc, directiontoscandeml and gain.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
+        assert 'inputs' in meta, f"Meta data shall have been filled with inputs"
+        # meta['inputs'] = all_inputs
         return meta
 
     def add_image_metadata(self, meta):
@@ -893,9 +915,10 @@ class SARDEMProjection(OTBStepFactory):
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
 
         assert self.app
-        meta['directiontoscandeml'] = self.app.GetParameterInt('directiontoscandeml')
-        meta['directiontoscandemc'] = self.app.GetParameterInt('directiontoscandemc')
-        meta['gain']                = self.app.GetParameterFloat('gain')
+        # Pointless here! :(
+        # meta['directiontoscandeml'] = self.app.GetParameterInt('directiontoscandeml')
+        # meta['directiontoscandemc'] = self.app.GetParameterInt('directiontoscandemc')
+        # meta['gain']                = self.app.GetParameterFloat('gain')
         dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', meta['directiontoscandeml'])
         dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', meta['directiontoscandemc'])
         dst.SetMetadataItem('PRJ.GAIN',                meta['gain'])
@@ -908,7 +931,9 @@ class SARDEMProjection(OTBStepFactory):
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
         nodata = meta.get('nodata', -32768)
-        indem = quivabien('dem')
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        indem = _fetch_input_data('indem', inputs).out_filename
         return {
                 'ram'        : str(self.ram_per_process),
                 'insar'      : in_filename(meta),
@@ -960,15 +985,40 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
 
-    def complete_meta(self, meta):
+    def _get_canonical_input(self, inputs):
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+        By default, if there is only one input, this will be the one returned.
+        Steps will multiple inputs will need to override this method.
+        """
+        _check_input_step_type(inputs)
+        assert len(inputs) == 3, f'Expecting 3 inputs. {len(inputs)} are found: {keys}'
+        keys = set().union(*(input.keys() for input in inputs))
+        assert 'indemproj' in keys
+        return [input['indemproj'] for input in inputs if 'indemproj' in input.keys()][0]
+
+    def complete_meta(self, meta, all_inputs):
         """
         Complete meta information with hook for updating image metadata
         w/ directiontoscandemc, directiontoscandeml and gain.
         """
-        meta = super().complete_meta(meta)
+        inputpath = out_filename(meta) # needs to be done before super.complete_meta!!
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
-            self.fetch_direction(meta)
+            self.fetch_direction(inputpath, meta)
         return meta
+
+    def fetch_direction(self, inputpath, meta):
+        logger.debug('Set metadata in %s', inputpath)
+        logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
+        dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
+        # TODO: Test on real file!
+        if not dst:
+            raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath} to collect scan direction metadata.")
+        # TODO: Abort if meta data is not set!
+        meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
+        meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
 
     def parameters(self, meta):
         """
@@ -977,11 +1027,14 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
         coordinates of each point of the origin S1 image.
         """
-        indem     = quivabien('dem')
-        indemproj = quivabien('demproj')
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        insar     = _fetch_input_data('insar', inputs).out_filename
+        indem     = _fetch_input_data('indem', inputs).out_filename
+        indemproj = _fetch_input_data('indemproj', inputs).out_filename
         return {
                 'ram'             : str(self.ram_per_process),
-                'insar'           : in_filename(meta),
+                'insar'           : insar,
                 'indem'           : indem,
                 'indemproj'       : indemproj,
                 'indirectiondemc' : meta['directiontoscandemc'],
@@ -1137,12 +1190,12 @@ class OrthoRectifyLIA(OTBStepFactory):
         # Some workaround when ortho is not sequenced long with calibration
         self.__calibration_type     = cfg.calibration_type
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
         """
-        meta = super().complete_meta(meta)
+        meta = super().complete_meta(meta, all_inputs)
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.add_ortho_metadata)
 
@@ -1272,7 +1325,7 @@ class ConcatenateLIA(OTBStepFactory):
         logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
         meta['tile_coverage'] = coverage
 
-    def complete_meta(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
         Precompute output basename from the input file(s).
         Makes sure the :std:doc:`Synthetize OTB application
@@ -1282,7 +1335,7 @@ class ConcatenateLIA(OTBStepFactory):
         In concatenation case, the task_name needs to be overridden to stay
         unique and common to all inputs.
         """
-        meta = super().complete_meta(meta)  # Needs a valid basename
+        meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.clear_ortho_tmp)
 
@@ -1359,7 +1412,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
         logger.debug("Directly execute %s step", self.name)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta)
+        meta = self.complete_meta(input.meta, inputs)
         res = NullStep('move', **meta)
         return res
 
