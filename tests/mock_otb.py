@@ -157,6 +157,7 @@ class MockOTBApplication:
         logging.debug('Register new know file %s -> %s', self.out_filename, file_produced)
         self.__mock_ctx.known_files.append(file_produced)
 
+
 class CommandLine:
     """
     Helper class that contains either:
@@ -209,6 +210,7 @@ class CommandLine:
     def __str__(self):
         return _as_cmdline_call(self.__parameters)
 
+
 class OTBApplicationsMockContext:
     """
     Mocking context where OTB/S1Tiling expected application calls are cached.
@@ -241,6 +243,13 @@ class OTBApplicationsMockContext:
         msg = ' '.join([str(p) for p in cmdlinelist])
         logging.info('Mocking execution of: %s', msg)
         self.assert_execution_is_expected(cmdlinelist)
+        # It's quite complex to deduce the name of the "out" product for all situation.
+        # As so far there is only one executable: gdalbuildvrt and as the output is the
+        # first parameter, let's rely on this!
+        assert cmdlinelist[0] == 'gdalbuildvrt'
+        file_produced = self.tmp_to_out(cmdlinelist[1])
+        logging.debug('Register new know file %s -> %s', cmdlinelist[1], file_produced)
+        self.known_files.append(file_produced)
 
     def create_application(self, appname):
         logging.info('Creating mocked application: %s', appname)

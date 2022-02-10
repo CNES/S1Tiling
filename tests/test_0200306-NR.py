@@ -163,28 +163,36 @@ def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, ram
 class FileDB:
     FILES = [
             {
-                's1dir'          : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1file'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'cal_ok'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tiff',
-                'ortho_ready'    : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff',
-                'orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044150',
-                'tmp_cal_ok'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
-                'tmp_ortho_ready': 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
-                'tmp_orthofile'  : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
-                'vrt'            : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt',
-                'dem_coverage'   : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                's1dir'              : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+                's1file'             : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'cal_ok'             : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tiff',
+                'ortho_ready'        : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff',
+                'orthofile'          : 's1a_33NWB_vv_DES_007_20200108t044150',
+                'tmp_cal_ok'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
+                'tmp_ortho_ready'    : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
+                'tmp_orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
+                'vrt'                : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt',
+                'dem_coverage'       : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'sardemprojfile'     : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
                 },
             {
-                's1dir'          : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1file'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'cal_ok'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tiff',
-                'ortho_ready'    : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tiff',
-                'orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044215',
-                'tmp_cal_ok'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tiff',
-                'tmp_ortho_ready': 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tiff',
-                'tmp_orthofile'  : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
-                'vrt'            : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.vrt',
-                'dem_coverage'   : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                's1dir'              : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                's1file'             : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'cal_ok'             : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tiff',
+                'ortho_ready'        : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tiff',
+                'orthofile'          : 's1a_33NWB_vv_DES_007_20200108t044215',
+                'tmp_cal_ok'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tiff',
+                'tmp_ortho_ready'    : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tiff',
+                'tmp_orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
+                'vrt'                : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.vrt',
+                'dem_coverage'       : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                'sardemprojfile'     : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
                 }
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
@@ -196,21 +204,25 @@ class FileDB:
         self.__output_dir     = outputdir
         self.__tile           = tile
         self.__tmp_to_out_map = {
-                self.tmp_cal_ok(0)        : self.cal_ok(0),
-                self.tmp_cal_ok(1)        : self.cal_ok(1),
-                self.tmp_ortho_ready(0)   : self.ortho_ready(0),
-                self.tmp_ortho_ready(1)   : self.ortho_ready(1),
-                self.tmp_orthofile(0)     : self.orthofile(0),
-                self.tmp_orthofile(1)     : self.orthofile(1),
-                self.tmp_concatfile(None) : self.concatfile(None),
-                self.tmp_concatfile(0)    : self.concatfile(0),
-                self.tmp_concatfile(1)    : self.concatfile(1),
-                self.tmp_masktmp(None)    : self.masktmp(None),
-                self.tmp_masktmp(0)       : self.masktmp(0),
-                self.tmp_masktmp(1)       : self.masktmp(1),
-                self.tmp_maskfile(None)   : self.maskfile(None),
-                self.tmp_maskfile(0)      : self.maskfile(0),
-                self.tmp_maskfile(1)      : self.maskfile(1),
+                self.tmp_cal_ok(0)         : self.cal_ok(0),
+                self.tmp_cal_ok(1)         : self.cal_ok(1),
+                self.tmp_ortho_ready(0)    : self.ortho_ready(0),
+                self.tmp_ortho_ready(1)    : self.ortho_ready(1),
+                self.tmp_orthofile(0)      : self.orthofile(0),
+                self.tmp_orthofile(1)      : self.orthofile(1),
+                self.tmp_concatfile(None)  : self.concatfile(None),
+                self.tmp_concatfile(0)     : self.concatfile(0),
+                self.tmp_concatfile(1)     : self.concatfile(1),
+                self.tmp_masktmp(None)     : self.masktmp(None),
+                self.tmp_masktmp(0)        : self.masktmp(0),
+                self.tmp_masktmp(1)        : self.masktmp(1),
+                self.tmp_maskfile(None)    : self.maskfile(None),
+                self.tmp_maskfile(0)       : self.maskfile(0),
+                self.tmp_maskfile(1)       : self.maskfile(1),
+                self.tmp_sardemprojfile(0) : self.sardemprojfile(0),
+                self.tmp_sardemprojfile(1) : self.sardemprojfile(1),
+                self.tmp_xyzfile(0)        : self.xyzfile(0),
+                self.tmp_xyzfile(1)        : self.xyzfile(1),
                 }
 
     @property
@@ -312,6 +324,16 @@ class FileDB:
         return f'{self.__tmp_dir}/S1/{self.FILES[idx]["vrt"]}'
     def dem_coverage(self, idx):
         return self.FILES[idx]['dem_coverage']
+    def sardemprojfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["sardemprojfile"]}'
+    def tmp_sardemprojfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_sardemprojfile"]}'
+    def xyzfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["xyzfile"]}'
+    def tmp_xyzfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_xyzfile"]}'
+    def tmp_xyzfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_xyzfile"]}'
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
@@ -333,7 +355,17 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('os.path.isfile', lambda file : isfile(file, known_files))
     # TODO: Test written meta data as well
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt : True)
+    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt : True)
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', lambda slf, mt : True)
     mocker.patch('s1tiling.libs.otbpipeline.commit_otb_application', lambda tmp, out : True)
+
+    def mock_direction_to_scan(slf, meta):
+        logging.debug('Mocking direction to scan')
+        meta['directiontoscandeml'] = 12
+        meta['directiontoscandemc'] = 24
+        meta['gain']                = 42
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
 
 
 def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
@@ -487,8 +519,32 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
         # exp_out_vrt       = '%s/DEM_%s.vrt' % (out_path, '_'.join(exp_srtm_names))
         # exp_out_vrt       = '%s/%s' % (out_path, file_db.vrtfile(idx))
         exp_out_vrt       = file_db.vrtfile(idx)
+        exp_out_dem       = file_db.sardemprojfile(idx)
         exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
         application_mocker.set_expectations('gdalbuildvrt', [exp_out_vrt] + exp_in_srtm_files, None)
+
+        application_mocker.set_expectations('SARDEMProjection', {
+            'ram'        : '2048',
+            'insar'      : file_db.input_file_vv(idx),
+            'indem'      : exp_out_vrt,
+            'withxyz'    : True,
+            'nodata'     : -32768,
+            # 'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(idx),
+            'out'        : file_db.tmp_sardemprojfile(idx),
+            }, None)
+
+        application_mocker.set_expectations('SARCartesianMeanEstimation', {
+            'ram'             : '2048',
+            'insar'           : file_db.input_file_vv(idx),
+            'indem'           : exp_out_vrt,
+            'indemproj'       : exp_out_dem,
+            'indirectiondeml' : 12,
+            'indirectiondemc' : 24,
+            'mlran'           : 1,
+            'mlazi'           : 1,
+            # 'out'           : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(idx),
+            'out'             : file_db.tmp_xyzfile(idx),
+            }, None)
 
     s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
