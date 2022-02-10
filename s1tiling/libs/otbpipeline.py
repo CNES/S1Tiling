@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -468,7 +468,7 @@ class StepFactory(ABC):
         """
         pass
 
-    def complete_meta(self, meta):  # to be overridden
+    def complete_meta(self, meta, all_inputs):  # to be overridden
         """
         Duplicates, completes, and return, the `meta` dictionary with specific
         information for the current factory regarding :class:`Step` instanciation.
@@ -488,7 +488,9 @@ class StepFactory(ABC):
         else:
             # If this error is raised, this means the current step has several
             # inputs, it it need to tell how the "main" input is found.
-            raise TypeError("No way to handle a multiple inputs step from StepFactory.")
+            keys = set().union(*(input.keys() for input in inputs))
+            raise TypeError("No way to handle a multiple-inputs (%s) step from StepFactory: %s"
+                    % (keys, self.__class__.__name__,))
 
     def create_step(self, inputs: AbstractStep, in_memory: bool, unused_previous_steps):
         """
@@ -508,7 +510,7 @@ class StepFactory(ABC):
         # TODO: distinguish step description & step
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta)
+        meta = self.complete_meta(input.meta, inputs)
 
         # Return previous app?
         return AbstractStep(**meta)
@@ -1239,6 +1241,9 @@ class StoreStep(_StepWithOTBApplication):
                 commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not is_running_dry(self.meta):
             for hook in self.meta['post']:
+                # Note: we can't extract and pass meta-data around from this hook
+                # Indeed the hook is executed at StoreFactory level, while metadata
+                # are passed around between around Factories and Steps.
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]
 
@@ -1437,7 +1442,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta)
+        meta = self.complete_meta(input.meta, inputs)
         assert self.appname
 
         # Otherwise: step with an OTB application...
@@ -1514,7 +1519,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         logger.debug("Directly execute %s step", self.name)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta)
+        meta = self.complete_meta(input.meta, inputs)
         res = ExecutableStep(self._exename, **meta)
         parameters = self.parameters(meta)
         res.execute_and_write_output(parameters)
