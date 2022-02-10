@@ -3,6 +3,17 @@
 Release notes
 =============
 
+Version 0.3.2
+-------------
+
+Improvements for version 0.3
+
+v0.3.2 Improvements 
++++++++++++++++++++
+
+- Avoid downloading of already processed S1 images
+    (`#107 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/107>`_).
+
 Version 0.3.1
 -------------
 
