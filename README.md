@@ -1,6 +1,10 @@
 # S1Tiling
-Read the full documentation at
-https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest
+
+
+[![Sources](https://img.shields.io/badge/sources-gitlab.OTB-informational)](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling)
+[![Fury](https://badge.fury.io/py/S1Tiling.svg)](https://badge.fury.io/py/S1Tiling)
+[![Docs (latest)](https://img.shields.io/badge/docs-passing-brightgreen)](https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest/)
+[![S1Tiling Discourse (status)](https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.orfeo-toolbox.org%2F)](https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11)
 
 On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -14,7 +18,7 @@ applications.
 Sentinel-1 data is ortho-rectified on the Sentinel-2 grid to promote joint use
 of both missions.
 
-S1Tiling was developed within the CNES radar service, in collaboration with
+__S1Tiling__ was developed within the CNES radar service, in collaboration with
 CNES, to generate time series of calibrated, ortho-rectified and filtered
 Sentinel-1 images on any terrestrial region of the Earth. The tool benefits for
 the SAR ortho-rectification application
@@ -36,6 +40,9 @@ water stocks in India.In addition, this software is accessible as an on-demand
 processing service on the French PEPS collaborative ground segment, in order to
 make it easier for users to use.
 
+The reference documentation is provided at
+https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest. And the source code
+is always available at https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.
 
 # Installation
 
@@ -44,7 +51,7 @@ regarding OTB and GDAL installation.
 
 ## Requirements
 
-* OTB 7.2
+* OTB 7.4
 * GDAL with python bindings as well
 * Python 3
   * click
