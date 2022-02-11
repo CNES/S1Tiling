@@ -129,8 +129,13 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
     sat, start = prod_re.match(product.as_dict()['id']).groups()
     for pol in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        pat = '%s_%s_%s_*_%stxxxxxx.tif' % (sat.lower(), tile_name, pol, start)
-        found = fnmatch.filter(s2images, pat)
+        #pat = '%s_%s_%s_*_%stxxxxxx.tif' % (sat.lower(), tile_name, pol, start)
+        #pat_filtered = '%s_%s_%s_*_%stxxxxxx_filtered.tif' % (sat.lower(), tile_name, 'vh', start)
+
+        pat = '%s_%s_%s_*_%st??????.tif' % (sat.lower(), tile_name, pol, start)
+        pat_filtered = '%s_%s_%s_*_%st??????_filtered.tif' % (sat.lower(), tile_name, 'vh', start)
+
+        found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
         logger.debug('searching w/ %s ==> Found: %s', pat, found)
         if not found:
             return True
@@ -426,7 +431,7 @@ class S1FileManager:
         polarizations = polarization.lower().split(' ')
         s2images_pat = 's1?_%s_*.tif' % (tile_name, )
         logger.debug('search %s for %s', s2images_pat, polarizations)
-        s2images = glob.glob1(tile_out_dir, s2images_pat)
+        s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(p, tile_name, polarizations, s2images)
                 ]
