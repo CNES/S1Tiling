@@ -362,8 +362,9 @@ PBS job file
     mkdir -p "${PBS_O_WORKDIR}/${PBS_JOBID}"
     cd "${PBS_O_WORKDIR}/${PBS_JOBID}"
     S1Processor S1Processor.cfg || {
+        code=$?
         echo "Echec de l'exécution de programme" >&2
-        exit 2
+        exit ${code}
     }
 
 
