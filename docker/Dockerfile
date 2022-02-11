@@ -1,6 +1,6 @@
 # =========================================================================
 #
-#   Copyright 2021 (c) CS Group France. All rights reserved.
+#   Copyright 2022 (c) CS Group France. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
