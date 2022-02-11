@@ -139,10 +139,13 @@ class ExtractSentinel1Metadata(StepFactory):
         Steps will multiple inputs will need to override this method.
         """
         _check_input_step_type(inputs)
-        assert len(inputs) == 2, f'Expecting 2 inputs. {len(inputs)} are found: {keys}'
         keys = set().union(*(input.keys() for input in inputs))
-        assert 'insar' in keys
-        return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
+        assert 1 <= len(inputs) <= 2, f'Expecting 1 or 2 inputs. {len(inputs)} are found: {keys}'
+        if len(inputs) == 1:  # Usual case
+            return list(inputs[0].values())[0]
+        else:                 # LIA case
+            assert 'insar' in keys
+            return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
 
     def complete_meta(self, meta, all_inputs):
         """
@@ -992,8 +995,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         Steps will multiple inputs will need to override this method.
         """
         _check_input_step_type(inputs)
-        assert len(inputs) == 3, f'Expecting 3 inputs. {len(inputs)} are found: {keys}'
         keys = set().union(*(input.keys() for input in inputs))
+        assert len(inputs) == 3, f'Expecting 3 inputs. {len(inputs)} are found: {keys}'
         assert 'indemproj' in keys
         return [input['indemproj'] for input in inputs if 'indemproj' in input.keys()][0]
 
@@ -1088,7 +1091,7 @@ class ComputeNormals(OTBStepFactory):
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
-        xyz = quivabien('xyz')
+        xyz = out_filename(meta)
         return {
                 'ram'             : str(self.ram_per_process),
                 'xyz'             : xyz,
@@ -1131,14 +1134,24 @@ class ComputeLIA(OTBStepFactory):
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
 
+    def complete_meta(self, meta, all_inputs):
+        """
+        Complete meta information with inputs
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
+        return meta
+
     def parameters(self, meta):
         """
         Returns the parameters to use with
         :std:doc:`SARComputeLocalIncidenceAngle OTB application
         <Applications/app_SARComputeLocalIncidenceAngle>`.
         """
-        xyz     = quivabien('xyz')
-        normals = quivabien('normals')
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        xyz     = _fetch_input_data('xyz', inputs).out_filename
+        normals = _fetch_input_data('normals', inputs).out_filename
         return {
                 'ram'             : str(self.ram_per_process),
                 'in.xyz'          : xyz,
