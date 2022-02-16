@@ -73,6 +73,69 @@ def otb_version():
     return otb_version._version
 
 
+def as_list(param):
+    if isinstance(param, list):
+        return param
+    else:
+        return [param]
+
+
+class OutputFilenameGenerator(ABC):
+    """
+    Abstract class for generating filenames.
+    Several policies are supported as of now:
+    - return the input string (default implementation)
+    - replace a text with another one
+    - {template} strings
+    - list of any of the other two
+    """
+    def generate(self, basename, keys):
+        """
+        Default implementation does nothing.
+        """
+        return basename
+
+
+class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
+    """
+    Specialization built from a pair ``[text_to_search, text_to_replace_with]``.
+    """
+    def __init__(self, before_afters):
+        assert isinstance(before_afters, list)
+        self.__before_afters = before_afters
+
+    def generate(self, basename, keys):
+        filename = basename.replace(*self.__before_afters)
+        return filename
+
+
+class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
+    """
+    Specialization built from a template: ``"text{key1}_{another_key}_.."``
+    """
+    def __init__(self, template):
+        assert isinstance(template, str)
+        self.__template = template
+
+    def generate(self, basename, keys):
+        rootname = os.path.splitext(basename)[0]
+        filename = self.__template.format(**keys, rootname=rootname)
+        return filename
+
+
+class OutputFilenameGeneratorList(OutputFilenameGenerator):
+    """
+    Specialization used to generate several output filenames.
+    """
+    def __init__(self, generators):
+        assert isinstance(generators, list)
+        self.__generators = generators
+
+    def generate(self, basename, keys):
+        filenames = [generator.generate(basename, keys) for generator in self.__generators]
+        return filenames
+
+
 def as_app_shell_param(param):
     """
     Internal function used to stringigy value to appear like a a parameter for a program
@@ -333,6 +396,15 @@ class _StepWithOTBApplication(AbstractStep):
         Default is likely to be "out", whie some applications use "io.out".
         """
         return self._out
+
+    def set_out_parameters(self):
+        p_out = as_list(self.param_out)
+        files = as_list(self.tmp_filename)
+        assert self._app
+        for po, tmp in zip(p_out, files):
+            assert isinstance(po, str), f"String expected for param_out={po}"
+            assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
+            self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
 
 
 class Step(_StepWithOTBApplication):
@@ -1027,6 +1099,13 @@ class PipelineDescriptionSequence:
                     expected_taskname = get_task_name(expected)
                     logger.debug('  %s <-- from input: %s', expected_taskname, input)
                     logger.debug('  --> %s', expected)
+                    # TODO: Correctly handle the case where a task produce several
+                    # filenames. In that case we shall have only one task, but possibly,
+                    # several following task may depend on the current task.
+                    # For the moment, just keep the first
+                    if isinstance(expected_taskname, list):
+                        expected_taskname = expected_taskname[0] # TODO: see comment aove
+
                     # We cannot analyse early whether a task product is already
                     # there as some product have names that depend on all inputs
                     # (see Concatenate).
@@ -1103,7 +1182,9 @@ class PipelineDescriptionSequence:
                 base_task_name = to_dask_key(task_name)
                 task_inputs    = previous[task_name].inputs
                 pipeline_descr = previous[task_name].pipeline
-                input_task_keys = [to_dask_key(tn) for tn in previous[task_name].input_task_names]
+                # TODO: support multiple outputs!
+                first = lambda files : files[0] if isinstance(files, list) else  files
+                input_task_keys = [to_dask_key(first(tn)) for tn in previous[task_name].input_task_names]
                 assert list(input_task_keys)
                 logger.debug('%s(%s) --> %s', task_name, list(input_task_keys), task_inputs)
                 # TODO: check whether the pipeline shall be instanciated w/
@@ -1115,7 +1196,7 @@ class PipelineDescriptionSequence:
                 register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
                 for t in previous[task_name].input_metas:  # check whether the inputs need to be produced as well
-                    tn = get_task_name(t)
+                    tn = first(get_task_name(t))
                     logger.debug('processing task %s', t)
                     if not product_exists(t):
                         logger.info('  => Need to register production of %s (for %s)', tn, pipeline_descr.name)
@@ -1244,9 +1325,10 @@ class StoreStep(_StepWithOTBApplication):
                 with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
                     # For OTB application execution, redirect stdout/stderr
                     # messages to s1tiling.OTB
-                    self._app.SetParameterString(
-                            self.param_out,
-                            self.tmp_filename + out_extended_filename_complement(self.meta))
+                    self.set_out_parameters()
+                    # self._app.SetParameterString(
+                    #         self.param_out,
+                    #         self.tmp_filename + out_extended_filename_complement(self.meta))
                     self._app.ExecuteAndWriteOutput()
                 commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not is_running_dry(self.meta):
@@ -1325,14 +1407,8 @@ class _FileProducingStepFactory(StepFactory):
         """
         Returns the pathless basename of the produced file (internal).
         """
-        if isinstance(self.__gen_output_filename, str):
-            rootname = os.path.splitext(meta['basename'])[0]
-            filename = self.__gen_output_filename.format(**meta, rootname=rootname)
-        else:
-            filename = meta['basename']
-            if self.__gen_output_filename:
-                filename = filename.replace(*self.__gen_output_filename)
-        return filename
+
+        return self.__gen_output_filename.generate(meta['basename'], meta)
 
     def build_step_output_filename(self, meta):
         """
@@ -1344,7 +1420,11 @@ class _FileProducingStepFactory(StepFactory):
         on ``meta['basename']``
         """
         filename = self._get_nominal_output_basename(meta)
-        return os.path.join(self.output_directory(meta), filename)
+        in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
+        if isinstance(filename, str):
+            return in_dir(filename)
+        else:
+            return [in_dir(fn) for fn in filename]
 
     def tmp_directory(self, meta):
         """
@@ -1366,7 +1446,11 @@ class _FileProducingStepFactory(StepFactory):
         will automatically insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
-        return os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', filename))
+        add_tmp = lambda fn : os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', fn))
+        if isinstance(filename, str):
+            return add_tmp(filename)
+        else:
+            return [add_tmp(fn) for fn in filename]
 
     @property
     def ram_per_process(self):
@@ -1400,6 +1484,10 @@ class OTBStepFactory(_FileProducingStepFactory):
 
         self._in                   = kwargs.get('param_in',  'in')
         self._out                  = kwargs.get('param_out', 'out')
+        # param_in is only used in connected mode. As such a string is expected.
+        assert self.param_in  is None or isinstance(self.param_in, str), f"String expected for {appname} param_in={self.param_in}"
+        # param_out is always used.
+        assert isinstance(self.param_out, (str, list)), f"String or list expected for {appname} param_out={self.param_out}"
         self._appname              = appname
         logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
 
@@ -1427,7 +1515,22 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         return self._out
 
-    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
+    def _get_inputs(self, previous_steps):
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method will need to be overridden in classes like
+        :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
+        """
+        # By default, simply return the last step information
+        assert len(previous_steps) > 0
+        inputs = previous_steps[-1]
+        _check_input_step_type(inputs)
+        return inputs
+
+    def create_step(self, inputs: list, in_memory: bool, previous_steps):
+        # TODO: remove inputs parameter
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1450,6 +1553,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         used in :func:`Store.create_step()` where it's eventually used to
         release all OTB Application objects.
         """
+        inputs = self._get_inputs(previous_steps)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
@@ -1475,6 +1579,8 @@ class OTBStepFactory(_FileProducingStepFactory):
                 # parameters[self.param_in] = input.out_filename
                 lg_from = input.out_filename
             else:
+                assert isinstance(self.param_in, str), f"String expected for {self.param_in}"
+                assert isinstance(input.param_out, str), f"String expected for {self.param_out}"
                 app.ConnectImage(self.param_in, input.app, input.param_out)
                 this_step_is_in_memory = in_memory and not input.shall_store
                 # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
@@ -1525,7 +1631,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         self._exename              = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
-    def create_step(self, inputs: list, in_memory: bool, previous_steps):
+    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
         logger.debug("Directly execute %s step", self.name)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)

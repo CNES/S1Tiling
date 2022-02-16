@@ -177,6 +177,8 @@ class FileDB:
                 'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
                 'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
                 'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'normalsfile'        : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_normalsfile'    : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
                 },
             {
                 's1dir'              : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
@@ -193,6 +195,8 @@ class FileDB:
                 'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
                 'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
                 'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'normalsfile'        : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_normalsfile'    : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
                 }
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
@@ -223,6 +227,8 @@ class FileDB:
                 self.tmp_sardemprojfile(1) : self.sardemprojfile(1),
                 self.tmp_xyzfile(0)        : self.xyzfile(0),
                 self.tmp_xyzfile(1)        : self.xyzfile(1),
+                self.tmp_normalsfile(0)    : self.normalsfile(0),
+                self.tmp_normalsfile(1)    : self.normalsfile(1),
                 }
 
     @property
@@ -332,8 +338,10 @@ class FileDB:
         return f'{self.__tmp_dir}/S1/{self.FILES[idx]["xyzfile"]}'
     def tmp_xyzfile(self, idx):
         return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_xyzfile"]}'
-    def tmp_xyzfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_xyzfile"]}'
+    def normalsfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["normalsfile"]}'
+    def tmp_normalsfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_normalsfile"]}'
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
@@ -529,7 +537,6 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'indem'      : exp_out_vrt,
             'withxyz'    : True,
             'nodata'     : -32768,
-            # 'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(idx),
             'out'        : file_db.tmp_sardemprojfile(idx),
             }, None)
 
@@ -545,6 +552,20 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             # 'out'           : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(idx),
             'out'             : file_db.tmp_xyzfile(idx),
             }, None)
+
+        application_mocker.set_expectations('ExtractNormalVector', {
+            'ram'             : '2048',
+            'inxyz'           : file_db.xyzfile(idx),
+            'out'             : 'ComputeNormals|>'+file_db.tmp_normalsfile(idx),
+            }, None)
+
+        # application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+        #     'ram'             : '2048',
+        #     'in.xyz'          : file_db.xyzfile(idx),
+        #     'in.normals'      : 'ComputeNormals|>'+file_db.normalsfile(idx),
+        #     'out.lia'         : file_db.tmp_LIAfile(idx),
+        #     'out.sin'         : file_db.tmp_sinLIAfile(idx),
+        #     }, None)
 
     s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,

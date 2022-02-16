@@ -41,7 +41,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data
+from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator, OutputFilenameGeneratorList, TemplateOutputFilenameGenerator, ReplaceOutputFilenameGenerator
 from . import Utils
 from ..__meta__ import __version__
 
@@ -277,7 +277,7 @@ class Calibrate(OTBStepFactory):
                 name='Calibration',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=['.tiff', '_calOk.tiff']
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tiff', '_calOk.tiff'])
                 )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
@@ -338,7 +338,7 @@ class CutBorders(OTBStepFactory):
                 appname='ResetMargin', name='BorderCutting',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=['.tiff', '_OrthoReady.tiff']
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tiff', '_OrthoReady.tiff'])
                 )
 
     def parameters(self, meta):
@@ -394,7 +394,7 @@ class OrthoRectify(OTBStepFactory):
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
-                gen_output_filename=fname_fmt
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt)
                 )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -591,7 +591,7 @@ class Concatenate(OTBStepFactory):
                 param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
-                gen_output_filename=None
+                gen_output_filename=OutputFilenameGenerator()
                 )
 
     def update_out_filename(self, meta, with_task_info):
@@ -712,7 +712,7 @@ class BuildBorderMask(OTBStepFactory):
                 appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=['.tif', '_BorderMask_TMP.tif']
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif'])
                 )
 
     def set_output_pixel_type(self, app, meta):
@@ -757,7 +757,7 @@ class SmoothBorderMask(OTBStepFactory):
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
-                gen_output_filename=['.tif', '_BorderMask.tif']
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif'])
                 )
 
     def set_output_pixel_type(self, app, meta):
@@ -809,7 +809,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
-                gen_output_filename=fname_fmt,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 name="AgglomerateDEM", exename='gdalbuildvrt',
                 *args, **kwargs)
         self.__srtm_db_filepath = cfg.srtm_db_filepath
@@ -865,10 +865,10 @@ class SARDEMProjection(OTBStepFactory):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
-                param_in=['insar', 'indem'], param_out='out',
+                param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=fname_fmt,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -970,10 +970,10 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         fname_fmt = 'XYZ_{polarless_basename}'
         super().__init__(cfg,
                 appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
-                param_in=['insar', 'indem', 'indemproj'], param_out='out',
+                param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=fname_fmt,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1073,7 +1073,7 @@ class ComputeNormals(OTBStepFactory):
                 param_in='xyz', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=fname_fmt,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1118,13 +1118,17 @@ class ComputeLIA(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        fname_fmt = 'LIA_{polarless_basename}'
+        # TODO: have a way to configure filenames
+        fname_fmt = [
+                TemplateOutputFilenameGenerator('LIA_{polarless_basename}'),
+                TemplateOutputFilenameGenerator('sin_LIA_{polarless_basename}')]
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
-                param_in=['in.normals', 'in.xyz'], param_out=['out.lia', 'out.sin'],
+                # In-memory connected to in.normals
+                param_in='in.normals', param_out=['out.lia', 'out.sin'],
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=fname_fmt,
+                gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1141,6 +1145,25 @@ class ComputeLIA(OTBStepFactory):
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
         return meta
+
+    def _get_inputs(self, previous_steps):
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method will is overridden in order to fetch N-1 "xyz" input.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        assert len(previous_steps) > 1
+
+        # "normals" is expected at level -1, likelly named '__last'
+        normals = _fetch_input_data('__last', previous_steps[-1])
+        # "xyz"     is expected at level -2, likelly named 'xyz'
+        xyz = _fetch_input_data('xyz', previous_steps[-2])
+
+        inputs = [{'normals': normals, 'xyz': xyz}]
+        _check_input_step_type(inputs)
+        return inputs
 
     def parameters(self, meta):
         """
@@ -1192,7 +1215,7 @@ class OrthoRectifyLIA(OTBStepFactory):
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
-                gen_output_filename=fname_fmt
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -1315,7 +1338,7 @@ class ConcatenateLIA(OTBStepFactory):
                 param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=fname_fmt
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def update_filename_meta(self, meta):
@@ -1399,7 +1422,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
         super().__init__(cfg, name='SelectBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
-                gen_output_filename=fname_fmt
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1421,7 +1444,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
 
         meta['reduce_inputs_in'] = reduce_LIAs
 
-    def create_step(self, inputs: list, in_memory: bool, previous_steps):
+    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
         logger.debug("Directly execute %s step", self.name)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
