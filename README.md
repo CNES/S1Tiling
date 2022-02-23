@@ -20,16 +20,20 @@ of both missions.
 
 __S1Tiling__ was developed within the CNES radar service, in collaboration with
 CESBIO, to generate time series of calibrated, ortho-rectified and filtered
-Sentinel-1 images on any lands on the Earth. The tool benefits for
-the SAR ortho-rectification application
+Sentinel-1 images on any lands on the Earth. The tool benefits for the SAR
+ortho-rectification application
 [from the Orfeo Tool Box](https://www.orfeo-toolbox.org/).
 
 The resulting images are registered to Sentinel-2 L2 optical images, using the
-same MGRS geographic reference grid ([S2 tiling system - kml file](https://sentinel.esa.int/documents/247904/1955685/S2A_OPER_GIP_TILPAR_MPC__20151209T095117_V20150622T000000_21000101T000000_B00.kml)). This Python software, is based on
-the Orfeo Tool Box (OTB) image processing library, developed by CNES. Different Sentinel-1 data providers can be used like [PEPS](https://peps.cnes.f) or [Copernicus Scihub](https://scihub.copernicus.eu). It can be used on any type of platform, from a
-large computing cluster to a laptop (the fan will make some noise during
-processing). It is considerably faster than the ortho-rectification tool in
-SNAP, and can be easily used in script form.
+same MGRS geographic reference grid ([S2 tiling system - kml file](https://sentinel.esa.int/documents/247904/1955685/S2A_OPER_GIP_TILPAR_MPC__20151209T095117_V20150622T000000_21000101T000000_B00.kml)).
+This Python software, is based on the Orfeo Tool Box (OTB) image processing
+library, developed by CNES. Different Sentinel-1 data providers can be used
+like [PEPS](https://peps.cnes.f) or
+[Copernicus Scihub](https://scihub.copernicus.eu).
+It can be used on any type of platform, from a large computing cluster to a
+laptop (the fan will make some noise during processing). It is considerably
+faster than the ortho-rectification tool in SNAP, and can be easily used in
+script form.
 
 S1Tiling is currently used for many applications, such deforestation detection
 in the Amazon, monitoring of rice crops in Southeast Asia or monitoring of
