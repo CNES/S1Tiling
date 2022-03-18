@@ -1091,7 +1091,7 @@ class ComputeNormals(OTBStepFactory):
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
-        xyz = out_filename(meta)
+        xyz = in_filename(meta)
         return {
                 'ram'             : str(self.ram_per_process),
                 'xyz'             : xyz,

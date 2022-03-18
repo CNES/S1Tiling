@@ -6,8 +6,10 @@ import logging
 import os
 import re
 
-k_input_keys  = ['io.in', 'in', 'il']
-k_output_keys = ['io.out', 'out']
+# WARNING: Update these lists everytime an OTB application with an original
+# naming scheme for its parameters is used.
+k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz']
+k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin']
 
 
 def isfile(filename, existing_files):
@@ -147,8 +149,10 @@ class MockOTBApplication:
             if k in self.parameters and isinstance(self.parameters[k], MockOTBApplication):
                 logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
                 self.parameters[k].execute_and_write_output(False)
-        logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.__params))
-        self.__mock_ctx.assert_app_is_expected(self.__appname, self.__params, self.__pixel_types)
+            # elif  k in self.parameters:
+            #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.__appname, k, type(self.parameters[k]))
+        logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.parameters))
+        self.__mock_ctx.assert_app_is_expected(self.__appname, self.parameters, self.__pixel_types)
 
     def ExecuteAndWriteOutput(self):
         self.execute_and_write_output(True)
@@ -312,7 +316,7 @@ class OTBApplicationsMockContext:
         self._update_output_to_final_filename(params)
         # logging.info('SEARCHING %s %s among %s', appname, _as_cmdline_call(params), self._remaining_expectations_as_str())
         for exp in self.__expectations:
-            # logging.debug('TEST %s agains %s', appname, exp)
+            # logging.debug('TEST %s against %s', appname, exp)
             if appname != exp['appname']:
                 continue
             assert exp['cmdline'].is_dict()
