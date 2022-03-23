@@ -203,7 +203,7 @@ def _fetch_input_data(key, inputs):
 
 def product_exists(meta):
     """
-    Helper accessor that teels whether the product described by the metadata
+    Helper accessor that tells whether the product described by the metadata
     already exists.
     """
     if 'does_product_exist' in meta:
@@ -251,7 +251,7 @@ def execute(params, dryrun):
     msg = ' '.join([str(p) for p in params])
     logging.info('$> '+msg)
     if not dryrun:
-        with ExecutionTimer(msg, True) as t:
+        with Utils.ExecutionTimer(msg, True) as t:
             subprocess.run(args=params, check=True)
 
 
