@@ -157,6 +157,13 @@ def LIA_file(idx=None):
         file = FILES[idx]["root"].format(kind='LIA')
         return f'{TMPDIR}/S1/{file}.tiff'
 
+def sin_LIA_file(idx=None):
+    if idx is None:
+        return f'{TMPDIR}/S1/sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+    else:
+        file = FILES[idx]["root"].format(kind='sin_LIA')
+        return f'{TMPDIR}/S1/{file}.tiff'
+
 def ortho_LIA_file(idx):
     file  = FILES[idx]['orthoLIA']
     return f'{TMPDIR}/S2/{TILE}/{file}.tif'
@@ -723,7 +730,7 @@ def two_ortho_LIA_depend_on_two_LIA_images(dependencies):
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == LIA_file(i)
+            assert [inp['out_filename'] for inp in inputs][0] == [LIA_file(i), sin_LIA_file(i)]
 
 
 @then('LIA images depend on XYZ images')
