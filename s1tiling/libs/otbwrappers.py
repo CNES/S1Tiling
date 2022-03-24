@@ -126,7 +126,6 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 
-
         # meta['task_basename']    = 'ExtractS1Meta_%s' % (meta['basename'], )
         meta['task_name']        = 'ExtractS1Meta_%s' % (meta['basename'], )
         # meta['task_name']        = 'ExtractS1Meta_%s' % (os.path.join(out_dir, meta['basename']), )
@@ -870,6 +869,7 @@ class SARDEMProjection(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
+        self.__srtm_db_filepath = cfg.srtm_db_filepath
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -893,6 +893,12 @@ class SARDEMProjection(OTBStepFactory):
         append_to(meta, 'post', self.add_image_metadata)
         assert 'inputs' in meta, f"Meta data shall have been filled with inputs"
         # meta['inputs'] = all_inputs
+
+        # TODO: The following has been duplicated from AgglomerateDEM.
+        # See to factorize this code
+        # find DEMs that intersect the input image
+        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath))
+        logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
     def add_image_metadata(self, meta):
@@ -1130,6 +1136,15 @@ class ComputeLIA(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 )
+
+    def update_filename_meta(self, meta):
+        """
+        Update "does_product_exist" hook to take into account the multiple
+        output files produced by ComputeLIA
+        """
+        meta = super().update_filename_meta(meta)
+        meta['does_product_exist'] = lambda : all(os.path.isfile(of) for of in out_filename(meta))
+        return meta
 
     def _update_filename_meta_pre_hook(self, meta):
         """
