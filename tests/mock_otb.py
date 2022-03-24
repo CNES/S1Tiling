@@ -130,18 +130,18 @@ class MockOTBApplication:
         return self.__appname
 
     @property
-    def out_filename(self):
-        for kv in k_output_keys:
-            if kv in self.__params:
-                return self.__params[kv]
-        assert ('%s has no output filename (--> %s)' % (self.__appname, _as_cmdline_call(self.__params)))
+    def out_filenames(self):
+        # We may actually have several ouputs => always return a list
+        filenames = [self.__params[kv] for kv in k_output_keys if kv in self.__params]
+        assert filenames, ('%s has no output filename (--> %s)' % (self.__appname, _as_cmdline_call(self.__params)))
+        return filenames
 
     @property
-    def unextended_out_filename(self):
+    def unextended_out_filenames(self):
         """
-        Remove Extended Filename from ``out_filename``
+        Remove Extended Filename from ``out_filenames``
         """
-        return re.sub(r'\?.*$', '', self.out_filename)
+        return [re.sub(r'\?.*$', '', filename) for filename in self.out_filenames]
 
     def execute_and_write_output(self, is_top_level):
         # Simulate app at the start of the pipeline first
@@ -157,9 +157,10 @@ class MockOTBApplication:
     def ExecuteAndWriteOutput(self):
         self.execute_and_write_output(True)
         # register output as a known file from now on
-        file_produced = self.__mock_ctx.tmp_to_out(self.out_filename)
-        logging.debug('Register new know file %s -> %s', self.out_filename, file_produced)
-        self.__mock_ctx.known_files.append(file_produced)
+        for filename in self.out_filenames:
+            file_produced = self.__mock_ctx.tmp_to_out(filename)
+            logging.debug('Register new know file %s -> %s', filename, file_produced)
+            self.__mock_ctx.known_files.append(file_produced)
 
 
 class CommandLine:
