@@ -1334,7 +1334,7 @@ class StoreStep(_StepWithOTBApplication):
         if 'post' in self.meta and not is_running_dry(self.meta):
             for hook in self.meta['post']:
                 # Note: we can't extract and pass meta-data around from this hook
-                # Indeed the hook is executed at StoreFactory level, while metadata
+                # Indeed the hook is executed at Store Factory level, while metadata
                 # are passed around between around Factories and Steps.
                 hook(self.meta)
         self.meta['pipe'] = [self.out_filename]
@@ -1346,15 +1346,16 @@ def commit_otb_application(tmp_filename, out_fn):
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    res = shutil.move(tmp_filename, out_fn)
-    logger.debug('Renaming: %s <- mv %s %s', res, tmp_filename, out_fn)
+    logger.debug('Renaming: mv %s %s', tmp_filename, out_fn)
+    shutil.move(tmp_filename, out_fn)
     re_tiff = re.compile(r'\.tiff?$')
     tmp_geom = re.sub(re_tiff, '.geom', tmp_filename)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_fn)
-        res = shutil.move(tmp_geom, out_geom)
-        logger.debug('Renaming: %s <- mv %s %s', res, tmp_geom, out_geom)
+        shutil.move(tmp_geom, out_geom)
+        logger.debug('Renaming: mv %s %s', tmp_geom, out_geom)
     assert not os.path.isfile(tmp_filename)
+    assert os.path.isfile(out_fn)
 
 
 class _FileProducingStepFactory(StepFactory):
