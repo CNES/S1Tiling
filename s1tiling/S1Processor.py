@@ -70,7 +70,7 @@ from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
+        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
 from s1tiling.libs import exits
 
 # Graphs
@@ -242,6 +242,7 @@ def process_one_tile(
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
             debug_otb=debug_otb, do_watch_ram=do_watch_ram)
+    logger.debug('######################################################################')
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     results = []
     if debug_otb:
@@ -462,9 +463,12 @@ def s1_process_lia(config_opt,
 
         # "inputs" parameter doesn't need to be specified in the following pipeline declarations
         # but we still use it for clarity!
-        ortho  = pipelines.register_pipeline([OrthoRectifyLIA],    'OrthoLIA',                         inputs={'in': lia})
+        ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],    'OrthoLIA',      inputs={'in': lia}, is_name_incremental=True)
         concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
         select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, inputs={'in': concat})
+        ortho_sin  = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
+        concat_sin = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',                        inputs={'in': ortho_sin})
+        select_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
 
         return pipelines
 
@@ -476,7 +480,7 @@ def s1_process_lia(config_opt,
             debug_tasks=debug_tasks,
             )
 
-
+# ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.version_option()
 @click.option(
@@ -525,5 +529,47 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
     if nb_error_detected > 0:
         sys.exit(exits.TASK_FAILED)
 
+# ======================================================================
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.version_option()
+@click.option(
+        "--searched_items_per_page",
+        default=20,
+        help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def run_lia( searched_items_per_page, dryrun, debug_otb, watch_ram,
+         debug_tasks, config_filename):
+    """
+    This function is used as entry point to create console scripts with setuptools.
+
+    Returns the number of tasks that could not be processed.
+    """
+    nb_error_detected = s1_process_lia( config_filename,
+                searched_items_per_page=searched_items_per_page,
+                dryrun=dryrun,
+                debug_otb=debug_otb,
+                watch_ram=watch_ram,
+                debug_tasks=debug_tasks)
+    if nb_error_detected > 0:
+        sys.exit(exits.TASK_FAILED)
+
+# ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
     run()

@@ -145,6 +145,7 @@ setup(
     entry_points = {
         'console_scripts': [
             'S1Processor = s1tiling.S1Processor:run',
+            'S1LIAMap    = s1tiling.S1Processor:run_lia',
         ],
     },
 )
