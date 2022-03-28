@@ -426,12 +426,6 @@ class Step(_StepWithOTBApplication):
         del self._app
         super().release_app()  # resets self._app to None
 
-    def execute_and_write_output(self):  # pylint: disable=no-self-use
-        """
-        Method to call on the last step of a pipeline.
-        """
-        raise TypeError("A normal Step is not meant to be the last step of a pipeline!!!")
-
 
 def _check_input_step_type(inputs):
     """
@@ -463,15 +457,6 @@ class StepFactory(ABC):
         return self._name
 
     @abstractmethod
-    def parameters(self, meta):
-        """
-        Method to access the parameters to inject into the OTB application associated to the
-        current step.
-        This method will be specialized in child classes.
-        """
-        pass
-
-    @abstractmethod
     def build_step_output_filename(self, meta):
         """
         Filename of the step output.
@@ -492,21 +477,6 @@ class StepFactory(ABC):
         Once the application exits with success, the file will be renamed into
         :func:`build_step_output_filename()`, and possibly moved into
         :func:`output_directory()` if this is a final product.
-        """
-        pass
-
-    @abstractmethod
-    def output_directory(self, meta):
-        """
-        Output directory for the step product.
-        """
-        pass
-
-    def set_output_pixel_type(self, app, meta):
-        """
-        Permits to have steps force the output pixel data.
-        Does nothing by default.
-        Override this method to change the output pixel type.
         """
         pass
 
@@ -548,7 +518,7 @@ class StepFactory(ABC):
 
         Called from :func:`update_filename_meta()`
         """
-        pass
+        return meta
 
     def complete_meta(self, meta, all_inputs):  # to be overridden
         """
@@ -730,7 +700,7 @@ class Pipeline:
         assert self.__inputs
         logger.info("INPUTS: %s", self.__inputs)
         tested_files = list(Utils.flatten_stringlist([v.out_filename for inp in self.__inputs for _,v in inp.items()]))
-        logger.info("TESTING: %s", tested_files)
+        logger.info("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
         if len(missing_inputs) > 0 and not self.__dryrun:
             msg = "Cannot execute %s as the following input(s) %s do(es)n't exist" % (self, missing_inputs)
@@ -1118,7 +1088,7 @@ class PipelineDescriptionSequence:
                         # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [InputInfo(input)]}
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
                         previous[expected_taskname].add_input(origin, input, expected)
-                        logger.debug('This is a new product: %s, with a source from %s', expected_taskname, origin)
+                        logger.debug('This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif get_task_name(input) not in previous[expected_taskname].input_task_names:
                         # previous[expected_taskname]['inputs'].append(input)
                         if previous[expected_taskname].add_input(origin, input, expected):
@@ -1530,6 +1500,14 @@ class OTBStepFactory(_FileProducingStepFactory):
         _check_input_step_type(inputs)
         return inputs
 
+    def set_output_pixel_type(self, app, meta):
+        """
+        Permits to have steps force the output pixel data.
+        Does nothing by default.
+        Override this method to change the output pixel type.
+        """
+        pass
+
     def create_step(self, inputs: list, in_memory: bool, previous_steps):
         # TODO: remove inputs parameter
         """
@@ -1684,17 +1662,12 @@ class Store(StepFactory):
         return res
 
     # abstract methods...
-    def parameters(self, meta):
-        raise TypeError("No way to ask for the parameters from a StoreFactory")
-
-    def output_directory(self, meta):
-        raise TypeError("No way to ask for output dir of a StoreFactory")
 
     def build_step_output_filename(self, meta):
-        raise TypeError("No way to ask for the output filename of a StoreFactory")
+        raise TypeError("No way to ask for the output filename of a Store Factory")
 
     def build_step_output_tmp_filename(self, meta):
-        raise TypeError("No way to ask for the output temporary filename of a StoreFactory")
+        raise TypeError("No way to ask for the output temporary filename of a Store Factory")
 
 
 # ======================================================================

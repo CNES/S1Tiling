@@ -220,7 +220,6 @@ class AnalyseBorders(StepFactory):
         #     north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
         #     south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
 
-
         if self.__override_azimuth_cut_threshold_to is None:
             ds_reader = gdal.Open(meta['out_filename'])
             xsize = ds_reader.RasterXSize
@@ -415,81 +414,6 @@ class OrthoRectify(OTBStepFactory):
 
         # Some workaround when ortho is not sequenced long with calibration
         meta['calibration_type'] = self.__calibration_type
-
-        return meta
-        # V0
-        meta = super().complete_meta(meta, all_inputs)
-        manifest                = meta['manifest']
-        image                   = in_filename(meta)   # meta['in_filename']
-        # image                   = meta['basename']
-        tile_name               = meta['tile_name']
-        tile_origin             = meta['tile_origin']
-        logger.debug("OrthoRectify.complete_meta(%s) /// image: %s /// tile_name: %s", meta, image, tile_name)
-        current_date            = Utils.get_date_from_s1_raster(image)
-        current_polar           = Utils.get_polar_from_s1_raster(image)
-        current_platform        = Utils.get_platform_from_s1_raster(image)
-        # TODO: if the manifest is no longer here, we may need to look into the geom instead
-        # It'd actually be better
-        current_orbit_direction = Utils.get_orbit_direction(manifest)
-        current_relative_orbit  = Utils.get_relative_orbit(manifest)
-        out_utm_zone            = tile_name[0:2]
-        out_utm_northern        = (tile_name[2] >= 'N')
-        in_epsg                 = 4326
-        out_epsg                = 32600 + int(out_utm_zone)
-        if not out_utm_northern:
-            out_epsg = out_epsg + 100
-
-        x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
-        lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
-
-        if not out_utm_northern and y_coord < 0:
-            y_coord += 10000000.
-            lry     += 10000000.
-
-        working_directory = self.output_directory(meta)
-        meta['flying_unit_code'] = current_platform
-        meta['polarisation']     = current_polar
-        meta['orbit_direction']  = current_orbit_direction
-        meta['orbit']            = '{:0>3d}'.format(current_relative_orbit)
-        meta['acquisition_time'] = current_date
-        ortho_image_name_fmt = current_platform\
-                + "_" + tile_name\
-                + "_" + current_polar\
-                + "_" + current_orbit_direction\
-                + '_{:0>3d}'.format(current_relative_orbit)\
-                + "_" + current_date\
-                + ".%s"
-        out_filename_fmt = os.path.join(working_directory, ortho_image_name_fmt)
-        meta['out_filename']     = out_filename_fmt % ('tif', )
-        # ortho product goes to tmp dir, it's perfect for the tmp file as well
-        meta['out_tmp_filename'] = out_filename_fmt % ('tmp.tif', )
-        spacing = self.__out_spatial_res
-        logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
-        meta['params.ortho'] = {
-                'opt.ram'          : str(self.ram_per_process),
-                # 'progress'       : 'false',
-                self.param_in      : in_filename(meta),
-                # self.param_out     : out_filename,
-                'interpolator'     : self.__interpolation_method,
-                'outputs.spacingx' : spacing,
-                'outputs.spacingy' : -spacing,
-                'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
-                'outputs.sizey'    : int(round(abs(lry - y_coord) / spacing)),
-                'opt.gridspacing'  : self.__grid_spacing,
-                'map'              : 'utm',
-                'map.utm.zone'     : int(out_utm_zone),
-                'map.utm.northhem' : out_utm_northern,
-                'outputs.ulx'      : x_coord,
-                'outputs.uly'      : y_coord,
-                'elev.dem'         : self.__tmp_srtm_dir,
-                'elev.geoid'       : self.__GeoidFile
-                }
-        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
-        append_to(meta, 'post', self.add_ortho_metadata)
-
-        # Some workaround when ortho is not sequenced long with calibration
-        meta['calibration_type'] = self.__calibration_type
-
         return meta
 
     def parameters(self, meta):
