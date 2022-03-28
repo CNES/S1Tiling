@@ -432,8 +432,8 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
     mocker.patch('os.path.isfile', lambda file : isfile(file, known_files))
     # TODO: Test written meta data as well
-    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt : True)
-    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt : True)
+    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt, app : True)
+    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
     mocker.patch('s1tiling.libs.otbpipeline.commit_otb_application', lambda tmp, out : True)
 
     def mock_commit_otb_application_for_SelectLIA(inp, out):
@@ -443,7 +443,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
         known_files.remove(inp)
     mocker.patch('s1tiling.libs.otbwrappers.commit_otb_application', mock_commit_otb_application_for_SelectLIA)
 
-    def mock_add_image_metadata(slf, mt):
+    def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???
         fullpath = mt.get('out_filename')
         logging.debug('Mock Set metadata in %s', fullpath)

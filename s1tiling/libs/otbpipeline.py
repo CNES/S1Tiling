@@ -1071,7 +1071,7 @@ class PipelineDescriptionSequence:
                     logger.debug('  --> %s', expected)
                     # TODO: Correctly handle the case where a task produce several
                     # filenames. In that case we shall have only one task, but possibly,
-                    # several following task may depend on the current task.
+                    # several following tasks may depend on the current task.
                     # For the moment, just keep the first
                     if isinstance(expected_taskname, list):
                         expected_taskname = expected_taskname[0] # TODO: see comment aove
@@ -1165,7 +1165,7 @@ class PipelineDescriptionSequence:
                 logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, pipeline_descr.name, list(input_task_keys))
                 register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
-                for t in previous[task_name].input_metas:  # check whether the inputs need to be produced as well
+                for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
                     tn = first(get_task_name(t))
                     logger.debug('processing task %s', t)
                     if not product_exists(t):
@@ -1296,9 +1296,6 @@ class StoreStep(_StepWithOTBApplication):
                     # For OTB application execution, redirect stdout/stderr
                     # messages to s1tiling.OTB
                     self.set_out_parameters()
-                    # self._app.SetParameterString(
-                    #         self.param_out,
-                    #         self.tmp_filename + out_extended_filename_complement(self.meta))
                     self._app.ExecuteAndWriteOutput()
                 commit_otb_application(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not is_running_dry(self.meta):
@@ -1306,7 +1303,7 @@ class StoreStep(_StepWithOTBApplication):
                 # Note: we can't extract and pass meta-data around from this hook
                 # Indeed the hook is executed at Store Factory level, while metadata
                 # are passed around between around Factories and Steps.
-                hook(self.meta)
+                hook(self.meta, self.app)
         self.meta['pipe'] = [self.out_filename]
 
 

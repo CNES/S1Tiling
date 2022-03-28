@@ -52,7 +52,7 @@ def append_to(meta, key, value):
     """
     Helper function to append to a list that may be empty
     """
-    meta['post'] = meta.get('post', []) + [value]
+    meta[key] = meta.get(key, []) + [value]
     return meta
 
 
@@ -470,7 +470,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 }
         return parameters
 
-    def add_ortho_metadata(self, meta):
+    def add_ortho_metadata(self, meta, *args, **kwargs):
         """
         Post-application hook used to complete GDAL metadata.
         """
@@ -582,7 +582,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta
 
-    def clear_ortho_tmp(self, meta):
+    def clear_ortho_tmp(self, meta, *args, **kwargs):
         """
         Takes care of removing the orthorectified subtiles from the temporary
         directory once the concatenation has been done.
@@ -895,7 +895,7 @@ class SARDEMProjection(OTBStepFactory):
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
-    def add_image_metadata(self, meta):
+    def add_image_metadata(self, meta, app):
         """
         Post-application hook used to complete GDAL metadata.
         """
@@ -907,7 +907,8 @@ class SARDEMProjection(OTBStepFactory):
         dst.SetMetadataItem('ORBIT',                    meta['orbit'])
         dst.SetMetadataItem('ORBIT_DIRECTION',          meta['orbit_direction'])
         dst.SetMetadataItem('TIFFTAG_SOFTWARE',         'S1 Tiling v'+__version__)
-        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(in_filename(meta), meta['srtms']))
+        _, inbasename = os.path.split(in_filename(meta))
+        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(inbasename, meta['srtms']))
 
         acquisition_time = meta['acquisition_time']
         date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
@@ -917,14 +918,14 @@ class SARDEMProjection(OTBStepFactory):
             date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
 
-        assert self.app
         # Pointless here! :(
-        # meta['directiontoscandeml'] = self.app.GetParameterInt('directiontoscandeml')
-        # meta['directiontoscandemc'] = self.app.GetParameterInt('directiontoscandemc')
-        # meta['gain']                = self.app.GetParameterFloat('gain')
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', meta['directiontoscandeml'])
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', meta['directiontoscandemc'])
-        dst.SetMetadataItem('PRJ.GAIN',                meta['gain'])
+        assert app
+        meta['directiontoscandeml'] = app.GetParameterInt('directiontoscandeml')
+        meta['directiontoscandemc'] = app.GetParameterInt('directiontoscandemc')
+        meta['gain']                = app.GetParameterFloat('gain')
+        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', str(meta['directiontoscandeml']))
+        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', str(meta['directiontoscandemc']))
+        dst.SetMetadataItem('PRJ.GAIN',                str(meta['gain']))
         del dst
 
     def parameters(self, meta):
@@ -1005,7 +1006,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         Complete meta information with hook for updating image metadata
         w/ directiontoscandemc, directiontoscandeml and gain.
         """
-        inputpath = out_filename(meta) # needs to be done before super.complete_meta!!
+        inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
@@ -1013,15 +1014,15 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         return meta
 
     def fetch_direction(self, inputpath, meta):
-        logger.debug('Set metadata in %s', inputpath)
         logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
         dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
         # TODO: Test on real file!
         if not dst:
-            raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath} to collect scan direction metadata.")
-        # TODO: Abort if meta data is not set!
+            raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
         meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
         meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
+        if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
+            raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
 
     def parameters(self, meta):
         """
@@ -1040,8 +1041,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 'insar'           : insar,
                 'indem'           : indem,
                 'indemproj'       : indemproj,
-                'indirectiondemc' : meta['directiontoscandemc'],
-                'indirectiondeml' : meta['directiontoscandeml'],
+                'indirectiondemc' : int(meta['directiontoscandemc']),
+                'indirectiondeml' : int(meta['directiontoscandeml']),
                 'mlran'           : 1,
                 'mlazi'           : 1,
                 }
