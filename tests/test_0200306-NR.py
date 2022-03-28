@@ -17,6 +17,8 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
 
+from s1tiling.libs.otbpipeline import _fetch_input_data
+
 
 # ======================================================================
 # Full processing versions
@@ -54,7 +56,7 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram,
     return subprocess.call(args, cwd=crt_dir)
 
 
-def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -101,7 +103,7 @@ def test_33NWB_202001_NR(baselinedir, outputdir, tmpdir, srtmdir, ram, download,
     # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
-def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -163,48 +165,56 @@ def test_33NWB_202001_NR_masks_only(baselinedir, outputdir, tmpdir, srtmdir, ram
 class FileDB:
     FILES = [
             {
-                's1dir'              : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1file'             : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'cal_ok'             : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tiff',
-                'ortho_ready'        : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff',
-                'orthofile'          : 's1a_33NWB_vv_DES_007_20200108t044150',
-                'tmp_cal_ok'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
-                'tmp_ortho_ready'    : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
-                'tmp_orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
-                'vrt'                : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt',
-                'dem_coverage'       : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'sardemprojfile'     : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
-                'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
-                'normalsfile'        : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'tmp_normalsfile'    : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
-                'LIAfile'            : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'tmp_LIAfile'        : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
-                'sinLIAfile'         : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'tmp_sinLIAfile'     : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+                's1file'              : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'cal_ok'              : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tiff',
+                'ortho_ready'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff',
+                'orthofile'           : 's1a_33NWB_vv_DES_007_20200108t044150',
+                'tmp_cal_ok'          : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
+                'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
+                'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
+                'vrt'                 : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt',
+                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'xyzfile'             : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_xyzfile'         : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'normalsfile'         : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_normalsfile'     : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'LIAfile'             : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_LIAfile'         : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'sinLIAfile'          : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff',
+                'tmp_sinLIAfile'      : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tmp.tiff',
+                'orthoLIAfile'        : 'LIA_s1a_33NWB_DES_007_20200108t044150',
+                'tmp_orthoLIAfile'    : 'LIA_s1a_33NWB_DES_007_20200108t044150.tmp',
+                'orthosinLIAfile'     : 'sin_LIA_s1a_33NWB_DES_007_20200108t044150',
+                'tmp_orthosinLIAfile' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044150.tmp',
                 },
             {
-                's1dir'              : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1file'             : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'cal_ok'             : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tiff',
-                'ortho_ready'        : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tiff',
-                'orthofile'          : 's1a_33NWB_vv_DES_007_20200108t044215',
-                'tmp_cal_ok'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tiff',
-                'tmp_ortho_ready'    : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tiff',
-                'tmp_orthofile'      : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
-                'vrt'                : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.vrt',
-                'dem_coverage'       : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'sardemprojfile'     : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'tmp_sardemprojfile' : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
-                'xyzfile'            : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'tmp_xyzfile'        : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
-                'normalsfile'        : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'tmp_normalsfile'    : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
-                'LIAfile'            : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'tmp_LIAfile'        : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
-                'sinLIAfile'         : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'tmp_sinLIAfile'     : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                's1file'              : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'cal_ok'              : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tiff',
+                'ortho_ready'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tiff',
+                'orthofile'           : 's1a_33NWB_vv_DES_007_20200108t044215',
+                'tmp_cal_ok'          : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tiff',
+                'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tiff',
+                'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
+                'vrt'                 : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.vrt',
+                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'xyzfile'             : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_xyzfile'         : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'normalsfile'         : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_normalsfile'     : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'LIAfile'             : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_LIAfile'         : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'sinLIAfile'          : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tiff',
+                'tmp_sinLIAfile'      : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001.tmp.tiff',
+                'orthosinLIAfile'     : 'sin_LIA_s1a_33NWB_DES_007_20200108t044215',
+                'tmp_orthosinLIAfile' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044215.tmp',
+                'orthoLIAfile'        : 'LIA_s1a_33NWB_DES_007_20200108t044215',
+                'tmp_orthoLIAfile'    : 'LIA_s1a_33NWB_DES_007_20200108t044215.tmp',
                 }
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
@@ -216,31 +226,38 @@ class FileDB:
         self.__output_dir     = outputdir
         self.__tile           = tile
         self.__tmp_to_out_map = {
-                self.tmp_cal_ok(0)         : self.cal_ok(0),
-                self.tmp_cal_ok(1)         : self.cal_ok(1),
-                self.tmp_ortho_ready(0)    : self.ortho_ready(0),
-                self.tmp_ortho_ready(1)    : self.ortho_ready(1),
-                self.tmp_orthofile(0)      : self.orthofile(0),
-                self.tmp_orthofile(1)      : self.orthofile(1),
-                self.tmp_concatfile(None)  : self.concatfile(None),
-                self.tmp_concatfile(0)     : self.concatfile(0),
-                self.tmp_concatfile(1)     : self.concatfile(1),
-                self.tmp_masktmp(None)     : self.masktmp(None),
-                self.tmp_masktmp(0)        : self.masktmp(0),
-                self.tmp_masktmp(1)        : self.masktmp(1),
-                self.tmp_maskfile(None)    : self.maskfile(None),
-                self.tmp_maskfile(0)       : self.maskfile(0),
-                self.tmp_maskfile(1)       : self.maskfile(1),
-                self.tmp_sardemprojfile(0) : self.sardemprojfile(0),
-                self.tmp_sardemprojfile(1) : self.sardemprojfile(1),
-                self.tmp_xyzfile(0)        : self.xyzfile(0),
-                self.tmp_xyzfile(1)        : self.xyzfile(1),
-                self.tmp_normalsfile(0)    : self.normalsfile(0),
-                self.tmp_normalsfile(1)    : self.normalsfile(1),
-                self.tmp_LIAfile(0)        : self.LIAfile(0),
-                self.tmp_LIAfile(1)        : self.LIAfile(1),
-                self.tmp_sinLIAfile(0)        : self.sinLIAfile(0),
-                self.tmp_sinLIAfile(1)        : self.sinLIAfile(1),
+                self.tmp_cal_ok(0)              : self.cal_ok(0),
+                self.tmp_cal_ok(1)              : self.cal_ok(1),
+                self.tmp_ortho_ready(0)         : self.ortho_ready(0),
+                self.tmp_ortho_ready(1)         : self.ortho_ready(1),
+                self.tmp_orthofile(0)           : self.orthofile(0),
+                self.tmp_orthofile(1)           : self.orthofile(1),
+                self.tmp_concatfile(None)       : self.concatfile(None),
+                self.tmp_concatfile(0)          : self.concatfile(0),
+                self.tmp_concatfile(1)          : self.concatfile(1),
+                self.tmp_masktmp(None)          : self.masktmp(None),
+                self.tmp_masktmp(0)             : self.masktmp(0),
+                self.tmp_masktmp(1)             : self.masktmp(1),
+                self.tmp_maskfile(None)         : self.maskfile(None),
+                self.tmp_maskfile(0)            : self.maskfile(0),
+                self.tmp_maskfile(1)            : self.maskfile(1),
+
+                self.tmp_sardemprojfile(0)      : self.sardemprojfile(0),
+                self.tmp_sardemprojfile(1)      : self.sardemprojfile(1),
+                self.tmp_xyzfile(0)             : self.xyzfile(0),
+                self.tmp_xyzfile(1)             : self.xyzfile(1),
+                self.tmp_normalsfile(0)         : self.normalsfile(0),
+                self.tmp_normalsfile(1)         : self.normalsfile(1),
+                self.tmp_LIAfile(0)             : self.LIAfile(0),
+                self.tmp_LIAfile(1)             : self.LIAfile(1),
+                self.tmp_sinLIAfile(0)          : self.sinLIAfile(0),
+                self.tmp_sinLIAfile(1)          : self.sinLIAfile(1),
+                self.tmp_orthoLIAfile(0)        : self.orthoLIAfile(0),
+                self.tmp_orthoLIAfile(1)        : self.orthoLIAfile(1),
+                self.tmp_orthosinLIAfile(0)     : self.orthosinLIAfile(0),
+                self.tmp_orthosinLIAfile(1)     : self.orthosinLIAfile(1),
+                self.tmp_concatLIAfile(None)    : self.concatLIAfile(None),
+                self.tmp_concatsinLIAfile(None) : self.concatsinLIAfile(None),
                 }
 
     @property
@@ -363,6 +380,39 @@ class FileDB:
     def tmp_sinLIAfile(self, idx):
         return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_sinLIAfile"]}'
 
+    def orthoLIAfile(self, idx):
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tif'
+    def tmp_orthoLIAfile(self, idx):
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["tmp_orthoLIAfile"]}.tif' + self.extended_geom_compress
+
+    def orthosinLIAfile(self, idx):
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tif'
+    def tmp_orthosinLIAfile(self, idx):
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["tmp_orthosinLIAfile"]}.tif' + self.extended_geom_compress
+
+    def concatLIAfile(self, idx):
+        if idx is None:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+        else:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tif'
+    def tmp_concatLIAfile(self, idx):
+        if idx is None:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
+        else:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tmp.tif'+self.extended_compress
+
+    def concatsinLIAfile(self, idx):
+        if idx is None:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+        else:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tif'
+    def tmp_concatsinLIAfile(self, idx):
+        if idx is None:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
+        else:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tmp.tif'+self.extended_compress
+
+
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
 
@@ -384,8 +434,26 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     # TODO: Test written meta data as well
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt : True)
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt : True)
-    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', lambda slf, mt : True)
     mocker.patch('s1tiling.libs.otbpipeline.commit_otb_application', lambda tmp, out : True)
+
+    def mock_commit_otb_application_for_SelectLIA(inp, out):
+        logging.debug('mock.mv %s %s', inp, out)
+        assert os.path.isfile(inp)
+        known_files.append(out)
+        known_files.remove(inp)
+    mocker.patch('s1tiling.libs.otbwrappers.commit_otb_application', mock_commit_otb_application_for_SelectLIA)
+
+    def mock_add_image_metadata(slf, mt):
+        # TODO: Problem: how can we pass around meta from different pipelines???
+        fullpath = mt.get('out_filename')
+        logging.debug('Mock Set metadata in %s', fullpath)
+        assert 'inputs' in mt, f'Looking for "inputs" in {mt.keys()}'
+        inputs = mt['inputs']
+        # indem = _fetch_input_data('indem', inputs)
+        # assert 'srtms' in indem.meta, f"Metadata don't contain 'srtms', only: {indem.meta.keys()}"
+        assert 'srtms' in mt, f"Metadata don't contain 'srtms', only: {mt.keys()}"
+        return mt
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
 
     def mock_direction_to_scan(slf, meta):
         logging.debug('Mocking direction to scan')
@@ -586,6 +654,58 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'out.lia'         : file_db.tmp_LIAfile(idx),
             'out.sin'         : file_db.tmp_sinLIAfile(idx),
             }, None)
+
+        application_mocker.set_expectations('OrthoRectification', {
+            'opt.ram'         : '2048',
+            'io.in'           : file_db.LIAfile(idx),
+            'interpolator'    : 'nn',
+            'outputs.spacingx': 10.0,
+            'outputs.spacingy': -10.0,
+            'outputs.sizex'   : 10980,
+            'outputs.sizey'   : 10980,
+            'opt.gridspacing' : 40.0,
+            'map'             : 'utm',
+            'map.utm.zone'    : 33,
+            'map.utm.northhem': True,
+            'outputs.ulx'     : 499979.99999484676,
+            'outputs.uly'     : 200040.0000009411,
+            'elev.dem'        : file_db.dem_file(),
+            'elev.geoid'      : configuration.GeoidFile,
+            'io.out'          : file_db.tmp_orthoLIAfile(idx),
+            }, None)
+
+        application_mocker.set_expectations('OrthoRectification', {
+            'opt.ram'         : '2048',
+            'io.in'           : file_db.sinLIAfile(idx),
+            'interpolator'    : 'nn',
+            'outputs.spacingx': 10.0,
+            'outputs.spacingy': -10.0,
+            'outputs.sizex'   : 10980,
+            'outputs.sizey'   : 10980,
+            'opt.gridspacing' : 40.0,
+            'map'             : 'utm',
+            'map.utm.zone'    : 33,
+            'map.utm.northhem': True,
+            'outputs.ulx'     : 499979.99999484676,
+            'outputs.uly'     : 200040.0000009411,
+            'elev.dem'        : file_db.dem_file(),
+            'elev.geoid'      : configuration.GeoidFile,
+            'io.out'          : file_db.tmp_orthosinLIAfile(idx),
+            }, None)
+
+    # endfor on 2 consecutive images
+
+    application_mocker.set_expectations('Synthetize', {
+        'ram'      : '2048',
+        'il'       : [file_db.orthoLIAfile(0), file_db.orthoLIAfile(1)],
+        'out'      : file_db.tmp_concatLIAfile(None),
+        }, None)
+
+    application_mocker.set_expectations('Synthetize', {
+        'ram'      : '2048',
+        'il'       : [file_db.orthosinLIAfile(0), file_db.orthosinLIAfile(1)],
+        'out'      : file_db.tmp_concatsinLIAfile(None),
+        }, None)
 
     s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,

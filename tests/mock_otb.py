@@ -240,6 +240,7 @@ class OTBApplicationsMockContext:
         return self.__known_files
 
     def tmp_to_out(self, tmp_filename):
+        # Remove queued applications
         parts = tmp_filename.split('|>')
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
         return res
@@ -334,7 +335,7 @@ class OTBApplicationsMockContext:
                 self.__expectations.remove(exp)
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
-        logging.error('Expectation NOT FOUND')
+        logging.error('NO expectation FOUND for %s %s', appname, _as_cmdline_call(params))
         assert False, f"Cannot find any matching expectation for {appname} {_as_cmdline_call(params)} among {self._remaining_expectations_as_str(appname)}"
 
     def assert_execution_is_expected(self, cmdlinelist):
