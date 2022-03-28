@@ -9,7 +9,7 @@ from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, Mer
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
-        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
+        filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 from s1tiling.libs.Utils import get_shape_from_polygon
 
@@ -299,7 +299,7 @@ def given_pipeline_ortho_n_concat_LIA(pipelines):
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
     lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA], 'Normals|LIA', product_required=False, is_name_incremental=True,
             inputs={'xyz': xyz})
-    ortho = pipelines.register_pipeline([OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
+    ortho = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
             inputs={'in': lia})
     concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=False, is_name_incremental=True,
             inputs={'in': ortho})
