@@ -98,7 +98,8 @@ class OutputFilenameGenerator(ABC):
 
 class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
     """
-    Specialization built from a pair ``[text_to_search, text_to_replace_with]``.
+    Given a pair ``[text_to_search, text_to_replace_with]``,
+    replace the exact matching text with new text.
     """
     def __init__(self, before_afters):
         assert isinstance(before_afters, list)
@@ -111,7 +112,8 @@ class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
 
 class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     """
-    Specialization built from a template: ``"text{key1}_{another_key}_.."``
+    Given a template: ``"text{key1}_{another_key}_.."``,
+    inject the metadata instead of the template keys.
     """
     def __init__(self, template):
         assert isinstance(template, str)
@@ -125,7 +127,10 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
 
 class OutputFilenameGeneratorList(OutputFilenameGenerator):
     """
-    Specialization used to generate several output filenames.
+    Some steps produce several products.
+    This specialization permits to generate several output filenames.
+
+    It's constructed from other filename generators.
     """
     def __init__(self, generators):
         assert isinstance(generators, list)
@@ -1613,6 +1618,10 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
     def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
+        """
+        This Step creation method does more than just creating the step.
+        It also executes immediately the external process.
+        """
         logger.debug("Directly execute %s step", self.name)
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)

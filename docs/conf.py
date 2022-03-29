@@ -51,6 +51,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
+    'sphinx.ext.inheritance_diagram',
     'm2r2'
 ]
 
@@ -244,3 +245,6 @@ intersphinx_mapping = {
     'https://docs.dask.org/en/latest/': None,
     'https://www.orfeo-toolbox.org/CookBook/': None
 }
+
+# Configuration for inheritance_diagram
+inheritance_graph_attrs = dict(rankdir="TB")

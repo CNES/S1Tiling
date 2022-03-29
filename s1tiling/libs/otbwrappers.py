@@ -86,12 +86,12 @@ class ExtractSentinel1Metadata(StepFactory):
         """
         return None
 
-    def output_directory(self, meta):
-        """
-        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
-        there is no output directory.
-        """
-        raise TypeError("An ExtractSentinel1Metadata step don't produce anything!")
+    # def output_directory(self, meta):
+    #     """
+    #     As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+    #     there is no output directory.
+    #     """
+    #     raise TypeError("An ExtractSentinel1Metadata step don't produce anything!")
 
     def build_step_output_filename(self, meta):
         """
@@ -183,12 +183,12 @@ class AnalyseBorders(StepFactory):
         """
         return None
 
-    def output_directory(self, meta):
-        """
-        As there is no OTB application associated to :class:`AnalyseBorders`,
-        there is no output directory.
-        """
-        raise TypeError("An AnalyseBorders step don't produce anything!")
+    # def output_directory(self, meta):
+    #     """
+    #     As there is no OTB application associated to :class:`AnalyseBorders`,
+    #     there is no output directory.
+    #     """
+    #     raise TypeError("An AnalyseBorders step don't produce anything!")
 
     def build_step_output_filename(self, meta):
         """
@@ -298,7 +298,6 @@ class Calibrate(OTBStepFactory):
         """
         params = {
                 'ram'           : str(self.ram_per_process),
-                # 'progress'    : 'false',
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
@@ -347,7 +346,6 @@ class CutBorders(OTBStepFactory):
         """
         params = {
                 'ram'              : str(self.ram_per_process),
-                # 'progress'       : 'false',
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'threshold.x'      : meta['cut']['threshold.x'],
@@ -403,7 +401,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
         self.__tmpdir               = cfg.tmpdir
-        # Some workaround when ortho is not sequenced long with calibration
+        # Some workaround when ortho is not sequenced along with calibration
         self.__calibration_type     = cfg.calibration_type
 
     def complete_meta(self, meta, all_inputs):
@@ -415,7 +413,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
         append_to(meta, 'post', self.add_ortho_metadata)
 
-        # Some workaround when ortho is not sequenced long with calibration
+        # Some workaround when ortho is not sequenced along with calibration
         meta['calibration_type'] = self.__calibration_type
         return meta
 
@@ -451,7 +449,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         parameters = {
                 'opt.ram'          : str(self.ram_per_process),
-                # 'progress'       : 'false',
                 self.param_in      : image,
                 # self.param_out     : out_filename,
                 'interpolator'     : self.__interpolation_method,
@@ -499,6 +496,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
         del dst
 
     def _add_extra_meta_data(self, dst, meta):
+        """
+        Variation point used by subclasses to add specific metadata.
+        """
         return dst
 
 
@@ -537,8 +537,12 @@ class OrthoRectify(_OrthoRectifierFactory):
         return in_filename(meta)   # meta['in_filename']
 
     def _add_extra_meta_data(self, dst, meta):
+        """
+        Add metadata specific to orthorectified S1 tiles.
+        """
         dst.SetMetadataItem('IMAGE_TYPE',   'GRD')
-        dst.SetMetadataItem('CALIBRATION',  str(meta['calibration_type']))
+        # TODO: Move CALIBRATION definition to Calibration Step
+        dst.SetMetadataItem('CALIBRATION',  meta['calibration_type'])
         dst.SetMetadataItem('POLARIZATION', meta['polarisation'])
         return dst
 
@@ -626,6 +630,7 @@ class Concatenate(_ConcatenatorFactory):
                 )
 
     def update_out_filename(self, meta, with_task_info):
+        # TODO: check & clean comments
         # tester input list
         # basename = un truc ou l'autre en fonction nb inputs (old value ou taskname)
         # out_file = basename
@@ -721,7 +726,6 @@ class BuildBorderMask(OTBStepFactory):
         """
         params = {
                 'ram'              : str(self.ram_per_process),
-                # 'progress'       : 'false',
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
@@ -768,12 +772,9 @@ class SmoothBorderMask(OTBStepFactory):
         """
         return {
                 'ram'                   : str(self.ram_per_process),
-                # 'progress'            : 'false',
                 self.param_in           : in_filename(meta),
                 # self.param_out          : out_filename(meta),
                 'structype'             : 'ball',
-                # 'structype.ball.xradius': 5,
-                # 'structype.ball.yradius': 5 ,
                 'xradius'               : 5,
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
@@ -1197,39 +1198,47 @@ class ComputeLIA(OTBStepFactory):
                 }
 
 
+class _FilterStepFactory(StepFactory):
+    """
+    Helper root class for all LIA/sin filtering steps.
+
+    This class will be specialized on the fly by :func:`filter_LIA` which
+    will inject the static data ``_LIA_kind``.
+    """
+    def _update_filename_meta_pre_hook(self, meta):
+        meta = super()._update_filename_meta_pre_hook(meta)
+        meta['LIA_kind'] = self._LIA_kind
+        return meta
+
+    def _get_input_image(self, meta):
+        # Flatten should be useless, but kept for better error messages
+        related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta)) if re.search(rf'\b{self._LIA_kind}_', f)]
+        assert len(related_inputs) == 1, f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
+        return related_inputs[0]
+
+    def build_step_output_filename(self, meta):
+        """
+        Forward the output filename.
+        """
+        input = self._get_input_image(meta)
+        logger.debug('%s KEEP %s from %s', self.__class__.__name__, input, in_filename(meta))
+        return input
+
+    def build_step_output_tmp_filename(self, meta):
+        """
+        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+        there is no temporary filename.
+        """
+        return self.build_step_output_filename(meta)
+
+
 def filter_LIA(LIA_kind):
     """
-    Generates a new :class:`StepFactory` class that filters with LIA product
+    Generates a new :class:`StepFactory` class that filters which LIA product
     shall be processed: LIA maps or sin LIA maps.
     """
-    class _FilterStepFactory(StepFactory):
-        def _update_filename_meta_pre_hook(self, meta):
-            meta = super()._update_filename_meta_pre_hook(meta)
-            meta['LIA_kind'] = self._LIA_kind
-            return meta
-
-        def _get_input_image(self, meta):
-            # Flatten should be useless, but kept for better error messages
-            related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta)) if re.search(rf'\b{self._LIA_kind}_', f)]
-            assert len(related_inputs) == 1, f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
-            return related_inputs[0]
-
-        def build_step_output_filename(self, meta):
-            """
-            Forward the output filename.
-            """
-            input = self._get_input_image(meta)
-            logger.debug('%s KEEP %s from %s', self.__class__.__name__, input, in_filename(meta))
-            return input
-
-        def build_step_output_tmp_filename(self, meta):
-            """
-            As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
-            there is no temporary filename.
-            """
-            return self.build_step_output_filename(meta)
-
-    return type("Filter_"+LIA_kind,  # Class name
+    # We return a new class
+    return type("Filter_"+LIA_kind,   # Class name
             (_FilterStepFactory,),    # Parent
             { '_LIA_kind': LIA_kind}
             )
