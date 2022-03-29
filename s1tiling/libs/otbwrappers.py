@@ -783,7 +783,12 @@ class SmoothBorderMask(OTBStepFactory):
 # Applications used to produce LIA
 
 def remove_polarization_marks(name):
-    return re.sub(r'[hv][hv]-|[HV][HV]_', '', name)
+    """
+    Clean filename of any specific polarization mark like ``vv``, ``vh``, or
+    the ending in ``-001`` and ``002``.
+    """
+    # (?=  marks a 0-length match to ignore the dot
+    return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
 
 
 class AgglomerateDEM(ExecutableStepFactory):
@@ -1204,8 +1209,9 @@ def filter_LIA(LIA_kind):
             return meta
 
         def _get_input_image(self, meta):
-            related_inputs = [f for f in in_filename(meta) if re.search(rf'\b{self._LIA_kind}_', f)]
-            assert len(related_inputs) == 1, f'No S1 LIA product of type {self._LIA_kind} in {in_filename(meta)}'
+            # Flatten should be useless, but kept for better error messages
+            related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta)) if re.search(rf'\b{self._LIA_kind}_', f)]
+            assert len(related_inputs) == 1, f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
             return related_inputs[0]
 
         def build_step_output_filename(self, meta):

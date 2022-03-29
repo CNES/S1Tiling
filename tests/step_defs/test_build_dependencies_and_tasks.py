@@ -25,43 +25,43 @@ FILES = [
         # 08 jan 2020
         {
             's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file'   : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-001.tiff',
+            's1file'   : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044150',
-            'root'     : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001',
+            'root'     : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
             'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044150',
             'polygon'  : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
             },
         {
             's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file'   : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-001.tiff',
+            's1file'   : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044215',
-            'root'     : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506-001',
+            'root'     : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
             'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044215',
             'polygon'  : [(13.917268, -0.370174), (16.143845, -0.851051), (16.461084, 0.660845), (14.233407, 1.137179), (13.917268, -0.370174)]
             },
         # 20 jan 2020
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
-            's1file': 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-001.tiff',
+            's1file': 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120t044214',
             'polygon' : [(13.917237, -0.370036), (16.143806, -0.850946), (16.461067, 0.660948), (14.233396, 1.137315), (13.917237, -0.370036)]
             },
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
-            's1file': 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-001.tiff',
+            's1file': 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200120T044149',
             'polygon' : [(14.233942, 1.137292), (16.461086, 0.661038), (16.775522, 2.173408), (14.545794, 2.645211), (14.233942, 1.137292)]
             },
         # 02 feb 2020
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
-            's1file': 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-001.tiff',
+            's1file': 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044214',
             'polygon' : [(13.91733, -0.370053), (16.1439, -0.850965), (16.461174, 0.661021), (14.233503, 1.137389), (13.91733, -0.370053)]
             },
         {
             's1dir': 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
-            's1file': 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-001.tiff',
+            's1file': 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}.tiff',
             'orthofile': 's1a_33NWB_{polarity}_DES_007_20200201t044149',
             'polygon' : [(14.233961, 1.137385), (16.461193, 0.661111), (16.775606, 2.173392), (14.54579, 2.645215), (14.233961, 1.137385)]
             },
@@ -92,7 +92,7 @@ def polarization(idx):
 
 def input_file(idx, polarity):
     s1dir  = FILES[idx]['s1dir']
-    s1file = FILES[idx]['s1file'].format(polarity=polarity)
+    s1file = FILES[idx]['s1file'].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
     return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
 def raster(idx, polarity):
@@ -112,54 +112,54 @@ def raster_vh(idx):
     return raster(idx, 'vh')
 
 def orthofile(idx, polarity):
-    file = FILES[idx]["orthofile"].format(polarity=polarity)
+    file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
     return f'{TMPDIR}/S2/{TILE}/{file}.tif'
 
 def concatfile(idx, polarity):
     if idx is None:
         return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx.tif'
     else:
-        file = FILES[idx]["orthofile"].format(polarity=polarity)
+        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
         return f'{OUTPUT}/{TILE}/{file}.tif'
 
 def maskfile(idx, polarity):
     if idx is None:
         return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx_BorderMask.tif'
     else:
-        file = FILES[idx]["orthofile"].format(polarity=polarity)
+        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
         return f'{OUTPUT}/{TILE}/{file}_BorderMask.tif'
 
 def DEM_file(idx):
     if idx is None:
-        return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.vrt'
+        return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.vrt'
     else:
         file = FILES[idx]["root"].format(kind='DEM')
         return f'{TMPDIR}/S1/{file}.vrt'
 
 def DEMPROJ_file(idx=None):
     if idx is None:
-        return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+        return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
     else:
         file = FILES[idx]["root"].format(kind='S1_on_DEM')
         return f'{TMPDIR}/S1/{file}.tiff'
 
 def XYZ_file(idx=None):
     if idx is None:
-        return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+        return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
     else:
         file = FILES[idx]["root"].format(kind='XYZ')
         return f'{TMPDIR}/S1/{file}.tiff'
 
 def LIA_file(idx=None):
     if idx is None:
-        return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+        return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
     else:
         file = FILES[idx]["root"].format(kind='LIA')
         return f'{TMPDIR}/S1/{file}.tiff'
 
 def sin_LIA_file(idx=None):
     if idx is None:
-        return f'{TMPDIR}/S1/sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506-001.tiff'
+        return f'{TMPDIR}/S1/sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
     else:
         file = FILES[idx]["root"].format(kind='sin_LIA')
         return f'{TMPDIR}/S1/{file}.tiff'
