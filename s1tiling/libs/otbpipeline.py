@@ -1282,7 +1282,7 @@ class StoreStep(_StepWithOTBApplication):
         do_measure = True  # TODO
         # logger.debug('meta pipe: %s', self.meta['pipe'])
         pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
-        if os.path.isfile(self.out_filename):
+        if files_exist(self.out_filename):
             # This is a dirty failsafe, instead of analysing at the last
             # moment, it's be better to have a clear idea of all dependencies
             # and of what needs to be done.
@@ -1313,6 +1313,11 @@ def commit_otb_application(tmp_filename, out_fn):
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
+    assert type(tmp_filename) == type(out_fn)
+    if isinstance(out_fn, list):
+        for t, o in zip(tmp_filename, out_fn):
+            commit_otb_application(t, o)
+        return
     logger.debug('Renaming: mv %s %s', tmp_filename, out_fn)
     shutil.move(tmp_filename, out_fn)
     re_tiff = re.compile(r'\.tiff?$')
