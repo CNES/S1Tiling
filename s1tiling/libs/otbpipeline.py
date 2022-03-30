@@ -264,16 +264,18 @@ class AbstractStep:
     """
     Internal root class for all actual `Step` s.
 
-    There are four kinds of steps:
+    There are several kinds of steps:
 
     - :class:`FirstStep` that contains information about input files
     - :class:`Step` that registers an otbapplication binding
-    - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to force storing of
-      the resulting file.
-    - :class:`ExecutableStep` executes external applications
+    - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to
+      force storing of the resulting file.
+    - :class:`ExecutableStep` that executes external applications
+    - :class:`MergeStep` that operates a rendez-vous between several steps
+      producing files of a same kind.
 
-    The step will contain information like the current input file, the current output
-    file...
+    The step will contain information like the current input file, the current
+    output file...
     """
     def __init__(self, *unused_argv, **kwargs):
         """
@@ -318,10 +320,11 @@ class AbstractStep:
     @property
     def shall_store(self):
         """
-        No step required its result to be stored on disk and to break in_memory
-        connection by default.
-        However, the artificial Step produced by :class:`Store` factory will force the
-        result of the `previous` app to be stored on disk.
+        No OTB related step requires its result to be stored on disk and to
+        break in_memory connection by default.
+
+        However, the artificial Step produced by :class:`Store` factory will
+        force the result of the `previous` application(s) to be stored on disk.
         """
         return False
 
@@ -338,7 +341,7 @@ class ExecutableStep(AbstractStep):
     """
     def __init__(self, exename, *argv, **kwargs):
         """
-        constructor
+        Constructor.
         """
         super().__init__(None, *argv, **kwargs)
         self._exename = exename
@@ -356,16 +359,17 @@ class ExecutableStep(AbstractStep):
 
 class _StepWithOTBApplication(AbstractStep):
     """
-    Internal intermediary type for `Step` that have an application object.
+    Internal intermediary type for `Steps` that have an application object.
     Not meant to be used directly.
 
     Parent type for:
+
     - :class:`Step`  that will own the application
     - and :class:`StoreStep` that will just reference the application from the previous step
     """
     def __init__(self, app, *argv, **kwargs):
         """
-        constructor
+        Constructor.
         """
         # logger.debug("Create Step(%s, %s)", app, meta)
         super().__init__(*argv, **kwargs)
@@ -398,11 +402,14 @@ class _StepWithOTBApplication(AbstractStep):
     def param_out(self):
         """
         Name of the "out" parameter used by the OTB Application.
-        Default is likely to be "out", whie some applications use "io.out".
+        Default is likely to be "out", while some applications use "io.out".
         """
         return self._out
 
     def set_out_parameters(self):
+        """
+        Takes care of setting all output parameters.
+        """
         p_out = as_list(self.param_out)
         files = as_list(self.tmp_filename)
         assert self._app
@@ -444,9 +451,16 @@ def _check_input_step_type(inputs):
 
 class StepFactory(ABC):
     """
-    Abstract factory for `Step`.
+    Abstract factory for :class:`Step`
 
-    Meant to be inherited for each possible OTB application used in a pipeline.
+    Meant to be inherited for each possible OTB application or external
+    application used in a pipeline.
+
+    Sometimes we may also want to add some artificial steps that analyse
+    products, filenames..., or step that help filter products for following
+    pipelines.
+
+    See: `Existing processings`_
     """
     def __init__(self, name, *unused_argv, **kwargs):
         assert name
@@ -473,7 +487,7 @@ class StepFactory(ABC):
     @abstractmethod
     def build_step_output_tmp_filename(self, meta):
         """
-        Returns temporary filename to use in output of the current OTB Application.
+        Returns a filename to a temporary file to use in output of the current OTB Application.
 
         When an OTB application is harshly interrupted (crash or user
         interruption), it leaves behind an incomplete (and thus invalid) file.
@@ -481,7 +495,7 @@ class StepFactory(ABC):
         temporary filename is used by the OTB application.
         Once the application exits with success, the file will be renamed into
         :func:`build_step_output_filename()`, and possibly moved into
-        :func:`output_directory()` if this is a final product.
+        :func:`_FileProducingStepFactory.output_directory()` if this is a final product.
         """
         pass
 
@@ -514,12 +528,22 @@ class StepFactory(ABC):
         meta.pop('task_name', None)
         meta.pop('task_basename', None)
         meta.pop('update_out_filename', None)
+        self._update_filename_meta_post_hook(meta)
         return meta
 
     def _update_filename_meta_pre_hook(self, meta):  # to be overridden
         """
         Hook meant to be overridden to complete product metadata before
         they are used to produce filenames or tasknames.
+
+        Called from :func:`update_filename_meta()`
+        """
+        return meta
+
+    def _update_filename_meta_post_hook(self, meta):  # to be overridden
+        """
+        Hook meant to be overridden to fix product metadata by
+        overriding their default definition.
 
         Called from :func:`update_filename_meta()`
         """
@@ -793,7 +817,7 @@ class PipelineDescription:
 
     def expected(self, input_meta):
         """
-        Returns the expected name of the product of this pipeline
+        Returns the expected name of the product(s) of this pipeline
         """
         assert self.__factory_steps  # shall not be None or empty
         if self.__is_name_incremental:
@@ -1051,6 +1075,7 @@ class PipelineDescriptionSequence:
         #     the difficult part is to flag as "generation successful" or not
         for pipeline in self.__pipelines:
             logger.debug('#############################################################################')
+            logger.debug('#############################################################################')
             logger.debug('Analysing |%s| dependencies', pipeline.name)
             logger.debug('Sources --> %s', pipeline.sources)
             outputs = []
@@ -1077,9 +1102,10 @@ class PipelineDescriptionSequence:
                     # TODO: Correctly handle the case where a task produce several
                     # filenames. In that case we shall have only one task, but possibly,
                     # several following tasks may depend on the current task.
-                    # For the moment, just keep the first
+                    # For the moment, just keep the first, and use product selection
+                    # pattern as in filter_LIA().
                     if isinstance(expected_taskname, list):
-                        expected_taskname = expected_taskname[0] # TODO: see comment aove
+                        expected_taskname = expected_taskname[0] # TODO: see comment above
 
                     # We cannot analyse early whether a task product is already
                     # there as some product have names that depend on all inputs
@@ -1089,13 +1115,10 @@ class PipelineDescriptionSequence:
                     # producing step.
                     if expected_taskname not in previous:
                         outputs.append(expected)
-                        # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [input]}
-                        # previous[expected_taskname] = {'pipeline': pipeline, 'inputs': [InputInfo(input)]}
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
                         previous[expected_taskname].add_input(origin, input, expected)
                         logger.debug('This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif get_task_name(input) not in previous[expected_taskname].input_task_names:
-                        # previous[expected_taskname]['inputs'].append(input)
                         if previous[expected_taskname].add_input(origin, input, expected):
                             logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
                             update_out_filename(expected, previous[expected_taskname])
@@ -1116,7 +1139,6 @@ class PipelineDescriptionSequence:
 
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
-        logger.debug('#############################################################################')
         required_task_names = set()
         for name, meta in required.items():
             logger.debug("check task_name: %s", name)
@@ -1129,7 +1151,6 @@ class PipelineDescriptionSequence:
         logger.debug("Dependencies found:")
         for task_name, prev in previous.items():
             if prev:
-                # logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [m['out_filename'] for m in prev.inputs])
                 logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, prev.inputs)
             else:
                 logger.debug('- %s already exists, no need to produce it', task_name)
@@ -1189,6 +1210,7 @@ class PipelineDescriptionSequence:
         Params:
             :tile_name:   Name of the current S2 tile
             :raster_list: List of rasters that intersect the tile.
+
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
         required, previous, task_names_to_output_files_table = self._build_dependencies(
@@ -1214,6 +1236,7 @@ class PipelineDescriptionSequence:
 class FirstStep(AbstractStep):
     """
     First Step:
+
     - no application executed
     """
     def __init__(self, *argv, **kwargs):
@@ -1234,8 +1257,10 @@ class FirstStep(AbstractStep):
 
 class MergeStep(AbstractStep):
     """
-    Kind of FirstStep that merges the result of one or several other steps.
-    Used in entry of :class:`Concatenate`
+    Kind of FirstStep that merges the result of one or several other steps
+    of same kind.
+
+    Used in input of :class:`Concatenate`
 
     - no application executed
     """
@@ -1255,7 +1280,7 @@ class MergeStep(AbstractStep):
 
 class StoreStep(_StepWithOTBApplication):
     """
-    Artificial Step that takes cares of executing the last OTB application in the
+    Artificial Step that takes care of executing the last OTB application in the
     pipeline.
     """
     def __init__(self, previous: Step):
@@ -1393,9 +1418,9 @@ class _FileProducingStepFactory(StepFactory):
         Returns the names of typical result files in case their production
         is required (i.e. not in-memory processing).
 
-        This specialization uses ``gen_output_filename`` list construction
-        parameter as parameters for :func:`str.replace` function applied
-        on ``meta['basename']``
+        This specialization uses ``gen_output_filename`` naming policy
+        parameter to build the output filename. See the `Available naming
+        policies`_.
         """
         filename = self._get_nominal_output_basename(meta)
         in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
@@ -1442,19 +1467,22 @@ class OTBStepFactory(_FileProducingStepFactory):
     """
     Abstract StepFactory for all OTB Applications.
 
-    This step aims at factoring recurring definitions.
+    All step factories that wrap OTB applications are meant to inherit from
+    :class:`OTBStepFactory`.
     """
     def __init__(self, cfg,
             appname,
             gen_tmp_dir, gen_output_dir, gen_output_filename,
             *argv, **kwargs):
         """
-        Constructor
+        Constructor.
 
-        See :func:`output_directory`, :func:`tmp_directory`,
-        :func:`build_step_output_filename` and
-        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
-        ``gen_output_dir`` and ``gen_output_filename``.
+        See:
+            :func:`_FileProducingStepFactory.__init__`
+
+        Params:
+            :param_in:  Flag used by the default OTB application for the input file (default: "in")
+            :param_out: Flag used by the default OTB application for the ouput file (default: "out")
         """
         super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
         is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
@@ -1480,7 +1508,7 @@ class OTBStepFactory(_FileProducingStepFactory):
     def param_in(self):
         """
         Name of the "in" parameter used by the OTB Application.
-        Default is likely to be "in", whie some applications use "io.in", often "il" for list of
+        Default is likely to be "in", while some applications use "io.in", often "il" for list of
         files...
         """
         return self._in
@@ -1496,7 +1524,7 @@ class OTBStepFactory(_FileProducingStepFactory):
     def _get_inputs(self, previous_steps):
         """
         Extract the last inputs to use at the current level from all previous
-        products seens in the pipeline.
+        products seen in the pipeline.
 
         This method will need to be overridden in classes like
         :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
@@ -1516,7 +1544,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         pass
 
     def create_step(self, inputs: list, in_memory: bool, previous_steps):
-        # TODO: remove inputs parameter
+        # TODO: remove "inputs" parameter as it's redundant
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1599,7 +1627,8 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     """
     Abstract StepFactory for executing any external program.
 
-    This step aims at factoring recurring definitions.
+    All step factories that wrap OTB applications are meant to inherit from
+    :class:`ExecutableStepFactory`.
     """
     def __init__(self, cfg,
             exename,
@@ -1608,10 +1637,8 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         """
         Constructor
 
-        See :func:`output_directory`, :func:`tmp_directory`,
-        :func:`build_step_output_filename` and
-        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
-        ``gen_output_dir`` and ``gen_output_filename``.
+        See:
+            :func:`_FileProducingStepFactory.__init__`
         """
         super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
         self._exename              = exename
@@ -1635,9 +1662,9 @@ class ExecutableStepFactory(_FileProducingStepFactory):
 class Store(StepFactory):
     """
     Factory for Artificial Step that forces the result of the previous app
-    to be stored on disk by breaking in-memory connection.
+    sequence to be stored on disk by breaking in-memory connection.
 
-    While it could be used manually, it's meant to be automatically append
+    While it could be used manually, it's meant to be automatically appended
     at the end of a pipeline if any step is actually related to OTB.
     """
     def __init__(self, appname, *argv, **kwargs):
@@ -1646,9 +1673,9 @@ class Store(StepFactory):
 
     def create_step(self, inputs: Step, in_memory: bool, previous_steps):
         """
-        Specializes :func:`create_step()` to trigger
-        :func:`execute_and_write_output()` on the last step that relates to an
-        OTB Application.
+        Specializes :func:`StepFactory.create_step` to trigger
+        :func:`StoreStep.execute_and_write_output` on the last step that
+        relates to an OTB Application.
         """
         _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)

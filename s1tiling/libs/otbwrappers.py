@@ -106,12 +106,11 @@ class ExtractSentinel1Metadata(StepFactory):
         """
         return self.build_step_output_filename(meta)
 
-    def update_filename_meta(self, meta):
+    def _update_filename_meta_post_hook(self, meta):
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
         """
-        meta = super().update_filename_meta(meta)
         manifest                = meta['manifest']
         # image                   = in_filename(meta)   # meta['in_filename']
         image                   = meta['basename']
@@ -127,16 +126,18 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 
-        # meta['task_basename']    = 'ExtractS1Meta_%s' % (meta['basename'], )
         meta['task_name']        = 'ExtractS1Meta_%s' % (meta['basename'], )
-        # meta['task_name']        = 'ExtractS1Meta_%s' % (os.path.join(out_dir, meta['basename']), )
         return meta
 
     def _get_canonical_input(self, inputs):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
-        By default, if there is only one input, this will be the one returned.
-        Steps will multiple inputs will need to override this method.
+
+        :class:`ExtractSentinel1Metadata` can be used either in usual S1Tiling
+        orthorectofication scenario, or in LIA Map generation scenarios.
+        In the first case only a single and unnamed input is expected. In LIA
+        case, several named inputs are expected, and the canonical input is
+        named "insar" in :func:s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -630,16 +631,28 @@ class Concatenate(_ConcatenatorFactory):
                 )
 
     def update_out_filename(self, meta, with_task_info):
-        # TODO: check & clean comments
-        # tester input list
-        # basename = un truc ou l'autre en fonction nb inputs (old value ou taskname)
-        # out_file = basename
+        """
+        This hook will be triggered everytime a new compatible input is added.
+        The effect is quite unique to :class:`Concatenate` as the name of the
+        output product depends on the number of inputs are their common
+        acquisition date.
+        """
         meta['basename']           = meta['task_basename']
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         logger.debug("concatenation.out_tmp_filename for %s updated to %s", meta['task_name'], meta['out_filename'])
 
     def update_filename_meta(self, meta):
+        """
+        In concatenation case, the naming policy for the output products is
+        complex.
+
+        When no concatenation happens, we forward the input file. But when two
+        products are concatenated, the exact timestamp is erased to keep only
+        the current date, and the input files are marked for deletion.
+
+        In all cases, we need to make sure the task name is without ambiguity.
+        """
         meta = meta.copy()
         out_file = out_filename(meta)
         out_dir = self.output_directory(meta)
@@ -998,8 +1011,10 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     def _get_canonical_input(self, inputs):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
-        By default, if there is only one input, this will be the one returned.
-        Steps will multiple inputs will need to override this method.
+
+        In :class:`SARCartesianMeanEstimation` case, the canonical input comes
+        from the "indem" pipeline defined in :func:s1tiling.s1_process_lia`
+        pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -1138,21 +1153,20 @@ class ComputeLIA(OTBStepFactory):
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 )
 
-    def update_filename_meta(self, meta):
-        """
-        Update "does_product_exist" hook to take into account the multiple
-        output files produced by ComputeLIA
-        """
-        meta = super().update_filename_meta(meta)
-        meta['does_product_exist'] = lambda : all(os.path.isfile(of) for of in out_filename(meta))
-        return meta
-
     def _update_filename_meta_pre_hook(self, meta):
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata.
         """
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+
+    def _update_filename_meta_post_hook(self, meta):
+        """
+        Override "does_product_exist" hook to take into account the multiple
+        output files produced by ComputeLIA
+        """
+        meta['does_product_exist'] = lambda : all(os.path.isfile(of) for of in out_filename(meta))
+        return meta
 
     def complete_meta(self, meta, all_inputs):
         """
@@ -1318,13 +1332,26 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    def update_filename_meta(self, meta):
-        meta = super().update_filename_meta(meta)
+    def _update_filename_meta_post_hook(self, meta):
+        """
+        Override "update_out_filename" hook to help select the input set with
+        the best coverage.
+        """
         assert 'LIA_kind' in meta
-        meta['update_out_filename'] = self.update_out_filename  # <- cannot be done in pre_hook!
+        meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         return meta
 
     def update_out_filename(self, meta, with_task_info):
+        """
+        Unlike usual :class:`Concatenate`, the output filename will always ends
+        in "txxxxxx".
+
+        However we want to update the coverage of the current pair as a new
+        input file has been registered.
+
+        TODO: Find a better name for the hook as it handles two different
+        services.
+        """
         inputs = with_task_info.inputs['in']
         dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
         assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
