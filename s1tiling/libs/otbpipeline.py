@@ -432,18 +432,6 @@ class _StepWithOTBApplication(AbstractStep):
         """
         return self._out
 
-    def set_out_parameters(self):
-        """
-        Takes care of setting all output parameters.
-        """
-        p_out = as_list(self.param_out)
-        files = as_list(self.tmp_filename)
-        assert self._app
-        for po, tmp in zip(p_out, files):
-            assert isinstance(po, str), f"String expected for param_out={po}"
-            assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
-
 
 class Step(_StepWithOTBApplication):
     """
@@ -1329,6 +1317,18 @@ class StoreStep(_StepWithOTBApplication):
     def shall_store(self):
         return True
 
+    def set_out_parameters(self):
+        """
+        Takes care of setting all output parameters.
+        """
+        p_out = as_list(self.param_out)
+        files = as_list(self.tmp_filename)
+        assert self._app
+        for po, tmp in zip(p_out, files):
+            assert isinstance(po, str), f"String expected for param_out={po}"
+            assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
+            self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
+
     def execute_and_write_output(self):
         """
         Specializes :func:`execute_and_write_output()` to actually execute the
@@ -1418,6 +1418,22 @@ class _FileProducingStepFactory(StepFactory):
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
+
+    def parameters(self, meta):
+        """
+        Most steps that produce files will expect parameters.
+
+        Warning: In :class:`ExecutableStepFactory`, parameters that designate
+        output filenames are expected to use :func:`tmp_filename` and not
+        :func:`out_filename`. Indeed products are meant to be first produced
+        with temporary names before being renamed with their final names, once
+        the operation producing them has succeeded.
+
+        Note: This method is kind-of abstract --
+        :class:`SelectBestCoverage <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a
+        :class:`_FileProducingStepFactory` but, it doesn't actualy consume parameters.
+        """
+        raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
 
     def output_directory(self, meta):
         """

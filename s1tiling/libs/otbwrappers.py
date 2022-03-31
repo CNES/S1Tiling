@@ -79,20 +79,6 @@ class ExtractSentinel1Metadata(StepFactory):
     def __init__(self, cfg):
         super().__init__(cfg, 'ExtractSentinel1Metadata')
 
-    def parameters(self, meta):
-        """
-        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
-        no parameters are returned.
-        """
-        return None
-
-    # def output_directory(self, meta):
-    #     """
-    #     As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
-    #     there is no output directory.
-    #     """
-    #     raise TypeError("An ExtractSentinel1Metadata step don't produce anything!")
-
     def build_step_output_filename(self, meta):
         """
         Forward the output filename.
@@ -176,20 +162,6 @@ class AnalyseBorders(StepFactory):
         """
         super().__init__('AnalyseBorders')
         self.__override_azimuth_cut_threshold_to = cfg.override_azimuth_cut_threshold_to
-
-    def parameters(self, meta):
-        """
-        As there is no OTB application associated to :class:`AnalyseBorders`,
-        no parameters are returned.
-        """
-        return None
-
-    # def output_directory(self, meta):
-    #     """
-    #     As there is no OTB application associated to :class:`AnalyseBorders`,
-    #     there is no output directory.
-    #     """
-    #     raise TypeError("An AnalyseBorders step don't produce anything!")
 
     def build_step_output_filename(self, meta):
         """
