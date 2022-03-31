@@ -52,7 +52,8 @@ from . import Utils
 
 logger = logging.getLogger('s1tiling')
 
-re_tiff = re.compile(r'\.tiff?$')
+re_tiff    = re.compile(r'\.tiff?$')
+re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
 
 
 def otb_version():
@@ -171,6 +172,14 @@ def out_filename(meta):
     Helper accessor to access the ouput filename of a `Step`.
     """
     return meta.get('out_filename')
+
+
+def tmp_filename(meta):
+    """
+    Helper accessor to access the temporary ouput filename of a `Step`.
+    """
+    assert 'out_tmp_filename' in meta
+    return meta.get('out_tmp_filename')
 
 
 def get_task_name(meta):
@@ -347,10 +356,27 @@ class ExecutableStep(AbstractStep):
         self._exename = exename
         # logger.debug('ExecutableStep %s constructed', self._exename)
 
+    @property
+    def tmp_filename(self):
+        """
+        Property that returns the name of the file produced by the current step while
+        the external application is running.
+        Eventually, it'll get renamed into :func:`AbstractStep.out_filename` if
+        the application succeeds.
+        """
+        return tmp_filename(self.meta)
+
     def execute_and_write_output(self, parameters):  # pylint: disable=no-self-use
+        """
+        Actually execute the external program.
+        While the program runs, a temporary filename will be used as output.
+        On successful execution, the output will be renamed to match its
+        expected final name.
+        """
         dryrun = is_running_dry(self.meta)
         logger.debug("ExecutableStep: %s (%s)", self, self.meta)
         execute([self._exename]+ parameters, dryrun)
+        commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
@@ -487,12 +513,13 @@ class StepFactory(ABC):
     @abstractmethod
     def build_step_output_tmp_filename(self, meta):
         """
-        Returns a filename to a temporary file to use in output of the current OTB Application.
+        Returns a filename to a temporary file to use in output of the current application.
 
-        When an OTB application is harshly interrupted (crash or user
-        interruption), it leaves behind an incomplete (and thus invalid) file.
+        When an OTB (/External) application is harshly interrupted (crash or
+        user interruption), it leaves behind an incomplete (and thus invalid)
+        file.
         In order to ignore those files when a pipeline is restarted, an
-        temporary filename is used by the OTB application.
+        temporary filename is used by the application.
         Once the application exits with success, the file will be renamed into
         :func:`build_step_output_filename()`, and possibly moved into
         :func:`_FileProducingStepFactory.output_directory()` if this is a final product.
@@ -1296,8 +1323,7 @@ class StoreStep(_StepWithOTBApplication):
         Eventually, it'll get renamed into `self.out_filename` if the application
         succeeds.
         """
-        assert 'out_tmp_filename' in self._meta
-        return self._meta['out_tmp_filename']
+        return tmp_filename(self.meta)
 
     @property
     def shall_store(self):
@@ -1327,7 +1353,7 @@ class StoreStep(_StepWithOTBApplication):
                     # messages to s1tiling.OTB
                     self.set_out_parameters()
                     self._app.ExecuteAndWriteOutput()
-                commit_otb_application(self.tmp_filename, self.out_filename)
+                commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not is_running_dry(self.meta):
             for hook in self.meta['post']:
                 # Note: we can't extract and pass meta-data around from this hook
@@ -1337,16 +1363,18 @@ class StoreStep(_StepWithOTBApplication):
         self.meta['pipe'] = [self.out_filename]
 
 
-def commit_otb_application(tmp_filename, out_fn):
+def commit_execution(tmp_filename, out_fn):
     """
-    Concluding step that validates the execution of a successful OTB application.
+    Concluding step that validates the successful execution of an application,
+    whether it's an OTB application or an external executable.
+
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
     assert type(tmp_filename) == type(out_fn)
     if isinstance(out_fn, list):
         for t, o in zip(tmp_filename, out_fn):
-            commit_otb_application(t, o)
+            commit_execution(t, o)
         return
     logger.debug('Renaming: mv %s %s', tmp_filename, out_fn)
     shutil.move(tmp_filename, out_fn)
@@ -1449,7 +1477,7 @@ class _FileProducingStepFactory(StepFactory):
         will automatically insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
-        add_tmp = lambda fn : os.path.join(self.tmp_directory(meta), re.sub(re_tiff, r'.tmp\g<0>', fn))
+        add_tmp = lambda fn : os.path.join(self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
         if isinstance(filename, str):
             return add_tmp(filename)
         else:
@@ -1621,9 +1649,6 @@ class OTBStepFactory(_FileProducingStepFactory):
 
 
 class ExecutableStepFactory(_FileProducingStepFactory):
-    # TODO: Factorize out _FileProducingStepFactory
-    # - directory
-    # - temp name VS final name
     """
     Abstract StepFactory for executing any external program.
 

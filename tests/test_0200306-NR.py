@@ -174,6 +174,7 @@ class FileDB:
                 'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
                 'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
                 'vrt'                 : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.vrt',
+                'tmp_vrt'             : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.vrt',
                 'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
                 'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
                 'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
@@ -200,6 +201,7 @@ class FileDB:
                 'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tmp.tiff',
                 'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
                 'vrt'                 : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.vrt',
+                'tmp_vrt'             : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.vrt',
                 'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
                 'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
                 'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
@@ -242,6 +244,8 @@ class FileDB:
                 self.tmp_maskfile(0)            : self.maskfile(0),
                 self.tmp_maskfile(1)            : self.maskfile(1),
 
+                self.tmp_vrtfile(0)             : self.vrtfile(0),
+                self.tmp_vrtfile(1)             : self.vrtfile(1),
                 self.tmp_sardemprojfile(0)      : self.sardemprojfile(0),
                 self.tmp_sardemprojfile(1)      : self.sardemprojfile(1),
                 self.tmp_xyzfile(0)             : self.xyzfile(0),
@@ -357,6 +361,8 @@ class FileDB:
 
     def vrtfile(self, idx):
         return f'{self.__tmp_dir}/S1/{self.FILES[idx]["vrt"]}'
+    def tmp_vrtfile(self, idx):
+        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_vrt"]}'
     def dem_coverage(self, idx):
         return self.FILES[idx]['dem_coverage']
     def sardemprojfile(self, idx):
@@ -434,14 +440,14 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     # TODO: Test written meta data as well
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt, app : True)
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
-    mocker.patch('s1tiling.libs.otbpipeline.commit_otb_application', lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.otbpipeline.commit_execution', lambda tmp, out : True)
 
-    def mock_commit_otb_application_for_SelectLIA(inp, out):
+    def mock_commit_execution_for_SelectLIA(inp, out):
         logging.debug('mock.mv %s %s', inp, out)
         assert os.path.isfile(inp)
         known_files.append(out)
         known_files.remove(inp)
-    mocker.patch('s1tiling.libs.otbwrappers.commit_otb_application', mock_commit_otb_application_for_SelectLIA)
+    mocker.patch('s1tiling.libs.otbwrappers.commit_execution', mock_commit_execution_for_SelectLIA)
 
     def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???
@@ -503,7 +509,6 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
         input_file = file_db.input_file_vv(i)
         expected_ortho_file = file_db.orthofile(i)
 
-        # SARCalibration -ram '4096' -in '/home/luc/dev/S1tiling/tests/20200306-NR/data_raw-pol/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953/S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953.SAFE/measurement/s1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-002.tiff' -lut 'sigma' -removenoise False
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
@@ -512,7 +517,6 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(i),
             }, None)
 
-        # ResetMargin (from app) -ram '4096' -threshold.x 1000 -threshold.y.start 0 -threshold.y.end 0 -mode 'threshold'
         application_mocker.set_expectations('ResetMargin', {
             'in'               : input_file+'|>SARCalibration',
             'ram'              : '2048',
@@ -523,7 +527,6 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'out'              : 'OrthoRectification|>'+file_db.tmp_orthofile(i),
             }, None)
 
-        # OrthoRectification (from app) -opt.ram '4096' -interpolator 'nn' -outputs.spacingx '10.0' -outputs.spacingy '-10.0' -outputs.sizex 10980 -outputs.sizey 10980 -opt.gridspacing '40.0' -map 'utm' -map.utm.zone 33 -map.utm.northhem True -outputs.ulx '499979.99999484676' -outputs.uly '200040.0000009411' -elev.dem '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/tmpuv76wv2i' -elev.geoid '/home/luc/dev/S1tiling/s1tiling/s1tiling/resources/Geoid/egm96.grd'
         application_mocker.set_expectations('OrthoRectification', {
             'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
             'opt.ram'         : '2048',
@@ -544,7 +547,6 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             }, None)
 
     for i in range(1):
-        # Synthetize -ram '4096' -il '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044150.tif' '/home/luc/dev/S1tiling/tests/20200306-NR/tmp/S2/33NWB/s1a_33NWB_vh_DES_007_20200108t044215.tif'
         application_mocker.set_expectations('Synthetize', {
             'ram'      : '2048',
             'il'       : [file_db.orthofile(2*i), file_db.orthofile(2*i+1)],
@@ -611,13 +613,10 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
     for idx in range(2):
         cov               = file_db.dem_coverage(idx)
         exp_srtm_names    = sorted(cov)
-        # out_path          = f'{tmpdir}/S1'
-        # exp_out_vrt       = '%s/DEM_%s.vrt' % (out_path, '_'.join(exp_srtm_names))
-        # exp_out_vrt       = '%s/%s' % (out_path, file_db.vrtfile(idx))
         exp_out_vrt       = file_db.vrtfile(idx)
         exp_out_dem       = file_db.sardemprojfile(idx)
         exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
-        application_mocker.set_expectations('gdalbuildvrt', [exp_out_vrt] + exp_in_srtm_files, None)
+        application_mocker.set_expectations('gdalbuildvrt', [file_db.tmp_vrtfile(idx)] + exp_in_srtm_files, None)
 
         application_mocker.set_expectations('SARDEMProjection', {
             'ram'        : '2048',
@@ -637,7 +636,6 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'indirectiondeml' : 12,
             'mlran'           : 1,
             'mlazi'           : 1,
-            # 'out'           : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(idx),
             'out'             : file_db.tmp_xyzfile(idx),
             }, None)
 

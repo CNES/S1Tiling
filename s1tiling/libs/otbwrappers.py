@@ -42,7 +42,7 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator, OutputFilenameGeneratorList, TemplateOutputFilenameGenerator, ReplaceOutputFilenameGenerator, commit_otb_application
+from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, tmp_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator, OutputFilenameGeneratorList, TemplateOutputFilenameGenerator, ReplaceOutputFilenameGenerator, commit_execution
 from . import Utils
 from ..__meta__ import __version__
 
@@ -850,7 +850,9 @@ class AgglomerateDEM(ExecutableStepFactory):
         return meta
 
     def parameters(self, meta):
-        return [out_filename(meta)] + [os.path.join(self.__srtm_dir, s+'.hgt') for s in meta['srtms']]
+        # While it won't make much a difference here, we are still using
+        # tmp_filename.
+        return [tmp_filename(meta)] + [os.path.join(self.__srtm_dir, s+'.hgt') for s in meta['srtms']]
 
 
 class SARDEMProjection(OTBStepFactory):
@@ -1415,8 +1417,8 @@ class SelectBestCoverage(_FileProducingStepFactory):
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
 
-        # Let's reuse commit_otb_application as it does exactly what we need
-        commit_otb_application(out_filename(input.meta), out_filename(meta))
+        # Let's reuse commit_execution as it does exactly what we need
+        commit_execution(out_filename(input.meta), out_filename(meta))
 
         # Return a dummy Step
         res = AbstractStep('move', **meta)
