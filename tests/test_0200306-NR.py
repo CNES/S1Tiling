@@ -163,60 +163,39 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, tmpdir, 
 # ======================================================================
 
 class FileDB:
+    FILE_FMTS = {
+            's1file'              : '{s1_basename}.tiff',
+            'cal_ok'              : '{s1_basename}{tmp}.tiff',
+            'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
+            'orthofile'           : '{s2_basename}{tmp}',
+            'border_mask_tmp'     : '{s2_basename}_BorderMaskTmp{tmp}.tif',
+            'border_mask'         : '{s2_basename}_BorderMask{tmp}.tif',
+
+            'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
+            'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
+            'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
+            'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
+            'LIAfile'             : 'LIA_{s1_polarless}{tmp}.tiff',
+            'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
+            'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
+            'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
+            }
     FILES = [
             {
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1file'              : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
-                'cal_ok'              : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tiff',
-                'ortho_ready'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff',
-                'orthofile'           : 's1a_33NWB_vv_DES_007_20200108t044150',
-                'tmp_cal_ok'          : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_CalOk.tmp.tiff',
-                'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tmp.tiff',
-                'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044150.tmp',
-                'vrt'                 : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.vrt',
-                'tmp_vrt'             : 'DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.vrt',
+                's1_basename'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
+                's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044150',
+                's1_polarless'        : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
                 'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
-                'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
-                'xyzfile'             : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
-                'tmp_xyzfile'         : 'XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
-                'normalsfile'         : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
-                'tmp_normalsfile'     : 'Normals_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
-                'LIAfile'             : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
-                'tmp_LIAfile'         : 'LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
-                'sinLIAfile'          : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff',
-                'tmp_sinLIAfile'      : 'sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tmp.tiff',
-                'orthoLIAfile'        : 'LIA_s1a_33NWB_DES_007_20200108t044150',
-                'tmp_orthoLIAfile'    : 'LIA_s1a_33NWB_DES_007_20200108t044150.tmp',
-                'orthosinLIAfile'     : 'sin_LIA_s1a_33NWB_DES_007_20200108t044150',
-                'tmp_orthosinLIAfile' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044150.tmp',
+                's2_polarless'        : 's1a_33NWB_DES_007_20200108t044150',
                 },
             {
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1file'              : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
-                'cal_ok'              : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tiff',
-                'ortho_ready'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tiff',
-                'orthofile'           : 's1a_33NWB_vv_DES_007_20200108t044215',
-                'tmp_cal_ok'          : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_CalOk.tmp.tmp.tiff',
-                'tmp_ortho_ready'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001_OrthoReady.tmp.tmp.tiff',
-                'tmp_orthofile'       : 's1a_33NWB_vv_DES_007_20200108t044215.tmp',
-                'vrt'                 : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.vrt',
-                'tmp_vrt'             : 'DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.vrt',
+                's1_basename'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
+                's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044215',
+                's1_polarless'        : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
                 'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'sardemprojfile'      : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
-                'tmp_sardemprojfile'  : 'S1_on_DEM_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
-                'xyzfile'             : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
-                'tmp_xyzfile'         : 'XYZ_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
-                'normalsfile'         : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
-                'tmp_normalsfile'     : 'Normals_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
-                'LIAfile'             : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
-                'tmp_LIAfile'         : 'LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
-                'sinLIAfile'          : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tiff',
-                'tmp_sinLIAfile'      : 'sin_LIA_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506.tmp.tiff',
-                'orthosinLIAfile'     : 'sin_LIA_s1a_33NWB_DES_007_20200108t044215',
-                'tmp_orthosinLIAfile' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044215.tmp',
-                'orthoLIAfile'        : 'LIA_s1a_33NWB_DES_007_20200108t044215',
-                'tmp_orthoLIAfile'    : 'LIA_s1a_33NWB_DES_007_20200108t044215.tmp',
+                's2_polarless'        : 's1a_33NWB_DES_007_20200108t044215',
                 }
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
@@ -293,8 +272,9 @@ class FileDB:
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE'
 
     def input_file(self, idx):
-        s1dir  = self.FILES[idx]['s1dir']
-        s1file = self.FILES[idx]['s1file']
+        crt    = self.FILES[idx]
+        s1dir  = crt['s1dir']
+        s1file = self.FILE_FMTS['s1file'].format(**crt)
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
     def input_file_vv(self, idx):
@@ -309,114 +289,146 @@ class FileDB:
             [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
 
     def cal_ok(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["cal_ok"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp='')
     def tmp_cal_ok(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_cal_ok"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp='.tmp')
 
     def ortho_ready(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["ortho_ready"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp='')
     def tmp_ortho_ready(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_ortho_ready"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp='.tmp')
 
     def orthofile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthofile"]}.tif'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='')
     def tmp_orthofile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["tmp_orthofile"]}.tif' + self.extended_geom_compress
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
 
     def concatfile(self, idx):
         if idx is None:
             return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif'
         else:
-            return f'{self.__output_dir}/{self.__tile}/{self.FILES[idx]["orthofile"]}.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__output_dir}/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='')
     def tmp_concatfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthofile"]}.tmp.tif'+self.extended_compress
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='.tmp')+self.extended_compress
 
     def masktmp(self, idx):
         if idx is None:
             return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMaskTmp.tif'
         else:
-            return f'{self.__output_dir}/{self.__tile}/{self.FILES[idx]["orthofile"]}_BorderMaskTmp.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp='')
     def tmp_masktmp(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMaskTmp.tmp.tif'
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthofile"]}_BorderMaskTmp.tmp.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp='.tmp')
 
     def maskfile(self, idx):
         if idx is None:
             return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif'
         else:
-            return f'{self.__output_dir}/{self.__tile}/{self.FILES[idx]["orthofile"]}_BorderMask.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask"]}.tif'.format(**crt, tmp='')
     def tmp_maskfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tmp.tif'
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthofile"]}_BorderMask.tmp.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask"]}.tif'.format(**crt, tmp='.tmp')
 
     def dem_file(self):
         return f'{self.__tmp_dir}/TMP'
 
     def vrtfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["vrt"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp='')
     def tmp_vrtfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_vrt"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp='.tmp')
     def dem_coverage(self, idx):
         return self.FILES[idx]['dem_coverage']
     def sardemprojfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["sardemprojfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp='')
     def tmp_sardemprojfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_sardemprojfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp='.tmp')
     def xyzfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["xyzfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp='')
     def tmp_xyzfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_xyzfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp='.tmp')
     def normalsfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["normalsfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp='')
     def tmp_normalsfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_normalsfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp='.tmp')
     def LIAfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["LIAfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp='')
     def tmp_LIAfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_LIAfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp='.tmp')
     def sinLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["sinLIAfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp='')
     def tmp_sinLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S1/{self.FILES[idx]["tmp_sinLIAfile"]}'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp='.tmp')
 
     def orthoLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tif'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='')
     def tmp_orthoLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["tmp_orthoLIAfile"]}.tif' + self.extended_geom_compress
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
 
     def orthosinLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tif'
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='')
     def tmp_orthosinLIAfile(self, idx):
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["tmp_orthosinLIAfile"]}.tif' + self.extended_geom_compress
+        crt    = self.FILES[idx]
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
 
     def concatLIAfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='')
     def tmp_concatLIAfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tmp.tif'+self.extended_compress
+            # return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tmp.tif'+self.extended_compress
+            return tmp_orthoLIAfile(idx)
 
     def concatsinLIAfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tif'
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='')
     def tmp_concatsinLIAfile(self, idx):
         if idx is None:
             return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
         else:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthosinLIAfile"]}.tmp.tif'+self.extended_compress
+            # return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tmp.tif'+self.extended_compress
+            return tmp_orthosinLIAfile(idx)
 
 
     # def geoid_file(self):
