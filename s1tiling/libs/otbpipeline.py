@@ -1010,8 +1010,7 @@ class TaskInputInfo:
         List of input tasks the current task depends on.
         """
         logger.debug('input_task_names(%s) --> %s', self.pipeline.name, self.inputs)
-        # TODO: use input_metas?
-        tns = [get_task_name(meta) for inputs in self.inputs.values() for meta in inputs]
+        tns = [get_task_name(meta) for meta in self.input_metas]
         return tns
 
     @property
