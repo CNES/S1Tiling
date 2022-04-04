@@ -660,7 +660,7 @@ class Pipeline:
     :func:`Step.execute_and_write_output()` will be executed on the last step
     of the pipeline.
 
-    Internal class only meant to be used by  :class:`Pool`.
+    Internal class only meant to be used by :class:`PipelineDescriptionSequence`.
     """
     # Should we inherit from contextlib.ExitStack?
     def __init__(self, do_measure, in_memory, do_watch_ram, name=None, dryrun=False, output=None):
@@ -881,6 +881,9 @@ class PipelineDescription:
 
         Note: It systematically registers a :class:`Store` step at the end
         if any :class:`StepFactory` is actually an :class:`OTBStepFactory`
+
+        Returns:
+            A :class:`Pipeline` instance
         """
         pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, self.__dryrun, file)
         need_OTB_store = False
@@ -938,39 +941,39 @@ def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
     return inputs
 
 
-class InputInfo:
-    def __init__(self, input_meta):
-        """
-        constructor
-        """
-        self.__basename = input_meta['basename']
-        self.__tasks    = {task_name(input_meta): input_meta}
-
-    @property
-    def basename(self):
-        """
-        Property basename
-        """
-        return self.__basename
-
-    @property
-    def tasks(self):
-        """
-        Property tasks
-        """
-        return self.__tasks
-
-
 class TaskInputInfo:
+    """
+    Abstraction of the input(s) information associated to a particular task.
+
+    Used to merge, or to stack, information about inputs.
+    """
     def __init__(self, pipeline):
         """
         constructor
         """
         self.__pipeline     = pipeline
         self._inputs        = {}  # map<source, meta / meta list>
-        self.__dependencies = []  # task names
 
     def add_input(self, origin, input_meta, destination_meta):
+        """
+        Register a new input to the current task.
+
+        Parameters:
+            :origin:           Name of the source type the new input comes from
+            :input_meta:       Meta information associated to the new input (could be a list)
+            :destination_meta: Meta information associated to the current task
+
+        Several situations are possible:
+
+        - No input has been registered yet => simply register it
+        - If current task has a "reduce_inputs_{origin}" key in its meta
+          information, => use that function to filter which input is actually
+          kept.
+          This scenario is usefull in case several sets of inputs permit to
+          obtain a same product (e.g. when we don't actually need the data, but
+          only the geometry, etc).
+        - Otherwise, stack the new input with the previous ones.
+        """
         if origin not in self._inputs:
             logger.debug('add_input[%s]: first time <<-- %s', origin, input_meta)
             self._inputs[origin] = [input_meta]
@@ -995,21 +998,16 @@ class TaskInputInfo:
     @property
     def inputs(self):
         """
-        Property inputs
+        Inputs associated to the task.
+
+        It's organized as a dictionary that associates a source type to a meta or a list of meta information.
         """
         return self._inputs
 
     @property
-    def dependencies(self):
-        """
-        Property dependencies
-        """
-        return self.__dependencies
-
-    @property
     def input_task_names(self):
         """
-        Property task names
+        List of input tasks the current task depends on.
         """
         logger.debug('input_task_names(%s) --> %s', self.pipeline.name, self.inputs)
         # TODO: use input_metas?
@@ -1019,7 +1017,7 @@ class TaskInputInfo:
     @property
     def input_metas(self):
         """
-        Property input_metas
+        List of input meta informations the current task depends on.
         """
         metas = [meta for inputs in self.inputs.values() for meta in inputs]
         return metas
@@ -1030,14 +1028,15 @@ class TaskInputInfo:
             res += f'  - "{k}":\n'
             for val in inps:
                 res += f'    - {val}\n'
-        res += f'- dependencies: {self.dependencies}\n'
         res += f'- pipeline: {self.pipeline}\n'
         return res
 
 
 class PipelineDescriptionSequence:
     """
-    List of :class:`PipelineDescription` objects
+    This class is the main entry point to describe pipelines.
+
+    Internally, it can be seen as a list of :class:`PipelineDescription` objects.
     """
     def __init__(self, cfg, dryrun):
         """
@@ -1052,7 +1051,7 @@ class PipelineDescriptionSequence:
         """
         Register a pipeline description from:
 
-        Params:
+        Parameters:
             :factory_steps:       List of non-instanciated :class:`StepFactory` classes
             :name:                Optional name for the pipeline
             :product_required:    Tells whether the pipeline product is expected as a
@@ -1222,7 +1221,7 @@ class PipelineDescriptionSequence:
         """
         Generate the minimal list of tasks that can be passed to Dask
 
-        Params:
+        Parameters:
             :tile_name:   Name of the current S2 tile
             :raster_list: List of rasters that intersect the tile.
 
@@ -1524,7 +1523,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         See:
             :func:`_FileProducingStepFactory.__init__`
 
-        Params:
+        Parameters:
             :param_in:  Flag used by the default OTB application for the input file (default: "in")
             :param_out: Flag used by the default OTB application for the ouput file (default: "out")
         """
@@ -1757,7 +1756,7 @@ def mp_worker_config(queue):
 
     It takes care of initializing the queue handler in the subprocess.
 
-    Params:
+    Parameters:
         :queue: multiprocessing.Queue used for passing logging messages from worker to main
             process.
     """
