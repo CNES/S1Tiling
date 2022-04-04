@@ -455,7 +455,7 @@ class Step(_StepWithOTBApplication):
 
 def _check_input_step_type(inputs):
     """
-    Internal helpder function that checks :func:`StepFactory.create_step()`
+    Internal helper function that checks :func:`StepFactory.create_step()`
     ``inputs`` parameters is of the expected type, i.e.:
     list of dictionaries {'key': :class:`AbstractStep`}
     """
@@ -572,11 +572,31 @@ class StepFactory(ABC):
         meta.pop('out_extended_filename_complement', None)
         return self.update_filename_meta(meta)
 
+    def _get_inputs(self, previous_steps):
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seen in the pipeline.
+
+        This method will need to be overridden in classes like
+        :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
+
+        Postcondition:
+            :``_check_input_step_type(result)`` is True
+        """
+        # By default, simply return the last step information
+        assert len(previous_steps) > 0
+        inputs = previous_steps[-1]
+        _check_input_step_type(inputs)
+        return inputs
+
     def _get_canonical_input(self, inputs):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
         By default, if there is only one input, this will be the one returned.
         Steps will multiple inputs will need to override this method.
+
+        Precondition:
+            :``_check_input_step_type(result)`` is True
         """
         _check_input_step_type(inputs)
         if len(inputs) == 1:
@@ -588,7 +608,7 @@ class StepFactory(ABC):
             raise TypeError("No way to handle a multiple-inputs (%s) step from StepFactory: %s"
                     % (keys, self.__class__.__name__,))
 
-    def create_step(self, inputs: AbstractStep, in_memory: bool, unused_previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` steps.
@@ -603,8 +623,7 @@ class StepFactory(ABC):
         used in :func:`Store.create_step()` where it's eventually used to
         release all OTB Application objects.
         """
-        # TODO: distinguish step description & step
-        _check_input_step_type(inputs)
+        inputs = self._get_inputs(previous_steps)
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
 
@@ -754,7 +773,7 @@ class Pipeline:
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
         for crt in self.__pipeline:
-            step = crt.create_step(steps[-1], self.__in_memory, steps)
+            step = crt.create_step(self.__in_memory, steps)
             steps.append([{'__last': step}])
 
         assert len(steps[-1]) == 1
@@ -1392,7 +1411,7 @@ class _FileProducingStepFactory(StepFactory):
     handling for Steps that produce files, either with OTB or through external
     calls.
 
-    :func:`create_step`  is kind of *abstract* at this point.
+    :func:`create_step` is kind of *abstract* at this point.
     """
     def __init__(self, cfg,
             gen_tmp_dir, gen_output_dir, gen_output_filename,
@@ -1563,20 +1582,6 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         return self._out
 
-    def _get_inputs(self, previous_steps):
-        """
-        Extract the last inputs to use at the current level from all previous
-        products seen in the pipeline.
-
-        This method will need to be overridden in classes like
-        :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
-        """
-        # By default, simply return the last step information
-        assert len(previous_steps) > 0
-        inputs = previous_steps[-1]
-        _check_input_step_type(inputs)
-        return inputs
-
     def set_output_pixel_type(self, app, meta):
         """
         Permits to have steps force the output pixel data.
@@ -1585,8 +1590,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         pass
 
-    def create_step(self, inputs: list, in_memory: bool, previous_steps):
-        # TODO: remove "inputs" parameter as it's redundant
+    def create_step(self, in_memory: bool, previous_steps):
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1610,7 +1614,6 @@ class OTBStepFactory(_FileProducingStepFactory):
         release all OTB Application objects.
         """
         inputs = self._get_inputs(previous_steps)
-        _check_input_step_type(inputs)
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
         assert self.appname
@@ -1683,13 +1686,13 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         self._exename              = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
-    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
         """
         logger.debug("Directly execute %s step", self.name)
-        _check_input_step_type(inputs)
+        inputs = self._get_inputs(previous_steps)
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
         res = ExecutableStep(self._exename, **meta)
@@ -1710,13 +1713,13 @@ class Store(StepFactory):
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
         # logger.debug('Creating Store Factory: %s', appname)
 
-    def create_step(self, inputs: Step, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):
         """
         Specializes :func:`StepFactory.create_step` to trigger
         :func:`StoreStep.execute_and_write_output` on the last step that
         relates to an OTB Application.
         """
-        _check_input_step_type(inputs)
+        inputs = self._get_inputs(previous_steps)
         input = self._get_canonical_input(inputs)
         if input.is_first_step:
             assert False  # Should no longer happen!

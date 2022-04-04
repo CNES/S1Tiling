@@ -647,12 +647,12 @@ class Concatenate(_ConcatenatorFactory):
         meta['update_out_filename']              = self.update_out_filename
         return meta
 
-    def create_step(self, inputs: Step, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):
         """
         :func:`create_step` is overridden in :class:`Concatenate` case in
         order to by-pass Concatenation in case there is only a single file.
         """
-        _check_input_step_type(inputs)
+        inputs = self._get_inputs(previous_steps)
         input = self._get_canonical_input(inputs)
         # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
         if isinstance(input.out_filename, list) and len(input.out_filename) == 1:
@@ -662,7 +662,7 @@ class Concatenate(_ConcatenatorFactory):
         elif isinstance(input.out_filename, str):
             concat_in_filename = input.out_filename
         else:
-            return super().create_step(inputs, in_memory, previous_steps)
+            return super().create_step(in_memory, previous_steps)
         # Back to a single file input case
         logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
         meta = self.complete_meta(input.meta, inputs)
@@ -1383,9 +1383,9 @@ class SelectBestCoverage(_FileProducingStepFactory):
 
         meta['reduce_inputs_in'] = reduce_LIAs
 
-    def create_step(self, inputs: list, in_memory: bool, unused_previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):
         logger.debug("Directly execute %s step", self.name)
-        _check_input_step_type(inputs)
+        inputs = self._get_inputs(previous_steps)
         input = self._get_canonical_input(inputs)
         meta = self.complete_meta(input.meta, inputs)
 
