@@ -901,7 +901,7 @@ class SARDEMProjection(OTBStepFactory):
         dst.SetMetadataItem('ORBIT_DIRECTION',          meta['orbit_direction'])
         dst.SetMetadataItem('TIFFTAG_SOFTWARE',         'S1 Tiling v'+__version__)
         _, inbasename = os.path.split(in_filename(meta))
-        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(inbasename, meta['srtms']))
+        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(inbasename, ', '.join(meta['srtms'])))
 
         acquisition_time = meta['acquisition_time']
         date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
