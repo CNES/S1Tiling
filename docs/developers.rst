@@ -36,7 +36,13 @@ Actually, a processing doesn't always turn into the execution of an OTB
 application, sometimes we need to do other computations.
 
 When we need to have files produced at some point, we end a pipeline, the next
-one can take over from that point.
+one(s) can take over from that point.
+
+Simple pipelines
+++++++++++++++++
+
+In simple cases, we can chain the output of an in-memory pipeline of OTB
+applications into the next pipeline.
 
 At this moment, the following sequence of pipelines is defined:
 
@@ -59,6 +65,62 @@ instead:
 
     pipelines.register_pipeline([AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
                                 'OrthoRectify', product_required=False)
+
+Complex pipelines
++++++++++++++++++
+
+In more complex cases, the product of a pipeline will be used as input of
+several other pipelines. Also a pipelines can have several inputs coming from
+different other pipelines.
+
+To do so, we name each pipeline, so we can use that name as input of other
+pipelines.
+
+For instance, LIA producing pipelines are described this way
+
+.. code:: python
+
+    pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
+    dem = pipelines.register_pipeline([AgglomerateDEM],
+        'AgglomerateDEM',
+        inputs={'insar': 'basename'})
+    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection],
+        'SARDEMProjection',
+        is_name_incremental=True,
+        inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],
+        'SARCartesianMeanEstimation',
+        inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],
+        'Normals|LIA',
+        is_name_incremental=True,
+        inputs={'xyz': xyz})
+
+    # "inputs" parameter doesn't need to be specified in all the following
+    # pipeline declarations but we still use it for clarity!
+    ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],
+        'OrthoLIA',
+        inputs={'in': lia},
+        is_name_incremental=True)
+    concat = pipelines.register_pipeline([ConcatenateLIA],
+        'ConcatLIA',
+        inputs={'in': ortho})
+    select = pipelines.register_pipeline([SelectBestCoverage],
+        'SelectLIA',
+        product_required=True,
+        inputs={'in': concat})
+    ortho_sin  = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],
+        'OrthoSinLIA',
+        inputs={'in': lia},
+        is_name_incremental=True)
+    concat_sin = pipelines.register_pipeline([ConcatenateLIA],
+        'ConcatSinLIA',
+        inputs={'in': ortho_sin})
+    select_sin = pipelines.register_pipeline([SelectBestCoverage],
+        'SelectSinLIA',
+        product_required=True,
+        inputs={'in': concat_sin})
+
 
 Dask: tasks
 -----------
