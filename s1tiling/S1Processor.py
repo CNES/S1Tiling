@@ -69,8 +69,10 @@ from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
-        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
+        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate,
+        BuildBorderMask, SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
+        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA,
+        ConcatenateLIA, SelectBestCoverage)
 from s1tiling.libs import exits
 
 # Graphs
@@ -228,7 +230,7 @@ def process_one_tile(
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
             s1_file_manager.download_images(tiles=tile_name,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
-    except BaseException as e:
+    except BaseException as e:  # pylint: disable=broad-except
         logger.exception('Cannot download S1 images associated to %s', tile_name)
         sys.exit(exits.DOWNLOAD_ERROR)
 
@@ -266,8 +268,7 @@ def process_one_tile(
 
         if debug_tasks:
             SimpleComputationGraph().simple_graph(
-                    dsk,
-                    filename='tasks-%s-%s.svg' % (tile_idx + 1, tile_name))
+                    dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
         logger.info('Start S1 -> S2 transformations for %s', tile_name)
         nb_tries = 2
         for run_attemp in range(1, nb_tries+1):
@@ -279,15 +280,16 @@ def process_one_tile(
                 logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
                         e.last_worker.name, e.task, tile_name, e, run, nb_tries)
                 # TODO: don't overwrite previous logs
-                # And we'll need to use the synchronous=False parameter to be able to check successful executions
-                # but then, how do we clean up futures and all??
+                # And we'll need to use the synchronous=False parameter to be able to check
+                # successful executions but then, how do we clean up futures and all??
                 client.restart()
                 # Update the list of remaining tasks
                 if run_attemp < nb_tries:
-                    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-                            debug_otb=debug_otb, do_watch_ram=do_watch_ram)
+                    dsk, required_products = pipelines.generate_tasks(tile_name,
+                            intersect_raster_list, debug_otb=debug_otb, do_watch_ram=do_watch_ram)
                 else:
                     raise
+        return []
 
 
 def do_process_with_pipeline(config_opt,
@@ -302,7 +304,8 @@ def do_process_with_pipeline(config_opt,
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
-    # The config_opt can be either the configuration filename or an already initialized configuration object
+    # The config_opt can be either the configuration filename or an already initialized
+    # configuration object
     if isinstance(config_opt, str):
         config = Configuration(config_opt)
     else:
@@ -317,7 +320,8 @@ def do_process_with_pipeline(config_opt,
             logger.critical("No existing tiles found, exiting ...")
             sys.exit(exits.NO_S2_TILE)
 
-        tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(tiles_to_process, s1_file_manager)
+        tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(
+                tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
                 s1_file_manager.nb_images, tiles_to_process_checked)
@@ -348,9 +352,12 @@ def do_process_with_pipeline(config_opt,
         try:
             if not debug_otb:
                 clean_logs(config.log_config, config.nb_procs)
-                cluster = LocalCluster(threads_per_worker=1, processes=True, n_workers=config.nb_procs, silence_logs=False)
+                cluster = LocalCluster(
+                        threads_per_worker=1, processes=True, n_workers=config.nb_procs,
+                        silence_logs=False)
                 client = Client(cluster)
-                client.register_worker_callbacks(lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
+                client.register_worker_callbacks(
+                        lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
             else:
                 client = None
 
@@ -362,7 +369,8 @@ def do_process_with_pipeline(config_opt,
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, client,
                             searched_items_per_page=searched_items_per_page,
-                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram, debug_tasks=debug_tasks)
+                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
+                            debug_tasks=debug_tasks)
                     results += res
 
             nb_error_detected = 0
@@ -465,10 +473,10 @@ def s1_process_lia(config_opt,
         # but we still use it for clarity!
         ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],    'OrthoLIA',      inputs={'in': lia}, is_name_incremental=True)
         concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
-        select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, inputs={'in': concat})
+        pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, inputs={'in': concat})
         ortho_sin  = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
         concat_sin = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',                        inputs={'in': ortho_sin})
-        select_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
+        pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
 
         return pipelines
 

@@ -42,7 +42,11 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import StepFactory, _FileProducingStepFactory, OTBStepFactory, ExecutableStepFactory, in_filename, out_filename, tmp_filename, Step, AbstractStep, otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator, OutputFilenameGeneratorList, TemplateOutputFilenameGenerator, ReplaceOutputFilenameGenerator, commit_execution
+from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory,
+        ExecutableStepFactory, in_filename, out_filename, tmp_filename, AbstractStep,
+        otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator,
+        OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
+        ReplaceOutputFilenameGenerator, commit_execution)
 from . import Utils
 from ..__meta__ import __version__
 
@@ -112,7 +116,7 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 
-        meta['task_name']        = 'ExtractS1Meta_%s' % (meta['basename'], )
+        meta['task_name']        = f'ExtractS1Meta_{meta["basename"]}'
         return meta
 
     def _get_canonical_input(self, inputs):
@@ -817,7 +821,8 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath))
+        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
+            in_filename(meta), self.__srtm_db_filepath))
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
@@ -878,13 +883,14 @@ class SARDEMProjection(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
-        assert 'inputs' in meta, f"Meta data shall have been filled with inputs"
+        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
         # meta['inputs'] = all_inputs
 
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(in_filename(meta), self.__srtm_db_filepath))
+        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
+            in_filename(meta), self.__srtm_db_filepath))
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
@@ -1009,9 +1015,11 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         return meta
 
     def fetch_direction(self, inputpath, meta):
+        """
+        Extract back direction to scan DEM from SARDEMProjected image metadata.
+        """
         logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
         dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
-        # TODO: Test on real file!
         if not dst:
             raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
         meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
@@ -1200,7 +1208,8 @@ class _FilterStepFactory(StepFactory):
 
     def _get_input_image(self, meta):
         # Flatten should be useless, but kept for better error messages
-        related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta)) if re.search(rf'\b{self._LIA_kind}_', f)]
+        related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta))
+                if re.search(rf'\b{self._LIA_kind}_', f)]
         assert len(related_inputs) == 1, f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
         return related_inputs[0]
 
@@ -1279,7 +1288,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
                 }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']
-        assert kind in types.keys(), f'The only LIA kind accepted are {types.keys()}'
+        assert kind in types, f'The only LIA kind accepted are {types.keys()}'
         dst.SetMetadataItem('IMAGE_TYPE', types[kind])
         return dst
 
@@ -1370,11 +1379,12 @@ class SelectBestCoverage(_FileProducingStepFactory):
         """
         def reduce_LIAs(inputs):
             """
-            Select the concatenated pair of LIA files that have the best coverage of the considered S2 tile
+            Select the concatenated pair of LIA files that have the best coverage of the considered
+            S2 tile.
             """
             # TODO: quid if different dates have best different coverage on a set of tiles?
             # How to avoid computing LIA again and again on a same S1 zone?
-            dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
+            # dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
             best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
             logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
             for inp in inputs:

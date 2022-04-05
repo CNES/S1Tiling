@@ -35,5 +35,5 @@ disable=
 
 [FORMAT]
 
-ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.|register_pipeline
 

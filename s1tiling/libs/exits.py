@@ -27,6 +27,10 @@
 #
 # =========================================================================
 
+"""
+This module lists EXIT codes
+"""
+
 TASK_FAILED         = 66
 DOWNLOAD_ERROR      = 67
 OFFLINE_DATA        = 68

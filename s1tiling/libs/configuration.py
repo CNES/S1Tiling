@@ -168,7 +168,8 @@ class Configuration():
         self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
-            self.tile_list = open(tiles_file, 'r').readlines()
+            with open(tiles_file, 'r') as tiles_file_handle:
+                self.tile_list = tiles_file_handle.readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
         except Exception:  # pylint: disable=broad-except

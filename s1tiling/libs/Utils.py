@@ -146,10 +146,10 @@ def get_s1image_poly(s1image):
     if isinstance(s1image, str):
         manifest = Path(s1image).parents[1] / 'manifest.safe'
     else:
-        manifest = image.get_manifest()
+        manifest = s1image.get_manifest()
 
     logging.debug("Manifest: %s", manifest)
-    assert(manifest.exists())
+    assert manifest.exists()
     poly = get_shape(manifest)
     return poly
 
@@ -192,8 +192,8 @@ def find_srtm_intersecting_raster(s1image, srtm_db_filepath):
     logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
 
     srtm_shapefile = srtm_db_filepath
-    assert(srtm_shapefile)
-    assert(os.path.isfile(srtm_shapefile))
+    assert srtm_shapefile
+    assert os.path.isfile(srtm_shapefile)
     srtm_layer = Layer(srtm_shapefile, driver_name='GPKG')
     for tile in srtm_layer:
         tile_footprint = tile.GetGeometryRef()

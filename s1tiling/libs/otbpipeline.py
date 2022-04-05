@@ -32,7 +32,6 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 
 import os
 import shutil
-from pathlib import Path
 import re
 import copy
 from abc import ABC, abstractmethod
@@ -63,7 +62,8 @@ def otb_version():
     """
     if not hasattr(otb_version, "_version"):
         try:
-            r = subprocess.run(['otbcli_ResetMargin', '-version'], stdout=subprocess.PIPE , stderr=subprocess.STDOUT )
+            r = subprocess.run(['otbcli_ResetMargin', '-version'], stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT)
             version = r.stdout.decode('utf-8').strip('\n')
             version = re.search(r'\d+(\.\d+)+$', version)[0]
             logger.info("OTB version detected on the system is %s", version)
@@ -156,7 +156,7 @@ def as_app_shell_param(param):
     elif isinstance(param, int):
         return param
     else:
-        return "'%s'" % (param,)
+        return f"'{param}'"
 
 
 def in_filename(meta):
@@ -265,7 +265,7 @@ def execute(params, dryrun):
     msg = ' '.join([str(p) for p in params])
     logging.info('$> '+msg)
     if not dryrun:
-        with Utils.ExecutionTimer(msg, True) as t:
+        with Utils.ExecutionTimer(msg, True):
             subprocess.run(args=params, check=True)
 
 
@@ -531,7 +531,8 @@ class StepFactory(ABC):
         - :func:`out_extended_filename_complement`
 
         It's possible to inject some other metadata (that could be used from
-        :func:`_get_canonical_input()` for instance) thanks to :func:`_update_filename_meta_pre_hook()`.
+        :func:`_get_canonical_input()` for instance) thanks to
+        :func:`_update_filename_meta_pre_hook()`.
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
@@ -659,16 +660,16 @@ class Outcome:
 
     def __repr__(self):
         if self.__is_error:
-            msg = 'Failed to produce %s' % (self.__related_filenames[-1])
+            msg = f'Failed to produce {self.__related_filenames[-1]}'
             if len(self.__related_filenames) > 1:
                 errored_files = ', '.join(self.__related_filenames[:-1])
-                msg += ' because %s could not be produced: ' % (errored_files, )
+                msg += f' because {errored_files} could not be produced: '
             else:
                 msg += ': '
-            msg += '%s' % (self.__value_or_error, )
+            msg +=  f'{self.__value_or_error}'
             return msg
         else:
-            return 'Success: %s' % (self.__value_or_error)
+            return f'Success: {self.__value_or_error}'
 
 
 class Pipeline:
@@ -729,7 +730,7 @@ class Pipeline:
         registered :class:`StepFactory` s.
         """
         appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
-        return '%s -> %s from %s' % (appname, self.__output, self._input_filenames)
+        return f'{appname} -> {self.__output} from {self._input_filenames}'
 
     @property
     def output(self):
@@ -762,7 +763,8 @@ class Pipeline:
         """
         assert self.__inputs
         logger.info("INPUTS: %s", self.__inputs)
-        tested_files = list(Utils.flatten_stringlist([v.out_filename for inp in self.__inputs for _,v in inp.items()]))
+        tested_files = list(Utils.flatten_stringlist(
+            [v.out_filename for inp in self.__inputs for _,v in inp.items()]))
         logger.info("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
         if len(missing_inputs) > 0 and not self.__dryrun:
@@ -925,7 +927,6 @@ def to_dask_key(pathname):
     - Strip directory name
     - Replace '-' with '_' as Dask has a special interpretation for '-' in key names.
     """
-    # return Path(pathname).stem.replace('-', '_')
     return pathname.replace('-', '_')
 
 
@@ -1001,7 +1002,8 @@ class TaskInputInfo:
         logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
         if f'reduce_inputs_{origin}' in destination_meta.keys():
             # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s', origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
-            self._inputs[origin] = destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta])
+            self._inputs[origin] = destination_meta[f'reduce_inputs_{origin}'](
+                    self._inputs[origin] + [input_meta])
             return False
         else:
             self._inputs[origin].append(input_meta)
@@ -1019,7 +1021,8 @@ class TaskInputInfo:
         """
         Inputs associated to the task.
 
-        It's organized as a dictionary that associates a source type to a meta or a list of meta information.
+        It's organized as a dictionary that associates a source type to a meta or a list of meta
+        information.
         """
         return self._inputs
 
@@ -1041,7 +1044,7 @@ class TaskInputInfo:
         return metas
 
     def __repr__(self):
-        res = f'TaskInputInfo:\n- inputs:\n'
+        res = 'TaskInputInfo:\n- inputs:\n'
         for k, inps in self.inputs.items():
             res += f'  - "{k}":\n'
             for val in inps:
@@ -1155,9 +1158,11 @@ class PipelineDescriptionSequence:
                             logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
                             update_out_filename(expected, previous[expected_taskname])
                             logger.debug('...to (%s)', expected)
-                            already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == expected_taskname]
+                            already_registered_next_input = [
+                                    ni for ni in outputs if get_task_name(ni) == expected_taskname]
                             assert len(already_registered_next_input) == 1
-                            update_out_filename(already_registered_next_input[0], previous[expected_taskname])
+                            update_out_filename(
+                                    already_registered_next_input[0], previous[expected_taskname])
                             # Can't we simply override the already_registered_next_input with expected fields?
                             already_registered_next_input[0].update(expected)
                         else:
@@ -1212,16 +1217,19 @@ class PipelineDescriptionSequence:
                 pipeline_descr = previous[task_name].pipeline
                 # TODO: support multiple outputs!
                 first = lambda files : files[0] if isinstance(files, list) else  files
-                input_task_keys = [to_dask_key(first(tn)) for tn in previous[task_name].input_task_names]
+                input_task_keys = [to_dask_key(first(tn))
+                        for tn in previous[task_name].input_task_names]
                 assert list(input_task_keys)
                 logger.debug('%s(%s) --> %s', task_name, list(input_task_keys), task_inputs)
                 # TODO: check whether the pipeline shall be instanciated w/
                 # file_name of task_name
                 output_filename = task_names_to_output_files_table[task_name]
-                pipeline_instance = pipeline_descr.instanciate(output_filename, True, True, do_watch_ram)
+                pipeline_instance = pipeline_descr.instanciate(
+                        output_filename, True, True, do_watch_ram)
                 pipeline_instance.set_inputs(task_inputs)
                 logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, pipeline_descr.name, list(input_task_keys))
-                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
+                register_task(
+                        tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
                 for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
                     tn = first(get_task_name(t))
@@ -1259,7 +1267,7 @@ class PipelineDescriptionSequence:
                 do_watch_ram=do_watch_ram)
 
         for final_product in final_products:
-            assert debug_otb or final_product in tasks.keys()
+            assert debug_otb or final_product in tasks
         return tasks, final_products
 
 
@@ -1281,10 +1289,10 @@ class FirstStep(AbstractStep):
         self._meta['pipe'] = [self._meta['out_filename']]
 
     def __str__(self):
-        return 'FirstStep%s' % (self._meta,)
+        return f'FirstStep{self._meta}'
 
     def __repr__(self):
-        return 'FirstStep%s' % (self._meta,)
+        return f'FirstStep{self._meta}'
 
 
 class MergeStep(AbstractStep):
@@ -1304,10 +1312,10 @@ class MergeStep(AbstractStep):
         self._meta['out_filename'] = [out_filename(s) for s in input_steps_metas]
 
     def __str__(self):
-        return 'MergeStep%s' % (self.__input_steps_metas,)
+        return f'MergeStep{self.__input_steps_metas}'
 
     def __repr__(self):
-        return 'MergeStep%s' % (self.__input_steps_metas,)
+        return f'MergeStep{self.__input_steps_metas}'
 
 
 class StoreStep(_StepWithOTBApplication):
@@ -1380,7 +1388,7 @@ class StoreStep(_StepWithOTBApplication):
         self.meta['pipe'] = [self.out_filename]
 
 
-def commit_execution(tmp_filename, out_fn):
+def commit_execution(tmp_fn, out_fn):
     """
     Concluding step that validates the successful execution of an application,
     whether it's an OTB application or an external executable.
@@ -1388,20 +1396,20 @@ def commit_execution(tmp_filename, out_fn):
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    assert type(tmp_filename) == type(out_fn)
+    assert type(tmp_fn) == type(out_fn)
     if isinstance(out_fn, list):
-        for t, o in zip(tmp_filename, out_fn):
+        for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
         return
-    logger.debug('Renaming: mv %s %s', tmp_filename, out_fn)
-    shutil.move(tmp_filename, out_fn)
+    logger.debug('Renaming: mv %s %s', tmp_fn, out_fn)
+    shutil.move(tmp_fn, out_fn)
     re_tiff = re.compile(r'\.tiff?$')
-    tmp_geom = re.sub(re_tiff, '.geom', tmp_filename)
+    tmp_geom = re.sub(re_tiff, '.geom', tmp_fn)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_fn)
         shutil.move(tmp_geom, out_geom)
         logger.debug('Renaming: mv %s %s', tmp_geom, out_geom)
-    assert not os.path.isfile(tmp_filename)
+    assert not os.path.isfile(tmp_fn)
     assert os.path.isfile(out_fn)
 
 
@@ -1510,7 +1518,8 @@ class _FileProducingStepFactory(StepFactory):
         will automatically insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
-        add_tmp = lambda fn : os.path.join(self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
+        add_tmp = lambda fn : os.path.join(
+                self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
         if isinstance(filename, str):
             return add_tmp(filename)
         else:
@@ -1658,7 +1667,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             try:
                 app.SetParameters(parameters)
             except Exception:
-                logger.exception("Cannot set parameters to %s (from %s) %s" % (self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items())))
+                logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
                 raise
 
         meta['param_out'] = self.param_out
