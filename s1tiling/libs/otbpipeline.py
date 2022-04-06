@@ -75,6 +75,9 @@ def otb_version():
 
 
 def as_list(param):
+    """
+    Make sure ``param`` is either a list or encapsulated in a list.
+    """
     if isinstance(param, list):
         return param
     else:
@@ -90,7 +93,7 @@ class OutputFilenameGenerator(ABC):
     - {template} strings
     - list of any of the other two
     """
-    def generate(self, basename, keys):
+    def generate(self, basename, keys):  # pylint: disable=unused-argument,no-self-use
         """
         Default implementation does nothing.
         """
@@ -476,7 +479,7 @@ class StepFactory(ABC):
 
     See: `Existing processings`_
     """
-    def __init__(self, name, *unused_argv, **kwargs):
+    def __init__(self, name, *unused_argv, **kwargs):  # pylint: disable=unused-argument
         assert name
         self._name    = name
         # logger.debug("new StepFactory(%s)", name)
@@ -547,7 +550,7 @@ class StepFactory(ABC):
         self._update_filename_meta_post_hook(meta)
         return meta
 
-    def _update_filename_meta_pre_hook(self, meta):  # to be overridden
+    def _update_filename_meta_pre_hook(self, meta):  # to be overridden  # pylint: disable=no-self-use
         """
         Hook meant to be overridden to complete product metadata before
         they are used to produce filenames or tasknames.
@@ -556,7 +559,7 @@ class StepFactory(ABC):
         """
         return meta
 
-    def _update_filename_meta_post_hook(self, meta):  # to be overridden
+    def _update_filename_meta_post_hook(self, meta):  # to be overridden  # pylint: disable=no-self-use
         """
         Hook meant to be overridden to fix product metadata by
         overriding their default definition.
@@ -565,7 +568,7 @@ class StepFactory(ABC):
         """
         return meta
 
-    def complete_meta(self, meta, all_inputs):  # to be overridden
+    def complete_meta(self, meta, all_inputs):  # to be overridden  # pylint: disable=unused-argument
         """
         Duplicates, completes, and return, the `meta` dictionary with specific
         information for the current factory regarding :class:`Step` instanciation.
@@ -573,7 +576,7 @@ class StepFactory(ABC):
         meta.pop('out_extended_filename_complement', None)
         return self.update_filename_meta(meta)
 
-    def _get_inputs(self, previous_steps):
+    def _get_inputs(self, previous_steps):  # pylint: disable=unused-argument,no-self-use
         """
         Extract the last inputs to use at the current level from all previous
         products seen in the pipeline.
@@ -606,10 +609,9 @@ class StepFactory(ABC):
             # If this error is raised, this means the current step has several
             # inputs, it it need to tell how the "main" input is found.
             keys = set().union(*(input.keys() for input in inputs))
-            raise TypeError("No way to handle a multiple-inputs (%s) step from StepFactory: %s"
-                    % (keys, self.__class__.__name__,))
+            raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
-    def create_step(self, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps):  # pylint: disable=unused-argument
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` steps.
@@ -625,8 +627,8 @@ class StepFactory(ABC):
         release all OTB Application objects.
         """
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta, inputs)
+        inp    = self._get_canonical_input(inputs)
+        meta   = self.complete_meta(inp.meta, inputs)
 
         # Return previous app?
         return AbstractStep(**meta)
@@ -685,7 +687,7 @@ class Pipeline:
     # Should we inherit from contextlib.ExitStack?
     def __init__(self, do_measure, in_memory, do_watch_ram, name=None, dryrun=False, output=None):
         self.__pipeline     = []
-        self.__do_measure   = do_measure
+        # self.__do_measure   = do_measure
         self.__in_memory    = in_memory
         self.__do_watch_ram = do_watch_ram
         self.__dryrun       = dryrun
@@ -768,7 +770,7 @@ class Pipeline:
         logger.info("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
         if len(missing_inputs) > 0 and not self.__dryrun:
-            msg = "Cannot execute %s as the following input(s) %s do(es)n't exist" % (self, missing_inputs)
+            msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
         # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
@@ -834,7 +836,8 @@ class PipelineDescription:
     - can tell the expected product name given an input.
     - tells whether its product is required
     """
-    def __init__(self, factory_steps, dryrun, name=None, product_required=False, is_name_incremental=False, inputs=None):
+    def __init__(self, factory_steps, dryrun, name=None, product_required=False,
+            is_name_incremental=False, inputs=None):
         """
         constructor
         """
@@ -1195,14 +1198,11 @@ class PipelineDescriptionSequence:
 
     def _build_tasks_from_dependencies(self,
             required, previous, task_names_to_output_files_table,
-            debug_otb, do_watch_ram):  # pylint: disable=no-self-use
+            do_watch_ram):  # pylint: disable=no-self-use
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
-        In case debug_otb is true, instead of a dictionary of tasks, an ordered list of tasks is
-        returned in order to process sequentially each pipeline.
-
-        `previous` is lade of:
+        `previous` is made of:
         - "pipeline": reference to the :class:`PipelineDescription`
         - "inputs": list of the inputs (metadata)
         """
@@ -1243,7 +1243,7 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
-    def generate_tasks(self, tile_name, raster_list, debug_otb=False, do_watch_ram=False):
+    def generate_tasks(self, tile_name, raster_list, do_watch_ram=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -1263,11 +1263,10 @@ class PipelineDescriptionSequence:
                 required=required,
                 previous=previous,
                 task_names_to_output_files_table=task_names_to_output_files_table,
-                debug_otb=debug_otb,
                 do_watch_ram=do_watch_ram)
 
         for final_product in final_products:
-            assert debug_otb or final_product in tasks
+            assert final_product in tasks
         return tasks, final_products
 
 
@@ -1403,7 +1402,6 @@ def commit_execution(tmp_fn, out_fn):
         return
     logger.debug('Renaming: mv %s %s', tmp_fn, out_fn)
     shutil.move(tmp_fn, out_fn)
-    re_tiff = re.compile(r'\.tiff?$')
     tmp_geom = re.sub(re_tiff, '.geom', tmp_fn)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_fn)
@@ -1555,7 +1553,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             :param_out: Flag used by the default OTB application for the ouput file (default: "out")
         """
         super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
-        is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
+        # is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
         # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
 
         self._in                   = kwargs.get('param_in',  'in')
@@ -1623,14 +1621,14 @@ class OTBStepFactory(_FileProducingStepFactory):
         release all OTB Application objects.
         """
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta, inputs)
+        inp    = self._get_canonical_input(inputs)
+        meta   = self.complete_meta(inp.meta, inputs)
         assert self.appname
 
         # Otherwise: step with an OTB application...
         if is_running_dry(meta):
             logger.warning('DRY RUN mode: ignore step and OTB Application creation')
-            lg_from = input.out_filename if input.is_first_step else 'app'
+            lg_from = inp.out_filename if inp.is_first_step else 'app'
             logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
             meta['param_out'] = self.param_out
             return Step('FAKEAPP', **meta)
@@ -1640,17 +1638,17 @@ class OTBStepFactory(_FileProducingStepFactory):
             if not app:
                 raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
             parameters = self.parameters(meta)
-            if input.is_first_step:
-                if not files_exist(input.out_filename):
-                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input.out_filename)
-                    raise RuntimeError("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)" % (self.appname, input.out_filename))
-                # parameters[self.param_in] = input.out_filename
-                lg_from = input.out_filename
+            if inp.is_first_step:
+                if not files_exist(inp.out_filename):
+                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, inp.out_filename)
+                    raise RuntimeError(f"Cannot create OTB pipeline starting with {self.appname} as some input files don't exist ({inp.out_filename})")
+                # parameters[self.param_in] = inp.out_filename
+                lg_from = inp.out_filename
             else:
                 assert isinstance(self.param_in, str), f"String expected for {self.param_in}"
-                assert isinstance(input.param_out, str), f"String expected for {self.param_out}"
-                app.ConnectImage(self.param_in, input.app, input.param_out)
-                this_step_is_in_memory = in_memory and not input.shall_store
+                assert isinstance(inp.param_out, str), f"String expected for {self.param_out}"
+                app.ConnectImage(self.param_in, inp.app, inp.param_out)
+                this_step_is_in_memory = in_memory and not inp.shall_store
                 # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
                 app.PropagateConnectMode(this_step_is_in_memory)
                 if this_step_is_in_memory:
@@ -1702,9 +1700,9 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         """
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta, inputs)
-        res = ExecutableStep(self._exename, **meta)
+        inp    = self._get_canonical_input(inputs)
+        meta   = self.complete_meta(inp.meta, inputs)
+        res    = ExecutableStep(self._exename, **meta)
         parameters = self.parameters(meta)
         res.execute_and_write_output(parameters)
         return res
@@ -1718,7 +1716,7 @@ class Store(StepFactory):
     While it could be used manually, it's meant to be automatically appended
     at the end of a pipeline if any step is actually related to OTB.
     """
-    def __init__(self, appname, *argv, **kwargs):
+    def __init__(self, appname, *argv, **kwargs):  # pylint: disable=unused-argument
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
         # logger.debug('Creating Store Factory: %s', appname)
 
@@ -1729,15 +1727,15 @@ class Store(StepFactory):
         relates to an OTB Application.
         """
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        if input.is_first_step:
+        inp    = self._get_canonical_input(inputs)
+        if inp.is_first_step:
             assert False  # Should no longer happen!
             # Special case of by-passed inputs
-            meta = input.meta.copy()
+            meta = inp.meta.copy()
             return AbstractStep(**meta)
 
-        # logger.debug('Creating StoreStep from %s', input)
-        res = StoreStep(input)
+        # logger.debug('Creating StoreStep from %s', inp)
+        res = StoreStep(inp)
         try:
             res.execute_and_write_output()
         finally:
@@ -1772,6 +1770,7 @@ def mp_worker_config(queue):
             process.
     """
     qh = logging.handlers.QueueHandler(queue)
+    global logger
     logger = logging.getLogger()
     logger.addHandler(qh)
 
@@ -1874,7 +1873,7 @@ class Processing:
         for startpoint in startpoints:
             logger.info("register processing of %s", startpoint.basename)
             pipeline = pool.new_pipeline(in_memory=True)
-            pipeline.set_input(startpoint)
+            pipeline.set_inputs(startpoint)
             for factory in self.__factory_steps:
                 pipeline.push(factory(self.__cfg))
 

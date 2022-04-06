@@ -227,19 +227,19 @@ class Configuration():
         """
         return str(self._SRTMShapefile)
 
-    def check_date(self):
-        """
-        DEPRECATED
-        """
-        import datetime
-
-        fd = self.first_date
-        ld = self.last_date
-
-        try:
-            F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
-            L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
-            return F_Date, L_Date
-        except Exception:  # pylint: disable=broad-except
-            logging.critical("Invalid date")
-            sys.exit(exits.CONFIG_ERROR)
+    # def check_date(self):
+    #     """
+    #     DEPRECATED
+    #     """
+    #     import datetime
+    #
+    #     fd = self.first_date
+    #     ld = self.last_date
+    #
+    #     try:
+    #         F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
+    #         L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
+    #         return F_Date, L_Date
+    #     except Exception:  # pylint: disable=broad-except
+    #         logging.critical("Invalid date")
+    #         sys.exit(exits.CONFIG_ERROR)

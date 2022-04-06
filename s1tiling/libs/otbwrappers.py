@@ -377,7 +377,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
-        self.__tmpdir               = cfg.tmpdir
+        # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
         self.__calibration_type     = cfg.calibration_type
 
@@ -444,7 +444,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 }
         return parameters
 
-    def add_ortho_metadata(self, meta, *args, **kwargs):
+    def add_ortho_metadata(self, meta, *args, **kwargs):  # pylint: disable=unused-argument
         """
         Post-application hook used to complete GDAL metadata.
         """
@@ -463,16 +463,16 @@ class _OrthoRectifierFactory(OTBStepFactory):
         dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION',   'Orthorectified Sentinel-'+meta['flying_unit_code'][1:].upper()+' IW GRD on S2 tile')
 
         acquisition_time = meta['acquisition_time']
-        date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
+        date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
         if acquisition_time[9] == 'x':
             date += ' 00:00:00'
         else:
-            date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
+            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
         self._add_extra_meta_data(dst, meta)
         del dst
 
-    def _add_extra_meta_data(self, dst, meta):
+    def _add_extra_meta_data(self, dst, meta):  # pylint: disable=unused-argument,no-self-use
         """
         Variation point used by subclasses to add specific metadata.
         """
@@ -563,7 +563,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta
 
-    def clear_ortho_tmp(self, meta, *args, **kwargs):
+    def clear_ortho_tmp(self, meta, *args, **kwargs):  # pylint: disable=unused-argument,no-self-use
         """
         Takes care of removing the orthorectified subtiles from the temporary
         directory once the concatenation has been done.
@@ -606,7 +606,7 @@ class Concatenate(_ConcatenatorFactory):
                 gen_output_filename=OutputFilenameGenerator()
                 )
 
-    def update_out_filename(self, meta, with_task_info):
+    def update_out_filename(self, meta, with_task_info):  # pylint: disable=unused-argument
         """
         This hook will be triggered everytime a new compatible input is added.
         The effect is quite unique to :class:`Concatenate` as the name of the
@@ -657,19 +657,19 @@ class Concatenate(_ConcatenatorFactory):
         order to by-pass Concatenation in case there is only a single file.
         """
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        # logger.debug('CONCAT::create_step(%s) -> %s', input.out_filename, len(input.out_filename))
-        if isinstance(input.out_filename, list) and len(input.out_filename) == 1:
-            # This situation should not happen any more, we now a single string as input.
+        inp    = self._get_canonical_input(inputs)
+        # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
+        if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
+            # This situation should not happen any more, we now a single string as inp.
             # The code is kept in case s1tiling kernel changes again.
-            concat_in_filename = input.out_filename[0]
-        elif isinstance(input.out_filename, str):
-            concat_in_filename = input.out_filename
+            concat_in_filename = inp.out_filename[0]
+        elif isinstance(inp.out_filename, str):
+            concat_in_filename = inp.out_filename
         else:
             return super().create_step(in_memory, previous_steps)
-        # Back to a single file input case
+        # Back to a single file inp case
         logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        meta = self.complete_meta(input.meta, inputs)
+        meta = self.complete_meta(inp.meta, inputs)
         res = AbstractStep(**meta)
         logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
         if not meta.get('dryrun', False):
@@ -894,7 +894,7 @@ class SARDEMProjection(OTBStepFactory):
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
         return meta
 
-    def add_image_metadata(self, meta, app):
+    def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
         """
         Post-application hook used to complete GDAL metadata.
         """
@@ -910,11 +910,11 @@ class SARDEMProjection(OTBStepFactory):
         dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(inbasename, ', '.join(meta['srtms'])))
 
         acquisition_time = meta['acquisition_time']
-        date = acquisition_time[0:4] + ':' + acquisition_time[4:6] + ':' + acquisition_time[6:8]
+        date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
         if acquisition_time[9] == 'x':
             date += ' 00:00:00'
         else:
-            date += ' ' + acquisition_time[9:11] + ':' + acquisition_time[11:13] + ':' + acquisition_time[13:15]
+            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
 
         # Pointless here! :(
@@ -1014,7 +1014,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             self.fetch_direction(inputpath, meta)
         return meta
 
-    def fetch_direction(self, inputpath, meta):
+    def fetch_direction(self, inputpath, meta):  # pylint: disable=no-self-use
         """
         Extract back direction to scan DEM from SARDEMProjected image metadata.
         """
@@ -1201,8 +1201,14 @@ class _FilterStepFactory(StepFactory):
     This class will be specialized on the fly by :func:`filter_LIA` which
     will inject the static data ``_LIA_kind``.
     """
+
+    # Useless definition used to trick pylint in believing self._LIA_kind is set.
+    # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
+    _LIA_kind = None
+
     def _update_filename_meta_pre_hook(self, meta):
         meta = super()._update_filename_meta_pre_hook(meta)
+        assert self._LIA_kind, "LIA kind should have been set in filter_LIA()"
         meta['LIA_kind'] = self._LIA_kind
         return meta
 
@@ -1217,9 +1223,9 @@ class _FilterStepFactory(StepFactory):
         """
         Forward the output filename.
         """
-        input = self._get_input_image(meta)
-        logger.debug('%s KEEP %s from %s', self.__class__.__name__, input, in_filename(meta))
-        return input
+        inp = self._get_input_image(meta)
+        logger.debug('%s KEEP %s from %s', self.__class__.__name__, inp, in_filename(meta))
+        return inp
 
     def build_step_output_tmp_filename(self, meta):
         """
@@ -1277,9 +1283,9 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         return meta
 
     def _get_input_image(self, meta):
-        input = in_filename(meta)
-        assert isinstance(input, str), f"A single string input was expected, got {input}"
-        return input   # meta['in_filename']
+        inp = in_filename(meta)
+        assert isinstance(inp, str), f"A single string inp was expected, got {inp}"
+        return inp   # meta['in_filename']
 
     def _add_extra_meta_data(self, dst, meta):
         types = {
@@ -1324,7 +1330,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         return meta
 
-    def update_out_filename(self, meta, with_task_info):
+    def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
         Unlike usual :class:`Concatenate`, the output filename will always ends
         in "txxxxxx".
@@ -1396,11 +1402,11 @@ class SelectBestCoverage(_FileProducingStepFactory):
     def create_step(self, in_memory: bool, previous_steps):
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
-        input = self._get_canonical_input(inputs)
-        meta = self.complete_meta(input.meta, inputs)
+        inp = self._get_canonical_input(inputs)
+        meta = self.complete_meta(inp.meta, inputs)
 
         # Let's reuse commit_execution as it does exactly what we need
-        commit_execution(out_filename(input.meta), out_filename(meta))
+        commit_execution(out_filename(inp.meta), out_filename(meta))
 
         # Return a dummy Step
         res = AbstractStep('move', **meta)

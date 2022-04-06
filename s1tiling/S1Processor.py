@@ -82,7 +82,6 @@ logger = None
 # logger = logging.getLogger('s1tiling')
 
 
-
 def remove_files(files):
     """
     Removes the files from the disk
@@ -210,6 +209,101 @@ def setup_worker_logs(config, dask_worker):
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
 
 
+class DaskContext:
+    """
+    Custom context manager for :class:`dask.distributed.Client` +
+    :class:`dask.distributed.LocalCluster` classes.
+    """
+    def __init__(self, config, debug_otb):
+        self.__client    = None
+        self.__cluster   = None
+        self.__config    = config
+        self.__debug_otb = debug_otb
+
+    def __enter__(self):
+        if not self.__debug_otb:
+            clean_logs(self.__config.log_config, self.__config.nb_procs)
+            self.__cluster = LocalCluster(
+                    threads_per_worker=1, processes=True, n_workers=self.__config.nb_procs,
+                    silence_logs=False)
+            self.__client = Client(self.__cluster)
+            # Work around: Cannot pickle local object in lambda...
+            global the_config
+            the_config = self.__config
+            self.__client.register_worker_callbacks(
+                    lambda dask_worker: setup_worker_logs(the_config.log_config, dask_worker))
+        return self
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        if self.__client:
+            self.__client.close()
+            self.__cluster.close()
+        return False
+
+    @property
+    def client(self):
+        """
+        Return a :class:`dask.distributed.Client`
+        """
+        return self.__client
+
+
+def _execute_tasks_debug(dsk, tile_name):
+    """
+    Execute the tasks directly, one after the other, without Dask layer.
+    The objective is to be able to debug OTB applications.
+    """
+    tasks = list(Utils.tsort(dsk, dsk.keys(),
+        lambda dasktask_data : [] if isinstance(dasktask_data, FirstStep) else dasktask_data[2])
+        )
+    logger.debug('%s tasks', len(tasks))
+    for product in reversed(tasks):
+        how = dsk[product]
+        logger.debug('- task: %s <-- %s', product, how)
+    logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
+    results = []
+    for product in reversed(tasks):
+        how = dsk[product]
+        logger.info('- execute: %s <-- %s', product, how)
+        if not issubclass(type(how), FirstStep):
+            results += [how[0](*list(how)[1:])]
+    return results
+
+
+def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, required_products,
+        client, pipelines, do_watch_ram, debug_tasks):
+    """
+    Execute the tasks in parallel through Dask.
+    """
+    for product, how in dsk.items():
+        logger.debug('- task: %s <-- %s', product, how)
+
+    if debug_tasks:
+        SimpleComputationGraph().simple_graph(
+                dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
+    logger.info('Start S1 -> S2 transformations for %s', tile_name)
+    nb_tries = 2
+    for run_attemp in range(1, nb_tries+1):
+        try:
+            results = client.get(dsk, required_products)
+            return results
+        except KilledWorker as e:
+            logger.critical('%s', dir(e))
+            logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
+                    e.last_worker.name, e.task, tile_name, e, run, nb_tries)
+            # TODO: don't overwrite previous logs
+            # And we'll need to use the synchronous=False parameter to be able to check
+            # successful executions but then, how do we clean up futures and all??
+            client.restart()
+            # Update the list of remaining tasks
+            if run_attemp < nb_tries:
+                dsk, required_products = pipelines.generate_tasks(tile_name,
+                        intersect_raster_list, do_watch_ram=do_watch_ram)
+            else:
+                raise
+    return []
+
+
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
@@ -230,7 +324,7 @@ def process_one_tile(
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
             s1_file_manager.download_images(tiles=tile_name,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
-    except BaseException as e:  # pylint: disable=broad-except
+    except BaseException:  # pylint: disable=broad-except
         logger.exception('Cannot download S1 images associated to %s', tile_name)
         sys.exit(exits.DOWNLOAD_ERROR)
 
@@ -243,53 +337,25 @@ def process_one_tile(
         return []
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-            debug_otb=debug_otb, do_watch_ram=do_watch_ram)
+            do_watch_ram=do_watch_ram)
     logger.debug('######################################################################')
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
-    results = []
     if debug_otb:
-        tasks = list(Utils.tsort(dsk, dsk.keys(),
-            lambda dask_task_data : [] if isinstance(dask_task_data, FirstStep) else dask_task_data[2])
-            )
-        logger.debug('%s tasks', len(tasks))
-        for product in reversed(tasks):
-            how = dsk[product]
-            logger.debug('- task: %s <-- %s', product, how)
-        logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
-        for product in reversed(tasks):
-            how = dsk[product]
-            logger.info('- execute: %s <-- %s', product, how)
-            if not issubclass(type(how), FirstStep):
-                results += [how[0](*list(how)[1:])]
-        return results
+        return _execute_tasks_debug(dsk, tile_name)
     else:
-        for product, how in dsk.items():
-            logger.debug('- task: %s <-- %s', product, how)
+        return _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list,
+                required_products, client, pipelines, do_watch_ram, debug_tasks)
 
-        if debug_tasks:
-            SimpleComputationGraph().simple_graph(
-                    dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
-        logger.info('Start S1 -> S2 transformations for %s', tile_name)
-        nb_tries = 2
-        for run_attemp in range(1, nb_tries+1):
-            try:
-                results = client.get(dsk, required_products)
-                return results
-            except KilledWorker as e:
-                logger.critical('%s', dir(e))
-                logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
-                        e.last_worker.name, e.task, tile_name, e, run, nb_tries)
-                # TODO: don't overwrite previous logs
-                # And we'll need to use the synchronous=False parameter to be able to check
-                # successful executions but then, how do we clean up futures and all??
-                client.restart()
-                # Update the list of remaining tasks
-                if run_attemp < nb_tries:
-                    dsk, required_products = pipelines.generate_tasks(tile_name,
-                            intersect_raster_list, debug_otb=debug_otb, do_watch_ram=do_watch_ram)
-                else:
-                    raise
-        return []
+
+def read_config(config_opt):
+    """
+    The config_opt can be either the configuration filename or an already initialized configuration
+    object
+    """
+    if isinstance(config_opt, str):
+        return Configuration(config_opt)
+    else:
+        return config_opt
 
 
 def do_process_with_pipeline(config_opt,
@@ -304,12 +370,7 @@ def do_process_with_pipeline(config_opt,
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
-    # The config_opt can be either the configuration filename or an already initialized
-    # configuration object
-    if isinstance(config_opt, str):
-        config = Configuration(config_opt)
-    else:
-        config = config_opt
+    config = read_config(config_opt)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     global logger
@@ -349,34 +410,20 @@ def do_process_with_pipeline(config_opt,
 
         pipelines = pipeline_builder(config, dryrun=dryrun)
 
-        try:
-            if not debug_otb:
-                clean_logs(config.log_config, config.nb_procs)
-                cluster = LocalCluster(
-                        threads_per_worker=1, processes=True, n_workers=config.nb_procs,
-                        silence_logs=False)
-                client = Client(cluster)
-                client.register_worker_callbacks(
-                        lambda dask_worker: setup_worker_logs(config.log_config, dask_worker))
-            else:
-                client = None
-
-            log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
+        log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
+        with DaskContext(config, debug_otb) as dask_client:
             results = []
             for idx, tile_it in enumerate(tiles_to_process_checked):
                 with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
                     res = process_one_tile(
                             tile_it, idx, len(tiles_to_process_checked),
-                            s1_file_manager, pipelines, client,
+                            s1_file_manager, pipelines, dask_client.client,
                             searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
                     results += res
 
-            nb_error_detected = 0
-            for res in results:
-                if not bool(res):
-                    nb_error_detected += 1
+            nb_error_detected = sum(not bool(res) for res in results)
 
             if nb_error_detected > 0:
                 logger.warning('Execution report: %s errors detected', nb_error_detected)
@@ -390,11 +437,6 @@ def do_process_with_pipeline(config_opt,
                 logger.info(' -> Nothing has been executed')
 
             return nb_error_detected
-
-        finally:  # Make sure Dask objects are ALWAYS released
-            if client:
-                client.close()
-                cluster.close()
 
 
 def s1_process(config_opt,

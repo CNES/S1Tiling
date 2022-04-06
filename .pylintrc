@@ -31,9 +31,10 @@ disable=
         invalid-name,
         unnecessary-pass,
         no-else-break,
-        no-else-return
+        no-else-return,
+        too-few-public-methods
 
 [FORMAT]
 
-ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.|register_pipeline
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.|register_pipeline|help=
 

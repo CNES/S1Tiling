@@ -47,7 +47,7 @@ from eodag.utils.logging import setup_logging
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_files, list_dirs, Layer
+from .Utils import get_shape, list_dirs, Layer
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 
@@ -64,19 +64,19 @@ def product_property(prod, key, default=None):
     return res
 
 
-def unzip_images(raw_directory):
-    """This method handles unzipping of product archives"""
-    for file_it in list_files(raw_directory, '*.zip'):
-        logger.debug("unzipping %s", file_it.name)
-        try:
-            with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
-                zip_ref.extractall(raw_directory)
-        except zipfile.BadZipfile:
-            logger.warning("%s is corrupted. This file will be removed", file_it.path)
-        try:
-            os.remove(file_it.path)
-        except OSError:
-            pass
+# def unzip_images(raw_directory):
+#     """This method handles unzipping of product archives"""
+#     for file_it in list_files(raw_directory, '*.zip'):
+#         logger.debug("unzipping %s", file_it.name)
+#         try:
+#             with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
+#                 zip_ref.extractall(raw_directory)
+#         except zipfile.BadZipfile:
+#             logger.warning("%s is corrupted. This file will be removed", file_it.path)
+#         try:
+#             os.remove(file_it.path)
+#         except OSError:
+#             pass
 
 
 def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
@@ -166,7 +166,7 @@ def _download_and_extract_one_product(dag, raw_directory, product):
                 product,       # EODAG will clear this variable
                 extract=True,  # Let's eodag do the job
                 wait=1,        # Wait time in minutes between two download tries
-                timeout=2      # Maximum time in minutes before stop retrying to download (default=20’)
+                timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
                 )
         logging.debug(ok_msg)
         if os.path.exists(file) :
@@ -175,7 +175,7 @@ def _download_and_extract_one_product(dag, raw_directory, product):
                 os.remove(file)
             except OSError:
                 pass
-    except BaseException as e:  # pylint: disable=broad-except
+    except BaseException:  # pylint: disable=broad-except
         logging.error('Failed to download (and extract) %s', product)
         path = None
 
@@ -220,10 +220,10 @@ class S1FileManager:
         assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
-        self.vh_pattern       = "measurement/*vh*-???.tiff"
-        self.vv_pattern       = "measurement/*vv*-???.tiff"
-        self.hh_pattern       = "measurement/*hh*-???.tiff"
-        self.hv_pattern       = "measurement/*hv*-???.tiff"
+        # self.vh_pattern       = "measurement/*vh*-???.tiff"
+        # self.vv_pattern       = "measurement/*vv*-???.tiff"
+        # self.hh_pattern       = "measurement/*hh*-???.tiff"
+        # self.hv_pattern       = "measurement/*hv*-???.tiff"
         self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
@@ -383,7 +383,7 @@ class S1FileManager:
         #   Sometimes there are several S1 product with the same start
         #   date, but a different end-date.  Let's discard the
         #   smallest products
-        products = discard_small_redundant(products, id=lambda p: p.as_dict()['id'])
+        products = discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
 
         # - already exist in the "cache"
@@ -470,7 +470,7 @@ class S1FileManager:
 
         self.raw_raster_list = []
         self.product_list    = []
-        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # get rid of `.download` on the-fly
+        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
         content = discard_small_redundant(content, ident=lambda d: d.name)
 
@@ -577,7 +577,7 @@ class S1FileManager:
         """
         logger.debug('Test intersections of %s', tile_name_field)
         # date_exist = [os.path.basename(f)[21:21+8]
-        #         for f in glob.glob(os.path.join(self.cfg.output_preprocess, tile_name_field, "s1?_*.tif"))]
+        #    for f in glob.glob(os.path.join(self.cfg.output_preprocess, tile_name_field, "s1?_*.tif"))]
         intersect_raster = []
 
         layer = Layer(self.cfg.output_grid)

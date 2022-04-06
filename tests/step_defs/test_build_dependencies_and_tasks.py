@@ -374,7 +374,7 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
     # mocker.patch('os.path.isfile', lambda f: isfile(f, [input_file(0), input_file(1)]))
     required, previous, task2outfile_map = dependencies
     res = pipelines._build_tasks_from_dependencies(required=required, previous=previous, task_names_to_output_files_table=task2outfile_map,
-            debug_otb=DEBUG_OTB, do_watch_ram=False)
+            do_watch_ram=False)
     assert isinstance(res, dict)
     # logging.info("tasks (%s) = %s", type(res), res)
     tasks.update(res)

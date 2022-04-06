@@ -143,6 +143,9 @@ def get_shape(manifest):
     return get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
 
 def get_s1image_poly(s1image):
+    """
+    Return shape of the ``s1image`` as a polygon
+    """
     if isinstance(s1image, str):
         manifest = Path(s1image).parents[1] / 'manifest.safe'
     else:
@@ -461,6 +464,9 @@ class TopologicalSorter:
             self.__successors        = self.__successors_direct
 
     def depth(self, start_nodes):
+        """
+        Depth-first topological sorting method
+        """
         results = []
         visited_nodes = {}
         self.__recursive_depth_first(start_nodes, results, visited_nodes)
@@ -493,5 +499,13 @@ class TopologicalSorter:
             results.append(node)
 
 def tsort(dag, start_nodes, fetch_successor_function=None):
+    """
+    Topological sorting function (depth-first)
+
+    Parameters:
+        :dag:                      Direct Acyclic Graph to sort topologically
+        :start_nodes:              nodes from which the sorting star
+        :fetch_successor_function: Used to override how node transition is done
+    """
     ts = TopologicalSorter(dag, fetch_successor_function)
     return ts.depth(start_nodes)
