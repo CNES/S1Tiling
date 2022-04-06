@@ -151,6 +151,8 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
         # If SRTM coverage of MGRS tile is enough, process it
         needed_srtm_tiles += current_needed_srtm_tiles
         tiles_to_process_checked.append(tile)
+        # Round coverage at 3 digits as tile footprint has a very limited precision
+        current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
             logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
                     tile, 100 * current_coverage)

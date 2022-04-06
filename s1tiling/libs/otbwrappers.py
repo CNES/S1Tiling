@@ -1351,7 +1351,9 @@ class ConcatenateLIA(_ConcatenatorFactory):
             if re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) == date:
                 s1_cov = inp['tile_coverage']
                 coverage += s1_cov
-                logger.debug(' - %s => %s', inp['basename'], s1_cov)
+                logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
+        # Round coverage at 3 digits as tile footprint has a very limited precision
+        coverage = round(coverage, 3)
         logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
         meta['tile_coverage'] = coverage
 
