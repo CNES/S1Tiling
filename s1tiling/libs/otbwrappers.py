@@ -600,10 +600,11 @@ class Concatenate(_ConcatenatorFactory):
     - output filename
     """
     def __init__(self, cfg):
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
-                gen_output_filename=OutputFilenameGenerator()
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=unused-argument
@@ -613,43 +614,32 @@ class Concatenate(_ConcatenatorFactory):
         output product depends on the number of inputs are their common
         acquisition date.
         """
-        meta['basename']           = meta['task_basename']
+        # logger.debug('UPDATING %s from %s', meta['task_name'], meta)
+        was = meta['out_filename']
+        meta['acquisition_stamp']  = meta['acquisition_day']
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
-        logger.debug("concatenation.out_tmp_filename for %s updated to %s", meta['task_name'], meta['out_filename'])
+        meta['basename']           = self._get_nominal_output_basename(meta)
+        logger.debug("concatenation.out_tmp_filename for %s updated to %s (previously: %s)", meta['task_name'], meta['out_filename'], was)
 
-    def update_filename_meta(self, meta):
-        """
-        In concatenation case, the naming policy for the output products is
-        complex.
-
-        When no concatenation happens, we forward the input file. But when two
-        products are concatenated, the exact timestamp is erased to keep only
-        the current date, and the input files are marked for deletion.
-
-        In all cases, we need to make sure the task name is without ambiguity.
-        """
-        meta = meta.copy()
-        out_file = out_filename(meta)
-        out_dir = self.output_directory(meta)
-        if isinstance(out_file, list):
-            logger.debug('Register files to remove after concatenation: %s', out_file)
-            meta['files_to_remove'] = out_file
-            _, out_file = os.path.split(out_file[0])
-            task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
-            meta['basename'] = task_basename
-            logger.debug("Concatenation result of %s goes into %s", out_file, meta['basename'])
-            # meta['does_product_exist'] = lambda : os.path.isfile(task_name(meta))
+    def _update_filename_meta_pre_hook(self, meta):
+        in_file = out_filename(meta)
+        if isinstance(in_file, list):
+            meta['acquisition_stamp'] = meta['acquisition_day']
+            logger.debug('Register files to remove after concatenation: %s', in_file)
+            meta['files_to_remove'] = in_file
+            # logger.debug("Concatenation result of %s goes into %s", in_file, meta['basename'])
         else:
-            _, out_file = os.path.split(out_file)
-            task_basename = re.sub(r'(?<=t)\d+(?=\.)', lambda m: 'x' * len(m.group()), out_file)
-            meta['basename'] = out_file
-            logger.debug("Only one file to concatenate, just move it (%s)", out_file)
-        meta = super().update_filename_meta(meta)  # Needs a valid basename
-        meta['task_basename']                    = task_basename
-        meta['task_name']                        = os.path.join(out_dir, task_basename)
+            meta['acquisition_stamp'] = meta['acquisition_time']
+            logger.debug("Only one file to concatenate, just move it (%s)", in_file)
+
+    def _update_filename_meta_post_hook(self, meta):
+        tname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
+        meta['task_name']     = os.path.join(
+                self.output_directory(meta),
+                TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
+        meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename']              = self.update_out_filename
-        return meta
 
     def create_step(self, in_memory: bool, previous_steps):
         """
