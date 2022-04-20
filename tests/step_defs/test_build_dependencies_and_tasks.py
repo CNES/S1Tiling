@@ -24,20 +24,22 @@ DEBUG_OTB = False
 FILES = [
         # 08 jan 2020
         {
-            's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file'   : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}.tiff',
-            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044150',
-            'root'     : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
-            'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044150',
-            'polygon'  : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
+            's1dir'       : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+            's1file'      : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}.tiff',
+            'orthofile'   : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
+            'root'        : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
+            'orthoLIA'    : 'LIA_s1a_33NWB_DES_007_20200108t044150',
+            'orthosinLIA' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044150',
+            'polygon'     : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
             },
         {
-            's1dir'    : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file'   : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}.tiff',
-            'orthofile': 's1a_33NWB_{polarity}_DES_007_20200108t044215',
-            'root'     : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
-            'orthoLIA' : 'LIA_s1a_33NWB_DES_007_20200108t044215',
-            'polygon'  : [(13.917268, -0.370174), (16.143845, -0.851051), (16.461084, 0.660845), (14.233407, 1.137179), (13.917268, -0.370174)]
+            's1dir'       : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+            's1file'      : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}.tiff',
+            'orthofile'   : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
+            'root'        : '{kind}_s1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
+            'orthoLIA'    : 'LIA_s1a_33NWB_DES_007_20200108t044215',
+            'orthosinLIA' : 'sin_LIA_s1a_33NWB_DES_007_20200108t044215',
+            'polygon'     : [(13.917268, -0.370174), (16.143845, -0.851051), (16.461084, 0.660845), (14.233407, 1.137179), (13.917268, -0.370174)]
             },
         # 20 jan 2020
         {
@@ -174,6 +176,16 @@ def S2_LIA_file():
 def S2_LIA_preselect_file():
     return f'{TMPDIR}/S2/{TILE}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
 
+def ortho_sin_LIA_file(idx):
+    file  = FILES[idx]['orthosinLIA']
+    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+
+def S2_sin_LIA_file():
+    return f'{OUTPUT}/{TILE}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+def S2_sin_LIA_preselect_file():
+    return f'{TMPDIR}/S2/{TILE}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+
 # ======================================================================
 # Mocks
 
@@ -232,9 +244,9 @@ def pipelines():
     return pd
 
 @pytest.fixture
-def last_pipeline():
-    lp = []
-    return lp
+def pipeline_ids():
+    ids = {}
+    return ids
 
 @pytest.fixture
 def raster_list():
@@ -255,28 +267,31 @@ def tasks():
 # Given steps
 
 @given('A pipeline that calibrates and orthorectifies')
-def given_pipeline_ortho(pipelines, last_pipeline):
+def given_pipeline_ortho(pipelines, pipeline_ids):
     pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
             # , inputs={'in': 'basename'}
             )
-    last_pipeline.append(pipeline)
+    pipeline_ids['FullOrtho'] = pipeline
+    pipeline_ids['last'] = pipeline
 
 @given('that concatenates')
-def given_pipeline_concat(pipelines, last_pipeline):
+def given_pipeline_concat(pipelines, pipeline_ids):
     pipeline = pipelines.register_pipeline([Concatenate], product_required=True
-            # , inputs={'in': last_pipeline[-1]}
+            # , inputs={'in': pipeline_ids['last']}
             )
-    last_pipeline.append(pipeline)
+    pipeline_ids['concat'] = pipeline
+    pipeline_ids['last'] = pipeline
 
 @given(parsers.parse('that {builds} masks'))
-def given_pipeline_concat(pipelines, builds, last_pipeline):
+def given_pipeline_concat(pipelines, builds, pipeline_ids):
     if builds == 'builds':
         # logging.info('REGISTER MASKS')
         pipeline = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
-            # , inputs={'in': last_pipeline[-1]}
+            # , inputs={'in': pipeline_ids['last']}
                 )
-        last_pipeline.append(pipeline)
+        pipeline_ids['last'] = pipeline
+        pipeline_ids['mask'] = pipeline
 
 @given('A pipeline that computes LIA')
 def given_pipeline_ortho(pipelines):
@@ -290,7 +305,7 @@ def given_pipeline_ortho(pipelines):
             inputs={'xyz': xyz})
 
 @given('A pipeline that fully computes in LIA S2 geometry')
-def given_pipeline_ortho_n_concat_LIA(pipelines):
+def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', product_required=False, is_name_incremental=True,
@@ -305,6 +320,24 @@ def given_pipeline_ortho_n_concat_LIA(pipelines):
             inputs={'in': ortho})
     select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, is_name_incremental=True,
             inputs={'in': concat})
+
+    ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',
+            inputs={'in': lia}, is_name_incremental=True)
+    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',
+            inputs={'in': ortho_sin})
+    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True,
+            inputs={'in': concat_sin})
+
+    pipeline_ids['dem']          = dem
+    pipeline_ids['demproj']      = demproj
+    pipeline_ids['xyz']          = xyz
+    pipeline_ids['lia']          = lia
+    pipeline_ids['ortholia']     = ortho
+    pipeline_ids['concatlia']    = concat
+    pipeline_ids['selectlia']    = select
+    pipeline_ids['orthosinlia']  = ortho_sin
+    pipeline_ids['concatsinlia'] = concat_sin
+    pipeline_ids['selectsinlia'] = best_concat_sin
 
 @given('a single S1 image')
 def given_one_S1_image(raster_list, known_files, known_file_ids):
@@ -684,7 +717,7 @@ def then_LIA_image_is_required(dependencies):
 def then_S2_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [S2_LIA_file()]
+    expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
@@ -818,12 +851,17 @@ def DEM_depends_on_BASE(dependencies, expected_files_id):
 
 @then('a select LIA task is registered')
 def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id):
-    out = S2_LIA_file()
+    out     = S2_LIA_file()
+    out_sin = S2_sin_LIA_file()
     expectations = {
+            out_sin: {'pipeline': 'SelectSinLIA',
+                'input_steps': {
+                    S2_sin_LIA_preselect_file(): ['in', FirstStep]
+                    }},
             out: {'pipeline': 'SelectLIA',
                 'input_steps': {
                     S2_LIA_preselect_file(): ['in', FirstStep]
-                    }}
+                    }},
             }
 
     required, previous, task2outfile_map = dependencies
@@ -832,19 +870,24 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id)
     assert len(tasks) >= 3
     assert len(required) == len(expectations)
     assert S2_LIA_preselect_file() not in required
+    assert S2_sin_LIA_preselect_file() not in required
     _check_registered_task(expectations, tasks, required, task2outfile_map)
 
 
 @then('a concat LIA task is registered')
 def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id):
-    out = S2_LIA_preselect_file()
+    out     = S2_LIA_preselect_file()
+    out_sin = S2_sin_LIA_preselect_file()
     expectations = {
             out: {'pipeline': 'ConcatLIA',
+                'input_steps': {}},
+            out_sin: {'pipeline': 'ConcatSinLIA',
                 'input_steps': {}}
             }
-    dest = [out]
+    dest = [out, out_sin]
     for i in expected_files_id:
         expectations[out]['input_steps'][ortho_LIA_file(i)] = ['in', MergeStep]
+        expectations[out_sin]['input_steps'][ortho_sin_LIA_file(i)] = ['in', MergeStep]
 
     required, previous, task2outfile_map = dependencies
     logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -853,6 +896,7 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id)
     assert len(required) == len(expectations)
     for i in expected_files_id:
         assert ortho_LIA_file(i) not in required
+        assert ortho_sin_LIA_file(i) not in required
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 
