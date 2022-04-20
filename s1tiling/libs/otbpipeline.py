@@ -792,7 +792,7 @@ class Pipeline:
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
-        # print("LOG:", os.environ['OTB_LOGGER_LEVEL'])
+        logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
         for crt in self.__pipeline:
@@ -885,7 +885,7 @@ class PipelineDescription:
                     res = step.update_filename_meta(res)
             else:
                 res = self.__factory_steps[-1].update_filename_meta(input_meta)
-            logger.debug("expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
+            logger.debug("    expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
             return res
         except BaseException:  # pylint: disable=broad-except
             return None
@@ -1020,10 +1020,10 @@ class TaskInputInfo:
         - Otherwise, stack the new input with the previous ones.
         """
         if origin not in self._inputs:
-            logger.debug('add_input[%s]: first time <<-- %s', origin, input_meta)
+            logger.debug('    add_input[%s # %s]: first time <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
             self._inputs[origin] = [input_meta]
             return True
-        logger.debug('add_input[%s]: not empty <<-- %s', origin, input_meta)
+        logger.debug('add_input[%s # %s]: not empty <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
         logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
         if f'reduce_inputs_{origin}' in destination_meta.keys():
             # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s', origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
@@ -1056,8 +1056,8 @@ class TaskInputInfo:
         """
         List of input tasks the current task depends on.
         """
-        logger.debug('input_task_names(%s) --> %s', self.pipeline.name, self.inputs)
         tns = [get_task_name(meta) for meta in self.input_metas]
+        logger.debug('input_task_names(%s) --> %s', self.pipeline.name, tns)
         return tns
 
     @property
@@ -1143,50 +1143,51 @@ class PipelineDescriptionSequence:
             dropped_inputs = {}
             for origin, sources in pipeline.inputs.items():
                 source_name = sources if isinstance(sources, str) else sources.name
-                logger.debug('Checking sources from "%s" origin: %s', origin, source_name)
+                logger.debug('===========================================================================')
+                logger.debug('* Checking sources from "%s" origin: %s', origin, source_name)
                 # Locate all inputs for the current pipeline
                 # -> Select all inputs for pipeline sources from pipelines_outputs
                 inputs = [output for output in pipelines_outputs[source_name]]
-                logger.debug('===========================================================================')
-                logger.debug('FROM all inputs as "%s": %s', origin, inputs)
-                # TODO: + for origin in pipeline.sources
+
+                logger.debug('  FROM all %s inputs as "%s": %s', len(inputs), origin, [out_filename(i) for i in inputs])
                 dropped = []
                 for input in inputs:  # inputs are meta
-                    logger.debug('----------------------------------------------------------------------')
-                    logger.debug('* GIVEN "%s": %s', origin, input)
+                    logger.debug('  ----------------------------------------------------------------------')
+                    logger.debug('  - GIVEN "%s" "%s": %s', origin, out_filename(input), input)
                     expected = pipeline.expected(input)
                     if not expected:
-                        logger.debug("  No '%s' product can be generated from '%s' input '%s' ==> Ignore",
+                        logger.debug("    No '%s' product can be generated from '%s' input '%s' ==> Ignore for now",
                                 pipeline.name, origin, out_filename(input))
                         dropped.append(input)  # remember that source/input will be used differently
                         continue
                     expected_taskname = get_task_name(expected)
-                    logger.debug('  %s <-- from input: %s', expected_taskname, input)
-                    logger.debug('  --> %s', expected)
-                    # TODO: Correctly handle the case where a task produce several
-                    # filenames. In that case we shall have only one task, but possibly,
-                    # several following tasks may depend on the current task.
-                    # For the moment, just keep the first, and use product selection
-                    # pattern as in filter_LIA().
+                    logger.debug('    %s <-- from input: %s', expected_taskname, out_filename(input))
+                    logger.debug('    --> "%s": %s', out_filename(expected), expected)
+                    # TODO: Correctly handle the case where a task produce
+                    # several filenames. In that case we shall have only one
+                    # task, but possibly, several following tasks may depend on
+                    # the current task.
+                    # For the moment, just keep the first, and use product
+                    # selection pattern as in filter_LIA().
                     if isinstance(expected_taskname, list):
                         expected_taskname = expected_taskname[0] # TODO: see comment above
 
                     # We cannot analyse early whether a task product is already
-                    # there as some product have names that depend on all inputs
-                    # (see Concatenate).
-                    # This is why the full dependencies tree is produced at this
-                    # time. Unrequired parts will be trimmed in the next task
-                    # producing step.
+                    # there as some product have names that depend on all
+                    # inputs (see Concatenate).
+                    # This is why the full dependencies tree is produced at
+                    # this time. Unrequired parts will be trimmed in the next
+                    # task producing step.
                     if expected_taskname not in previous:
                         outputs.append(expected)
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
                         previous[expected_taskname].add_input(origin, input, expected)
-                        logger.debug('This is a new product: %s, with a source from "%s"', expected_taskname, origin)
+                        logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif get_task_name(input) not in previous[expected_taskname].input_task_names:
                         if previous[expected_taskname].add_input(origin, input, expected):
-                            logger.debug('The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
+                            logger.debug('    The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
                             update_out_filename(expected, previous[expected_taskname])
-                            logger.debug('...to (%s)', expected)
+                            logger.debug('    ...to (%s)', expected)
                             already_registered_next_input = [
                                     ni for ni in outputs if get_task_name(ni) == expected_taskname]
                             assert len(already_registered_next_input) == 1
@@ -1195,7 +1196,7 @@ class PipelineDescriptionSequence:
                             # Can't we simply override the already_registered_next_input with expected fields?
                             already_registered_next_input[0].update(expected)
                         else:
-                            logger.debug('The %s task depends on one more input, but only one will be kept.\n%s has been updated.', expected_taskname, expected)
+                            logger.debug('    The %s task depends on one more input, but only one will be kept.\n%s has been updated.', expected_taskname, expected)
                     if pipeline.product_is_required:
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
@@ -1236,7 +1237,7 @@ class PipelineDescriptionSequence:
         logger.debug("Dependencies found:")
         for task_name, prev in previous.items():
             if prev:
-                logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, prev.inputs)
+                logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [out_filename(i) for i in prev.input_metas])
             else:
                 logger.debug('- %s already exists, no need to produce it', task_name)
         return required_task_names, previous, task_names_to_output_files_table
@@ -1252,6 +1253,8 @@ class PipelineDescriptionSequence:
         - "inputs": list of the inputs (metadata)
         """
         tasks = {}
+        logger.debug('#############################################################################')
+        logger.debug('#############################################################################')
         logger.debug('Building all tasks')
         while required:
             new_required = set()
@@ -1260,30 +1263,27 @@ class PipelineDescriptionSequence:
                 base_task_name = to_dask_key(task_name)
                 task_inputs    = previous[task_name].inputs
                 pipeline_descr = previous[task_name].pipeline
-                # TODO: support multiple outputs!
                 first = lambda files : files[0] if isinstance(files, list) else  files
                 input_task_keys = [to_dask_key(first(tn))
                         for tn in previous[task_name].input_task_names]
                 assert list(input_task_keys)
-                logger.debug('%s(%s) --> %s', task_name, list(input_task_keys), task_inputs)
-                # TODO: check whether the pipeline shall be instanciated w/
-                # file_name of task_name
+                logger.debug('* %s(%s) --> %s', task_name, list(input_task_keys), task_inputs)
                 output_filename = task_names_to_output_files_table[task_name]
                 pipeline_instance = pipeline_descr.instanciate(
                         output_filename, True, True, do_watch_ram)
                 pipeline_instance.set_inputs(task_inputs)
-                logger.debug('~~> TASKS[%s] += %s(keys=%s)', base_task_name, pipeline_descr.name, list(input_task_keys))
+                logger.debug('  ~~> TASKS[%s] += %s(keys=%s)', base_task_name, pipeline_descr.name, list(input_task_keys))
                 register_task(
                         tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
                 for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
                     tn = first(get_task_name(t))
-                    logger.debug('processing task %s', t)
+                    logger.debug('  Processing task %s: %s', tn, t)
                     if not product_exists(t):
-                        logger.info('  => Need to register production of %s (for %s)', tn, pipeline_descr.name)
+                        logger.info('    => Need to register production of %s (for %s)', tn, pipeline_descr.name)
                         new_required.add(tn)
                     else:
-                        logger.info('  => Starting %s from existing %s', pipeline_descr.name, tn)
+                        logger.info('    => Starting %s from existing %s', pipeline_descr.name, tn)
                         register_task(tasks, to_dask_key(tn), FirstStep(**t))
             required = new_required
         return tasks
