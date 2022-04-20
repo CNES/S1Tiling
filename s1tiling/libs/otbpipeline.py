@@ -229,6 +229,24 @@ def product_exists(meta):
         return os.path.isfile(out_filename(meta))
 
 
+def is_compatible(output_meta, input_meta):
+    """
+    Tells whether ``input_meta`` is a valid input for ``output_meta``
+
+    Uses the optional meta information ``is_compatible`` from ``output_meta``
+    to tell whether they are compatible.
+
+    This will be uses for situations where an input file will be used as input
+    for several different new files. Typical example: all final normlimed
+    outputs on a S2 tile will rely on the same map of sin(LIA). As such,
+    the usual __input -> expected output__ approach cannot work.
+    """
+    if 'is_compatible' in output_meta:
+        return output_meta['is_compatible'](input_meta)
+    else:
+        return False
+
+
 def update_out_filename(updated_meta, with_meta):
     """
     Helper function to update the `out_filename` from metadata.
@@ -544,9 +562,10 @@ class StepFactory(ABC):
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
         meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
-        meta.pop('task_name', None)
-        meta.pop('task_basename', None)
+        meta.pop('task_name',           None)
+        meta.pop('task_basename',       None)
         meta.pop('update_out_filename', None)
+        meta.pop('is_compatible',       None)
         self._update_filename_meta_post_hook(meta)
         return meta
 
@@ -859,14 +878,17 @@ class PipelineDescription:
         Returns the expected name of the product(s) of this pipeline
         """
         assert self.__factory_steps  # shall not be None or empty
-        if self.__is_name_incremental:
-            res = input_meta
-            for step in self.__factory_steps:
-                res = step.update_filename_meta(res)
-        else:
-            res = self.__factory_steps[-1].update_filename_meta(input_meta)
-        logger.debug("expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
-        return res
+        try:
+            if self.__is_name_incremental:
+                res = input_meta
+                for step in self.__factory_steps:
+                    res = step.update_filename_meta(res)
+            else:
+                res = self.__factory_steps[-1].update_filename_meta(input_meta)
+            logger.debug("expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
+            return res
+        except BaseException:  # pylint: disable=broad-except
+            return None
 
     @property
     def inputs(self):
@@ -1118,22 +1140,26 @@ class PipelineDescriptionSequence:
             logger.debug('Sources --> %s', pipeline.sources)
             outputs = []
 
+            dropped_inputs = {}
             for origin, sources in pipeline.inputs.items():
                 source_name = sources if isinstance(sources, str) else sources.name
                 logger.debug('Checking sources from "%s" origin: %s', origin, source_name)
-                # res = [(val if isinstance(val, str) else val.name) for (key,val) in self.__inputs.items()]
-                inputs = [output for output in pipelines_outputs[source_name]]
-
                 # Locate all inputs for the current pipeline
                 # -> Select all inputs for pipeline sources from pipelines_outputs
-                # inputs = [output for source in pipeline.sources for output in pipelines_outputs[source]]
+                inputs = [output for output in pipelines_outputs[source_name]]
                 logger.debug('===========================================================================')
                 logger.debug('FROM all inputs as "%s": %s', origin, inputs)
                 # TODO: + for origin in pipeline.sources
+                dropped = []
                 for input in inputs:  # inputs are meta
                     logger.debug('----------------------------------------------------------------------')
                     logger.debug('* GIVEN "%s": %s', origin, input)
                     expected = pipeline.expected(input)
+                    if not expected:
+                        logger.debug("  No '%s' product can be generated from '%s' input '%s' ==> Ignore",
+                                pipeline.name, origin, out_filename(input))
+                        dropped.append(input)  # remember that source/input will be used differently
+                        continue
                     expected_taskname = get_task_name(expected)
                     logger.debug('  %s <-- from input: %s', expected_taskname, input)
                     logger.debug('  --> %s', expected)
@@ -1174,6 +1200,25 @@ class PipelineDescriptionSequence:
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
                     task_names_to_output_files_table[expected_taskname] = out_filename(expected)
+                # endfor input in inputs:  # inputs are meta
+                if dropped:
+                    dropped_inputs[origin] = dropped
+            # endfor origin, sources in pipeline.inputs.items():
+
+            # For all new outputs, check which dropped inputs would be compatible
+            logger.debug('* Checking dropped inputs: %s', dropped_inputs.keys())
+            for output in outputs:
+                for origin, inputs in dropped_inputs.items():
+                    for input in inputs:
+                        logger.debug("  - Is '%s' a '%s' input for '%s' ?",
+                                out_filename(input), origin, out_filename(output))
+                        if is_compatible(output, input):
+                            logger.debug('    => YES')
+                            previous[get_task_name(output)].add_input(origin, input, output)
+                            # TODO: shall we update the out_filename?
+                            # -> not in the current case!
+                        else:
+                            logger.debug('  => NO')
 
             pipelines_outputs[pipeline.name] = outputs
 
