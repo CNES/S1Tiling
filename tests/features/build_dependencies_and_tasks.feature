@@ -9,7 +9,7 @@ Feature: Dependencies and Tasks
         |builds        | a  |
 
     Background:
-        Given A pipeline that calibrates and orthorectifies
+        Given A pipeline that sigma calibrates and orthorectifies
         And   that concatenates
 
     #@txxxxxx_mask

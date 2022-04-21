@@ -9,7 +9,7 @@ from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, Mer
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
-        filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage)
+        filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 from s1tiling.libs.Utils import get_shape_from_polygon
 
@@ -186,6 +186,13 @@ def S2_sin_LIA_file():
 def S2_sin_LIA_preselect_file():
     return f'{TMPDIR}/S2/{TILE}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
 
+def normlim_concatfile(idx, polarity):
+    if idx is None:
+        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx_NormLim.tif'
+    else:
+        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        return f'{OUTPUT}/{TILE}/{file}_NormLim.tif'
+
 # ======================================================================
 # Mocks
 
@@ -266,8 +273,8 @@ def tasks():
 # ======================================================================
 # Given steps
 
-@given('A pipeline that calibrates and orthorectifies')
-def given_pipeline_ortho(pipelines, pipeline_ids):
+@given(parsers.parse('A pipeline that {calibration} calibrates and orthorectifies'))
+def given_pipeline_ortho(pipelines, pipeline_ids, calibration):
     pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
             # , inputs={'in': 'basename'}
@@ -276,8 +283,10 @@ def given_pipeline_ortho(pipelines, pipeline_ids):
     pipeline_ids['last'] = pipeline
 
 @given('that concatenates')
-def given_pipeline_concat(pipelines, pipeline_ids):
-    pipeline = pipelines.register_pipeline([Concatenate], product_required=True
+def given_pipeline_concat(pipelines, pipeline_ids, calibration):
+    concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
+    pipeline = pipelines.register_pipeline([Concatenate],
+            product_required=concat_product_required
             # , inputs={'in': pipeline_ids['last']}
             )
     pipeline_ids['concat'] = pipeline
@@ -306,6 +315,7 @@ def given_pipeline_ortho(pipelines):
 
 @given('A pipeline that fully computes in LIA S2 geometry')
 def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
+    LIA_product_required = 'concat' not in pipeline_ids
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', product_required=False, is_name_incremental=True,
@@ -318,14 +328,17 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
             inputs={'in': lia})
     concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=False, is_name_incremental=True,
             inputs={'in': ortho})
-    select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, is_name_incremental=True,
+    select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA',
+            product_required=LIA_product_required,
+            is_name_incremental=True,
             inputs={'in': concat})
 
     ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',
             inputs={'in': lia}, is_name_incremental=True)
     concat_sin      = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',
             inputs={'in': ortho_sin})
-    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True,
+    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA',
+            product_required=LIA_product_required,
             inputs={'in': concat_sin})
 
     pipeline_ids['dem']          = dem
@@ -338,6 +351,15 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
     pipeline_ids['orthosinlia']  = ortho_sin
     pipeline_ids['concatsinlia'] = concat_sin
     pipeline_ids['selectsinlia'] = best_concat_sin
+
+@given('that applies LIA')
+def given_pipeline_that_applies_LIA(pipelines, pipeline_ids):
+    concat_sin = pipeline_ids['selectsinlia']
+    concat_S2  = pipeline_ids['concat']
+    s2_normlimed = pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
+            inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
+    pipeline_ids['s2_normlimed'] = s2_normlimed
+    pipeline_ids['last']         = s2_normlimed
 
 @given('a single S1 image')
 def given_one_S1_image(raster_list, known_files, known_file_ids):
@@ -415,6 +437,22 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 # ======================================================================
 # Then steps
 
+@then(parsers.parse('a txxxxxx S2 file is expected but not required'))
+def then_require_txxxxxx_and_mask(dependencies):
+    expected_fn = [concatfile(None, 'vv')]
+
+    required, previous, task2outfile_map = dependencies
+    # logging.info("required (%s) = %s", type(required), required)
+    # logging.info("expected_fn (%s) = %s", type(expected_fn), expected_fn)
+    assert isinstance(required, set)
+    for fn in expected_fn:
+        assert fn in previous, f'Expected {fn} not found in computed dependencies {previous.keys()}'
+        assert fn not in required, f'Expected {fn} found in computed requirements {required}'
+    assert concatfile(0, 'vv') not in required
+    assert concatfile(1, 'vv') not in required
+    assert maskfile(0, 'vv')   not in required
+    assert maskfile(1, 'vv')   not in required
+
 @then(parsers.parse('a txxxxxx S2 file is required, and {a} mask is required'))
 def then_require_txxxxxx_and_mask(dependencies, a):
     expected_fn = [concatfile(None, 'vv')]
@@ -427,14 +465,14 @@ def then_require_txxxxxx_and_mask(dependencies, a):
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
-        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
     assert concatfile(0, 'vv') not in required
     assert concatfile(1, 'vv') not in required
     assert maskfile(0, 'vv')   not in required
     assert maskfile(1, 'vv')   not in required
 
 @then(parsers.parse('it depends on 2 ortho files (and two S1 inputs), and {a} mask on a concatenated product'))
-def then_depends_on_2_ortho_files(dependencies, a):
+def then_depends_on_2_ortho_files(dependencies, a, calibration):
     required, previous, task2outfile_map = dependencies
     # logging.info("previous (%s) = %s", type(previous), previous)
 
@@ -448,7 +486,12 @@ def then_depends_on_2_ortho_files(dependencies, a):
             assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(None, 'vv')])
 
     expected_fn = concatfile(None, 'vv')
-    assert expected_fn in required
+    concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
+    if concat_product_required:
+        assert expected_fn in required
+    else:
+        assert expected_fn not in required
+
     prev_expected = previous[expected_fn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
@@ -569,7 +612,7 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
         ex_in_steps      = ex['input_steps']
         logging.debug("TASKS: %s", tasks.keys())
         req_task_key = to_dask_key(req_taskname)
-        assert req_task_key in tasks
+        assert req_task_key in tasks, f"Task {req_task_key} not in registered tasks {tasks.keys()}"
         req_task = tasks[req_task_key]
         logging.debug("req_task: %s", req_task)
 
@@ -588,7 +631,7 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a concatenation task is registered and produces txxxxxxx S2 file and {a} mask'))
-def then_concatenate_2_files_(tasks, dependencies, a):
+def then_concatenate_2_files_(tasks, dependencies, a, calibration):
     expectations = {
             # MergeStep as there are two inputs
             concatfile(None, 'vv'): {'pipeline': 'Concatenation',
@@ -597,17 +640,24 @@ def then_concatenate_2_files_(tasks, dependencies, a):
                     orthofile(1, 'vv'): ['in', MergeStep],
                     }}
             }
+    dest = [concatfile(None, 'vv')]
     if a != 'no':
         expectations[maskfile(None, 'vv')] = {'pipeline': 'GenerateMask',
                 'input_steps': {
                     concatfile(None, 'vv'): ['in', FirstStep]}}
+        dest.append(maskfile(None, 'vv'))
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
-    assert len(required) == len(expectations)
-    assert concatfile(None, 'vv') in required
-    _check_registered_task(expectations, tasks, required, task2outfile_map)
+    concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
+    if concat_product_required:
+        assert len(required) == len(expectations)
+        assert concatfile(None, 'vv') in required
+    else:
+        assert len(required) >= len(expectations)
+
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 
 @then('two orthorectification tasks are registered')
@@ -711,7 +761,7 @@ def then_LIA_image_is_required(dependencies):
     assert isinstance(required, set)
     assert len(required) == len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
     for fn in expected_fn:
-        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('a single S2 LIA image is required')
 def then_S2_LIA_image_is_required(dependencies):
@@ -721,15 +771,43 @@ def then_S2_LIA_image_is_required(dependencies):
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
-    assert len(required) == len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    assert len(required) >= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
     for fn in expected_fn:
-        assert fn in required, f'Expected {fn} not find in computed requirements {required}'
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('a txxxxxx normlim S2 file is required')
+def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies):
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [normlim_concatfile(None, 'vv')]
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) >= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('no S2 LIA image is required')
+def then_S2_LIA_image_is_required(dependencies):
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]
+
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) <= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn not in required, f'Expected {fn} should not have been found in computed requirements {required}'
+        # Yet, they are known
+        assert fn in previous.keys(), f'Expected {fn} not found in computed dependencies {previous.keys()}'
+
 
 @then('final LIA image has been selected from one concat LIA')
-def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies):
+def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies, pipeline_ids):
     required, previous, task2outfile_map = dependencies
     expected_fn = S2_LIA_file()
-    assert expected_fn in required
+    LIA_product_required = 'concat' not in pipeline_ids
+    if LIA_product_required:
+        assert expected_fn in required
     prev_expected = previous[expected_fn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
@@ -850,7 +928,7 @@ def DEM_depends_on_BASE(dependencies, expected_files_id):
 
 
 @then('a select LIA task is registered')
-def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids):
     out     = S2_LIA_file()
     out_sin = S2_sin_LIA_file()
     expectations = {
@@ -863,19 +941,29 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id)
                     S2_LIA_preselect_file(): ['in', FirstStep]
                     }},
             }
+    dest = [out_sin]
+
+    LIA_product_required = 'concat' not in pipeline_ids
+    if LIA_product_required:
+        dest.append(out)  # Default test: everything is required. full test: sin_LIA only is needed
 
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
-    assert len(required) == len(expectations)
     assert S2_LIA_preselect_file() not in required
     assert S2_sin_LIA_preselect_file() not in required
-    _check_registered_task(expectations, tasks, required, task2outfile_map)
+    for o in dest:
+        if LIA_product_required:
+            assert o in required, f'{o} cannot be found in required tasks: {required}'
+        else:
+            assert o not in required, f'{o} should not be a required task: {required}'
+
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 
 @then('a concat LIA task is registered')
-def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids):
     out     = S2_LIA_preselect_file()
     out_sin = S2_sin_LIA_preselect_file()
     expectations = {
@@ -884,7 +972,12 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id)
             out_sin: {'pipeline': 'ConcatSinLIA',
                 'input_steps': {}}
             }
-    dest = [out, out_sin]
+    dest = [out_sin]
+
+    LIA_product_required = 'concat' not in pipeline_ids
+    if LIA_product_required:
+        dest.append(out)  # Default test: everything is required. full test: sin_LIA only is needed
+
     for i in expected_files_id:
         expectations[out]['input_steps'][ortho_LIA_file(i)] = ['in', MergeStep]
         expectations[out_sin]['input_steps'][ortho_sin_LIA_file(i)] = ['in', MergeStep]
@@ -893,7 +986,7 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id)
     logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 2 + len(expected_files_id)
-    assert len(required) == len(expectations)
+    # assert len(required) >= len(expectations)
     for i in expected_files_id:
         assert ortho_LIA_file(i) not in required
         assert ortho_sin_LIA_file(i) not in required
