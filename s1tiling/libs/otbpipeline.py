@@ -26,6 +26,8 @@
 #          Luc HERMITTE (CS Group)
 # =========================================================================
 
+# from __future__ import annotations  # Require Python 3.7+...
+
 """
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
@@ -103,7 +105,7 @@ class OutputFilenameGenerator(ABC):
 class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
     """
     Given a pair ``[text_to_search, text_to_replace_with]``,
-    replace the exact matching text with new text.
+    replace the exact matching text with new text in ``basename`` metadata.
     """
     def __init__(self, before_afters):
         assert isinstance(before_afters, list)
@@ -245,16 +247,6 @@ def is_compatible(output_meta, input_meta):
         return output_meta['is_compatible'](input_meta)
     else:
         return False
-
-
-def update_out_filename(updated_meta, with_meta):
-    """
-    Helper function to update the `out_filename` from metadata.
-    Meant to be used metadata associated to products made of several inputs
-    like Concatenate.
-    """
-    if 'update_out_filename' in updated_meta:
-        updated_meta['update_out_filename'](updated_meta, with_meta)
 
 
 def files_exist(files):
@@ -566,6 +558,7 @@ class StepFactory(ABC):
         meta.pop('task_basename',       None)
         meta.pop('update_out_filename', None)
         meta.pop('is_compatible',       None)
+        # TODO: meta.pop(reduce inputs*)
         self._update_filename_meta_post_hook(meta)
         return meta
 
@@ -1078,6 +1071,42 @@ class TaskInputInfo:
         return res
 
 
+def _update_out_filename(updated_meta, with_meta):
+    """
+    Helper function to update the `out_filename` from metadata.
+    Meant to be used metadata associated to products made of several inputs
+    like Concatenate.
+    """
+    if 'update_out_filename' in updated_meta:
+        updated_meta['update_out_filename'](updated_meta, with_meta)
+
+
+def _register_new_input_and_update_out_filename(
+        tasks: list,  #: list[TaskInputInfo],  # Require Python 3.7+ ?
+        origin, input_meta, new_task_meta, outputs
+        ):
+    """
+    Helper function to register a new input to a :class:`TaskInputInfo` and
+    update the current task output filename if required.
+    """
+    task_name = get_task_name(new_task_meta)
+    if isinstance(task_name, list):
+        # TODO: correctly handle the case a task produce several filenames
+        task_name = task_name[0]
+    task_inputs = tasks[task_name]
+    if task_inputs.add_input(origin, input_meta, new_task_meta):
+        logger.debug('    The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', task_name, new_task_meta)
+        _update_out_filename(new_task_meta, task_inputs)
+        logger.debug('    ...to (%s)', new_task_meta)
+        already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == task_name]
+        assert len(already_registered_next_input) == 1
+        _update_out_filename(already_registered_next_input[0], task_inputs)
+        # Can't we simply override the already_registered_next_input with expected fields?
+        already_registered_next_input[0].update(new_task_meta)
+    else:
+        logger.debug('    The %s task depends on one more input, but only one will be kept.\n    %s has been updated.', task_name, new_task_meta)
+
+
 class PipelineDescriptionSequence:
     """
     This class is the main entry point to describe pipelines.
@@ -1184,19 +1213,12 @@ class PipelineDescriptionSequence:
                         previous[expected_taskname].add_input(origin, input, expected)
                         logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif get_task_name(input) not in previous[expected_taskname].input_task_names:
-                        if previous[expected_taskname].add_input(origin, input, expected):
-                            logger.debug('    The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', expected_taskname, expected)
-                            update_out_filename(expected, previous[expected_taskname])
-                            logger.debug('    ...to (%s)', expected)
-                            already_registered_next_input = [
-                                    ni for ni in outputs if get_task_name(ni) == expected_taskname]
-                            assert len(already_registered_next_input) == 1
-                            update_out_filename(
-                                    already_registered_next_input[0], previous[expected_taskname])
-                            # Can't we simply override the already_registered_next_input with expected fields?
-                            already_registered_next_input[0].update(expected)
-                        else:
-                            logger.debug('    The %s task depends on one more input, but only one will be kept.\n%s has been updated.', expected_taskname, expected)
+                        _register_new_input_and_update_out_filename(
+                                tasks=previous,
+                                origin=origin,
+                                input_meta=input,
+                                new_task_meta=expected,
+                                outputs=outputs)
                     if pipeline.product_is_required:
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
@@ -1211,13 +1233,15 @@ class PipelineDescriptionSequence:
             for output in outputs:
                 for origin, inputs in dropped_inputs.items():
                     for input in inputs:
-                        logger.debug("  - Is '%s' a '%s' input for '%s' ?",
-                                out_filename(input), origin, out_filename(output))
+                        logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(input), origin, out_filename(output))
                         if is_compatible(output, input):
                             logger.debug('    => YES')
-                            previous[get_task_name(output)].add_input(origin, input, output)
-                            # TODO: shall we update the out_filename?
-                            # -> not in the current case!
+                            _register_new_input_and_update_out_filename(
+                                    tasks=previous,
+                                    origin=origin,
+                                    input_meta=input,
+                                    new_task_meta=output,
+                                    outputs=outputs)
                         else:
                             logger.debug('  => NO')
 
