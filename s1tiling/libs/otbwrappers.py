@@ -244,6 +244,8 @@ class Calibrate(OTBStepFactory):
     - input filename
     - output filename
     """
+
+    k_calib_convert = {'normlim' : 'beta'}
     def __init__(self, cfg):
         """
         Constructor
@@ -277,7 +279,7 @@ class Calibrate(OTBStepFactory):
                 'ram'           : str(self.ram_per_process),
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
-                'lut'           : self.__calibration_type,
+                'lut'           : self.k_calib_convert.get(self.__calibration_type, self.__calibration_type),
                 }
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
@@ -621,6 +623,8 @@ class Concatenate(_ConcatenatorFactory):
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['basename']           = self._get_nominal_output_basename(meta)
         logger.debug("concatenation.out_tmp_filename for %s updated to %s (previously: %s)", meta['task_name'], meta['out_filename'], was)
+        # Remove acquisition_time that no longer makes sense
+        meta.pop('acquisition_time', None)
 
     def _update_filename_meta_pre_hook(self, meta):
         in_file = out_filename(meta)
@@ -628,6 +632,8 @@ class Concatenate(_ConcatenatorFactory):
             meta['acquisition_stamp'] = meta['acquisition_day']
             logger.debug('Register files to remove after concatenation: %s', in_file)
             meta['files_to_remove'] = in_file
+            # Remove acquisition_time that no longer makes sense
+            meta.pop('acquisition_time', None)
             # logger.debug("Concatenation result of %s goes into %s", in_file, meta['basename'])
         else:
             meta['acquisition_stamp'] = meta['acquisition_time']
@@ -639,7 +645,7 @@ class Concatenate(_ConcatenatorFactory):
                 self.output_directory(meta),
                 TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
-        meta['update_out_filename']              = self.update_out_filename
+        meta['update_out_filename'] = self.update_out_filename
 
     def create_step(self, in_memory: bool, previous_steps):
         """
@@ -758,6 +764,7 @@ class SmoothBorderMask(OTBStepFactory):
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
                 }
+
 
 # ======================================================================
 # Applications used to produce LIA
@@ -1318,7 +1325,8 @@ class ConcatenateLIA(_ConcatenatorFactory):
         """
         assert 'LIA_kind' in meta
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
-        return meta
+        # Remove acquisition_time that no longer makes sense
+        meta.pop('acquisition_time', None)
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
@@ -1403,3 +1411,64 @@ class SelectBestCoverage(_FileProducingStepFactory):
         # Return a dummy Step
         res = AbstractStep('move', **meta)
         return res
+
+
+class ApplyLIACalibration(OTBStepFactory):
+    """
+    TODO:
+    Factory that prepares the first step that generates border maks as
+    described in :ref:`Border mask generation` documentation.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(self, cfg):
+        """
+        Constructor.
+        """
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
+        super().__init__(cfg,
+                appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                )
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
+        image orthorectified to S2 tile.
+        """
+        params = {
+                'ram'              : str(self.ram_per_process),
+                self.param_in      : [in_filename(meta)],
+                'exp'              : 'im1b1*im2b1'
+                }
+        return params
+
+    def _update_filename_meta_post_hook(self, meta):
+        """
+        Register ``is_compatible`` hook for
+        :function:`s1tiling.libs.otbpipeline.is_compatible`.
+        It will tell whether a given sin_LIA input is compatible with the
+        current S2 tile.
+        """
+        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
+
+    def _is_compatible(self, output_meta, input_meta):
+        """
+        Tells whether a given sin_LIA input is compatible with the the current
+        S2 tile.
+
+        ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit``
+        have to be identical.
+        """
+        fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+        return all(input_meta[k] == output_meta[k] for k in fields)

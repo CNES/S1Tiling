@@ -231,7 +231,7 @@ def product_exists(meta):
         return os.path.isfile(out_filename(meta))
 
 
-def is_compatible(output_meta, input_meta):
+def _is_compatible(output_meta, input_meta):
     """
     Tells whether ``input_meta`` is a valid input for ``output_meta``
 
@@ -1234,7 +1234,7 @@ class PipelineDescriptionSequence:
                 for origin, inputs in dropped_inputs.items():
                     for input in inputs:
                         logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(input), origin, out_filename(output))
-                        if is_compatible(output, input):
+                        if _is_compatible(output, input):
                             logger.debug('    => YES')
                             _register_new_input_and_update_out_filename(
                                     tasks=previous,
