@@ -72,7 +72,7 @@ from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate,
         BuildBorderMask, SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA,
-        ConcatenateLIA, SelectBestCoverage)
+        ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs import exits
 
 # Graphs
@@ -441,6 +441,32 @@ def do_process_with_pipeline(config_opt,
             return nb_error_detected
 
 
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence):
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
+            inputs={'insar': 'basename'})
+    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
+            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],                     'Normals|LIA', is_name_incremental=True,
+            inputs={'xyz': xyz})
+
+    # "inputs" parameter doesn't need to be specified in the following pipeline declarations
+    # but we still use it for clarity!
+    ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],    'OrthoLIA',      inputs={'in': lia}, is_name_incremental=True)
+    concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
+    pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True,          inputs={'in': concat})
+    ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
+    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',                        inputs={'in': ortho_sin})
+    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
+
+    return best_concat_sin
+
+
 def s1_process(config_opt,
         searched_items_per_page=20,
         dryrun=False,
@@ -468,10 +494,17 @@ def s1_process(config_opt,
         else:
             pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
 
-        pipelines.register_pipeline([Concatenate],                                              product_required=True)
+        calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        # TODO: don't produce concat results in data_out, and may be use another name w/ "β0" inside?
+        concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)
+
+        if config.calibration_type == 'normlim':
+            concat_sin = register_LIA_pipelines(pipelines)
+            pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
+                    inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
+
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
-
         return pipelines
 
     return do_process_with_pipeline(config_opt, builder,
@@ -504,24 +537,7 @@ def s1_process_lia(config_opt,
     """
     def builder(config, dryrun):
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
-        dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
-                inputs={'insar': 'basename'})
-        demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
-                inputs={'insar': 'basename', 'indem': dem})
-        xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
-                inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-        lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],                     'Normals|LIA', is_name_incremental=True,
-                inputs={'xyz': xyz})
-
-        # "inputs" parameter doesn't need to be specified in the following pipeline declarations
-        # but we still use it for clarity!
-        ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],    'OrthoLIA',      inputs={'in': lia}, is_name_incremental=True)
-        concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
-        pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True, inputs={'in': concat})
-        ortho_sin  = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
-        concat_sin = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',                        inputs={'in': ortho_sin})
-        pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
-
+        register_LIA_pipelines(pipelines)
         return pipelines
 
     return do_process_with_pipeline(config_opt, builder,
