@@ -1416,8 +1416,11 @@ class SelectBestCoverage(_FileProducingStepFactory):
 class ApplyLIACalibration(OTBStepFactory):
     """
     TODO:
-    Factory that prepares the first step that generates border maks as
-    described in :ref:`Border mask generation` documentation.
+    Factory that concludes σ0 with NORMLIM calibration.
+
+    It builds steps that multiply images calibrated with β0 LUT, and
+    orthorectified to S2 grid, with the sin(LIA) map for the same S2 tile (and
+    orbit number and direction).
 
     Requires the following information from the configuration object:
 
@@ -1427,7 +1430,14 @@ class ApplyLIACalibration(OTBStepFactory):
 
     - input filename
     - output filename
+    - flying_unit_code
+    - tile_name
+    - polarisation
+    - orbit_direction
+    - orbit
+    - acquisition_stamp
     """
+
     def __init__(self, cfg):
         """
         Constructor.
@@ -1440,18 +1450,28 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    def parameters(self, meta):
+    def complete_meta(self, meta, all_inputs):
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
-        image orthorectified to S2 tile.
+        Complete meta information with inputs, and set compression method to
+        DEFLATE.
         """
-        params = {
-                'ram'              : str(self.ram_per_process),
-                self.param_in      : [in_filename(meta)],
-                'exp'              : 'im1b1*im2b1'
-                }
-        return params
+        meta = super().complete_meta(meta, all_inputs)
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        meta['inputs'] = all_inputs
+        return meta
+
+    def _get_canonical_input(self, inputs):
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+
+        In current case, the canonical input comes from the "concat_S2"
+        pipeline defined in :func:`s1tiling.s1_process` pipeline builder.
+        """
+        _check_input_step_type(inputs)
+        keys = set().union(*(input.keys() for input in inputs))
+        assert len(inputs) == 2, f'Expecting 2 inputs. {len(inputs)} are found: {keys}'
+        assert 'concat_S2' in keys
+        return [input['concat_S2'] for input in inputs if 'concat_S2' in input.keys()][0]
 
     def _update_filename_meta_post_hook(self, meta):
         """
@@ -1472,3 +1492,20 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
         return all(input_meta[k] == output_meta[k] for k in fields)
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
+        image orthorectified to S2 tile.
+        """
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        in_concat_S2 = _fetch_input_data('concat_S2', inputs).out_filename
+        in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
+        params = {
+                'ram'              : str(self.ram_per_process),
+                self.param_in      : [in_concat_S2, in_sin_LIA],
+                'exp'              : 'im1b1*im2b1'
+                }
+        return params
