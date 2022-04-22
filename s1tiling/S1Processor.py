@@ -123,7 +123,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                     100 * cfg.TileToProductOverlapRatio, tiles_to_process)
 
-    logger.info('The following tiles will be process: %s', tiles_to_process)
+    logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
 
 
@@ -156,6 +156,8 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
         if current_coverage < 1.:
             logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
                     tile, 100 * current_coverage)
+        else:
+            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
     needed_srtm_tiles = list(set(needed_srtm_tiles))
@@ -427,6 +429,7 @@ def do_process_with_pipeline(config_opt,
 
             nb_error_detected = sum(not bool(res) for res in results)
 
+            logger.debug('#############################################################################')
             if nb_error_detected > 0:
                 logger.warning('Execution report: %s errors detected', nb_error_detected)
             else:
