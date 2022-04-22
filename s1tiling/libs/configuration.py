@@ -100,7 +100,7 @@ def init_logger(mode, paths):
 
 class Configuration():
     """This class handles the parameters from the cfg file"""
-    def __init__(self, configFile):
+    def __init__(self, configFile, do_show_configuration=True):
         config = configparser.ConfigParser(os.environ)
         config.read(configFile)
 
@@ -189,6 +189,10 @@ class Configuration():
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             self.override_azimuth_cut_threshold_to = None
 
+        if do_show_configuration:
+            self.show_configuration()
+
+    def show_configuration(self):
         logging.debug("Running S1Tiling with:")
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s", self.GeoidFile)
