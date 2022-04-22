@@ -336,7 +336,7 @@ class OTBApplicationsMockContext:
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
         logging.error('NO expectation FOUND for %s %s', appname, _as_cmdline_call(params))
-        assert False, f"Cannot find any matching expectation for {appname} {_as_cmdline_call(params)} among {self._remaining_expectations_as_str(appname)}"
+        assert False, f"Cannot find any matching expectation for\n-> {appname} {_as_cmdline_call(params)}\namong {self._remaining_expectations_as_str(appname)}"
 
     def assert_execution_is_expected(self, cmdlinelist):
         # self._update_input_to_root_filename(cmdlinelist)
@@ -353,7 +353,7 @@ class OTBApplicationsMockContext:
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
         logging.error('Expectation NOT FOUND')
-        assert False, f"Cannot find any matching expectation for {appname} {_as_cmdline_call(cmdlinelist)} among {self._remaining_expectations_as_str(appname)}"
+        assert False, f"Cannot find any matching expectation for\n-> {appname} {_as_cmdline_call(cmdlinelist)}\namong {self._remaining_expectations_as_str(appname)}"
 
     def assert_all_have_been_executed(self):
         assert len(self.__expectations) == 0, f"The following applications haven't executed: {self._remaining_expectations_as_str()}"
