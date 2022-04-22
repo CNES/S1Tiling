@@ -168,6 +168,7 @@ class FileDB:
             'cal_ok'              : '{s1_basename}{tmp}.tiff',
             'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
             'orthofile'           : '{s2_basename}{tmp}',
+            'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
             'border_mask_tmp'     : '{s2_basename}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}_BorderMask{tmp}.tif',
 
@@ -201,46 +202,52 @@ class FileDB:
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress = '?&gdal:co:COMPRESS=DEFLATE'
 
-    def __init__(self, inputdir, tmpdir, outputdir, tile):
+    def __init__(self, inputdir, tmpdir, outputdir, tile, srtmdir, geoid_file):
         self.__input_dir      = inputdir
         self.__tmp_dir        = tmpdir
         self.__output_dir     = outputdir
         self.__tile           = tile
+        self.__srtm_dir       = srtmdir
+        self.__GeoidFile      = geoid_file
         self.__tmp_to_out_map = {
-                self.tmp_cal_ok(0)              : self.cal_ok(0),
-                self.tmp_cal_ok(1)              : self.cal_ok(1),
-                self.tmp_ortho_ready(0)         : self.ortho_ready(0),
-                self.tmp_ortho_ready(1)         : self.ortho_ready(1),
-                self.tmp_orthofile(0)           : self.orthofile(0),
-                self.tmp_orthofile(1)           : self.orthofile(1),
-                self.tmp_concatfile(None)       : self.concatfile(None),
-                self.tmp_concatfile(0)          : self.concatfile(0),
-                self.tmp_concatfile(1)          : self.concatfile(1),
-                self.tmp_masktmp(None)          : self.masktmp(None),
-                self.tmp_masktmp(0)             : self.masktmp(0),
-                self.tmp_masktmp(1)             : self.masktmp(1),
-                self.tmp_maskfile(None)         : self.maskfile(None),
-                self.tmp_maskfile(0)            : self.maskfile(0),
-                self.tmp_maskfile(1)            : self.maskfile(1),
+                self.tmp_cal_ok(0)                   : self.cal_ok(0),
+                self.tmp_cal_ok(1)                   : self.cal_ok(1),
+                self.tmp_ortho_ready(0)              : self.ortho_ready(0),
+                self.tmp_ortho_ready(1)              : self.ortho_ready(1),
+                self.tmp_orthofile(0)                : self.orthofile(0),
+                self.tmp_orthofile(1)                : self.orthofile(1),
+                self.tmp_concatfile(None)            : self.concatfile(None),
+                self.tmp_concatfile(0)               : self.concatfile(0),
+                self.tmp_concatfile(1)               : self.concatfile(1),
+                self.tmp_masktmp(None)               : self.masktmp(None),
+                self.tmp_masktmp(0)                  : self.masktmp(0),
+                self.tmp_masktmp(1)                  : self.masktmp(1),
+                self.tmp_maskfile(None)              : self.maskfile(None),
+                self.tmp_maskfile(0)                 : self.maskfile(0),
+                self.tmp_maskfile(1)                 : self.maskfile(1),
 
-                self.tmp_vrtfile(0)             : self.vrtfile(0),
-                self.tmp_vrtfile(1)             : self.vrtfile(1),
-                self.tmp_sardemprojfile(0)      : self.sardemprojfile(0),
-                self.tmp_sardemprojfile(1)      : self.sardemprojfile(1),
-                self.tmp_xyzfile(0)             : self.xyzfile(0),
-                self.tmp_xyzfile(1)             : self.xyzfile(1),
-                self.tmp_normalsfile(0)         : self.normalsfile(0),
-                self.tmp_normalsfile(1)         : self.normalsfile(1),
-                self.tmp_LIAfile(0)             : self.LIAfile(0),
-                self.tmp_LIAfile(1)             : self.LIAfile(1),
-                self.tmp_sinLIAfile(0)          : self.sinLIAfile(0),
-                self.tmp_sinLIAfile(1)          : self.sinLIAfile(1),
-                self.tmp_orthoLIAfile(0)        : self.orthoLIAfile(0),
-                self.tmp_orthoLIAfile(1)        : self.orthoLIAfile(1),
-                self.tmp_orthosinLIAfile(0)     : self.orthosinLIAfile(0),
-                self.tmp_orthosinLIAfile(1)     : self.orthosinLIAfile(1),
-                self.tmp_concatLIAfile(None)    : self.concatLIAfile(None),
-                self.tmp_concatsinLIAfile(None) : self.concatsinLIAfile(None),
+                self.tmp_vrtfile(0)                  : self.vrtfile(0),
+                self.tmp_vrtfile(1)                  : self.vrtfile(1),
+                self.tmp_sardemprojfile(0)           : self.sardemprojfile(0),
+                self.tmp_sardemprojfile(1)           : self.sardemprojfile(1),
+                self.tmp_xyzfile(0)                  : self.xyzfile(0),
+                self.tmp_xyzfile(1)                  : self.xyzfile(1),
+                self.tmp_normalsfile(0)              : self.normalsfile(0),
+                self.tmp_normalsfile(1)              : self.normalsfile(1),
+                self.tmp_LIAfile(0)                  : self.LIAfile(0),
+                self.tmp_LIAfile(1)                  : self.LIAfile(1),
+                self.tmp_sinLIAfile(0)               : self.sinLIAfile(0),
+                self.tmp_sinLIAfile(1)               : self.sinLIAfile(1),
+                self.tmp_orthoLIAfile(0)             : self.orthoLIAfile(0),
+                self.tmp_orthoLIAfile(1)             : self.orthoLIAfile(1),
+                self.tmp_orthosinLIAfile(0)          : self.orthosinLIAfile(0),
+                self.tmp_orthosinLIAfile(1)          : self.orthosinLIAfile(1),
+                self.tmp_concatLIAfile(None)         : self.concatLIAfile(None),
+                self.tmp_concatsinLIAfile(None)      : self.concatsinLIAfile(None),
+                # self.tmp_selectedsinLIAfile()      : self.selectedsinLIAfile(),
+                self.tmp_sigma0_normlim_file(None)   : self.sigma0_normlim_file(None),
+                self.tmp_sigma0_normlim_file(0)      : self.sigma0_normlim_file(0),
+                self.tmp_sigma0_normlim_file(1)      : self.sigma0_normlim_file(1),
                 }
 
     @property
@@ -263,6 +270,20 @@ class FileDB:
         Property outputdir
         """
         return self.__output_dir
+
+    @property
+    def srtmdir(self):
+        """
+        Property srtmdir
+        """
+        return self.__srtm_dir
+
+    @property
+    def GeoidFile(self):
+        """
+        Property GeoidFile
+        """
+        return self.__GeoidFile
 
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]
@@ -430,6 +451,22 @@ class FileDB:
             # return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tmp.tif'+self.extended_compress
             return tmp_orthosinLIAfile(idx)
 
+    def selectedsinLIAfile(self):
+        return f'{self.__output_dir}/{self.__tile}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+    def sigma0_normlim_file(self, idx):
+        if idx is None:
+            return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_NormLim.tif'
+        else:
+            crt    = self.FILES[idx]
+            return f'{self.__output_dir}/{self.__tile}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif'.format(**crt, tmp='')
+    def tmp_sigma0_normlim_file(self, idx):
+        if idx is None:
+            return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_NormLim.tmp.tif'+self.extended_compress
+        else:
+            crt    = self.FILES[idx]
+            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif'.format(**crt, tmp='.tmp')+self.extended_compress
+
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
@@ -482,12 +519,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
 
 
-def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
-    crt_dir       = pathlib.Path(__file__).parent.absolute()
-    logging.info("Baseline expected in '%s'", baselinedir)
-
-    inputdir = str((baselinedir/'inputs').absolute())
-
+def set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram):
     os.environ['S1TILING_TEST_DOWNLOAD']       = 'False'
     os.environ['S1TILING_TEST_OVERRIDE_CUT_Y'] = 'False' # keep everything
 
@@ -497,26 +529,9 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
-    images = [
-            # '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
-            '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
-            # '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx_BorderMask.tif',
-            '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
-            ]
-    baseline_path = baselinedir / 'expected'
-    test_file     = crt_dir / 'test_33NWB_202001.cfg'
-    configuration = s1tiling.libs.configuration.Configuration(test_file)
-    logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), '33NWB')
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
-
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
-    known_files = application_mocker.known_files
-    known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
-    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
-    assert os.path.isfile(file_db.input_file_vv(1))
+def mock_upto_concat_S2(application_mocker, file_db, calibration):
+    raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(2):
         input_file = file_db.input_file_vv(i)
         expected_ortho_file = file_db.orthofile(i)
@@ -524,7 +539,7 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
-            'lut'        : 'sigma',
+            'lut'        : raw_calibration,
             'removenoise': False,
             'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(i),
             }, None)
@@ -554,7 +569,7 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'outputs.ulx'     : 499979.99999484676,
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
-            'elev.geoid'      : configuration.GeoidFile,
+            'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.tmp_orthofile(i),
             }, None)
 
@@ -564,14 +579,23 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'il'       : [file_db.orthofile(2*i), file_db.orthofile(2*i+1)],
             'out'      : file_db.tmp_concatfile(None),
             }, None)
+
+
+def mock_masking(application_mocker, file_db, calibration):
+    if calibration == 'normlim':
+        infile = file_db.sigma0_normlim_file
+    else:
+        infile = file_db.concatfile
+
+    for i in range(1):
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
-            'il'       : [file_db.concatfile(None)],
+            'il'       : [infile(None)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+file_db.tmp_maskfile(None),
             }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
-            'in'       : [file_db.concatfile(None)+'|>BandMath'],
+            'in'       : [infile(None)+'|>BandMath'],
             'ram'      : '2048',
             'structype': 'ball',
             'xradius'  : 5,
@@ -580,54 +604,16 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'out'      : file_db.tmp_maskfile(None),
             }, {'out': otb.ImagePixelType_uint8})
 
-    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
-            dryrun=False, debug_otb=True, watch_ram=False,
-            debug_tasks=False, cache_before_ortho=False)
-    application_mocker.assert_all_have_been_executed()
 
-
-def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
-    crt_dir       = pathlib.Path(__file__).parent.absolute()
-    logging.info("Baseline expected in '%s'", baselinedir)
-
-    inputdir = str((baselinedir/'inputs').absolute())
-
-    os.environ['S1TILING_TEST_DOWNLOAD']       = 'False'
-    os.environ['S1TILING_TEST_OVERRIDE_CUT_Y'] = 'False' # keep everything
-
-    os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
-    os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
-    os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
-    os.environ['S1TILING_TEST_RAM']                = str(ram)
-
-    tile_name = '33NWB'
-    images = [
-            f'{tile_name}/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
-            f'{tile_name}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
-            ]
-    baseline_path = baselinedir / 'expected'
-    test_file     = crt_dir / 'test_33NWB_202001.cfg'
-    configuration = s1tiling.libs.configuration.Configuration(test_file)
-    configuration.calibration = 'sigma0 normlim'
-    logging.info("Sigma0 NORMLIM mocked test")
-
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name)
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
-
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
-    known_files = application_mocker.known_files
-    known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
-    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
-    assert os.path.isfile(file_db.input_file_vv(1))
-
+def mock_LIA(application_mocker, file_db):
+    srtmdir = file_db.srtmdir
     for idx in range(2):
         cov               = file_db.dem_coverage(idx)
         exp_srtm_names    = sorted(cov)
         exp_out_vrt       = file_db.vrtfile(idx)
         exp_out_dem       = file_db.sardemprojfile(idx)
         exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
+
         application_mocker.set_expectations('gdalbuildvrt', [file_db.tmp_vrtfile(idx)] + exp_in_srtm_files, None)
 
         application_mocker.set_expectations('SARDEMProjection', {
@@ -680,7 +666,7 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'outputs.ulx'     : 499979.99999484676,
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
-            'elev.geoid'      : configuration.GeoidFile,
+            'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.tmp_orthoLIAfile(idx),
             }, None)
 
@@ -699,7 +685,7 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
             'outputs.ulx'     : 499979.99999484676,
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
-            'elev.geoid'      : configuration.GeoidFile,
+            'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.tmp_orthosinLIAfile(idx),
             }, None)
 
@@ -717,7 +703,117 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
         'out'      : file_db.tmp_concatsinLIAfile(None),
         }, None)
 
+
+def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+    """
+    Mocked test of production of S2 sigma0 calibrated images.
+    """
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+
+    baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file)
+    logging.info("Full mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+    mock_upto_concat_S2(application_mocker, file_db, 'sigma')
+    mock_masking(application_mocker, file_db, 'sigma')
+    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False,
+            debug_tasks=False, cache_before_ortho=False)
+    application_mocker.assert_all_have_been_executed()
+
+
+def test_33NWB_202001_lia_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+    """
+    Mocked test of production of LIA and sin LIA files
+    """
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+
+    tile_name = '33NWB'
+    baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file)
+    configuration.calibration_type = 'normlim'
+    logging.info("Sigma0 NORMLIM mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+
+    mock_LIA(application_mocker, file_db)
+
     s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False,
+            debug_tasks=False)
+    application_mocker.assert_all_have_been_executed()
+
+
+
+def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+    """
+    Mocked test of production of S2 normlim calibrated images.
+    """
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+
+    tile_name = '33NWB'
+    baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    configuration.calibration_type = 'normlim'
+    configuration.show_configuration()
+    logging.info("Sigma0 NORMLIM mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+
+    mock_upto_concat_S2(application_mocker, file_db, 'normlim')
+    mock_LIA(application_mocker, file_db)
+    mock_masking(application_mocker, file_db, 'normlim')
+
+    application_mocker.set_expectations('BandMath', {
+        'ram'      : '2048',
+        'il'       : [file_db.concatfile(None), file_db.selectedsinLIAfile()],
+        'exp'      : 'im1b1*im2b1',
+        'out'      : file_db.tmp_sigma0_normlim_file(None),
+        }, None)
+
+    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
