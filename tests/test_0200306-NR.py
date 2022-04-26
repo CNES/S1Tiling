@@ -162,6 +162,10 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, tmpdir, 
 # Mocked versions
 # ======================================================================
 
+def tmp_suffix(tmp):
+    return '.tmp' if tmp else ''
+
+
 class FileDB:
     FILE_FMTS = {
             's1file'              : '{s1_basename}.tiff',
@@ -182,25 +186,56 @@ class FileDB:
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
             }
     FILES = [
+            # 08 jan 2020
             {
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
                 's1_basename'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
                 's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044150',
                 's1_polarless'        : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
-                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
                 's2_polarless'        : 's1a_33NWB_DES_007_20200108t044150',
+                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                # 'polygon'     : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
                 },
             {
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 's1_basename'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
                 's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044215',
                 's1_polarless'        : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
-                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
                 's2_polarless'        : 's1a_33NWB_DES_007_20200108t044215',
-                }
+                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                # 'polygon'     : [(13.917268, -0.370174), (16.143845, -0.851051), (16.461084, 0.660845), (14.233407, 1.137179), (13.917268, -0.370174)]
+                },
+            # 20 jan 2020
+            {
+                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
+                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
+                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
+                's1_polarless'        : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
+                's2_polarless'        : 's1a_33NWB_DES_007_20200120t044214',
+                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                # 'polygon'             : [(13.917237, -0.370036), (16.143806, -0.850946), (16.461067, 0.660948), (14.233396, 1.137315), (13.917237, -0.370036)]
+                },
+            {
+                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
+                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
+                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120T044149',
+                's1_polarless'        : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
+                's2_polarless'        : 's1a_33NWB_DES_007_20200120T044149',
+                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                # 'polygon'             : [(14.233942, 1.137292), (16.461086, 0.661038), (16.775522, 2.173408), (14.545794, 2.645211), (14.233942, 1.137292)]
+                },
+            ]
+    CONCATS = [
+            # 08 jan 2020
+            {
+                's2_basename':  's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
+                's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
+                # 'concatlia':
+                # 'concatsinlia':
+                },
             ]
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
-    extended_compress = '?&gdal:co:COMPRESS=DEFLATE'
+    extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
 
     def __init__(self, inputdir, tmpdir, outputdir, tile, srtmdir, geoid_file):
         self.__input_dir      = inputdir
@@ -209,46 +244,36 @@ class FileDB:
         self.__tile           = tile
         self.__srtm_dir       = srtmdir
         self.__GeoidFile      = geoid_file
-        self.__tmp_to_out_map = {
-                self.tmp_cal_ok(0)                   : self.cal_ok(0),
-                self.tmp_cal_ok(1)                   : self.cal_ok(1),
-                self.tmp_ortho_ready(0)              : self.ortho_ready(0),
-                self.tmp_ortho_ready(1)              : self.ortho_ready(1),
-                self.tmp_orthofile(0)                : self.orthofile(0),
-                self.tmp_orthofile(1)                : self.orthofile(1),
-                self.tmp_concatfile(None)            : self.concatfile(None),
-                self.tmp_concatfile(0)               : self.concatfile(0),
-                self.tmp_concatfile(1)               : self.concatfile(1),
-                self.tmp_masktmp(None)               : self.masktmp(None),
-                self.tmp_masktmp(0)                  : self.masktmp(0),
-                self.tmp_masktmp(1)                  : self.masktmp(1),
-                self.tmp_maskfile(None)              : self.maskfile(None),
-                self.tmp_maskfile(0)                 : self.maskfile(0),
-                self.tmp_maskfile(1)                 : self.maskfile(1),
 
-                self.tmp_vrtfile(0)                  : self.vrtfile(0),
-                self.tmp_vrtfile(1)                  : self.vrtfile(1),
-                self.tmp_sardemprojfile(0)           : self.sardemprojfile(0),
-                self.tmp_sardemprojfile(1)           : self.sardemprojfile(1),
-                self.tmp_xyzfile(0)                  : self.xyzfile(0),
-                self.tmp_xyzfile(1)                  : self.xyzfile(1),
-                self.tmp_normalsfile(0)              : self.normalsfile(0),
-                self.tmp_normalsfile(1)              : self.normalsfile(1),
-                self.tmp_LIAfile(0)                  : self.LIAfile(0),
-                self.tmp_LIAfile(1)                  : self.LIAfile(1),
-                self.tmp_sinLIAfile(0)               : self.sinLIAfile(0),
-                self.tmp_sinLIAfile(1)               : self.sinLIAfile(1),
-                self.tmp_orthoLIAfile(0)             : self.orthoLIAfile(0),
-                self.tmp_orthoLIAfile(1)             : self.orthoLIAfile(1),
-                self.tmp_orthosinLIAfile(0)          : self.orthosinLIAfile(0),
-                self.tmp_orthosinLIAfile(1)          : self.orthosinLIAfile(1),
-                self.tmp_concatLIAfile(None)         : self.concatLIAfile(None),
-                self.tmp_concatsinLIAfile(None)      : self.concatsinLIAfile(None),
-                # self.tmp_selectedsinLIAfile()      : self.selectedsinLIAfile(),
-                self.tmp_sigma0_normlim_file(None)   : self.sigma0_normlim_file(None),
-                self.tmp_sigma0_normlim_file(0)      : self.sigma0_normlim_file(0),
-                self.tmp_sigma0_normlim_file(1)      : self.sigma0_normlim_file(1),
-                }
+        names_to_map = [
+                # function_reference,               [indices...]
+                [self.cal_ok,                       [0, 1]],
+                [self.ortho_ready,                  [0, 1]],
+                [self.orthofile,                    [0, 1]],
+                [self.concatfile_from_one,          [0, 1]],
+                [self.concatfile_from_two,          [0]],
+                [self.masktmp_from_one,             [0, 1]],
+                [self.masktmp_from_two,             [0]],
+                [self.maskfile_from_one,            [0, 1]],
+                [self.maskfile_from_two,            [0]],
+
+                [self.vrtfile,                      [0, 1]],
+                [self.sardemprojfile,               [0, 1]],
+                [self.xyzfile,                      [0, 1]],
+                [self.normalsfile,                  [0, 1]],
+                [self.LIAfile,                      [0, 1]],
+                [self.sinLIAfile,                   [0, 1]],
+                [self.orthoLIAfile,                 [0, 1]],
+                [self.orthosinLIAfile,              [0, 1]],
+                [self.concatLIAfile_from_two,       [0]],
+                [self.concatsinLIAfile_from_two,    [0]],
+                [self.sigma0_normlim_file_from_one, [0, 1]],
+                [self.sigma0_normlim_file_from_two, [0]],
+                ]
+        self.__tmp_to_out_map = {}
+        for func, idxs in names_to_map:
+            for idx in idxs:
+                self.__tmp_to_out_map[func(idx, True)] = func(idx, False)
 
     @property
     def tmp_to_out_map(self):
@@ -292,181 +317,148 @@ class FileDB:
         s1dir  = self.FILES[idx]['s1dir']
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE'
 
-    def input_file(self, idx):
+    def input_file(self, idx, polarity='vv'):
         crt    = self.FILES[idx]
         s1dir  = crt['s1dir']
-        s1file = self.FILE_FMTS['s1file'].format(**crt)
+        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity='vv', nr="001" if polarity == "vv" else "002")
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
     def input_file_vv(self, idx):
         assert idx < 2
-        return self.input_file(idx)
+        return self.input_file(idx, polarity='vv')
 
     def raster_vv(self, idx):
         s1dir  = self.FILES[idx]['s1dir']
         return (S1DateAcquisition(
             f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/manifest.safe',
-            [self.input_file(idx)]),
+            [self.input_file(idx, polarity='vv')]),
             [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)])
 
-    def cal_ok(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp='')
-    def tmp_cal_ok(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp='.tmp')
+    def cal_ok(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def ortho_ready(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp='')
-    def tmp_ortho_ready(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp='.tmp')
+    def ortho_ready(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthofile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='')
-    def tmp_orthofile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
+    def orthofile(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        ext = self.extended_geom_compress if tmp else ''
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def concatfile(self, idx):
-        if idx is None:
-            return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif'
+    def _concatfile_for_all(self, crt, tmp, polarity):
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+            ext = self.extended_compress
         else:
-            crt    = self.FILES[idx]
-            return f'{self.__output_dir}/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='')
-    def tmp_concatfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif'.format(**crt, tmp='.tmp')+self.extended_compress
+            dir = f'{self.__output_dir}/{self.__tile}'
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+    def concatfile_from_one(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return self._concatfile_for_all(crt, tmp, polarity)
+    def concatfile_from_two(self, idx, tmp, polarity='vv'):
+        crt = self.CONCATS[idx // 2]
+        return self._concatfile_for_all(crt, tmp, polarity)
 
-    def masktmp(self, idx):
-        if idx is None:
-            return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMaskTmp.tif'
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp='')
-    def tmp_masktmp(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMaskTmp.tmp.tif'
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp='.tmp')
+    def _masktmp_for_all(self, crt, tmp, polarity):
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
+    def masktmp_from_one(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return self._masktmp_for_all(crt, tmp, polarity)
+    def masktmp_from_two(self, idx, tmp, polarity='vv'):
+        crt = self.CONCATS[idx]
+        return self._masktmp_for_all(crt, tmp, polarity)
 
-    def maskfile(self, idx):
-        if idx is None:
-            return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif'
+    def _maskfile_for_all(self, crt, tmp, polarity):
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask"]}.tif'.format(**crt, tmp='')
-    def tmp_maskfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tmp.tif'
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["border_mask"]}.tif'.format(**crt, tmp='.tmp')
+            dir = f'{self.__output_dir}/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["border_mask"]}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
+    def maskfile_from_one(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return self._maskfile_for_all(crt, tmp, polarity)
+    def maskfile_from_two(self, idx, tmp, polarity='vv'):
+        crt = self.CONCATS[idx]
+        return self._maskfile_for_all(crt, tmp, polarity)
 
     def dem_file(self):
         return f'{self.__tmp_dir}/TMP'
 
-    def vrtfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp='')
-    def tmp_vrtfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp='.tmp')
+    def vrtfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def dem_coverage(self, idx):
         return self.FILES[idx]['dem_coverage']
-    def sardemprojfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp='')
-    def tmp_sardemprojfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp='.tmp')
-    def xyzfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp='')
-    def tmp_xyzfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp='.tmp')
-    def normalsfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp='')
-    def tmp_normalsfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp='.tmp')
-    def LIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp='')
-    def tmp_LIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp='.tmp')
-    def sinLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp='')
-    def tmp_sinLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp='.tmp')
+    def sardemprojfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def xyzfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def normalsfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def LIAfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def sinLIAfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthoLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='')
-    def tmp_orthoLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
+    def orthoLIAfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        ext = self.extended_geom_compress if tmp else ''
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthosinLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='')
-    def tmp_orthosinLIAfile(self, idx):
-        crt    = self.FILES[idx]
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='.tmp') + self.extended_geom_compress
+    def orthosinLIAfile(self, idx, tmp):
+        crt = self.FILES[idx]
+        ext = self.extended_geom_compress if tmp else ''
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def concatLIAfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif'.format(**crt, tmp='')
-    def tmp_concatLIAfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
-        else:
-            # return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILES[idx]["orthoLIAfile"]}.tmp.tif'+self.extended_compress
-            return tmp_orthoLIAfile(idx)
+    def _concatLIAfile_for_all(self, crt, tmp):
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        ext = self.extended_compress if tmp else ''
+        return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+    def concatLIAfile_from_one(self, idx, tmp):
+        crt = self.FILES[idx]
+        return self._concatLIAfile_for_all(crt, tmp)
+    def concatLIAfile_from_two(self, idx, tmp):
+        crt = self.CONCATS[idx]
+        return self._concatLIAfile_for_all(crt, tmp)
 
-    def concatsinLIAfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif'.format(**crt, tmp='')
-    def tmp_concatsinLIAfile(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tmp.tif'+self.extended_compress
-        else:
-            # return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tmp.tif'+self.extended_compress
-            return tmp_orthosinLIAfile(idx)
+    def _concatsinLIAfile_for_all(self, crt, tmp):
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        ext = self.extended_compress if tmp else ''
+        return f'{dir}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+    def concatsinLIAfile_from_one(self, idx, tmp):
+        crt = self.FILES[idx]
+        return self._concatsinLIAfile_for_all(crt, tmp)
+    def concatsinLIAfile_from_two(self, idx, tmp):
+        crt = self.CONCATS[idx]
+        return self._concatsinLIAfile_for_all(crt, tmp)
 
     def selectedsinLIAfile(self):
         return f'{self.__output_dir}/{self.__tile}/sin_LIA_s1a_33NWB_DES_007.tif'
 
-    def sigma0_normlim_file(self, idx):
-        if idx is None:
-            return f'{self.__output_dir}/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_NormLim.tif'
+    def _sigma0_normlim_file_for_all(self, crt, tmp, polarity):
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+            ext = self.extended_compress
         else:
-            crt    = self.FILES[idx]
-            return f'{self.__output_dir}/{self.__tile}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif'.format(**crt, tmp='')
-    def tmp_sigma0_normlim_file(self, idx):
-        if idx is None:
-            return f'{self.__tmp_dir}/S2/{self.__tile}/s1a_33NWB_vv_DES_007_20200108txxxxxx_NormLim.tmp.tif'+self.extended_compress
-        else:
-            crt    = self.FILES[idx]
-            return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif'.format(**crt, tmp='.tmp')+self.extended_compress
+            dir = f'{self.__output_dir}/{self.__tile}'
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
+    def sigma0_normlim_file_from_one(self, idx, tmp, polarity='vv'):
+        crt = self.FILES[idx]
+        return self._sigma0_normlim_file_for_all(crt, tmp, polarity)
 
+    def sigma0_normlim_file_from_two(self, idx, tmp, polarity='vv'):
+        crt = self.CONCATS[idx]
+        return self._sigma0_normlim_file_for_all(crt, tmp, polarity)
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
@@ -484,12 +476,13 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
-    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
-    mocker.patch('os.path.isfile', lambda file : isfile(file, known_files))
+    mocker.patch('glob.glob',        lambda pat : glob(pat, known_files))
+    mocker.patch('os.path.isfile',   lambda file : isfile(file, known_files))
+    mocker.patch('os.path.getctime', lambda file : 0)
     # TODO: Test written meta data as well
-    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata', lambda slf, mt, app : True)
+    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
     mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
-    mocker.patch('s1tiling.libs.otbpipeline.commit_execution', lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                   lambda tmp, out : True)
 
     def mock_commit_execution_for_SelectLIA(inp, out):
         logging.debug('mock.mv %s %s', inp, out)
@@ -534,14 +527,14 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(2):
         input_file = file_db.input_file_vv(i)
-        expected_ortho_file = file_db.orthofile(i)
+        expected_ortho_file = file_db.orthofile(i, False)
 
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
             'lut'        : raw_calibration,
             'removenoise': False,
-            'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.tmp_orthofile(i),
+            'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.orthofile(i, True),
             }, None)
 
         application_mocker.set_expectations('ResetMargin', {
@@ -551,7 +544,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration):
             'threshold.y.start': 0,
             'threshold.y.end'  : 0,
             'mode'             : 'threshold',
-            'out'              : 'OrthoRectification|>'+file_db.tmp_orthofile(i),
+            'out'              : 'OrthoRectification|>'+file_db.orthofile(i, True),
             }, None)
 
         application_mocker.set_expectations('OrthoRectification', {
@@ -570,38 +563,38 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration):
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
-            'io.out'          : file_db.tmp_orthofile(i),
+            'io.out'          : file_db.orthofile(i, True),
             }, None)
 
     for i in range(1):
         application_mocker.set_expectations('Synthetize', {
             'ram'      : '2048',
-            'il'       : [file_db.orthofile(2*i), file_db.orthofile(2*i+1)],
-            'out'      : file_db.tmp_concatfile(None),
+            'il'       : [file_db.orthofile(2*i, False), file_db.orthofile(2*i+1, False)],
+            'out'      : file_db.concatfile_from_two(0, True),
             }, None)
 
 
 def mock_masking(application_mocker, file_db, calibration):
     if calibration == 'normlim':
-        infile = file_db.sigma0_normlim_file
+        infile = file_db.sigma0_normlim_file_from_two
     else:
-        infile = file_db.concatfile
+        infile = file_db.concatfile_from_two
 
     for i in range(1):
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
-            'il'       : [infile(None)],
+            'il'       : [infile(0, False)],
             'exp'      : 'im1b1==0?0:1',
-            'out'      : 'BinaryMorphologicalOperation|>'+file_db.tmp_maskfile(None),
+            'out'      : 'BinaryMorphologicalOperation|>'+file_db.maskfile_from_two(0, True),
             }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
-            'in'       : [infile(None)+'|>BandMath'],
+            'in'       : [infile(0, False)+'|>BandMath'],
             'ram'      : '2048',
             'structype': 'ball',
             'xradius'  : 5,
             'yradius'  : 5,
             'filter'   : 'opening',
-            'out'      : file_db.tmp_maskfile(None),
+            'out'      : file_db.maskfile_from_two(0, True),
             }, {'out': otb.ImagePixelType_uint8})
 
 
@@ -610,11 +603,11 @@ def mock_LIA(application_mocker, file_db):
     for idx in range(2):
         cov               = file_db.dem_coverage(idx)
         exp_srtm_names    = sorted(cov)
-        exp_out_vrt       = file_db.vrtfile(idx)
-        exp_out_dem       = file_db.sardemprojfile(idx)
+        exp_out_vrt       = file_db.vrtfile(idx, False)
+        exp_out_dem       = file_db.sardemprojfile(idx, False)
         exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
 
-        application_mocker.set_expectations('gdalbuildvrt', [file_db.tmp_vrtfile(idx)] + exp_in_srtm_files, None)
+        application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_srtm_files, None)
 
         application_mocker.set_expectations('SARDEMProjection', {
             'ram'        : '2048',
@@ -622,7 +615,7 @@ def mock_LIA(application_mocker, file_db):
             'indem'      : exp_out_vrt,
             'withxyz'    : True,
             'nodata'     : -32768,
-            'out'        : file_db.tmp_sardemprojfile(idx),
+            'out'        : file_db.sardemprojfile(idx, True),
             }, None)
 
         application_mocker.set_expectations('SARCartesianMeanEstimation', {
@@ -634,26 +627,26 @@ def mock_LIA(application_mocker, file_db):
             'indirectiondeml' : 12,
             'mlran'           : 1,
             'mlazi'           : 1,
-            'out'             : file_db.tmp_xyzfile(idx),
+            'out'             : file_db.xyzfile(idx, True),
             }, None)
 
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : '2048',
-            'xyz'             : file_db.xyzfile(idx),
-            'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.tmp_LIAfile(idx),
+            'xyz'             : file_db.xyzfile(idx, False),
+            'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
             }, None)
 
         application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
             'ram'             : '2048',
-            'in.normals'      : file_db.xyzfile(idx)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
-            'in.xyz'          : file_db.xyzfile(idx),
-            'out.lia'         : file_db.tmp_LIAfile(idx),
-            'out.sin'         : file_db.tmp_sinLIAfile(idx),
+            'in.normals'      : file_db.xyzfile(idx, False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
+            'in.xyz'          : file_db.xyzfile(idx, False),
+            'out.lia'         : file_db.LIAfile(idx, True),
+            'out.sin'         : file_db.sinLIAfile(idx, True),
             }, None)
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : '2048',
-            'io.in'           : file_db.LIAfile(idx),
+            'io.in'           : file_db.LIAfile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -667,12 +660,12 @@ def mock_LIA(application_mocker, file_db):
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
-            'io.out'          : file_db.tmp_orthoLIAfile(idx),
+            'io.out'          : file_db.orthoLIAfile(idx, True),
             }, None)
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : '2048',
-            'io.in'           : file_db.sinLIAfile(idx),
+            'io.in'           : file_db.sinLIAfile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -686,21 +679,21 @@ def mock_LIA(application_mocker, file_db):
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
-            'io.out'          : file_db.tmp_orthosinLIAfile(idx),
+            'io.out'          : file_db.orthosinLIAfile(idx, True),
             }, None)
 
     # endfor on 2 consecutive images
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : '2048',
-        'il'       : [file_db.orthoLIAfile(0), file_db.orthoLIAfile(1)],
-        'out'      : file_db.tmp_concatLIAfile(None),
+        'il'       : [file_db.orthoLIAfile(0, False), file_db.orthoLIAfile(1, False)],
+        'out'      : file_db.concatLIAfile_from_two(0, True),
         }, None)
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : '2048',
-        'il'       : [file_db.orthosinLIAfile(0), file_db.orthosinLIAfile(1)],
-        'out'      : file_db.tmp_concatsinLIAfile(None),
+        'il'       : [file_db.orthosinLIAfile(0, False), file_db.orthosinLIAfile(1, False)],
+        'out'      : file_db.concatsinLIAfile_from_two(0, True),
         }, None)
 
 
@@ -808,9 +801,9 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
 
     application_mocker.set_expectations('BandMath', {
         'ram'      : '2048',
-        'il'       : [file_db.concatfile(None), file_db.selectedsinLIAfile()],
+        'il'       : [file_db.concatfile_from_two(0, False), file_db.selectedsinLIAfile()],
         'exp'      : 'im1b1*im2b1',
-        'out'      : file_db.tmp_sigma0_normlim_file(None),
+        'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None)
 
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
