@@ -30,6 +30,14 @@ def isdir(dirname, existing_dirs):
     return res
 
 
+def makedirs(dirname, existing_dirs):
+    """
+    Mock-replacement for :func:`os.makedirs`
+    """
+    logging.debug("mock.makedirs(%s) Added into %s", dirname, existing_dirs)
+    return True
+
+
 class MockDirEntry:
     """
     Mock-replacement for :class:`os.DirEntry` type returned by :func:`scandir`
@@ -42,14 +50,28 @@ class MockDirEntry:
         self.path = pathname
         # `name`: relative to scandir...
         self.name = os.path.relpath(pathname, inputdir)
+        self.inputdir = inputdir
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f'MockDirEntry("{self.path}", "{self.inputdir}") --> {self.name}'
 
 
-def list_dirs(dir, pat, known_dirs, inputdir):
+def list_dirs(dir, pattern, known_dirs, inputdir):
     """
     Mock-replacement for :func:`Utils.list_dirs`
     """
-    logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
-    return [MockDirEntry(kd, inputdir) for kd in known_dirs]
+    logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pattern, known_dirs)
+    if pattern:
+        filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
+    else:
+        filt = lambda path: '/' not in path.name
+    dir_entries = [MockDirEntry(kd, inputdir) for kd in known_dirs]
+    res = [de for de in dir_entries if filt(de)]
+    logging.debug('res --> %s', res)
+    return res
 
 
 def glob(pat, known_files):
@@ -159,7 +181,7 @@ class MockOTBApplication:
         # register output as a known file from now on
         for filename in self.out_filenames:
             file_produced = self.__mock_ctx.tmp_to_out(filename)
-            logging.debug('Register new know file %s -> %s', filename, file_produced)
+            logging.debug('Register new known file %s -> %s', filename, file_produced)
             self.__mock_ctx.known_files.append(file_produced)
 
 
@@ -209,7 +231,7 @@ class CommandLine:
         """
         Implements == operator
         """
-        logging.debug('CMP expected: %s\nactual: %s\n--> %s', self.__parameters, rhs, self.__parameters == rhs)
+        # logging.debug('CMP expected: %s\nactual: %s\n--> %s', self.__parameters, rhs, self.__parameters == rhs)
         return self.__parameters == rhs
 
     def __str__(self):
@@ -254,7 +276,7 @@ class OTBApplicationsMockContext:
         # first parameter, let's rely on this!
         assert cmdlinelist[0] == 'gdalbuildvrt'
         file_produced = self.tmp_to_out(cmdlinelist[1])
-        logging.debug('Register new know file %s -> %s', cmdlinelist[1], file_produced)
+        logging.debug('Register new known file %s -> %s', cmdlinelist[1], file_produced)
         self.known_files.append(file_produced)
 
     def create_application(self, appname):
