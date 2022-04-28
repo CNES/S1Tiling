@@ -211,6 +211,17 @@ class FileDB:
                 },
             # 20 jan 2020
             {
+                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
+                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
+                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
+                's1_polarless'        : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
+                's2_polarless'        : 's1a_33NWB_DES_007_20200120t044149',
+                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'polygon'             : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
+                'orbit_direction'     : 'DES',
+                'relative_orbit'      : 7,
+                },
+            {
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
                 's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
                 's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
@@ -218,17 +229,6 @@ class FileDB:
                 's2_polarless'        : 's1a_33NWB_DES_007_20200120t044214',
                 'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
                 'polygon'             : [(-0.370036, 13.917237), (-0.850946, 16.143806), (0.660948, 16.461067), (1.137315, 14.233396), (-0.370036, 13.917237)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
-                },
-            {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
-                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
-                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120T044149',
-                's1_polarless'        : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200120T044149',
-                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'             : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
                 'orbit_direction'     : 'DES',
                 'relative_orbit'      : 7,
                 },
@@ -261,34 +261,36 @@ class FileDB:
         self.__srtm_dir       = srtmdir
         self.__GeoidFile      = geoid_file
 
+        NFiles   = len(self.FILES)
+        NConcats = len(self.CONCATS)
         names_to_map = [
                 # function_reference,               [indices...]
-                [self.cal_ok,                       [0, 1]],
-                [self.ortho_ready,                  [0, 1]],
-                [self.orthofile,                    [0, 1]],
-                [self.concatfile_from_one,          [0, 1]],
-                [self.concatfile_from_two,          [0]],
-                [self.masktmp_from_one,             [0, 1]],
-                [self.masktmp_from_two,             [0]],
-                [self.maskfile_from_one,            [0, 1]],
-                [self.maskfile_from_two,            [0]],
+                [self.cal_ok,                       NFiles],
+                [self.ortho_ready,                  NFiles],
+                [self.orthofile,                    NFiles],
+                [self.concatfile_from_one,          NFiles],
+                [self.concatfile_from_two,          NConcats],
+                [self.masktmp_from_one,             NFiles],
+                [self.masktmp_from_two,             NConcats],
+                [self.maskfile_from_one,            NFiles],
+                [self.maskfile_from_two,            NConcats],
 
-                [self.vrtfile,                      [0, 1]],
-                [self.sardemprojfile,               [0, 1]],
-                [self.xyzfile,                      [0, 1]],
-                [self.normalsfile,                  [0, 1]],
-                [self.LIAfile,                      [0, 1]],
-                [self.sinLIAfile,                   [0, 1]],
-                [self.orthoLIAfile,                 [0, 1]],
-                [self.orthosinLIAfile,              [0, 1]],
-                [self.concatLIAfile_from_two,       [0]],
-                [self.concatsinLIAfile_from_two,    [0]],
-                [self.sigma0_normlim_file_from_one, [0, 1]],
-                [self.sigma0_normlim_file_from_two, [0]],
+                [self.vrtfile,                      NFiles],
+                [self.sardemprojfile,               NFiles],
+                [self.xyzfile,                      NFiles],
+                [self.normalsfile,                  NFiles],
+                [self.LIAfile,                      NFiles],
+                [self.sinLIAfile,                   NFiles],
+                [self.orthoLIAfile,                 NFiles],
+                [self.orthosinLIAfile,              NFiles],
+                [self.concatLIAfile_from_two,       NConcats],
+                [self.concatsinLIAfile_from_two,    NConcats],
+                [self.sigma0_normlim_file_from_one, NFiles],
+                [self.sigma0_normlim_file_from_two, NConcats],
                 ]
         self.__tmp_to_out_map = {}
-        for func, idxs in names_to_map:
-            for idx in idxs:
+        for func, nb in names_to_map:
+            for idx in range(nb):
                 self.__tmp_to_out_map[func(idx, True)] = func(idx, False)
 
     @property
@@ -340,7 +342,7 @@ class FileDB:
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
     def input_file_vv(self, idx):
-        assert idx < 2
+        assert idx < 4
         return self.input_file(idx, polarity='vv')
 
     def tile_origins(self, tile_name):
@@ -397,7 +399,7 @@ class FileDB:
     def orthofile(self, idx, tmp, polarity='vv'):
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
 
     def _concatfile_for_all(self, crt, tmp, polarity):
         if tmp:
@@ -582,9 +584,9 @@ def set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram):
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
 
-def mock_upto_concat_S2(application_mocker, file_db, calibration):
+def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
-    for i in range(2):
+    for i in range(N):
         input_file = file_db.input_file_vv(i)
         expected_ortho_file = file_db.orthofile(i, False)
 
@@ -625,35 +627,35 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration):
             'io.out'          : file_db.orthofile(i, True),
             }, None)
 
-    for i in range(1):
+    for i in range(N//2):
         application_mocker.set_expectations('Synthetize', {
             'ram'      : '2048',
             'il'       : [file_db.orthofile(2*i, False), file_db.orthofile(2*i+1, False)],
-            'out'      : file_db.concatfile_from_two(0, True),
+            'out'      : file_db.concatfile_from_two(i, True),
             }, None)
 
 
-def mock_masking(application_mocker, file_db, calibration):
+def mock_masking(application_mocker, file_db, calibration, N=2):
     if calibration == 'normlim':
         infile = file_db.sigma0_normlim_file_from_two
     else:
         infile = file_db.concatfile_from_two
 
-    for i in range(1):
+    for i in range(N // 2):
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
-            'il'       : [infile(0, False)],
+            'il'       : [infile(i, False)],
             'exp'      : 'im1b1==0?0:1',
-            'out'      : 'BinaryMorphologicalOperation|>'+file_db.maskfile_from_two(0, True),
+            'out'      : 'BinaryMorphologicalOperation|>'+file_db.maskfile_from_two(i, True),
             }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
-            'in'       : [infile(0, False)+'|>BandMath'],
+            'in'       : [infile(i, False)+'|>BandMath'],
             'ram'      : '2048',
             'structype': 'ball',
             'xradius'  : 5,
             'yradius'  : 5,
             'filter'   : 'opening',
-            'out'      : file_db.maskfile_from_two(0, True),
+            'out'      : file_db.maskfile_from_two(i, True),
             }, {'out': otb.ImagePixelType_uint8})
 
 
@@ -824,7 +826,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, d
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -863,6 +865,58 @@ def test_33NWB_202001_normlim_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
         'exp'      : 'im1b1*im2b1',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None)
+
+    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False,
+            debug_tasks=False)
+    application_mocker.assert_all_have_been_executed()
+
+
+def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+    """
+    Mocked test of production of S2 normlim calibrated images.
+    """
+    number_dates = 2
+
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+
+    tile_name = '33NWB'
+    baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    configuration.calibration_type = 'normlim'
+    logging.info("Sigma0 NORMLIM mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    configuration.first_date = file_db.CONCATS[0]['first_date']
+    configuration.last_date  = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.show_configuration()
+
+    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    for i in range(number_dates):
+        assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
+
+    mock_upto_concat_S2(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
+    mock_LIA(application_mocker, file_db)  # always N=2
+    mock_masking(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
+
+    for idx in range(number_dates):
+        application_mocker.set_expectations('BandMath', {
+            'ram'      : '2048',
+            'il'       : [file_db.concatfile_from_two(idx, False), file_db.selectedsinLIAfile()],
+            'exp'      : 'im1b1*im2b1',
+            'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
+            }, None)
 
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
