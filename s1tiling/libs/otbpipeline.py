@@ -116,6 +116,14 @@ class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
         return filename
 
 
+class CannotGenerateFilename(KeyError):
+    """
+    Exception used to filter out cases where a meta cannot serve as a direct
+    input of a :class:`StepFactory`.
+    """
+    pass
+
+
 class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     """
     Given a template: ``"text{key1}_{another_key}_.."``,
@@ -126,9 +134,12 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
         self.__template = template
 
     def generate(self, basename, keys):
-        rootname = os.path.splitext(basename)[0]
-        filename = self.__template.format(**keys, rootname=rootname)
-        return filename
+        try:
+            rootname = os.path.splitext(basename)[0]
+            filename = self.__template.format(**keys, rootname=rootname)
+            return filename
+        except KeyError as e:
+            raise CannotGenerateFilename(f'Impossible to generate a filename matching {self.__template} from {keys}') from e
 
 
 class OutputFilenameGeneratorList(OutputFilenameGenerator):
@@ -880,7 +891,9 @@ class PipelineDescription:
                 res = self.__factory_steps[-1].update_filename_meta(input_meta)
             logger.debug("    expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
             return res
-        except BaseException:  # pylint: disable=broad-except
+        except CannotGenerateFilename as e:  # pylint: disable=broad-except
+            # logger.exception('expected(%s) rejected because', input_meta)
+            logger.debug('expected(%s) rejected because: %s', input_meta, e)
             return None
 
     @property
