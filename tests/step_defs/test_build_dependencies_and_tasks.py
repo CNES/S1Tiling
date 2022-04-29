@@ -19,6 +19,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 from mock_otb import compute_coverage
+from mock_data import FileDB
 
 # ======================================================================
 # Scenarios
@@ -81,22 +82,25 @@ INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
 TILE   = '33NWB'
 
-def tile_origins(tile_name):
-    origins = {
-            '33NWB': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)],
-            }
-    return origins[tile_name]
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, TILE, 'unused', 'unused')
 
-def polarization(idx):
-    return ['vv', 'vh'][idx]
+#def tile_origins(tile_name):
+#    origins = {
+#            '33NWB': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)],
+#            }
+#    return origins[tile_name]
+
+#def polarization(idx):
+#    return ['vv', 'vh'][idx]
 
 def input_file(idx, polarity):
-    s1dir  = FILES[idx]['s1dir']
-    s1file = FILES[idx]['s1file'].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-    return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+    return file_db.input_file(idx, polarity)
+    # s1dir  = FILES[idx]['s1dir']
+    # s1file = FILES[idx]['s1file'].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+    # return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
 def raster(idx, polarity):
-    S2_tile_origin = tile_origins(TILE)
+    S2_tile_origin = file_db.tile_origins(TILE)
     s1dir  = FILES[idx]['s1dir']
     coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
     logging.debug("coverage of %s by %s = %s", TILE, FILES[idx]['s1dir'], coverage)
@@ -112,84 +116,60 @@ def raster_vh(idx):
     return raster(idx, 'vh')
 
 def orthofile(idx, polarity):
-    file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+    return file_db.orthofile(idx, tmp=False, polarity=polarity)
+    # file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+    # return f'{TMPDIR}/S2/{TILE}/{file}.tif'
 
 def concatfile(idx, polarity):
     if idx is None:
-        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx.tif'
+        return file_db.concatfile_from_two(0, tmp=False, polarity=polarity)
     else:
-        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-        return f'{OUTPUT}/{TILE}/{file}.tif'
+        return file_db.concatfile_from_one(idx, tmp=False, polarity=polarity)
 
 def maskfile(idx, polarity):
     if idx is None:
-        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx_BorderMask.tif'
+        return file_db.maskfile_from_two(0, tmp=False, polarity=polarity)
     else:
-        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-        return f'{OUTPUT}/{TILE}/{file}_BorderMask.tif'
+        return file_db.maskfile_from_one(idx, tmp=False, polarity=polarity)
 
 def DEM_file(idx):
-    if idx is None:
-        return f'{TMPDIR}/S1/DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.vrt'
-    else:
-        file = FILES[idx]["root"].format(kind='DEM')
-        return f'{TMPDIR}/S1/{file}.vrt'
+    return file_db.vrtfile(idx, tmp=False)
 
-def DEMPROJ_file(idx=None):
-    if idx is None:
-        return f'{TMPDIR}/S1/S1_on_DEM_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
-    else:
-        file = FILES[idx]["root"].format(kind='S1_on_DEM')
-        return f'{TMPDIR}/S1/{file}.tiff'
+def DEMPROJ_file(idx):
+    return file_db.sardemprojfile(idx, tmp=False)
 
-def XYZ_file(idx=None):
-    if idx is None:
-        return f'{TMPDIR}/S1/XYZ_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
-    else:
-        file = FILES[idx]["root"].format(kind='XYZ')
-        return f'{TMPDIR}/S1/{file}.tiff'
+def XYZ_file(idx):
+    return file_db.xyzfile(idx, tmp=False)
 
-def LIA_file(idx=None):
-    if idx is None:
-        return f'{TMPDIR}/S1/LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
-    else:
-        file = FILES[idx]["root"].format(kind='LIA')
-        return f'{TMPDIR}/S1/{file}.tiff'
+def LIA_file(idx):
+    return file_db.LIAfile(idx, tmp=False)
 
-def sin_LIA_file(idx=None):
-    if idx is None:
-        return f'{TMPDIR}/S1/sin_LIA_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506.tiff'
-    else:
-        file = FILES[idx]["root"].format(kind='sin_LIA')
-        return f'{TMPDIR}/S1/{file}.tiff'
+def sin_LIA_file(idx):
+    return file_db.sinLIAfile(idx, tmp=False)
 
 def ortho_LIA_file(idx):
-    file  = FILES[idx]['orthoLIA']
-    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+    return file_db.orthoLIAfile(idx, tmp=False)
 
 def S2_LIA_file():
-    return f'{OUTPUT}/{TILE}/LIA_s1a_33NWB_DES_007.tif'
+    return file_db.selectedLIAfile()
 
 def S2_LIA_preselect_file():
-    return f'{TMPDIR}/S2/{TILE}/LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+    return file_db.concatLIAfile_from_two(idx=0, tmp=False)
 
 def ortho_sin_LIA_file(idx):
-    file  = FILES[idx]['orthosinLIA']
-    return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+    return file_db.orthosinLIAfile(idx, tmp=False)
 
 def S2_sin_LIA_file():
-    return f'{OUTPUT}/{TILE}/sin_LIA_s1a_33NWB_DES_007.tif'
+    return file_db.selectedsinLIAfile()
 
 def S2_sin_LIA_preselect_file():
-    return f'{TMPDIR}/S2/{TILE}/sin_LIA_s1a_33NWB_DES_007_20200108txxxxxx.tif'
+    return file_db.concatsinLIAfile_from_two(idx=0, tmp=False)
 
 def normlim_concatfile(idx, polarity):
     if idx is None:
-        return f'{OUTPUT}/{TILE}/s1a_33NWB_{polarity}_DES_007_20200108txxxxxx_NormLim.tif'
+        return file_db.sigma0_normlim_file_from_two(0, tmp=False, polarity=polarity)
     else:
-        file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-        return f'{OUTPUT}/{TILE}/{file}_NormLim.tif'
+        return file_db.sigma0_normlim_file_from_one(0, tmp=False, polarity=polarity)
 
 # ======================================================================
 # Mocks
@@ -753,7 +733,7 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies):
 def then_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [LIA_file()]
+    expected_fn = [LIA_file(0)]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
