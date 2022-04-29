@@ -5,6 +5,7 @@ import fnmatch
 import logging
 import os
 import re
+from s1tiling.libs.Utils import get_shape_from_polygon
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
@@ -81,6 +82,16 @@ def glob(pat, known_files):
     res = [fn for fn in known_files if fnmatch.fnmatch(fn, pat)]
     logging.debug('mock.glob(%s) ---> %s', pat, res)
     return res
+
+
+def compute_coverage(image_footprint_polygon, reference_tile_footprint_polygon):
+    image_footprint          = get_shape_from_polygon(image_footprint_polygon[:4])
+    reference_tile_footprint = get_shape_from_polygon(reference_tile_footprint_polygon[:4])
+    intersection = image_footprint.Intersection(reference_tile_footprint)
+    coverage = intersection.GetArea() / reference_tile_footprint.GetArea()
+    assert coverage > 0   # We wouldn't have selected this pair S2 tile + S1 image otherwise
+    assert coverage <= 1  # the ratio intersection / S2 tile should be <= 1!!
+    return coverage
 
 
 def dirname(path, depth):

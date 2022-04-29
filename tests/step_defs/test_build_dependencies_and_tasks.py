@@ -11,7 +11,14 @@ from s1tiling.libs.otbwrappers import (
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
-from s1tiling.libs.Utils import get_shape_from_polygon
+
+# Because test directory isn't a package...
+# Let's use a dirty work around to import mock_otb from parent "tests" directory.
+import os
+import sys
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+from mock_otb import compute_coverage
 
 # ======================================================================
 # Scenarios
@@ -73,15 +80,6 @@ TMPDIR = 'TMP'
 INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
 TILE   = '33NWB'
-
-def compute_coverage(image_footprint_polygon, reference_tile_footprint_polygon):
-    image_footprint          = get_shape_from_polygon(image_footprint_polygon[:4])
-    reference_tile_footprint = get_shape_from_polygon(reference_tile_footprint_polygon[:4])
-    intersection = image_footprint.Intersection(reference_tile_footprint)
-    coverage = intersection.GetArea() / reference_tile_footprint.GetArea()
-    assert coverage > 0   # We wouldn't have selected this pair S2 tile + S1 image otherwise
-    assert coverage <= 1  # the ratio intersection / S2 tile should be <= 1!!
-    return coverage
 
 def tile_origins(tile_name):
     origins = {
