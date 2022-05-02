@@ -110,10 +110,13 @@ class Configuration():
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+            # OTB DEBUG logs are displayed iff level is DEBUG and configFile mode
+            # is debug as well.
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
         self.output_preprocess = config.get('Paths', 'output')
+        self.lia_directory     = config.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         self.raw_directory     = config.get('Paths', 's1_images')
         self.srtm              = config.get('Paths', 'srtm')
         self.tmpdir            = config.get('Paths', 'tmp')
@@ -196,8 +199,9 @@ class Configuration():
         logging.debug("Running S1Tiling with:")
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s", self.GeoidFile)
-        logging.debug("- output                         : %s", self.output_preprocess)
         logging.debug("- s1_images                      : %s", self.raw_directory)
+        logging.debug("- output                         : %s", self.output_preprocess)
+        logging.debug("- LIA                            : %s", self.lia_directory)
         logging.debug("- srtm                           : %s", self.srtm)
         logging.debug("- tmp                            : %s", self.tmpdir)
         logging.debug("[DataSource]")

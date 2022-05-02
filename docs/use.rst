@@ -73,6 +73,10 @@ You can use this :download:`this template
   * - ``output``
     - Where products are generated.
 
+      .. _paths.lia:
+  * - ``lia``
+    - Where Local Incidence Maps and sin(LIA) products are generated.
+
       .. _paths.tmp:
   * - ``tmp``
     - Where :ref:`intermediary files <temporary-files>` are produced, and

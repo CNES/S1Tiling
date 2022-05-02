@@ -136,6 +136,7 @@ def discard_small_redundant(products, ident=None):
     prod_re = re.compile(r'S1._IW_...._...._(\d{8}T\d{6})_(\d{8}T\d{6}).*')
 
     ordered_products = sorted(products, key=lambda p: ident(p))
+    # logger.debug("all products before clean: %s", ordered_products)
     res = [ordered_products[0]]
     last, _ = prod_re.match(ident(res[0])).groups()
     for product in ordered_products[1:]:
@@ -279,8 +280,9 @@ class S1FileManager:
     def ensure_tile_workspaces_exist(self, tile_name):
         """
         Makes sure the directories used for :
-        - output data/{tile}
-        - and temporary data/S2/{tile}
+        - output data/{tile},
+        - temporary data/S2/{tile}
+        - and LIA data (if required)
         all exist
         """
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
@@ -288,6 +290,10 @@ class S1FileManager:
 
         out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
         os.makedirs(out_dir, exist_ok=True)
+
+        if self.cfg.calibration_type == 'normlim':
+            lia_directory = self.cfg.lia_directory
+            os.makedirs(lia_directory, exist_ok=True)
         return working_directory, out_dir
 
     def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
@@ -476,6 +482,7 @@ class S1FileManager:
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            logger.debug('current_content: %s', current_content)
             safe_dir = os.path.join(
                     current_content.path,
                     os.path.basename(current_content.path) + '.SAFE')

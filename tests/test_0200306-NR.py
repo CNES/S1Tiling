@@ -32,16 +32,17 @@ def remove_dirs(dir_list):
             shutil.rmtree(dir)
 
 
-def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
+def process(tmpdir, outputdir, liadir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
     '''
     Executes the S1Processor
     '''
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     src_dir       = crt_dir.parent.absolute()
-    dirs_to_clean = dirs_to_clean or [outputdir, tmpdir/'S1', tmpdir/'S2']
+    dirs_to_clean = dirs_to_clean or [outputdir, tmpdir/'S1', tmpdir/'S2', liadir]
 
     logging.info('$S1TILING_TEST_DATA_INPUT  -> %s', os.environ['S1TILING_TEST_DATA_INPUT'])
     logging.info('$S1TILING_TEST_DATA_OUTPUT -> %s', os.environ['S1TILING_TEST_DATA_OUTPUT'])
+    logging.info('$S1TILING_TEST_DATA_LIA    -> %s', os.environ['S1TILING_TEST_DATA_LIA'])
     logging.info('$S1TILING_TEST_SRTM        -> %s', os.environ['S1TILING_TEST_SRTM'])
     logging.info('$S1TILING_TEST_TMPDIR      -> %s', os.environ['S1TILING_TEST_TMPDIR'])
     logging.info('$S1TILING_TEST_DOWNLOAD    -> %s', os.environ['S1TILING_TEST_DOWNLOAD'])
@@ -57,7 +58,7 @@ def process(tmpdir, outputdir, baseline_reference_outputs, test_file, watch_ram,
     return subprocess.call(args, cwd=crt_dir)
 
 
-def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -90,7 +91,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ra
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     logging.info("Full test")
-    EX = process(tmpdir, outputdir, baseline_path, test_file, watch_ram)
+    EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram)
     assert EX == 0
     for im in images:
         expected = baseline_path / im
@@ -104,7 +105,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ra
     # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
-def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -148,7 +149,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, tmpdir, 
 
 
     dirs_to_clean = [tmpdir/'S1', tmpdir/'S2'] # do not clear outputdir in that case
-    EX = process(tmpdir, outputdir, baseline_path, test_file, watch_ram, dirs_to_clean)
+    EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram, dirs_to_clean)
     assert EX == 0
     for im in images:
         expected = baseline_path / im
@@ -218,12 +219,13 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
 
 
-def set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram):
+def set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram):
     os.environ['S1TILING_TEST_DOWNLOAD']       = 'False'
     os.environ['S1TILING_TEST_OVERRIDE_CUT_Y'] = 'False' # keep everything
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -403,7 +405,7 @@ def mock_LIA(application_mocker, file_db):
         }, None)
 
 
-def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
@@ -411,14 +413,14 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram)
 
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file)
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
@@ -435,7 +437,7 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, tmpdir, srtmdir, ra
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_lia_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of LIA and sin LIA files
     """
@@ -444,16 +446,17 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, d
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram)
 
     tile_name = '33NWB'
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file)
     configuration.calibration_type = 'normlim'
+    configuration.lia_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
@@ -471,7 +474,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, tmpdir, srtmdir, ram, d
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -480,17 +483,18 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, tmpdir, sr
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram)
 
     tile_name = '33NWB'
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
+    configuration.lia_directory = liadir.absolute()
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
@@ -517,7 +521,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, tmpdir, sr
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -528,16 +532,17 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, tmpdir, s
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, srtmdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram)
 
     tile_name = '33NWB'
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
+    configuration.lia_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
     configuration.first_date = file_db.CONCATS[0]['first_date']
     configuration.last_date  = file_db.CONCATS[number_dates-1]['last_date']
     configuration.show_configuration()

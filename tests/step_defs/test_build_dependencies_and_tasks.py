@@ -80,9 +80,10 @@ FILES = [
 TMPDIR = 'TMP'
 INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
+LIADIR = 'LIADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 
 #def tile_origins(tile_name):
 #    origins = {
@@ -177,7 +178,7 @@ def normlim_concatfile(idx, polarity):
 resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
 
 class Configuration():
-    def __init__(self, tmpdir, outputdir, *argv):
+    def __init__(self, tmpdir, outputdir, liadir, *argv):
         """
         constructor
         """
@@ -187,6 +188,7 @@ class Configuration():
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
+        self.lia_directory                     = liadir
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
@@ -224,7 +226,7 @@ def expected_files_id():
 @pytest.fixture
 def pipelines():
     # TODO: propagate --tmpdir to scenario runners
-    config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT)
+    config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR)
     pd = PipelineDescriptionSequence(config, dryrun=True)
     return pd
 

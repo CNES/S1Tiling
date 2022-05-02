@@ -124,10 +124,12 @@ class FileDB:
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
 
-    def __init__(self, inputdir, tmpdir, outputdir, tile, srtmdir, geoid_file):
+    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, srtmdir, geoid_file):
         self.__input_dir      = inputdir
         self.__tmp_dir        = tmpdir
         self.__output_dir     = outputdir
+        self.__lia_dir        = liadir
+        self.__tmp_dir        = tmpdir
         self.__tile           = tile
         self.__srtm_dir       = srtmdir
         self.__GeoidFile      = geoid_file
@@ -367,10 +369,10 @@ class FileDB:
         return self._concatsinLIAfile_for_all(crt, tmp)
 
     def selectedLIAfile(self):
-        return f'{self.__output_dir}/{self.__tile}/LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self):
-        return f'{self.__output_dir}/{self.__tile}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity):
         if tmp:

@@ -1375,7 +1375,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         super().__init__(cfg, name='SelectBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_dir=cfg.lia_directory,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 

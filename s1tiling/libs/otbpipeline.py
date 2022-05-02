@@ -796,7 +796,7 @@ class Pipeline:
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
             return Outcome(RuntimeError(msg))
-        logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
+        # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
         for crt in self.__pipeline:
@@ -1553,7 +1553,7 @@ class _FileProducingStepFactory(StepFactory):
         - ``None``, in that case the result will be the same as :func:`tmp_directory`.
           This case will make sense for steps that don't produce required products
         """
-        return self.__gen_output_dir.format(**meta)
+        return str(self.__gen_output_dir).format(**meta)
 
     def _get_nominal_output_basename(self, meta):
         """
