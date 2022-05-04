@@ -23,7 +23,7 @@ Orthorectfy pairs of Sentinel-1 images on Sentinel-2 grid
 
 This is the main scenario where pairs of Sentinel-1 images are:
 
-- calibrated according to β\ :sub:`0`, γ\ :sub:`0` or σ\ :sub:`0` calibration
+- calibrated according to β\ :sup:`0`, γ\ :sup:`0` or σ\ :sup:`0` calibration
 - then orthorectified onto the Sentinel-2 grid,
 - to be finally concatenated.
 
@@ -63,11 +63,11 @@ Eventually,
    have to watch this directory and eventually clean it.
 
 
-Orthorectfy pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sub:`0`\ :sup:`RTC` NORMLIM calibration
+Orthorectfy pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In this scenario, the calibration applied is the σ\ :sub:`0`\ :sup:`RTC`
-NORMLIM calibration described in [Small2011]_.
+In this scenario, the calibration applied is the :math:`σ^0_{RTC}` NORMLIM
+calibration described in [Small2011]_.
 
 .. [Small2011] D. Small, "Flattening Gamma: Radiometric Terrain Correction for
    SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
@@ -94,7 +94,7 @@ S1Tiling will then automatically take care of:
 
 - producing, or using existing, maps of sin(LIA) for each Sentinel-2 tiles --
   given an orbit and it direction,
-- producing intermediary products calibrated with β\ :sub:`0` LUT.
+- producing intermediary products calibrated with β\ :sup:`0` LUT.
 
 
 .. warning::
@@ -104,9 +104,18 @@ S1Tiling will then automatically take care of:
    Otherwise a same file may be concurrently written to from different nodes,
    and it will likely end up corrupted.
 
+.. note::
+   This scenario requires `DiapOTB
+   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
+   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
+   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Eventually both will be guaranteed in S1Tiling docker images.
+
+
 .. _scenario.S1LIAMap:
 
-Preproduce maps of Local Incidence Angles for σ\ :sub:`0`\ :sup:`RTC` NORMLIM calibration
+Preproduce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 While :program:`S1Processor` is able to produce the necessary LIA maps on the
@@ -127,6 +136,15 @@ masking....
 
 .. note::
    LIA maps are perfect products to be stored and reused.
+
+.. note::
+   This scenario requires `DiapOTB
+   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
+   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
+   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Eventually both will be guaranteed in S1Tiling docker images.
+
 
 .. _scenario.masks:
 
