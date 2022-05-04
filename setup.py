@@ -76,7 +76,7 @@ setup(
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 
-    python_requires='>=3.3, <4',
+    python_requires='>=3.6, <4',
     install_requires=[
         "click",
         "dask[distributed]",
@@ -127,7 +127,6 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
