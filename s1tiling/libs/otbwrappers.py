@@ -453,6 +453,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         fullpath = out_filename(meta)
         logger.debug('Set metadata in %s', fullpath)
         dst = gdal.Open(fullpath, gdal.GA_Update)
+        assert dst
 
         dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
         dst.SetMetadataItem('TIFFTAG_DATETIME',           str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
@@ -472,6 +473,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
             date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
         dst.SetMetadataItem('ACQUISITION_DATETIME', date)
         self._add_extra_meta_data(dst, meta)
+        dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
         del dst
 
     def _add_extra_meta_data(self, dst, meta):  # pylint: disable=unused-argument,no-self-use
@@ -898,6 +900,7 @@ class SARDEMProjection(OTBStepFactory):
         fullpath = out_filename(meta)
         logger.debug('Set metadata in %s', fullpath)
         dst = gdal.Open(fullpath, gdal.GA_Update)
+        assert dst
 
         dst.SetMetadataItem('TIFFTAG_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
         dst.SetMetadataItem('ORBIT',                    meta['orbit'])
@@ -922,6 +925,7 @@ class SARDEMProjection(OTBStepFactory):
         dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', str(meta['directiontoscandeml']))
         dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', str(meta['directiontoscandemc']))
         dst.SetMetadataItem('PRJ.GAIN',                str(meta['gain']))
+        dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
         del dst
 
     def parameters(self, meta):
@@ -1023,6 +1027,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
         if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
             raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
+        del dst
 
     def parameters(self, meta):
         """
