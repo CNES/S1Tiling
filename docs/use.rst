@@ -631,6 +631,11 @@ The following exit code are produced when :program:`S1Processor` returns:
   * - 76
     - :ref:`Geoid file <paths.geoid_file>` is missing or the specified path is
       incorrect. See the log produced.
+  * - 77
+    - Some processing cannot be done because external applications cannot
+      be executed. Likelly OTB and/or NORMLIM related applications aren't
+      correctly installed.
+      See the log produced.
 
   * - any other
     - Unknown error. It could be related to `Bash

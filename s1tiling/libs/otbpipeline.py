@@ -33,6 +33,7 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
+import sys
 import shutil
 import re
 import copy
@@ -50,6 +51,7 @@ from pympler import tracker # , muppy
 
 import otbApplication as otb
 from . import Utils
+from . import exits
 
 logger = logging.getLogger('s1tiling')
 
@@ -513,6 +515,18 @@ class StepFactory(ABC):
         assert isinstance(self._name, str)
         return self._name
 
+    def check_requirements(self):
+        """
+        Abstract method used to test whether a :class:`StepFactory` has all
+        its external requirements fulfilled. For instance,
+        :class:`OTBStepFactory`'s will check their related OTB application can be executed.
+
+        :return: ``None`` if  requirements are fulfilled.
+        :return: A message indicating what is missing otherwise, and some
+                 context how to fix it.
+        """
+        return None
+
     @abstractmethod
     def build_step_output_filename(self, meta):
         """
@@ -777,6 +791,24 @@ class Pipeline:
         """
         assert isinstance(otbstep, StepFactory)
         self.__pipeline.append(otbstep)
+
+    def check_requirements(self):
+        """
+        Check all the :class:`StepFactory`'s registered in the pipeline can be
+        exexuted.
+
+        :return: ``None`` if requirements are fulfilled.
+        :return: A message indicating what is missing otherwise, and some
+                 context how to fix it.
+        """
+        sing_plur = {True: 'are', False: 'is'}
+        reqs = list(filter(None, (sf.check_requirements() for sf in self.__pipeline)))
+        missing_reqs = [rq for rq, _ in reqs]
+        contexts = set(ctx for _, ctx in reqs)
+        if reqs:
+            return f"{' and '.join(missing_reqs)} {sing_plur[len(missing_reqs) > 1]} required.", contexts
+        else:
+            return None
 
     def do_execute(self):
         """
@@ -1325,6 +1357,43 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
+    def _check_static_task_requirements(self, tasks):
+        """
+        Check all tasks have their requirement fulfilled for being generated.
+        Typically that the related applications are installed and can be
+        executed.
+
+        If any requirement is missing, the execution is stopped.
+        :todo: throw an exception instead of existing the process. See #96
+        """
+        logger.debug('#############################################################################')
+        logger.debug('#############################################################################')
+        logger.debug('Checking tasks static dependencies')
+        missing_apps = {}
+        contexts = set()
+        for key, task in tasks.items():
+            if isinstance(task, tuple):
+                assert isinstance(task[1], Pipeline)
+                req_ctx = task[1].check_requirements()
+                if req_ctx:
+                    req, ctx = req_ctx
+                    if req not in missing_apps:
+                        missing_apps[req] = []
+                    missing_apps[req].append(key)
+                    contexts.update(ctx)
+            else:
+                assert isinstance(task, FirstStep)
+        if missing_apps:
+            logger.error('Cannot execute S1Tiling because of the following reason(s):')
+            for req, task_keys in missing_apps.items():
+                logger.error("- %s for %s", req, task_keys)
+            for ctx in contexts:
+                logger.error(" -> %s", ctx)
+            sys.exit(exits.MISSING_APP)
+        else:
+            logger.debug('All required applications are correctly available')
+
+
     def generate_tasks(self, tile_name, raster_list, do_watch_ram=False):
         """
         Generate the minimal list of tasks that can be passed to Dask
@@ -1346,6 +1415,7 @@ class PipelineDescriptionSequence:
                 previous=previous,
                 task_names_to_output_files_table=task_names_to_output_files_table,
                 do_watch_ram=do_watch_ram)
+        self._check_static_task_requirements(tasks)
 
         for final_product in final_products:
             assert final_product in tasks
@@ -1752,6 +1822,29 @@ class OTBStepFactory(_FileProducingStepFactory):
 
         meta['param_out'] = self.param_out
         return Step(app, **meta)
+
+    def check_requirements(self):
+        """
+        This specialization of :func:`check_requirements` checks whether the
+        related OTB application can correctly be executed from S1Tiling.
+
+        :return: A pair of the message indicating what is required, and some
+                 context how to fix it -- by default: install OTB!
+        :return: ``None`` otherwise.
+        """
+        app = otb.Registry.CreateApplication(self.appname)
+        if not app:
+            return f"{self.appname}", self.requirement_context()
+        else:
+            app = None
+            return None
+
+    def requirement_context(self):
+        """
+        Return the requirement context that permits to fix missing requirements.
+        By default, OTB applications requires... OTB!
+        """
+        return "Please install OTB."
 
 
 class ExecutableStepFactory(_FileProducingStepFactory):

@@ -946,6 +946,13 @@ class SARDEMProjection(OTBStepFactory):
                 'nodata'     : nodata
                 }
 
+    def requirement_context(self):
+        """
+        Return the requirement context that permits to fix missing requirements.
+        SARDEMProjection comes from DiapOTB.
+        """
+        return "Please install DiapOTB."
+
 
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
@@ -1052,6 +1059,13 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 'mlazi'           : 1,
                 }
 
+    def requirement_context(self):
+        """
+        Return the requirement context that permits to fix missing requirements.
+        SARCartesianMeanEstimation comes from DiapOTB.
+        """
+        return "Please install DiapOTB."
+
 
 class ComputeNormals(OTBStepFactory):
     """
@@ -1102,6 +1116,13 @@ class ComputeNormals(OTBStepFactory):
                 'ram'             : str(self.ram_per_process),
                 'xyz'             : xyz,
                 }
+
+    def requirement_context(self):
+        """
+        Return the requirement context that permits to fix missing requirements.
+        ComputeNormals comes from normlim_sigma0.
+        """
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
 class ComputeLIA(OTBStepFactory):
@@ -1194,6 +1215,13 @@ class ComputeLIA(OTBStepFactory):
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
                 }
+
+    def requirement_context(self):
+        """
+        Return the requirement context that permits to fix missing requirements.
+        ComputeLIA comes from normlim_sigma0.
+        """
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
 class _FilterStepFactory(StepFactory):
