@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -183,6 +183,8 @@ class Configuration():
         self.nb_procs                  = config.getint('Processing', 'nb_parallel_processes')
         self.ram_per_process           = config.getint('Processing', 'ram_per_process')
         self.OTBThreads                = config.getint('Processing', 'nb_otb_threads')
+
+        self.produce_lia_map           = config.getboolean('Processing', 'produce_lia_map', fallback=False)
         # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
         # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
         # self.Window_radius             = config.getint('Filtering', 'window_radius')
@@ -225,6 +227,7 @@ class Configuration():
         logging.debug("- tile_to_product_overlap_ratio  : %s", self.TileToProductOverlapRatio)
         logging.debug("- tiles                          : %s", self.tile_list)
         logging.debug("- tiles_shapefile                : %s", self.output_grid)
+        logging.debug("- produce LIA° map               : %s", self.produce_lia_map)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s", self.mask_cond)
 

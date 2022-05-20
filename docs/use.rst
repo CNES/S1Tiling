@@ -472,6 +472,22 @@ You can use this :download:`this template
         should be <= to the number of cores on the machine.
 
       .. _Processing.override_azimuth_cut_threshold_to:
+
+  * - ``produce_lia_map``
+    - When :ref:`LIA sine map <lia-files>` is produced, we may also desire the
+      angle values in degrees (x100).
+
+      Possible values are:
+
+      :``True``:         Do generate the angle map in degrees x 100.
+      :``False``:        Don't generate the angle map in degrees x 100.
+
+      .. note::
+        This option will be ignored when no LIA sine map is required. The LIA
+        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>` ,
+        or when :ref:`calibration mode <Processing.calibration>` is
+        ``"normlim"``.
+
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be
       forced to 0 in :ref:`cutting step <cutting>`. |br|

@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -444,7 +444,7 @@ def do_process_with_pipeline(config_opt,
             return nb_error_detected
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence):
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
@@ -460,12 +460,13 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence):
 
     # "inputs" parameter doesn't need to be specified in the following pipeline declarations
     # but we still use it for clarity!
-    ortho  = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],    'OrthoLIA',      inputs={'in': lia}, is_name_incremental=True)
-    concat = pipelines.register_pipeline([ConcatenateLIA],     'ConcatLIA',                        inputs={'in': ortho})
-    pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA', product_required=True,          inputs={'in': concat})
+    ortho           = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],        'OrthoLIA',  inputs={'in': lia}, is_name_incremental=True)
+    concat          = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatLIA', inputs={'in': ortho})
+    pipelines.register_pipeline([SelectBestCoverage],                                          'SelectLIA', inputs={'in': concat}, product_required=produce_angles)
+
     ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
-    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',                        inputs={'in': ortho_sin})
-    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA', product_required=True, inputs={'in': concat_sin})
+    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatSinLIA', inputs={'in': ortho_sin})
+    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage],                        'SelectSinLIA', inputs={'in': concat_sin}, product_required=True)
 
     return best_concat_sin
 
@@ -502,7 +503,7 @@ def s1_process(config_opt,
         concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)
 
         if config.calibration_type == 'normlim':
-            concat_sin = register_LIA_pipelines(pipelines)
+            concat_sin = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
             pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
                     inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
 
@@ -540,7 +541,7 @@ def s1_process_lia(config_opt,
     """
     def builder(config, dryrun):
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
-        register_LIA_pipelines(pipelines)
+        register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         return pipelines
 
     return do_process_with_pipeline(config_opt, builder,
