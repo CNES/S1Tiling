@@ -452,9 +452,11 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir
     tile_name = '33NWB'
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
-    configuration = s1tiling.libs.configuration.Configuration(test_file)
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.lia_directory = liadir.absolute()
+    configuration.lia_directory    = liadir.absolute()
+    configuration.produce_lia_map  = True
+    configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
@@ -491,7 +493,8 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.lia_directory = liadir.absolute()
+    configuration.lia_directory    = liadir.absolute()
+    configuration.produce_lia_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
@@ -544,8 +547,9 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
-    configuration.first_date = file_db.CONCATS[0]['first_date']
-    configuration.last_date  = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.first_date       = file_db.CONCATS[0]['first_date']
+    configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.produce_lia_map  = True
     configuration.show_configuration()
 
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
