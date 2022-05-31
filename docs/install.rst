@@ -167,6 +167,8 @@ You may want to install extra packages like `bokeh
 processing by Dask.
 
 
+.. _docker:
+
 Using S1Tiling with a docker
 ----------------------------
 

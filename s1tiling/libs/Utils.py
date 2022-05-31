@@ -112,8 +112,8 @@ def get_origin(manifest):
                 coor = line.replace("                <gml:coordinates>", "")\
                            .replace("</gml:coordinates>", "").split(" ")
                 coord = [(float(val.replace("\n", "").split(",")[0]),
-                          float(val.replace("\n", "")
-                                .split(",")[1]))for val in coor]
+                          float(val.replace("\n", "").split(",")[1]))
+                          for val in coor]
                 return coord[0], coord[1], coord[2], coord[3]
         raise Exception("Coordinates not found in " + str(manifest))
 

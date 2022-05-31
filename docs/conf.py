@@ -243,7 +243,10 @@ intersphinx_mapping = {
     'https://docs.python.org/3/': None,
     'https://distributed.dask.org/en/latest/': None,
     'https://docs.dask.org/en/latest/': None,
-    'https://www.orfeo-toolbox.org/CookBook/': None
+    # 'https://www.orfeo-toolbox.org/CookBook/': None,
+    # Using CookBook from OTB 7.4 as it still distributes DiapOTB.
+    'https://www.orfeo-toolbox.org/CookBook-7.4/': None,
+    'https://gdal.org/': None,
 }
 
 # Configuration for inheritance_diagram
