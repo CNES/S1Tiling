@@ -18,8 +18,8 @@ Usage
 Scenarios
 ---------
 
-Orthorectfy pairs of Sentinel-1 images on Sentinel-2 grid
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This is the main scenario where pairs of Sentinel-1 images are:
 
@@ -63,8 +63,8 @@ Eventually,
    have to watch this directory and eventually clean it.
 
 
-Orthorectfy pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In this scenario, the calibration applied is the :math:`σ^0_{RTC}` NORMLIM
 calibration described in [Small2011]_.

@@ -16,7 +16,6 @@ Final products
 --------------
 
 .. _full-S2-tiles:
-
 .. index:: S2 tiles
 
 Orthorectified S2 tiles
@@ -79,7 +78,6 @@ Orthorectified S2 tiles
         - :samp:`S1 Tiling v{{version}}` -- |version| currently
 
 .. _mask-files:
-
 .. index:: Mask files
 
 Mask files
@@ -101,7 +99,6 @@ Mask files
 
 
 .. _lia-files:
-
 .. index:: Local Incidence Angle map files
 
 Local Incidence Angle map files
@@ -385,7 +382,7 @@ Local Incidence Angle map files in S1 geometry
        These files still **need** to be cleaned manually. This should change
        eventually, or it may be conditionned to an option.
 
-.. _lia-s1-half-files:
+.. _lia-s2-half-files:
 
 Half Local Incidence Angle map files -- pre-concatenation.
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

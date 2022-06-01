@@ -404,6 +404,13 @@ These processings permit to produce Local Incidence Angles Maps for
    :members:
    :show-inheritance:
 
+``ApplyLIACalibration``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.ApplyLIACalibration
+   :members:
+   :show-inheritance:
+
 
 Filename generation
 +++++++++++++++++++
