@@ -1119,7 +1119,7 @@ class ComputeNormals(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         in_file = in_filename(meta)
-        meta['files_to_remove'] = in_file
+        meta['files_to_remove'] = [in_file]
         logger.debug('Register files to remove after normals computation: %s', meta['files_to_remove'])
         return meta
 
