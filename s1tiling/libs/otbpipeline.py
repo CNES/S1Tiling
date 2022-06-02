@@ -383,12 +383,18 @@ class AbstractStep:
         concatenation has been done.
         """
         if 'files_to_remove' in self.meta :
+            files = self.meta['files_to_remove']
+            # All possible geom files that may exist
+            geoms = [re.sub(re_tiff, '.geom', fn) for fn in files]
+            # All geaoms that do actually exist
+            geoms = [fn for fn in geoms if os.path.isfile(fn)]
+            files = files + geoms
             if is_debugging_caches(self.meta):
-                logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', self.meta['files_to_remove'])
+                logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
-                logger.debug('Cleaning intermediary files: %s', self.meta['files_to_remove'])
+                logger.debug('Cleaning intermediary files: %s', files)
                 if not is_running_dry(self.meta):
-                    Utils.remove_files(self.meta['files_to_remove'])
+                    Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
 
 
@@ -607,7 +613,9 @@ class StepFactory(ABC):
         meta.pop('task_basename',       None)
         meta.pop('update_out_filename', None)
         meta.pop('is_compatible',       None)
-        # TODO: meta.pop(reduce inputs*)
+        # for k in list(meta.keys()):  # Remove all entries associated to reduce_* keys
+        #     if k.startswith('reduce_'):
+        #         del meta[k]
         self._update_filename_meta_post_hook(meta)
         return meta
 

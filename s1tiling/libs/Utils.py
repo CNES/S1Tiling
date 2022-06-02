@@ -438,10 +438,11 @@ class RedirectStdToLogger:
             return False
 
 
-def remove_files(files):
+def remove_files(files: list):
     """
     Removes the files from the disk
     """
+    assert isinstance(files, list)
     logging.debug("Remove %s", files)
     for file_it in files:
         if os.path.exists(file_it):
