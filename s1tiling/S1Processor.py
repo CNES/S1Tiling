@@ -366,6 +366,7 @@ def do_process_with_pipeline(config_opt,
         pipeline_builder,
         searched_items_per_page=20,
         dryrun=False,
+        debug_caches=False,
         debug_otb=False,
         watch_ram=False,
         debug_tasks=False,
@@ -412,7 +413,7 @@ def do_process_with_pipeline(config_opt,
 
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
-        pipelines = pipeline_builder(config, dryrun=dryrun)
+        pipelines = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
         with DaskContext(config, debug_otb) as dask_client:
@@ -475,6 +476,7 @@ def s1_process(config_opt,
         searched_items_per_page=20,
         dryrun=False,
         debug_otb=False,
+        debug_caches=False,
         watch_ram=False,
         debug_tasks=False,
         cache_before_ortho=False):
@@ -490,8 +492,8 @@ def s1_process(config_opt,
 
       Parameters have to be set by the user in the S1Processor.cfg file
     """
-    def builder(config, dryrun):
-        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
+    def builder(config, dryrun, debug_caches):
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         if cache_before_ortho:
             pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
             pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
@@ -515,6 +517,7 @@ def s1_process(config_opt,
             searched_items_per_page=searched_items_per_page,
             dryrun=dryrun,
             debug_otb=debug_otb,
+            debug_caches=debug_caches,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
             )
@@ -524,6 +527,7 @@ def s1_process_lia(config_opt,
         searched_items_per_page=20,
         dryrun=False,
         debug_otb=False,
+        debug_caches=False,
         watch_ram=False,
         debug_tasks=False,
         ):
@@ -539,14 +543,15 @@ def s1_process_lia(config_opt,
           number of S1 products to download and process.
       2. Process these S1 products
     """
-    def builder(config, dryrun):
-        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun)
+    def builder(config, dryrun, debug_caches):
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         return pipelines
 
     return do_process_with_pipeline(config_opt, builder,
             searched_items_per_page=searched_items_per_page,
             dryrun=dryrun,
+            debug_caches=debug_caches,
             debug_otb=debug_otb,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
@@ -576,6 +581,10 @@ def s1_process_lia(config_opt,
         is_flag=True,
         help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
 @click.option(
+        "--debug-caches",
+        is_flag=True,
+        help="Investigation mode were intermediary cached files are not purged.")
+@click.option(
         "--watch-ram",
         is_flag=True,
         help="Trigger investigation mode for watching memory usage")
@@ -584,7 +593,7 @@ def s1_process_lia(config_opt,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
+def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
          debug_tasks, cache_before_ortho, config_filename):
     """
     This function is used as entry point to create console scripts with setuptools.
@@ -595,6 +604,7 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
+                debug_caches=debug_caches,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
@@ -618,6 +628,10 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
         is_flag=True,
         help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
 @click.option(
+        "--debug-caches",
+        is_flag=True,
+        help="Investigation mode were intermediary cached files are not purged.")
+@click.option(
         "--watch-ram",
         is_flag=True,
         help="Trigger investigation mode for watching memory usage")
@@ -626,7 +640,7 @@ def run( searched_items_per_page, dryrun, debug_otb, watch_ram,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia( searched_items_per_page, dryrun, debug_otb, watch_ram,
+def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
          debug_tasks, config_filename):
     """
     This function is used as entry point to create console scripts with setuptools.
@@ -637,6 +651,7 @@ def run_lia( searched_items_per_page, dryrun, debug_otb, watch_ram,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
+                debug_caches=debug_caches,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks)
     if nb_error_detected > 0:

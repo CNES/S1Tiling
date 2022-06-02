@@ -282,6 +282,13 @@ def is_running_dry(meta):
     return meta.get('dryrun', False)
 
 
+def is_debugging_caches(meta):
+    """
+    Helper function to test whether metadata has ``debug_caches`` property set to True.
+    """
+    return meta.get('debug_caches', False)
+
+
 def execute(params, dryrun):
     """
     Helper function to execute any external command.
@@ -376,9 +383,12 @@ class AbstractStep:
         concatenation has been done.
         """
         if 'files_to_remove' in self.meta :
-            logger.debug('Cleaning intermediary files: %s', self.meta['files_to_remove'])
-            if not is_running_dry(self.meta):
-                Utils.remove_files(self.meta['files_to_remove'])
+            if is_debugging_caches(self.meta):
+                logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', self.meta['files_to_remove'])
+            else:
+                logger.debug('Cleaning intermediary files: %s', self.meta['files_to_remove'])
+                if not is_running_dry(self.meta):
+                    Utils.remove_files(self.meta['files_to_remove'])
             self.meta.pop('files_to_remove', None)
 
 
@@ -1014,7 +1024,7 @@ def register_task(tasks, key, value):
     tasks[key] = value
 
 
-def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
+def generate_first_steps_from_manifests(raster_list, tile_name, dryrun, debug_caches):
     """
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
@@ -1033,7 +1043,8 @@ def generate_first_steps_from_manifests(raster_list, tile_name, dryrun):
                     tile_coverage=raster_info['tile_coverage'],
                     manifest=manifest,
                     basename=image,
-                    dryrun=dryrun)
+                    dryrun=dryrun,
+                    debug_caches=debug_caches)
             inputs.append(start.meta)
     return inputs
 
@@ -1172,14 +1183,15 @@ class PipelineDescriptionSequence:
 
     Internally, it can be seen as a list of :class:`PipelineDescription` objects.
     """
-    def __init__(self, cfg, dryrun):
+    def __init__(self, cfg, dryrun, debug_caches):
         """
         constructor
         """
         assert cfg
-        self.__cfg        = cfg
-        self.__pipelines  = []
-        self.__dryrun     = dryrun
+        self.__cfg          = cfg
+        self.__pipelines    = []
+        self.__dryrun       = dryrun
+        self.__debug_caches = debug_caches
 
     def register_pipeline(self, factory_steps, *args, **kwargs):
         """
@@ -1211,7 +1223,8 @@ class PipelineDescriptionSequence:
         first_inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
-                dryrun=self.__dryrun)
+                dryrun=self.__dryrun,
+                debug_caches=self.__debug_caches)
 
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
