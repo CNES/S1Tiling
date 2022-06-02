@@ -369,6 +369,18 @@ class AbstractStep:
         """
         pass
 
+    def clean_cache(self):
+        """
+        Takes care or removing intermediary files once we know they are no
+        longer required like the orthorectified subtiles once the
+        concatenation has been done.
+        """
+        if 'files_to_remove' in self.meta :
+            logger.debug('Cleaning intermediary files: %s', self.meta['files_to_remove'])
+            if not is_running_dry(self.meta):
+                Utils.remove_files(self.meta['files_to_remove'])
+            self.meta.pop('files_to_remove', None)
+
 
 class ExecutableStep(AbstractStep):
     """
@@ -407,6 +419,7 @@ class ExecutableStep(AbstractStep):
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
+        self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
 
@@ -1537,6 +1550,7 @@ class StoreStep(_StepWithOTBApplication):
                 # Indeed the hook is executed at Store Factory level, while metadata
                 # are passed around between around Factories and Steps.
                 hook(self.meta, self.app)
+        self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
 

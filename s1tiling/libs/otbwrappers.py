@@ -562,19 +562,9 @@ class _ConcatenatorFactory(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        append_to(meta, 'post', self.clear_ortho_tmp)
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         return meta
-
-    def clear_ortho_tmp(self, meta, *args, **kwargs):  # pylint: disable=unused-argument,no-self-use
-        """
-        Takes care of removing the orthorectified subtiles from the temporary
-        directory once the concatenation has been done.
-        """
-        if 'files_to_remove' in meta:
-            logger.debug('Cleaning concatenated files: %s', meta['files_to_remove'])
-            Utils.remove_files(meta['files_to_remove'])
 
     def parameters(self, meta):
         """
@@ -632,14 +622,25 @@ class Concatenate(_ConcatenatorFactory):
         in_file = out_filename(meta)
         if isinstance(in_file, list):
             meta['acquisition_stamp'] = meta['acquisition_day']
-            logger.debug('Register files to remove after concatenation: %s', in_file)
-            meta['files_to_remove'] = in_file
             # Remove acquisition_time that no longer makes sense
             meta.pop('acquisition_time', None)
             # logger.debug("Concatenation result of %s goes into %s", in_file, meta['basename'])
         else:
             meta['acquisition_stamp'] = meta['acquisition_time']
             logger.debug("Only one file to concatenate, just move it (%s)", in_file)
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Override :function:`complete_meta()` to inject files to remove
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        in_file = in_filename(meta)
+        if isinstance(in_file, list):
+            logger.debug('Register files to remove after concatenation: %s', in_file)
+            meta['files_to_remove'] = in_file
+        else:
+            logger.debug('DONT register single file to remove after concatenation: %s', in_file)
+        return meta
 
     def _update_filename_meta_post_hook(self, meta):
         tname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
@@ -1020,6 +1021,10 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
             self.fetch_direction(inputpath, meta)
+        indem     = _fetch_input_data('indem',     all_inputs).out_filename
+        indemproj = _fetch_input_data('indemproj', all_inputs).out_filename
+        meta['files_to_remove'] = [indem, indemproj]
+        logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         return meta
 
     def fetch_direction(self, inputpath, meta):  # pylint: disable=no-self-use
@@ -1107,6 +1112,16 @@ class ComputeNormals(OTBStepFactory):
         # Ignore polarization in filenames
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Override :function:`complete_meta()` to inject files to remove
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        in_file = in_filename(meta)
+        meta['files_to_remove'] = in_file
+        logger.debug('Register files to remove after normals computation: %s', meta['files_to_remove'])
+        return meta
 
     def parameters(self, meta):
         """
@@ -1364,6 +1379,17 @@ class ConcatenateLIA(_ConcatenatorFactory):
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Override :function:`complete_meta()` to inject files to remove
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        in_file = in_filename(meta)
+        if isinstance(in_file, list):
+            logger.debug('Register files to remove after LIA concatenation: %s', in_file)
+            meta['files_to_remove'] = in_file
+        return meta
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
