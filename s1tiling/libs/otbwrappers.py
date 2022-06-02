@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -46,7 +46,7 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
         ExecutableStepFactory, in_filename, out_filename, tmp_filename, AbstractStep,
         otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator,
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
-        ReplaceOutputFilenameGenerator, commit_execution)
+        ReplaceOutputFilenameGenerator, commit_execution, is_running_dry)
 from . import Utils
 from ..__meta__ import __version__
 
@@ -1027,14 +1027,18 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         Extract back direction to scan DEM from SARDEMProjected image metadata.
         """
         logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
-        dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
-        if not dst:
-            raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
-        meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
-        meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
-        if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
-            raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
-        del dst
+        if not is_running_dry(meta):
+            dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
+            if not dst:
+                raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
+            meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
+            meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
+            if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
+                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
+            del dst
+        else:
+            meta['directiontoscandeml'] = 42
+            meta['directiontoscandemc'] = 42
 
     def parameters(self, meta):
         """
@@ -1439,7 +1443,8 @@ class SelectBestCoverage(_FileProducingStepFactory):
         meta = self.complete_meta(inp.meta, inputs)
 
         # Let's reuse commit_execution as it does exactly what we need
-        commit_execution(out_filename(inp.meta), out_filename(meta))
+        if not is_running_dry(meta):
+            commit_execution(out_filename(inp.meta), out_filename(meta))
 
         # Return a dummy Step
         res = AbstractStep('move', **meta)

@@ -402,7 +402,8 @@ class ExecutableStep(AbstractStep):
         dryrun = is_running_dry(self.meta)
         logger.debug("ExecutableStep: %s (%s)", self, self.meta)
         execute([self._exename]+ parameters, dryrun)
-        commit_execution(self.tmp_filename, self.out_filename)
+        if not dryrun:
+            commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
