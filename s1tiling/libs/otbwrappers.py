@@ -851,6 +851,11 @@ class SARDEMProjection(OTBStepFactory):
 
     - input filename
     - output filename
+
+    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
+    DEM information already registered in dask worker (through
+    :std:doc:`Applications/app_OrthoRectification` for instance) and only use
+    the Geoid.
     """
     def __init__(self, cfg):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
@@ -944,6 +949,7 @@ class SARDEMProjection(OTBStepFactory):
                 'insar'      : in_filename(meta),
                 'indem'      : indem,
                 'withxyz'    : True,
+                # 'withh'      : True,  # uncomment to analyse/debug height computed
                 'nodata'     : nodata
                 }
 
@@ -957,12 +963,13 @@ class SARDEMProjection(OTBStepFactory):
 
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
-    Factory that prepares steps that run :std:doc:`Applications/app_SARCartesianMeanEstimation`
-    as described in :ref:`Normals computation` documentation.
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_SARCartesianMeanEstimation` as described in
+    :ref:`Normals computation` documentation.
 
 
-    :std:doc:`Applications/app_SARCartesianMeanEstimation` estimates a
-    simulated cartesian mean image thanks to a DEM file.
+    :std:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
+    cartesian mean image thanks to a DEM file.
 
     Requires the following information from the configuration object:
 

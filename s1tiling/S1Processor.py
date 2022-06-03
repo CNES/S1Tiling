@@ -378,6 +378,9 @@ def do_process_with_pipeline(config_opt,
     config = read_config(config_opt)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
+    # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
+    # -> we set $OTB_GEOID_FILE
+    os.environ["OTB_GEOID_FILE"] = config.GeoidFile
     global logger
     logger = logging.getLogger('s1tiling')
     with S1FileManager(config) as s1_file_manager:
