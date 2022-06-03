@@ -227,7 +227,7 @@ def expected_files_id():
 def pipelines():
     # TODO: propagate --tmpdir to scenario runners
     config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR)
-    pd = PipelineDescriptionSequence(config, dryrun=True)
+    pd = PipelineDescriptionSequence(config, dryrun=True, debug_caches=False)
     return pd
 
 @pytest.fixture
