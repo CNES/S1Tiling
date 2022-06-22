@@ -74,6 +74,7 @@ class Configuration():
         self.tmpdir            = tmpdir
         self.output_preprocess = outputdir
         self.cache_srtm_by     = 'symlink'
+        self.fname_fmt         = {}
 
 class MockDirEntry:
     def __init__(self, pathname):

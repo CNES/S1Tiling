@@ -238,12 +238,14 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
         input_file = file_db.input_file_vv(i)
         expected_ortho_file = file_db.orthofile(i, False)
 
+        orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
+        assert '_'+raw_calibration in orthofile
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
             'lut'        : raw_calibration,
             'removenoise': False,
-            'out'        : 'ResetMargin|>OrthoRectification|>'+file_db.orthofile(i, True),
+            'out'        : 'ResetMargin|>OrthoRectification|>'+orthofile,
             }, None)
 
         application_mocker.set_expectations('ResetMargin', {
@@ -253,7 +255,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'threshold.y.start': 0,
             'threshold.y.end'  : 0,
             'mode'             : 'threshold',
-            'out'              : 'OrthoRectification|>'+file_db.orthofile(i, True),
+            'out'              : 'OrthoRectification|>'+orthofile,
             }, None)
 
         application_mocker.set_expectations('OrthoRectification', {
@@ -272,29 +274,35 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
-            'io.out'          : file_db.orthofile(i, True),
+            'io.out'          : orthofile,
             }, None)
 
     for i in range(N//2):
+        orthofile1 = file_db.orthofile(2*i,   False, calibration='_'+raw_calibration)
+        orthofile2 = file_db.orthofile(2*i+1, False, calibration='_'+raw_calibration)
         application_mocker.set_expectations('Synthetize', {
             'ram'      : '2048',
-            'il'       : [file_db.orthofile(2*i, False), file_db.orthofile(2*i+1, False)],
-            'out'      : file_db.concatfile_from_two(i, True),
+            'il'       : [orthofile1, orthofile2],
+            'out'      : file_db.concatfile_from_two(i, True, calibration='_'+raw_calibration),
             }, None)
 
 
 def mock_masking(application_mocker, file_db, calibration, N=2):
+    raw_calibration = 'beta' if calibration == 'normlim' else calibration
     if calibration == 'normlim':
         infile = file_db.sigma0_normlim_file_from_two
     else:
         infile = file_db.concatfile_from_two
 
     for i in range(N // 2):
+        assert raw_calibration
+        out_mask = file_db.maskfile_from_two(i, True, calibration=('_'+raw_calibration))
+        assert ('_' + raw_calibration) in out_mask
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
             'il'       : [infile(i, False)],
             'exp'      : 'im1b1==0?0:1',
-            'out'      : 'BinaryMorphologicalOperation|>'+file_db.maskfile_from_two(i, True),
+            'out'      : 'BinaryMorphologicalOperation|>'+out_mask,
             }, {'out': otb.ImagePixelType_uint8})
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [infile(i, False)+'|>BandMath'],
@@ -303,7 +311,7 @@ def mock_masking(application_mocker, file_db, calibration, N=2):
             'xradius'  : 5,
             'yradius'  : 5,
             'filter'   : 'opening',
-            'out'      : file_db.maskfile_from_two(i, True),
+            'out'      : out_mask,
             }, {'out': otb.ImagePixelType_uint8})
 
 
@@ -418,7 +426,10 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, liadir, tmpdir, srt
 
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
-    configuration = s1tiling.libs.configuration.Configuration(test_file)
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    # Force the use of "_{calibration}" in mocked tests
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+    configuration.show_configuration()
     logging.info("Full mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
@@ -514,7 +525,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
 
     application_mocker.set_expectations('BandMath', {
         'ram'      : '2048',
-        'il'       : [file_db.concatfile_from_two(0, False), file_db.selectedsinLIAfile()],
+        'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
         'exp'      : 'im1b1*im2b1',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None)
@@ -568,7 +579,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     for idx in range(number_dates):
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
-            'il'       : [file_db.concatfile_from_two(idx, False), file_db.selectedsinLIAfile()],
+            'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
             'exp'      : 'im1b1*im2b1',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None)

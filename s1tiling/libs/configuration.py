@@ -194,6 +194,17 @@ class Configuration():
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             self.override_azimuth_cut_threshold_to = None
 
+        # Permit to override default file name formats
+        fname_fmt_keys = ['calibration', 'cut_borders', 'orthorectification', 'concatenation',
+                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
+                'lia_orthorectification', 'lia_concatenation', 'select_best_lia', 's2_lia_corrected']
+        self.fname_fmt = {}
+        for key in fname_fmt_keys:
+            fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
+            # Default value is defined in associated StepFactories
+            if fmt:
+                self.fname_fmt[key] = fmt
+
         if do_show_configuration:
             self.show_configuration()
 
@@ -230,6 +241,9 @@ class Configuration():
         logging.debug("- produce LIA° map               : %s", self.produce_lia_map)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s", self.mask_cond)
+        logging.debug('File formats')
+        for k, fmt in self.fname_fmt.items():
+            logging.debug(' - %s --> %s', k, fmt)
 
     @property
     def srtm_db_filepath(self):

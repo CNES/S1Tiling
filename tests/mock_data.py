@@ -12,10 +12,10 @@ class FileDB:
             's1file'              : '{s1_basename}.tiff',
             'cal_ok'              : '{s1_basename}{tmp}.tiff',
             'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
-            'orthofile'           : '{s2_basename}{tmp}',
+            'orthofile'           : '{s2_basename}{calibration}{tmp}',
             'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
-            'border_mask_tmp'     : '{s2_basename}_BorderMaskTmp{tmp}.tif',
-            'border_mask'         : '{s2_basename}_BorderMask{tmp}.tif',
+            'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
+            'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
             'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
@@ -161,10 +161,26 @@ class FileDB:
                 [self.sigma0_normlim_file_from_one, NFiles],
                 [self.sigma0_normlim_file_from_two, NConcats],
                 ]
+        names_to_map_for_beta_calib = [
+                [self.orthofile,                    NFiles],
+                [self.concatfile_from_one,          NFiles],
+                [self.concatfile_from_two,          NConcats],
+                [self.masktmp_from_one,             NFiles],
+                [self.masktmp_from_two,             NConcats],
+                [self.maskfile_from_one,            NFiles],
+                [self.maskfile_from_two,            NConcats],
+                ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
             for idx in range(nb):
                 self.__tmp_to_out_map[func(idx, True)] = func(idx, False)
+        # coded beta-calibration cases...
+        for func, nb in names_to_map_for_beta_calib:
+            for idx in range(nb):
+                self.__tmp_to_out_map[func(idx, True, calibration='_beta')] = func(idx, False, calibration='_beta')
+        # for idx in range(NFiles):
+        #     self.__tmp_to_out_map[self.orthofile(idx, True, calibration='_beta')] = self.orthofile(idx, False, calibration='_beta')
+        #     self.__tmp_to_out_map[self.concatfile_from_one(idx, True, calibration='_beta')] = self.concatfile_from_one(idx, False, calibration='_beta')
 
     @property
     def tmp_to_out_map(self):
@@ -269,48 +285,48 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthofile(self, idx, tmp, polarity='vv'):
+    def orthofile(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
 
-    def _concatfile_for_all(self, crt, tmp, polarity):
+    def _concatfile_for_all(self, crt, tmp, polarity, calibration):
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
             ext = self.extended_compress
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity='vv', nr="001" if polarity == "vv" else "002")
-    def concatfile_from_one(self, idx, tmp, polarity='vv'):
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+    def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
-        return self._concatfile_for_all(crt, tmp, polarity)
-    def concatfile_from_two(self, idx, tmp, polarity='vv'):
+        return self._concatfile_for_all(crt, tmp, polarity, calibration)
+    def concatfile_from_two(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.CONCATS[idx]
-        return self._concatfile_for_all(crt, tmp, polarity)
+        return self._concatfile_for_all(crt, tmp, polarity, calibration)
 
-    def _masktmp_for_all(self, crt, tmp, polarity):
+    def _masktmp_for_all(self, crt, tmp, polarity, calibration):
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
-    def masktmp_from_one(self, idx, tmp, polarity='vv'):
+        return f'{dir}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
+    def masktmp_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
-        return self._masktmp_for_all(crt, tmp, polarity)
-    def masktmp_from_two(self, idx, tmp, polarity='vv'):
+        return self._masktmp_for_all(crt, tmp, polarity, calibration)
+    def masktmp_from_two(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.CONCATS[idx]
-        return self._masktmp_for_all(crt, tmp, polarity)
+        return self._masktmp_for_all(crt, tmp, polarity, calibration)
 
-    def _maskfile_for_all(self, crt, tmp, polarity):
+    def _maskfile_for_all(self, crt, tmp, polarity, calibration):
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["border_mask"]}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
-    def maskfile_from_one(self, idx, tmp, polarity='vv'):
+        return f'{dir}/{self.FILE_FMTS["border_mask"]}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
+    def maskfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
-        return self._maskfile_for_all(crt, tmp, polarity)
-    def maskfile_from_two(self, idx, tmp, polarity='vv'):
+        return self._maskfile_for_all(crt, tmp, polarity, calibration)
+    def maskfile_from_two(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.CONCATS[idx]
-        return self._maskfile_for_all(crt, tmp, polarity)
+        return self._maskfile_for_all(crt, tmp, polarity, calibration)
 
     def dem_file(self):
         return f'{self.__tmp_dir}/TMP'

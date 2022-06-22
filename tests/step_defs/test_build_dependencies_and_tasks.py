@@ -96,9 +96,6 @@ file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 
 def input_file(idx, polarity):
     return file_db.input_file(idx, polarity)
-    # s1dir  = FILES[idx]['s1dir']
-    # s1file = FILES[idx]['s1file'].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-    # return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
 def raster(idx, polarity):
     S2_tile_origin = file_db.tile_origins(TILE)
@@ -118,20 +115,21 @@ def raster_vh(idx):
 
 def orthofile(idx, polarity):
     return file_db.orthofile(idx, tmp=False, polarity=polarity)
-    # file = FILES[idx]["orthofile"].format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-    # return f'{TMPDIR}/S2/{TILE}/{file}.tif'
+
+def concattask(polarity):
+    return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='')
 
 def concatfile(idx, polarity):
     if idx is None:
-        return file_db.concatfile_from_two(0, tmp=False, polarity=polarity)
+        return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
     else:
-        return file_db.concatfile_from_one(idx, tmp=False, polarity=polarity)
+        return file_db.concatfile_from_one(idx, tmp=False, polarity=polarity, calibration='_sigma')
 
 def maskfile(idx, polarity):
     if idx is None:
-        return file_db.maskfile_from_two(0, tmp=False, polarity=polarity)
+        return file_db.maskfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
     else:
-        return file_db.maskfile_from_one(idx, tmp=False, polarity=polarity)
+        return file_db.maskfile_from_one(idx, tmp=False, polarity=polarity, calibration='_sigma')
 
 def DEM_file(idx):
     return file_db.vrtfile(idx, tmp=False)
@@ -198,6 +196,10 @@ class Configuration():
         self.srtm_db_filepath                  = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
         self.cache_srtm_by                     = 'symlink'
         assert self.srtm_db_filepath.is_file()
+        self.fname_fmt                         = {
+                # Use "_beta" in mocked tests
+                'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+                }
 
 def isfile(filename, existing_files):
     # assert False
@@ -419,15 +421,15 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 
 @then(parsers.parse('a txxxxxx S2 file is expected but not required'))
 def then_require_txxxxxx_and_mask(dependencies):
-    expected_fn = [concatfile(None, 'vv')]
+    expected_tn = [concattask('vv')]
 
     required, previous, task2outfile_map = dependencies
     # logging.info("required (%s) = %s", type(required), required)
-    # logging.info("expected_fn (%s) = %s", type(expected_fn), expected_fn)
+    # logging.info("expected_tn (%s) = %s", type(expected_tn), expected_tn)
     assert isinstance(required, set)
-    for fn in expected_fn:
-        assert fn in previous, f'Expected {fn} not found in computed dependencies {previous.keys()}'
-        assert fn not in required, f'Expected {fn} found in computed requirements {required}'
+    for tn in expected_tn:
+        assert tn in previous, f'Expected {tn} not found in computed dependencies {previous.keys()}'
+        assert tn not in required, f'Expected {tn} found in computed requirements {required}'
     assert concatfile(0, 'vv') not in required
     assert concatfile(1, 'vv') not in required
     assert maskfile(0, 'vv')   not in required
@@ -440,20 +442,22 @@ def then_require_txxxxxx_and_mask(dependencies, a):
         expected_fn += [maskfile(None, 'vv')]
 
     required, previous, task2outfile_map = dependencies
+    req_files = [task2outfile_map[t] for t in required]
     # logging.info("required (%s) = %s", type(required), required)
     # logging.info("expected_fn (%s) = %s", type(expected_fn), expected_fn)
     assert isinstance(required, set)
     assert len(required) == len(expected_fn)
     for fn in expected_fn:
-        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
-    assert concatfile(0, 'vv') not in required
-    assert concatfile(1, 'vv') not in required
-    assert maskfile(0, 'vv')   not in required
-    assert maskfile(1, 'vv')   not in required
+        assert fn in req_files, f'Expected {fn} not found in computed requirements {req_files}'
+    assert concatfile(0, 'vv') not in req_files
+    assert concatfile(1, 'vv') not in req_files
+    assert maskfile(0, 'vv')   not in req_files
+    assert maskfile(1, 'vv')   not in req_files
 
 @then(parsers.parse('it depends on 2 ortho files (and two S1 inputs), and {a} mask on a concatenated product'))
 def then_depends_on_2_ortho_files(dependencies, a, calibration):
     required, previous, task2outfile_map = dependencies
+    req_files = [task2outfile_map[t] for t in required]
     # logging.info("previous (%s) = %s", type(previous), previous)
 
     if a == 'a':
@@ -465,14 +469,17 @@ def then_depends_on_2_ortho_files(dependencies, a, calibration):
             assert key == 'in'  # May change in the future...
             assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(None, 'vv')])
 
-    expected_fn = concatfile(None, 'vv')
+    expected_tn = concattask('vv')
+    expected_fn = task2outfile_map[expected_tn]
+    # concat task name may differ from the produced filename
+    # expected_tn = [tn for tn in required if task2outfile_map[tn] == expected_fn][0]
     concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
     if concat_product_required:
-        assert expected_fn in required
+        assert expected_fn in req_files
     else:
-        assert expected_fn not in required
+        assert expected_fn not in req_files
 
-    prev_expected = previous[expected_fn]
+    prev_expected = previous[expected_tn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
     for key, inputs in expected_input_groups.items():
@@ -526,6 +533,7 @@ def then_depends_on_second_ortho_file(dependencies, a, known_file_ids):
 
 def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a):
     required, previous, task2outfile_map = dependencies
+    req_files = [task2outfile_map[t] for t in required]
     # logging.info("previous (%s) = %s", type(previous), previous)
     assert len(known_file_ids) == 1
     known_file_number, polar = known_file_ids[0]
@@ -538,9 +546,11 @@ def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a):
             assert key == 'in'  # May change in the future...
             assert set([inp['out_filename'] for inp in inputs]) == set([concatfile(known_file_number, polar)])
 
-    expected_fn = concatfile(None, polar)
-    assert expected_fn in required
-    prev_expected = previous[expected_fn]
+    expected_fn = concatfile(known_file_number, polar)
+    # concat task name may differ from the produced filename
+    expected_tn = [tn for tn in required if task2outfile_map[tn] == expected_fn][0]
+    assert expected_fn in req_files
+    prev_expected = previous[expected_tn]
     expected_input_groups = prev_expected.inputs
     assert len(expected_input_groups) == 1
     for key, inputs in expected_input_groups.items():
@@ -585,9 +595,21 @@ def assert_dont_start_from_s1_image_number(idx, tasks):
 
 def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
     for req_taskname in task_names:
-        ex_output        = req_taskname
-        assert ex_output in expectations, f"Task {ex_output} isn't expected (expectations: {list(expectations.keys())})"
-        ex               = expectations[ex_output]
+        ex_output        = task2outfile_map[req_taskname]
+        # Special case for LIA, we register only one of the two files for the
+        # tests, let's find which one it is.
+        if isinstance(ex_output, list):
+            for exo in ex_output:
+                if exo in expectations:
+                    res = exo
+                    break
+                else:
+                    res = None
+            single_ex_output = res
+        else:
+            single_ex_output = ex_output
+        assert single_ex_output in expectations, f"Task {single_ex_output} isn't expected (expectations: {list(expectations.keys())})"
+        ex               = expectations[single_ex_output]
         ex_pipeline_name = ex['pipeline']
         ex_in_steps      = ex['input_steps']
         logging.debug("TASKS: %s", tasks.keys())
@@ -597,7 +619,7 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
         logging.debug("req_task: %s", req_task)
 
         req_pipeline = req_task[1]
-        assert req_pipeline.output == task2outfile_map[ex_output]
+        assert req_pipeline.output == ex_output
         assert isinstance(req_pipeline, Pipeline)
         assert req_pipeline._Pipeline__name == ex_pipeline_name
         req_inputs = req_pipeline._Pipeline__inputs
@@ -620,20 +642,22 @@ def then_concatenate_2_files_(tasks, dependencies, a, calibration):
                     orthofile(1, 'vv'): ['in', MergeStep],
                     }}
             }
-    dest = [concatfile(None, 'vv')]
+    required, previous, task2outfile_map = dependencies
+    # concat task name may differ from the produced filename
+    dest = [tn for tn in required if task2outfile_map[tn] == concatfile(None, 'vv')]
     if a != 'no':
         expectations[maskfile(None, 'vv')] = {'pipeline': 'GenerateMask',
                 'input_steps': {
                     concatfile(None, 'vv'): ['in', FirstStep]}}
         dest.append(maskfile(None, 'vv'))
-    required, previous, task2outfile_map = dependencies
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
     concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
     if concat_product_required:
         assert len(required) == len(expectations)
-        assert concatfile(None, 'vv') in required
+        req_files = [task2outfile_map[t] for t in required]
+        assert concatfile(None, 'vv') in req_files
     else:
         assert len(required) >= len(expectations)
 
@@ -659,7 +683,7 @@ def then_concatenate_1_files(tasks, dependencies, known_file_ids, a):
     known_file_number, polar = known_file_ids[0]
     expectations = {
             # Task name is in txxxxxx, but file name is not
-            concatfile(None, 'vv'): {'pipeline': 'Concatenation',
+            concatfile(known_file_number, 'vv'): {'pipeline': 'Concatenation',
                 'input_steps': {
                     # FirstStep as there is only one input
                     orthofile(known_file_number, 'vv'): ['in', FirstStep],
@@ -671,12 +695,12 @@ def then_concatenate_1_files(tasks, dependencies, known_file_ids, a):
                     concatfile(known_file_number, 'vv'): ['in', FirstStep]}}
 
     required, previous, task2outfile_map = dependencies
-    assert task2outfile_map[concatfile(None, 'vv')] == concatfile(known_file_number, 'vv')
+    assert task2outfile_map[concattask('vv')] == concatfile(known_file_number, 'vv')
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     assert len(tasks) >= 1, f'Only {len(tasks)} tasks are registered instead of 0+ : {list(tasks.keys())}'
     assert len(required) == len(expectations)
-    assert concatfile(None, 'vv') in required
+    assert concattask('vv') in required
     _check_registered_task(expectations, tasks, required, task2outfile_map)
 
 

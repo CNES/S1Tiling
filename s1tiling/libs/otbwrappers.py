@@ -109,6 +109,7 @@ class ExtractSentinel1Metadata(StepFactory):
         # It'd actually be better
 
         meta['origin_s1_image']  = meta['basename']  # Will be used to remember the reference image
+        # meta['rootname']         = os.path.splitext(meta['basename'])[0]
         meta['flying_unit_code'] = Utils.get_platform_from_s1_raster(image)
         meta['polarisation']     = Utils.get_polar_from_s1_raster(image)
         meta['orbit_direction']  = Utils.get_orbit_direction(manifest)
@@ -226,6 +227,8 @@ class AnalyseBorders(StepFactory):
         return meta
 
 
+k_calib_convert = {'normlim' : 'beta'}
+
 class Calibrate(OTBStepFactory):
     """
     Factory that prepares steps that run
@@ -245,30 +248,31 @@ class Calibrate(OTBStepFactory):
     - output filename
     """
 
-    k_calib_convert = {'normlim' : 'beta'}
     def __init__(self, cfg):
         """
         Constructor
         """
+        self.cfg=cfg
+        fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
+        fname_fmt = cfg.fname_fmt.get('calibration') or fname_fmt
         super().__init__(cfg,
                 appname='SARCalibration',
                 name='Calibration',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tiff', '_calOk.tiff'])
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
-        self.__calibration_type   = cfg.calibration_type
+        # Locally override calibration type in case of normlim calibration
+        self.__calibration_type   = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
         self.__removethermalnoise = cfg.removethermalnoise
 
-    def complete_meta(self, meta, all_inputs):
+    def _update_filename_meta_pre_hook(self, meta):
         """
-        Complete GDAL metadata with the kind of calibration done.
+        Injects the ``calibration_type`` in step metadata.
         """
-        meta = super().complete_meta(meta, all_inputs)
         meta['calibration_type'] = self.__calibration_type
-        return meta
 
     def parameters(self, meta):
         """
@@ -279,7 +283,7 @@ class Calibrate(OTBStepFactory):
                 'ram'           : str(self.ram_per_process),
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
-                'lut'           : self.k_calib_convert.get(self.__calibration_type, self.__calibration_type),
+                'lut'           : self.__calibration_type,
                 }
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
@@ -311,11 +315,13 @@ class CutBorders(OTBStepFactory):
         """
         Constructor.
         """
+        fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
+        fname_fmt = cfg.fname_fmt.get('cut_borders') or fname_fmt
         super().__init__(cfg,
                 appname='ResetMargin', name='BorderCutting',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tiff', '_OrthoReady.tiff'])
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
     def parameters(self, meta):
@@ -381,7 +387,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
         # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
-        self.__calibration_type     = cfg.calibration_type
+        # (and locally override calibration type in case of normlim calibration)
+        self.__calibration_type     = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
 
     def complete_meta(self, meta, all_inputs):
         """
@@ -511,7 +518,8 @@ class OrthoRectify(_OrthoRectifierFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}_{calibration_type}.tif'
+        fname_fmt = cfg.fname_fmt.get('orthorectification') or fname_fmt
         super().__init__(cfg, fname_fmt)
 
     def _get_input_image(self, meta):
@@ -594,10 +602,27 @@ class Concatenate(_ConcatenatorFactory):
     - output filename
     """
     def __init__(self, cfg):
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+        # TODO: factorise this recurring test!
+        calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if calibration_is_done_in_S1:
+            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+            # Legacy mode: the default final filename won't contain the
+            # calibration_type
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+            # This is a required product that shall end-up in outputdir
+            gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
+        else:
+            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+            # Let the default force the "beta" calibration_type in the filename
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+            # This is a temporary product that shall end-up in tmpdir
+            gen_output_dir = None # use gen_tmp_dir
+            gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
+        fname_fmt = cfg.fname_fmt.get('concatenation') or fname_fmt
+        # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_dir=gen_output_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
@@ -631,7 +656,7 @@ class Concatenate(_ConcatenatorFactory):
 
     def complete_meta(self, meta, all_inputs):
         """
-        Override :function:`complete_meta()` to inject files to remove
+        Override :func:`complete_meta()` to inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)
         in_file = in_filename(meta)
@@ -643,6 +668,9 @@ class Concatenate(_ConcatenatorFactory):
         return meta
 
     def _update_filename_meta_post_hook(self, meta):
+        """
+        Make sure the task_name and the basename are updated
+        """
         tname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         meta['task_name']     = os.path.join(
                 self.output_directory(meta),
@@ -794,6 +822,7 @@ class AgglomerateDEM(ExecutableStepFactory):
         constructor
         """
         fname_fmt = 'DEM_{polarless_rootname}.vrt'
+        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration') or fname_fmt
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
@@ -859,6 +888,7 @@ class SARDEMProjection(OTBStepFactory):
     """
     def __init__(self, cfg):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
+        fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
         super().__init__(cfg,
                 appname='SARDEMProjection', name='SARDEMProjection',
                 param_in=None, param_out='out',
@@ -984,6 +1014,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     """
     def __init__(self, cfg):
         fname_fmt = 'XYZ_{polarless_basename}'
+        fname_fmt = cfg.fname_fmt.get('xyz') or fname_fmt
         super().__init__(cfg,
                 appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
                 param_in=None, param_out='out',
@@ -1104,6 +1135,7 @@ class ComputeNormals(OTBStepFactory):
     """
     def __init__(self, cfg):
         fname_fmt = 'Normals_{polarless_basename}'
+        fname_fmt = cfg.fname_fmt.get('normals') or fname_fmt
         super().__init__(cfg,
                 appname='ExtractNormalVector', name='ComputeNormals',
                 param_in='xyz', param_out='out',
@@ -1122,7 +1154,7 @@ class ComputeNormals(OTBStepFactory):
 
     def complete_meta(self, meta, all_inputs):
         """
-        Override :function:`complete_meta()` to inject files to remove
+        Override :func:`complete_meta()` to inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)
         in_file = in_filename(meta)
@@ -1172,9 +1204,11 @@ class ComputeLIA(OTBStepFactory):
     """
     def __init__(self, cfg):
         # TODO: have a way to configure filenames
+        fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
+        fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
         fname_fmt = [
-                TemplateOutputFilenameGenerator('LIA_{polarless_basename}'),
-                TemplateOutputFilenameGenerator('sin_LIA_{polarless_basename}')]
+                TemplateOutputFilenameGenerator(fname_fmt_lia),
+                TemplateOutputFilenameGenerator(fname_fmt_sin)]
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 # In-memory connected to in.normals
@@ -1331,6 +1365,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         Extract and cache configuration options.
         """
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
+        fname_fmt = cfg.fname_fmt.get('lia_orthorectification') or fname_fmt
         super().__init__(cfg, fname_fmt)
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1371,6 +1406,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
     """
     def __init__(self, cfg):
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
+        fname_fmt = cfg.fname_fmt.get('lia_concatenation') or fname_fmt
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
@@ -1389,7 +1425,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
     def complete_meta(self, meta, all_inputs):
         """
-        Override :function:`complete_meta()` to inject files to remove
+        Override :func:`complete_meta()` to inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)
         in_file = in_filename(meta)
@@ -1443,6 +1479,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
     """
     def __init__(self, cfg):
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt = cfg.fname_fmt.get('select_best_lia') or fname_fmt
         super().__init__(cfg, name='SelectBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=cfg.lia_directory,
@@ -1514,6 +1551,7 @@ class ApplyLIACalibration(OTBStepFactory):
         Constructor.
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
+        fname_fmt = cfg.fname_fmt.get('s2_lia_corrected') or fname_fmt
         super().__init__(cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
@@ -1547,7 +1585,7 @@ class ApplyLIACalibration(OTBStepFactory):
     def _update_filename_meta_post_hook(self, meta):
         """
         Register ``is_compatible`` hook for
-        :function:`s1tiling.libs.otbpipeline.is_compatible`.
+        :func:`s1tiling.libs.otbpipeline.is_compatible`.
         It will tell whether a given sin_LIA input is compatible with the
         current S2 tile.
         """
