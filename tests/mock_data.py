@@ -291,11 +291,15 @@ class FileDB:
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
 
     def _concatfile_for_all(self, crt, tmp, polarity, calibration):
-        if tmp:
+        if tmp or (calibration == '_beta'):
+            # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> TMP', tmp, calibration)
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        else:
+            # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
+            dir = f'{self.__output_dir}/{self.__tile}'
+        if tmp:
             ext = self.extended_compress
         else:
-            dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
         return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity='vv', nr="001" if polarity == "vv" else "002")
     def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):

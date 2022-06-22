@@ -617,7 +617,6 @@ class Concatenate(_ConcatenatorFactory):
             fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
-            gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
         fname_fmt = cfg.fname_fmt.get('concatenation') or fname_fmt
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         super().__init__(cfg,
