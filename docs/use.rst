@@ -503,6 +503,108 @@ You can use this :download:`this template
         This option is not meant to be used. It only makes sense in some very
         specific scenarios like tests.
 
+
+      .. _Processing.fname_fmt:
+  * - ``fname_fmt.*``
+    - Set of filename format templates that permits to override the default
+      filename formats used to generate filenames.
+
+      The filename formats can be overridden for both intermediary and final
+      products. Only the final products are documented here. Filename formats
+      for intermediary products are best left alone.
+
+      If you change any, make sure to not introduce ambiguity by removing a
+      field that would be used to distinguish two unrelated products.
+
+      Available fields comme from :ref:`internal metadata <metadata>`. The main
+      ones of interest are:
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Field
+          - Content
+          - Applies to geometry
+
+        * - flying_unit_code
+          - ``s1a``, ``s1b``
+          - S1/S2
+        * - tile_name
+          - ex: ``33NWB``
+          - S2
+
+        * - polarisation
+          - ``hh``, ``hv``, ``vh``, ``vv``
+          - S1/S2
+
+        * - orbit_direction
+          - ``ASC``/``DES``
+          - S1/S2
+
+        * - orbit
+          - 5-digits number that identifies the S1 orbit
+          - S1/S2
+
+        * - acquisition_time
+          - the full timestamp (:samp:`{yymmdd}t{hhmmss}`)
+          - S1/S2
+
+        * - acquisition_day
+          - only the day (:samp:`{yymmdd}txxxxxx`)
+          - S1/S2
+
+        * - acquisition_stamp
+          - either the full timestamp (:samp:`{yymmdd}t{hhmmss}`), or the day
+            (:samp:`{yymmdd}txxxxxx`)
+          - S1/S2
+
+        * - LIA_kind
+          - ``LIA``/``sin_LIA``
+          - S2
+
+        * - basename
+          - Filename of initial S1 image.
+          - S1
+
+        * - rootname
+          - ``basename`` without the file extension.
+          - S1
+
+        * - calibration_type
+          - ``beta``/``gamma``/``sigma``/``dn``
+          - S1/S2
+
+        * - polarless_basename
+          - Same as ``basename`` (with file extension), but without
+            ``polarisation`` field. Used when the product only depends on the
+            S1 image geometry and not its content.
+          - S1
+
+        * - polarless_rootname
+          - Same as ``rootname`` (without file extension), but without
+            ``polarisation`` field. Used when the product only depends on the
+            S1 image geometry and not its content.
+          - S1
+
+      .. _Processing.fname_fmt.concatenation:
+  * - ``fname_fmt.concatenation``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
+      for β°, σ° and γ° calibrations.
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
+
+      .. _Processing.fname_fmt.lia_corrected:
+  * - ``fname_fmt.s2_lia_corrected``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`
+      when NORMLIM calibrated.
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
+
+      .. _Processing.fname_fmt.select_best_lia:
+  * - ``fname_fmt.select_best_lia``
+    - File format pattern for LIA and sin(LIA) files
+      :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+
 .. _Filtering:
 
 ``[Filtering]`` section

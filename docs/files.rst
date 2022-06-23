@@ -35,6 +35,10 @@ Orthorectified S2 tiles
         :math:`σ^0_{RTC}` calibrated files will have their name end in
         :file:`_NormLim.tif`
 
+:File name format:
+
+    - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`, see :ref:`[Processing].fname_fmt.concatenation <Processing.fname_fmt.concatenation>`
+    - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`, see :ref:`[Processing].fname_fmt.lia_corrected <Processing.fname_fmt.lia_corrected>`
 
 :Format: Float32 GeoTIFF, deflate compressed
 
@@ -124,6 +128,10 @@ Local Incidence Angle map files
     - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
     - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
 
+:File name format:
+
+    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.select_best_lia <Processing.fname_fmt.select_best_lia>`
+
 :Format: Byte GeoTIFF, deflate compressed
 
 :Metadata: The following metadata is added to the origin S1 images
@@ -196,8 +204,12 @@ Cut and calibrated S1 images ready for orthorectification
 
       .. code-block:: none
 
-           s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.tiff
-           s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_OrthoReady.geom
+           s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_sigma_OrthoReady.tiff
+           s1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001_sigma_OrthoReady.geom
+
+:File name format:
+
+    ``fname_fmt.cut_borders`` = :samp:`{{rootname}}_{{calibration_type}}_OrthoReady.tiff`
 
 :Format: Float32 GeoTIFF, uncompressed.
 
@@ -222,7 +234,11 @@ Orthorectified S1 images
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S2/{{tilename}}/`
 
-:File name: :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}.tif`
+:File name: :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}_{{calibration}}.tif`
+
+:File name format:
+
+    ``fname_fmt.orthorectification`` = :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}_{{calibration_type}}.tif`
 
 :Format: Float32 GeoTIFF, deflate compressed
 
@@ -243,6 +259,10 @@ DEM VRT files
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
 :File name: :samp:`DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+
+:File name format:
+
+    ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
 
 :Format: VRT
 
@@ -269,6 +289,10 @@ Files of S1 coordinates projected on DEM geometry
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
 :File name: :samp:`S1_on_DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+
+:File name format:
+
+    ``fname_fmt.s1_on_dem`` = :samp:`S1_on_DEM_{{polarless_basename}}`
 
 :Format: Float32 GeoTIFF, 7 bands: C (colunm into SAR image), L (line into SAR
          image), Z and Y, XCartesian, YCartesian, ZCartesian.
@@ -310,6 +334,10 @@ Files of XYZ cartesian coordinates in S1 geometry
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
 :File name: :samp:`XYZ-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+
+:File name format:
+
+    ``fname_fmt.xyz`` = :samp:`XYZ_{{polarless_basename}}`
 
 :Format: Float32 GeoTIFF, 4 bands: XCartesian, YCartesian, ZCartesian, and ???
 
@@ -361,6 +389,11 @@ Local Incidence Angle map files in S1 geometry
     - :samp:`LIA-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
     - :samp:`sin-LIA-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
 
+:File name format:
+
+    - ``fname_fmt.s1_lia`` = :samp:`LIA_{{polarless_basename}}`
+    - ``fname_fmt.s1_sin_lia`` = :samp:`sin_LIA_{{polarless_basename}}`
+
 :Format: Float32 GeoTIFF
 
 :Metadata: The following metadata is added to the origin S1 images
@@ -403,6 +436,10 @@ Half Local Incidence Angle map files -- pre-concatenation.
 
     - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`sin(Θ_{LIM})`
     - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`100 * Θ°_{LIM}`
+
+:File name format:
+
+    ``fname_fmt.lia_orthorectification`` = :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}.tif`
 
 :Format: Byte GeoTIFF, deflate compressed
 
