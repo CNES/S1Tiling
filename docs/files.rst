@@ -130,7 +130,7 @@ Local Incidence Angle map files
 
 :File name format:
 
-    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.select_best_lia <Processing.fname_fmt.select_best_lia>`
+    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
 :Format: Byte GeoTIFF, deflate compressed
 

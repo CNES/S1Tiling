@@ -1478,7 +1478,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
     """
     def __init__(self, cfg):
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt = cfg.fname_fmt.get('select_best_lia') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
         super().__init__(cfg, name='SelectBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=cfg.lia_directory,

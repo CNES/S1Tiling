@@ -600,8 +600,8 @@ You can use this :download:`this template
       when NORMLIM calibrated.
       :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
 
-      .. _Processing.fname_fmt.select_best_lia:
-  * - ``fname_fmt.select_best_lia``
+      .. _Processing.fname_fmt.lia_product:
+  * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
       :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
