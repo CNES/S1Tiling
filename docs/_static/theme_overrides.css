@@ -13,6 +13,14 @@
    .wy-table-responsive table th {
        text-align: left;
    }
+
+
+   /* https://stackoverflow.com/a/33626140/15934:
+    * Modifying content width of the Sphinx theme 'Read the Docs' */
+   .wy-nav-content {
+       /* max-width: 75% !important; */
+       max-width: 1200px !important;
+   }
 }
 
 .section td ul {
