@@ -1,6 +1,6 @@
 .. include:: <isoamsa.txt>
 
-.. _dataflow:
+.. _dataflow-lia:
 
 .. index:: Normlim data flow
 
@@ -225,7 +225,7 @@ Project XYZ coordinates onto SAR
                  - The associated :ref:`VRT file <dem-vrt-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
-:OTBApplication: :std:doc:`DiapOTB SARDEMProjection
+:OTBApplication: :std:doc:`DiapOTB SARCartesianMeanEstimation
                  <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 

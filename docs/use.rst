@@ -516,7 +516,7 @@ You can use this :download:`this template
       If you change any, make sure to not introduce ambiguity by removing a
       field that would be used to distinguish two unrelated products.
 
-      Available fields comme from :ref:`internal metadata <metadata>`. The main
+      Available fields comme from :func:`internal metadata <s1tiling.libs.otbpipeline.StepFactory.complete_meta>`. The main
       ones of interest are:
 
       .. list-table::
