@@ -1202,7 +1202,6 @@ class ComputeLIA(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg):
-        # TODO: have a way to configure filenames
         fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
         fname_fmt = [
@@ -1522,7 +1521,6 @@ class SelectBestCoverage(_FileProducingStepFactory):
 
 class ApplyLIACalibration(OTBStepFactory):
     """
-    TODO:
     Factory that concludes σ0 with NORMLIM calibration.
 
     It builds steps that multiply images calibrated with β0 LUT, and
@@ -1614,6 +1612,7 @@ class ApplyLIACalibration(OTBStepFactory):
         params = {
                 'ram'              : str(self.ram_per_process),
                 self.param_in      : [in_concat_S2, in_sin_LIA],
+                # TODO: ignore NODATA
                 'exp'              : 'im1b1*im2b1'
                 }
         return params

@@ -504,7 +504,6 @@ def s1_process(config_opt,
             pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
 
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
-        # TODO: don't produce concat results in data_out, and may be use another name w/ "β0" inside?
         concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)
 
         if config.calibration_type == 'normlim':
