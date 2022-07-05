@@ -30,6 +30,7 @@
 
 """ This module contains the S1FileManager class"""
 
+from enum import Enum
 import fnmatch
 from functools import partial
 import glob
@@ -55,6 +56,17 @@ setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling')
 
+
+class WorkspaceKinds(Enum):
+    """
+    Enum used to list the kinds of "workspaces" needed.
+    A workspace is a directory where products will be stored.
+
+    :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
+        Indeed At this moment, only two kinds of workspaces are supported.
+    """
+    TILE = 1
+    LIA  = 2
 
 def product_property(prod, key, default=None):
     """
@@ -277,7 +289,7 @@ class S1FileManager:
             if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
-    def ensure_tile_workspaces_exist(self, tile_name):
+    def ensure_tile_workspaces_exist(self, tile_name, required_workspaces):
         """
         Makes sure the directories used for :
         - output data/{tile},
@@ -288,13 +300,14 @@ class S1FileManager:
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
         os.makedirs(working_directory, exist_ok=True)
 
-        out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
-        os.makedirs(out_dir, exist_ok=True)
+        if WorkspaceKinds.TILE in required_workspaces:
+            out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
+            os.makedirs(out_dir, exist_ok=True)
 
-        if self.cfg.calibration_type == 'normlim':
+        # if self.cfg.calibration_type == 'normlim':
+        if WorkspaceKinds.LIA in required_workspaces:
             lia_directory = self.cfg.lia_directory
             os.makedirs(lia_directory, exist_ok=True)
-        return working_directory, out_dir
 
     def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """

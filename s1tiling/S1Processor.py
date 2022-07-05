@@ -63,7 +63,7 @@ import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
-from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.S1FileManager import S1FileManager, WorkspaceKinds
 # from libs import S1FilteringProcessor
 from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
@@ -311,14 +311,14 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
-        searched_items_per_page,
+        required_workspaces, searched_items_per_page,
         debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
     """
     Process one S2 tile.
 
     I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
     """
-    s1_file_manager.ensure_tile_workspaces_exist(tile_name)
+    s1_file_manager.ensure_tile_workspaces_exist(tile_name, required_workspaces)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
@@ -416,7 +416,7 @@ def do_process_with_pipeline(config_opt,
 
         config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
 
-        pipelines = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
         with DaskContext(config, debug_otb) as dask_client:
@@ -426,6 +426,7 @@ def do_process_with_pipeline(config_opt,
                     res = process_one_tile(
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, dask_client.client,
+                            required_workspaces,
                             searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
@@ -506,14 +507,17 @@ def s1_process(config_opt,
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)
 
+        required_workspaces = [WorkspaceKinds.TILE]
+
         if config.calibration_type == 'normlim':
             concat_sin = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
             pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
                     inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
+            required_workspaces.append(WorkspaceKinds.LIA)
 
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
-        return pipelines
+        return pipelines, required_workspaces
 
     return do_process_with_pipeline(config_opt, builder,
             searched_items_per_page=searched_items_per_page,
@@ -548,7 +552,8 @@ def s1_process_lia(config_opt,
     def builder(config, dryrun, debug_caches):
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
-        return pipelines
+        required_workspaces = [WorkspaceKinds.LIA]
+        return pipelines, required_workspaces
 
     return do_process_with_pipeline(config_opt, builder,
             searched_items_per_page=searched_items_per_page,
