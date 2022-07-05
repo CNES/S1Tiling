@@ -350,6 +350,7 @@ def mock_LIA(application_mocker, file_db):
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : '2048',
             'xyz'             : file_db.xyzfile(idx, False),
+            'nodata'          : -32768,
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
             }, None)
 
@@ -359,6 +360,7 @@ def mock_LIA(application_mocker, file_db):
             'in.xyz'          : file_db.xyzfile(idx, False),
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
+            'nodata'          : -32768,
             }, None)
 
         application_mocker.set_expectations('OrthoRectification', {
@@ -526,7 +528,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     application_mocker.set_expectations('BandMath', {
         'ram'      : '2048',
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-        'exp'      : 'im1b1*im2b1',
+        'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None)
 
@@ -580,7 +582,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
         application_mocker.set_expectations('BandMath', {
             'ram'      : '2048',
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : 'im1b1*im2b1',
+            'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None)
 
