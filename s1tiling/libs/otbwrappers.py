@@ -1168,10 +1168,12 @@ class ComputeNormals(OTBStepFactory):
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
+        nodata = meta.get('nodata', -32768)
         xyz = in_filename(meta)
         return {
                 'ram'             : str(self.ram_per_process),
                 'xyz'             : xyz,
+                'nodata'          : float(nodata),
                 }
 
     def requirement_context(self):
@@ -1268,10 +1270,12 @@ class ComputeLIA(OTBStepFactory):
         inputs = meta['inputs']
         xyz     = _fetch_input_data('xyz', inputs).out_filename
         normals = _fetch_input_data('normals', inputs).out_filename
+        nodata  = meta.get('nodata', -32768)
         return {
                 'ram'             : str(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
+                'nodata'          : float(nodata),
                 }
 
     def requirement_context(self):
@@ -1609,10 +1613,10 @@ class ApplyLIACalibration(OTBStepFactory):
         inputs = meta['inputs']
         in_concat_S2 = _fetch_input_data('concat_S2', inputs).out_filename
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
+        nodata = meta.get('nodata', -32768)
         params = {
                 'ram'              : str(self.ram_per_process),
                 self.param_in      : [in_concat_S2, in_sin_LIA],
-                # TODO: ignore NODATA
-                'exp'              : 'im1b1*im2b1'
+                'exp'              : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
                 }
         return params
