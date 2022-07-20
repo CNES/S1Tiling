@@ -1963,7 +1963,7 @@ class Store(StepFactory):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         if inp.is_first_step:
-            assert False  # Should no longer happen!
+            # assert False  # Should no longer happen, yet it does w/ ConcatLIA...
             # Special case of by-passed inputs
             meta = inp.meta.copy()
             return AbstractStep(**meta)

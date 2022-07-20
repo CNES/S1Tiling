@@ -567,11 +567,19 @@ class _ConcatenatorFactory(OTBStepFactory):
 
         In concatenation case, the task_name needs to be overridden to stay
         unique and common to all inputs.
+
+        Also, inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
+        in_file = in_filename(meta)
+        if isinstance(in_file, list):
+            logger.debug('Register files to remove after concatenation: %s', in_file)
+            meta['files_to_remove'] = in_file
+        else:
+            logger.debug('DONT register single file to remove after concatenation: %s', in_file)
         return meta
 
     def parameters(self, meta):
@@ -584,6 +592,31 @@ class _ConcatenatorFactory(OTBStepFactory):
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 }
+
+    def create_step(self, in_memory: bool, previous_steps):
+        """
+        :func:`create_step` is overridden in :class:`Concatenate` case in
+        order to by-pass Concatenation in case there is only a single file.
+        """
+        inputs = self._get_inputs(previous_steps)
+        inp    = self._get_canonical_input(inputs)
+        # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
+        if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
+            # This situation should not happen any more, we now a single string as inp.
+            # The code is kept in case s1tiling kernel changes again.
+            concat_in_filename = inp.out_filename[0]
+        elif isinstance(inp.out_filename, str):
+            concat_in_filename = inp.out_filename
+        else:
+            return super().create_step(in_memory, previous_steps)
+        # Back to a single file inp case
+        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
+        meta = self.complete_meta(inp.meta, inputs)
+        res = AbstractStep(**meta)
+        logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
+        if not meta.get('dryrun', False):
+            shutil.move(concat_in_filename, res.out_filename)
+        return res
 
 
 class Concatenate(_ConcatenatorFactory):
@@ -653,19 +686,6 @@ class Concatenate(_ConcatenatorFactory):
             meta['acquisition_stamp'] = meta['acquisition_time']
             logger.debug("Only one file to concatenate, just move it (%s)", in_file)
 
-    def complete_meta(self, meta, all_inputs):
-        """
-        Override :func:`complete_meta()` to inject files to remove
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        in_file = in_filename(meta)
-        if isinstance(in_file, list):
-            logger.debug('Register files to remove after concatenation: %s', in_file)
-            meta['files_to_remove'] = in_file
-        else:
-            logger.debug('DONT register single file to remove after concatenation: %s', in_file)
-        return meta
-
     def _update_filename_meta_post_hook(self, meta):
         """
         Make sure the task_name and the basename are updated
@@ -676,31 +696,6 @@ class Concatenate(_ConcatenatorFactory):
                 TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename'] = self.update_out_filename
-
-    def create_step(self, in_memory: bool, previous_steps):
-        """
-        :func:`create_step` is overridden in :class:`Concatenate` case in
-        order to by-pass Concatenation in case there is only a single file.
-        """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
-        if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
-            # This situation should not happen any more, we now a single string as inp.
-            # The code is kept in case s1tiling kernel changes again.
-            concat_in_filename = inp.out_filename[0]
-        elif isinstance(inp.out_filename, str):
-            concat_in_filename = inp.out_filename
-        else:
-            return super().create_step(in_memory, previous_steps)
-        # Back to a single file inp case
-        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        meta = self.complete_meta(inp.meta, inputs)
-        res = AbstractStep(**meta)
-        logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        if not meta.get('dryrun', False):
-            shutil.move(concat_in_filename, res.out_filename)
-        return res
 
 
 class BuildBorderMask(OTBStepFactory):
@@ -1424,17 +1419,6 @@ class ConcatenateLIA(_ConcatenatorFactory):
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
-
-    def complete_meta(self, meta, all_inputs):
-        """
-        Override :func:`complete_meta()` to inject files to remove
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        in_file = in_filename(meta)
-        if isinstance(in_file, list):
-            logger.debug('Register files to remove after LIA concatenation: %s', in_file)
-            meta['files_to_remove'] = in_file
-        return meta
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
