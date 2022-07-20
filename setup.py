@@ -108,7 +108,7 @@ setup(
             "pylint",
             ],
         "docs": [
-            "jinja == 3.0.3",
+            "jinja2 == 3.0.3",
             "m2r2",
             "natsort",
             "nbsphinx == 0.3.5",
