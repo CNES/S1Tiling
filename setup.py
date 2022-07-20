@@ -108,12 +108,13 @@ setup(
             "pylint",
             ],
         "docs": [
-            "sphinx == 1.8.0",
+            "jinja == 3.0.3",
+            "m2r2",
             "natsort",
             "nbsphinx == 0.3.5",
             "nbsphinx-link == 1.1.1",
-            "m2r2",
-            "sphinx_rtd_theme"
+            "sphinx == 1.8.0",
+            "sphinx_rtd_theme",
             ],
         },
 
