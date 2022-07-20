@@ -724,9 +724,15 @@ class Outcome:
 
     def add_related_filename(self, filename):
         """
-        Register a filename related to the result.
+        Register a filename(s) related to the result.
         """
-        self.__related_filenames.append(filename)
+        if isinstance(filename, list):
+            for f in filename:
+                # Some OTB applications expect list passed with ``-il`` e.g.
+                self.__related_filenames.append(f)
+        else:
+            # While other OTB application expect only one file, passed with ``-in`` e.g.
+            self.__related_filenames.append(filename)
         return self
 
     def __repr__(self):
@@ -734,6 +740,7 @@ class Outcome:
             msg = f'Failed to produce {self.__related_filenames[-1]}'
             if len(self.__related_filenames) > 1:
                 errored_files = ', '.join(self.__related_filenames[:-1])
+                # errored_files = str(self.__related_filenames)
                 msg += f' because {errored_files} could not be produced: '
             else:
                 msg += ': '
@@ -890,7 +897,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
             if isinstance(arg, Outcome) and not arg:
-                logger.warning('Abort execution of %s. Error: %s', pipeline, arg)
+                logger.warning('Cancel execution of %s because an error has occured upstream on a dependent input file: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
@@ -912,7 +919,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
-        logger.debug('Parameters for %s were: %s', pipeline, args)
+        logger.debug('%s has been executed with the following parameters: %s', pipeline, args)
         return Outcome(ex).add_related_filename(pipeline.output)
 
 
