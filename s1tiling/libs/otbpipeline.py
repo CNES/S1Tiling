@@ -718,6 +718,7 @@ class Outcome:
         self.__value_or_error    = value_or_error
         self.__is_error          = issubclass(type(value_or_error), BaseException)
         self.__related_filenames = []
+        self.__pipeline_name     = None
 
     def __bool__(self):
         return not self.__is_error
@@ -735,13 +736,21 @@ class Outcome:
             self.__related_filenames.append(filename)
         return self
 
+    def set_pipeline_name(self, pipeline_name):
+        """
+        Record the name of the pipeline in error
+        """
+        self.__pipeline_name = pipeline_name
+
     def __repr__(self):
         if self.__is_error:
             msg = f'Failed to produce {self.__related_filenames[-1]}'
+            if self.__pipeline_name:
+                msg += f' because {self.__pipeline_name} failed.'
             if len(self.__related_filenames) > 1:
                 errored_files = ', '.join(self.__related_filenames[:-1])
                 # errored_files = str(self.__related_filenames)
-                msg += f' because {errored_files} could not be produced: '
+                msg += f' {errored_files} could not be produced: '
             else:
                 msg += ': '
             msg +=  f'{self.__value_or_error}'
@@ -801,14 +810,21 @@ class Pipeline:
         return [input[k].out_filename for input in self.__inputs for k in input]
 
     @property
+    def appname(self):
+        """
+        Name of the pipeline application(s).
+        """
+        appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+        return appname
+
+    @property
     def name(self):
         """
         Name of the pipeline.
         It's either user registered or automatically generated from the
         registered :class:`StepFactory` s.
         """
-        appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
-        return f'{appname} -> {self.__output} from {self._input_filenames}'
+        return f'{self.appname} -> {self.__output} from {self._input_filenames}'
 
     @property
     def output(self):
@@ -919,8 +935,8 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
-        logger.debug('%s has been executed with the following parameters: %s', pipeline, args)
-        return Outcome(ex).add_related_filename(pipeline.output)
+        logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
+        return Outcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
 
 
 class PipelineDescription:
