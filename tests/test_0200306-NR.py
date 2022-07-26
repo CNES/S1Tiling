@@ -380,7 +380,7 @@ def mock_LIA(application_mocker, file_db):
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.orthoLIAfile(idx, True),
-            }, None)
+            }, {'io.out': otb.ImagePixelType_int16})
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : '2048',
@@ -407,7 +407,7 @@ def mock_LIA(application_mocker, file_db):
         'ram'      : '2048',
         'il'       : [file_db.orthoLIAfile(0, False), file_db.orthoLIAfile(1, False)],
         'out'      : file_db.concatLIAfile_from_two(0, True),
-        }, None)
+        }, {'out': otb.ImagePixelType_int16})
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : '2048',
