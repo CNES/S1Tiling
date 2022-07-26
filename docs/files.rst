@@ -327,7 +327,9 @@ Files of XYZ cartesian coordinates in S1 geometry
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
           values contain the XYZ cartesian coordinates of the pixel.
-          This file is produced with `DiapOTB SARCartesianMeanEstimation
+          This file is produced with `our patched version
+          <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/merge_requests/1>`_
+          of `DiapOTB SARCartesianMeanEstimation
           <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARCartesianMeanEstimation>`_
           application.
 

@@ -335,7 +335,7 @@ def mock_LIA(application_mocker, file_db):
             'out'        : file_db.sardemprojfile(idx, True),
             }, None)
 
-        application_mocker.set_expectations('SARCartesianMeanEstimation', {
+        application_mocker.set_expectations('SARCartesianMeanEstimation2', {
             'ram'             : '2048',
             'insar'           : file_db.input_file_vv(idx),
             'indem'           : exp_out_vrt,

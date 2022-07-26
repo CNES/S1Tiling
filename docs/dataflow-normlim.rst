@@ -225,8 +225,8 @@ Project XYZ coordinates onto SAR
                  - The associated :ref:`VRT file <dem-vrt-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
-:OTBApplication: :std:doc:`DiapOTB SARCartesianMeanEstimation
-                 <Applications/app_SARCartesianMeanEstimation>`
+:OTBApplication: :std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
+                 <Applications/app_SARCartesianMeanEstimation2>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
 This step estimates the XYZ Cartesian coordinates on the ground in the geometry

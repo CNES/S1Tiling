@@ -1010,7 +1010,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         fname_fmt = 'XYZ_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('xyz') or fname_fmt
         super().__init__(cfg,
-                appname='SARCartesianMeanEstimation', name='SARCartesianMeanEstimation',
+                appname='SARCartesianMeanEstimation2', name='SARCartesianMeanEstimation',
                 param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
