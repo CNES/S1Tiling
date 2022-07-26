@@ -132,7 +132,7 @@ Local Incidence Angle map files
 
     :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
-:Format: Byte GeoTIFF, deflate compressed
+:Format: Float32 (and Int16) GeoTIFF, deflate compressed
 
 :Metadata: The following metadata is added to the origin S1 images
 
@@ -441,7 +441,7 @@ Half Local Incidence Angle map files -- pre-concatenation.
 
     ``fname_fmt.lia_orthorectification`` = :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}.tif`
 
-:Format: Byte GeoTIFF, deflate compressed
+:Format: Float32 (and Int16) GeoTIFF, deflate compressed
 
 :Metadata: The following metadata is added to the origin S1 images
 

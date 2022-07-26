@@ -1386,6 +1386,14 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         dst.SetMetadataItem('IMAGE_TYPE', types[kind])
         return dst
 
+    def set_output_pixel_type(self, app, meta):
+
+        """
+        Force LIA output pixel type to ``INT8``.
+        """
+        if meta.get('LIA_kind', '') == 'LIA':
+            app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
+
 
 class ConcatenateLIA(_ConcatenatorFactory):
     """
@@ -1446,6 +1454,13 @@ class ConcatenateLIA(_ConcatenatorFactory):
         coverage = round(coverage, 3)
         logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
         meta['tile_coverage'] = coverage
+
+    def set_output_pixel_type(self, app, meta):
+        """
+        Force LIA output pixel type to ``INT8``.
+        """
+        if meta.get('LIA_kind', '') == 'LIA':
+            app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
 
 
 class SelectBestCoverage(_FileProducingStepFactory):
