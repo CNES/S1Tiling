@@ -1200,7 +1200,7 @@ def _register_new_input_and_update_out_filename(
         _update_out_filename(new_task_meta, task_inputs)
         logger.debug('    ...to (%s)', new_task_meta)
         already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == task_name]
-        assert len(already_registered_next_input) == 1
+        assert len(already_registered_next_input) == 1, f'{len(already_registered_next_input)} != 1 => {already_registered_next_input}'
         _update_out_filename(already_registered_next_input[0], task_inputs)
         # Can't we simply override the already_registered_next_input with expected fields?
         already_registered_next_input[0].update(new_task_meta)
