@@ -36,6 +36,7 @@ import os
 import sys
 import shutil
 import re
+import datetime
 import copy
 from abc import ABC, abstractmethod
 from itertools import filterfalse
@@ -43,12 +44,14 @@ import logging
 import logging.handlers
 import multiprocessing
 import subprocess
+from pathlib import Path
 
 # memory leaks
 from distributed import get_worker
 import objgraph
 from pympler import tracker # , muppy
 
+from osgeo import gdal
 import otbApplication as otb
 from . import Utils
 from . import exits
@@ -233,6 +236,15 @@ def _fetch_input_data(key, inputs):
     return [input[key] for input in inputs if key in input.keys()][0]
 
 
+def manifest_to_product_name(manifest):
+    """
+    Helper function that returns the product name (SAFE directory without the
+    ``.SAFE`` extension) from the full path to the :file:`manifest.safe` file.
+    """
+    fullpath = Path(manifest)
+    return fullpath.parent.stem
+
+
 def product_exists(meta):
     """
     Helper accessor that tells whether the product described by the metadata
@@ -398,6 +410,39 @@ class AbstractStep:
             self.meta.pop('files_to_remove', None)
 
 
+    def _write_image_metadata(self):
+        """
+        Update Image metadata (with GDAL API).
+        Fetch the new content in ``meta['image_metadata']``
+        """
+        img_meta = self.meta.get('image_metadata', {})
+        fullpath = out_filename(self.meta)
+        if not img_meta:
+            logger.debug('No metadata to update in %s', fullpath)
+            return
+        if is_running_dry(self.meta):
+            logger.debug("Don't set metadata in %s (dry-run)", fullpath)
+            return
+        def do_write(fullpath, img_meta):
+            logger.debug('Set metadata in %s', fullpath)
+            dst = gdal.Open(fullpath, gdal.GA_Update)
+            assert dst
+
+            for (kw, val) in img_meta.items():
+                assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
+                logger.debug(' - %s -> %s', kw, val)
+                dst.SetMetadataItem(kw, val)
+            dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
+            del dst
+        if isinstance(fullpath, list):
+            # Case of applications that produce several files like ComputeLIA
+            for fp in fullpath:
+                # TODO: how to specialize DESCRIPTION for each output image
+                do_write(fp, img_meta)
+        else:
+            do_write(fullpath, img_meta)
+
+
 class ExecutableStep(AbstractStep):
     """
     Generic step for calling any external application.
@@ -435,6 +480,7 @@ class ExecutableStep(AbstractStep):
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
+        self._write_image_metadata()
         self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
@@ -534,7 +580,8 @@ class StepFactory(ABC):
     """
     def __init__(self, name, *unused_argv, **kwargs):  # pylint: disable=unused-argument
         assert name
-        self._name    = name
+        self._name               = name
+        self.__image_description = kwargs.get('image_description', None)
         # logger.debug("new StepFactory(%s)", name)
 
     @property
@@ -544,6 +591,13 @@ class StepFactory(ABC):
         """
         assert isinstance(self._name, str)
         return self._name
+
+    @property
+    def image_description(self):
+        """
+        Property image_description, used to fill ``TIFFTAG_IMAGEDESCRIPTION``
+        """
+        return self.__image_description
 
     def check_requirements(self):
         """
@@ -645,6 +699,20 @@ class StepFactory(ABC):
         meta.pop('out_extended_filename_complement', None)
         return self.update_filename_meta(meta)
 
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Root implementation of :func:`update_image_metadata` that shall be
+        specialized in every file producing Step Factory.
+        """
+        if 'image_metadata' not in meta:
+            meta['image_metadata'] = {}
+        imd = meta['image_metadata']
+        imd['TIFFTAG_DATETIME'] = str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))
+        if self.image_description:
+            imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
+                    **meta,
+                    flying_unit_code_short=meta['flying_unit_code'][1:].upper())
+
     def _get_inputs(self, previous_steps):  # pylint: disable=unused-argument,no-self-use
         """
         Extract the last inputs to use at the current level from all previous
@@ -676,7 +744,7 @@ class StepFactory(ABC):
             return list(inputs[0].values())[0]
         else:
             # If this error is raised, this means the current step has several
-            # inputs, it it need to tell how the "main" input is found.
+            # inputs, we need to tell explicitely how the "main" input is found.
             keys = set().union(*(input.keys() for input in inputs))
             raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
@@ -698,6 +766,7 @@ class StepFactory(ABC):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         meta   = self.complete_meta(inp.meta, inputs)
+        self.update_image_metadata(meta, inputs) # Needs to be done after complete_meta!
 
         # Return previous app?
         return AbstractStep(**meta)
@@ -1503,6 +1572,14 @@ class FirstStep(AbstractStep):
     def __repr__(self):
         return f'FirstStep{self._meta}'
 
+    @property
+    def input_metas(self):
+        """
+        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
+        metas from the inputs as a list.
+        """
+        return [self._meta]
+
 
 class MergeStep(AbstractStep):
     """
@@ -1525,6 +1602,14 @@ class MergeStep(AbstractStep):
 
     def __repr__(self):
         return f'MergeStep{self.__input_steps_metas}'
+
+    @property
+    def input_metas(self):
+        """
+        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
+        metas from the inputs as a list.
+        """
+        return self.__input_steps_metas
 
 
 class StoreStep(_StepWithOTBApplication):
@@ -1594,6 +1679,7 @@ class StoreStep(_StepWithOTBApplication):
                 # Indeed the hook is executed at Store Factory level, while metadata
                 # are passed around between around Factories and Steps.
                 hook(self.meta, self.app)
+        self._write_image_metadata()
         self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
@@ -1834,6 +1920,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         meta   = self.complete_meta(inp.meta, inputs)
+        self.update_image_metadata(meta, inputs) # Needs to be done after complete_meta!
         assert self.appname
 
         # Otherwise: step with an OTB application...
@@ -1936,6 +2023,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         meta   = self.complete_meta(inp.meta, inputs)
+        self.update_image_metadata(meta, inputs) # Needs to be done after complete_meta!
         res    = ExecutableStep(self._exename, **meta)
         parameters = self.parameters(meta)
         res.execute_and_write_output(parameters)
