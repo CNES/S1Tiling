@@ -1552,6 +1552,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
             commit_execution(out_filename(inp.meta), out_filename(meta))
 
         # Return a dummy Step
+        # logger.debug("%s step executed!", self.name)
         res = AbstractStep('move', **meta)
         return res
 

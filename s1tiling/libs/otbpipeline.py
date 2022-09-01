@@ -416,7 +416,8 @@ class AbstractStep:
         Fetch the new content in ``meta['image_metadata']``
         """
         img_meta = self.meta.get('image_metadata', {})
-        fullpath = out_filename(self.meta)
+        # fullpath = out_filename(self.meta)
+        fullpath = self.tmp_filename
         if not img_meta:
             logger.debug('No metadata to update in %s', fullpath)
             return
@@ -434,6 +435,7 @@ class AbstractStep:
                 dst.SetMetadataItem(kw, val)
             dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
             del dst
+            logger.debug('Metadata Set! (%s)', fullpath)
         if isinstance(fullpath, list):
             # Case of applications that produce several files like ComputeLIA
             for fp in fullpath:
@@ -476,11 +478,11 @@ class ExecutableStep(AbstractStep):
         logger.debug("ExecutableStep: %s (%s)", self, self.meta)
         execute([self._exename]+ parameters, dryrun)
         if not dryrun:
+            self._write_image_metadata()
             commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 hook(self.meta)
-        self._write_image_metadata()
         self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
@@ -963,6 +965,7 @@ class Pipeline:
         res = steps[-1][0]['__last'].out_filename
         assert res == self.output
         steps = None
+        # logger.debug('Pipeline "%s" terminated -> %s', self, res)
         return Outcome(res)
 
 
@@ -1672,14 +1675,15 @@ class StoreStep(_StepWithOTBApplication):
                     # messages to s1tiling.OTB
                     self.set_out_parameters()
                     self._app.ExecuteAndWriteOutput()
+                self._write_image_metadata()
                 commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not is_running_dry(self.meta):
             for hook in self.meta['post']:
                 # Note: we can't extract and pass meta-data around from this hook
                 # Indeed the hook is executed at Store Factory level, while metadata
                 # are passed around between around Factories and Steps.
+                logger.debug("Execute post-hook for %s", self.out_filename)
                 hook(self.meta, self.app)
-        self._write_image_metadata()
         self.clean_cache()
         self.meta['pipe'] = [self.out_filename]
 
@@ -1702,8 +1706,9 @@ def commit_execution(tmp_fn, out_fn):
     tmp_geom = re.sub(re_tiff, '.geom', tmp_fn)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_fn)
-        shutil.move(tmp_geom, out_geom)
         logger.debug('Renaming: mv %s %s', tmp_geom, out_geom)
+        shutil.move(tmp_geom, out_geom)
+    logger.debug('-> %s renamed as %s', tmp_fn, out_fn)
     assert not os.path.isfile(tmp_fn)
     assert os.path.isfile(out_fn)
 
