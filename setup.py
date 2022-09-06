@@ -76,10 +76,10 @@ setup(
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 
-    python_requires='>=3.6, <4',
+    python_requires='>=3.8, <4',
     install_requires=[
         "click",
-        "dask[distributed]",
+        "dask[distributed]>=2022.8.1",
         "eodag",
         "gdal=="+request_gdal_version(),
         "graphviz",
