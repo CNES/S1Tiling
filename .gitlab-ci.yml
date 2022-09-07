@@ -5,7 +5,7 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
-    OTB_VERSION: 7.4.0
+    OTB_VERSION: 7.4.1
 
 #
 # Tests and documentation
@@ -34,7 +34,7 @@ variables:
     - python3 -m pip install --upgrade pip
     - echo $LD_LIBRARY_PATH
     - find / -name "libgdal.so*"
-    - ldd /tmp/${S1TILING_VENV}/lib/python*/site-packages/osgeo/_gdal.cpython-36m-x86_64-linux-gnu.so
+    - ldd /tmp/${S1TILING_VENV}/lib/python*/site-packages/osgeo/_gdal.cpython-38m-x86_64-linux-gnu.so
     - python -c "from osgeo import gdal ; print(gdal.__version__)"
     - ls "${OTB_INSTALL_DIRNAME}"
     # - set
