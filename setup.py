@@ -101,7 +101,8 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
-            "pytest-bdd",
+            "pytest-bdd < 6",  # Using "example table" feature, removed from v6
+            #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",
