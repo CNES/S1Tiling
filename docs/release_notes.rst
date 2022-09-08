@@ -3,6 +3,29 @@
 Release notes
 =============
 
+Version 0.3.2
+-------------
+
+Improvements for version 0.3
+
+v0.3.2 Improvements 
++++++++++++++++++++
+
+- Avoid downloading of already processed S1 images
+    (`#107 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/107>`_).
+
+Version 0.3.1
+-------------
+
+Bug fixes for version 0.3
+
+v0.3.1 Bug fixed
+++++++++++++++++
+
+- Don't produce partial products when complete ones already exist for a given
+  S2 tile at a requested time
+  (`#104 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/104>`_).
+
 Version 0.3
 -----------
 

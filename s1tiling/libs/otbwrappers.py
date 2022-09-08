@@ -46,7 +46,8 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
         ExecutableStepFactory, in_filename, out_filename, tmp_filename, AbstractStep,
         otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator,
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
-        ReplaceOutputFilenameGenerator, commit_execution, is_running_dry)
+        ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
+        get_task_name, Step)
 from . import Utils
 from ..__meta__ import __version__
 
@@ -696,6 +697,18 @@ class Concatenate(_ConcatenatorFactory):
                 TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename'] = self.update_out_filename
+        in_file               = out_filename(meta)
+        if not isinstance(in_file, list):
+            def check_product(meta):
+                task_name       = get_task_name(meta)
+                filename        = out_filename(meta)
+                exist_task_name = os.path.isfile(task_name)
+                exist_file_name = os.path.isfile(filename)
+                logger.debug('Checking concatenation product:\n- %s => %s\n- %s => %s',
+                        task_name, '∃' if exist_task_name else '∅',
+                        filename,  '∃' if exist_file_name else '∅')
+                return exist_task_name or exist_file_name
+            meta['does_product_exist'] = lambda : check_product(meta)
 
 
 class BuildBorderMask(OTBStepFactory):
