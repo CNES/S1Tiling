@@ -33,6 +33,7 @@
 import fnmatch
 import logging
 import os
+from pathlib import Path
 import re
 import sys
 from timeit import default_timer as timer
@@ -40,6 +41,52 @@ import xml.etree.ElementTree as ET
 from osgeo import ogr
 import osgeo  # To test __version__
 from osgeo import osr
+
+
+def flatten_stringlist(itr):
+    """
+    Flatten a list of lists.
+    But don't decompose string.
+    """
+    if type(itr) in (str,bytes):
+        yield itr
+    else:
+        for x in itr:
+            try:
+                yield from flatten_stringlist(x)
+            except TypeError:
+                yield x
+
+
+class Layer:
+    """
+    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
+    """
+    def __init__(self, grid, driver_name="ESRI Shapefile"):
+        self.__grid        = grid
+        self.__driver      = ogr.GetDriverByName(driver_name)
+        self.__data_source = self.__driver.Open(self.__grid, 0)
+        self.__layer       = self.__data_source.GetLayer()
+
+    def __iter__(self):
+        return self.__layer.__iter__()
+
+    def reset_reading(self):
+        """
+        Reset feature reading to start on the first feature.
+
+        This affects iteration.
+        """
+        return self.__layer.ResetReading()
+
+    def find_tile_named(self, tile_name_field):
+        """
+        Search for a tile that maches the name.
+        """
+        for tile in self.__layer:
+            if tile.GetField('NAME') in tile_name_field:
+                return tile
+        return None
 
 
 def get_relative_orbit(manifest):
@@ -65,18 +112,18 @@ def get_origin(manifest):
                 coor = line.replace("                <gml:coordinates>", "")\
                            .replace("</gml:coordinates>", "").split(" ")
                 coord = [(float(val.replace("\n", "").split(",")[0]),
-                          float(val.replace("\n", "")
-                                .split(",")[1]))for val in coor]
+                          float(val.replace("\n", "").split(",")[1]))
+                          for val in coor]
                 return coord[0], coord[1], coord[2], coord[3]
         raise Exception("Coordinates not found in " + str(manifest))
 
 
-def get_shape(manifest):
+def get_shape_from_polygon(polygon):
     """
     Returns the shape of the footprint of the S1 product.
     """
-    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
 
+    nw_coord, ne_coord, se_coord, sw_coord = polygon
     poly = ogr.Geometry(ogr.wkbPolygon)
     ring = ogr.Geometry(ogr.wkbLinearRing)
     ring.AddPoint(nw_coord[1], nw_coord[0], 0)
@@ -85,6 +132,28 @@ def get_shape(manifest):
     ring.AddPoint(sw_coord[1], sw_coord[0], 0)
     ring.AddPoint(nw_coord[1], nw_coord[0], 0)
     poly.AddGeometry(ring)
+    return poly
+
+
+def get_shape(manifest):
+    """
+    Returns the shape of the footprint of the S1 product.
+    """
+    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
+    return get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
+
+def get_s1image_poly(s1image):
+    """
+    Return shape of the ``s1image`` as a polygon
+    """
+    if isinstance(s1image, str):
+        manifest = Path(s1image).parents[1] / 'manifest.safe'
+    else:
+        manifest = s1image.get_manifest()
+
+    logging.debug("Manifest: %s", manifest)
+    assert manifest.exists()
+    poly = get_shape(manifest)
     return poly
 
 
@@ -114,6 +183,29 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
         if intersection.GetArea() != 0:
             intersect_tile.append(current_tile.GetField('NAME'))
     return intersect_tile
+
+
+def find_srtm_intersecting_raster(s1image, srtm_db_filepath):
+    """
+    Searches the SRTM tiles that intersect the S1 Image.
+    """
+    # srtm_layer = Layer(srtm_shapefile)
+    srtm_tiles = {}
+    poly = get_s1image_poly(s1image)
+    logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
+
+    srtm_shapefile = srtm_db_filepath
+    assert srtm_shapefile
+    assert os.path.isfile(srtm_shapefile)
+    srtm_layer = Layer(srtm_shapefile, driver_name='GPKG')
+    for tile in srtm_layer:
+        tile_footprint = tile.GetGeometryRef()
+        intersection = poly.Intersection(tile_footprint)
+        if intersection.GetArea() > 0.0:
+            # logging.debug("Tile: %s", tile)
+            file = tile.GetField('id')
+            srtm_tiles[file] = 1
+    return sorted(srtm_tiles.keys())
 
 
 def get_orbit_direction(manifest):
@@ -346,10 +438,11 @@ class RedirectStdToLogger:
             return False
 
 
-def remove_files(files):
+def remove_files(files: list):
     """
     Removes the files from the disk
     """
+    assert isinstance(files, list)
     logging.debug("Remove %s", files)
     for file_it in files:
         if os.path.exists(file_it):
@@ -372,6 +465,9 @@ class TopologicalSorter:
             self.__successors        = self.__successors_direct
 
     def depth(self, start_nodes):
+        """
+        Depth-first topological sorting method
+        """
         results = []
         visited_nodes = {}
         self.__recursive_depth_first(start_nodes, results, visited_nodes)
@@ -404,5 +500,13 @@ class TopologicalSorter:
             results.append(node)
 
 def tsort(dag, start_nodes, fetch_successor_function=None):
+    """
+    Topological sorting function (depth-first)
+
+    Parameters:
+        :dag:                      Direct Acyclic Graph to sort topologically
+        :start_nodes:              nodes from which the sorting star
+        :fetch_successor_function: Used to override how node transition is done
+    """
     ts = TopologicalSorter(dag, fetch_successor_function)
     return ts.depth(start_nodes)

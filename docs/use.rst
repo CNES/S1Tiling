@@ -15,14 +15,44 @@ Usage
    :local:
    :depth: 3
 
-Given a :ref:`request configuration file <request-config-file>` (e.g.
-``MyS1ToS2.cfg`` in ``workingdir``), running S1Tiling is as simple as::
+Scenarios
+---------
+
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+This is the main scenario where pairs of Sentinel-1 images are:
+
+- calibrated according to β\ :sup:`0`, γ\ :sup:`0` or σ\ :sup:`0` calibration
+- then orthorectified onto the Sentinel-2 grid,
+- to be finally concatenated.
+
+The unique elements in this scenario are:
+
+- the :ref:`calibration option <Processing.calibration>` that must be
+  either one of ``beta``, ``sigma`` or ``gamma``
+- the main executable which is :program:`S1Processor`.
+
+All options go in a :ref:`request configuration file <request-config-file>`
+(e.g.  ``MyS1ToS2.cfg`` in ``workingdir``). Important options will be:
+
+- the time range (:ref:`first_date <DataSource.first_date>` and
+  :ref:`last_date <DataSource.last_date>`),
+- the :ref:`Sentinel-2 tiles <DataSource.roi_by_tiles>`,
+- the orthorectification options (in :ref:`[Processing] <Processing>`),
+- the directories where images are downloaded, produced, etc.
+- the download credentials for the chosen data provider -- see
+  :ref:`eodag_config <DataSource.eodag_config>`.
+
+
+Then running S1Tiling is as simple as:
+
+.. code:: bash
 
         cd workingdir
         S1Processor MyS1ToS2.cfg
 
-
-Then
+Eventually,
 
 - The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
 - The orthorectified tiles will be generated in :ref:`output <paths.output>`.
@@ -32,6 +62,123 @@ Then
    files are :ref:`cached <data-caches>` in between runs. This means you will
    have to watch this directory and eventually clean it.
 
+
+.. _scenario.S1ProcessorLIA:
+
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+In this scenario, the calibration applied is the :math:`σ^0_{RTC}` NORMLIM
+calibration described in [Small2011]_.
+
+.. [Small2011] D. Small, "Flattening Gamma: Radiometric Terrain Correction for
+   SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
+   49, no. 8, pp. 3081-3093, Aug. 2011, doi: 10.1109/TGRS.2011.2120616.
+
+In S1Tiling, we have chosen to precompute Local Incidence Angle (LIA) maps on
+Sentinel-2 grid. Given a series of Sentinel-1 images to orthorectify on a
+Sentinel-2 grid, we select a pair of Sentinel-1 images to compute the LIA
+in the geometry of these images. The LIA map is then projected, through
+orthorectification, on a Sentinel-2 tile.
+
+That map will then be used for all series of pairs of Sentinel-1 images that
+intersect the associated S2 tile.
+
+Regarding options, the only difference with previous scenario are:
+
+- the :ref:`calibration option <Processing.calibration>` that needs to be
+  ``normlim``,
+- the :ref:`directory <Paths.lia>` where LIA maps will be searched for, or
+  produced in.
+
+
+S1Tiling will then automatically take care of:
+
+- producing, or using existing, maps of sin(LIA) for each Sentinel-2 tiles --
+  given an orbit and it direction,
+- producing intermediary products calibrated with β\ :sup:`0` LUT.
+
+
+.. warning::
+   If you wish to parallelize this scenario and dedicate a different cluster
+   node to each date -- as recommended in ":ref:`scenario.parallelize_date`"
+   scenario, you will **NEED** produce all the LIA maps beforehand.
+   Otherwise a same file may be concurrently written to from different nodes,
+   and it will likely end up corrupted.
+
+.. note::
+   This scenario requires `DiapOTB
+   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
+   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
+   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Eventually both will be guaranteed in S1Tiling docker images.
+
+
+.. _scenario.S1LIAMap:
+
+Preproduce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+While :program:`S1Processor` is able to produce the necessary LIA maps on the
+fly, it is not able to do so when parallelization is done manually over time
+ranges -- as described in ":ref:`scenario.parallelize_date`" scenario.
+
+A different program is provided to compute the LIA maps beforehand:
+:program:`S1LIAMap`. It takes the exact same parameter files as
+:program:`S1Processor`. A few options will be ignored though: calibration type,
+masking....
+
+.. code:: bash
+
+        cd workingdir
+        # Yes, the same file works!
+        S1LIAMap MyS1ToS2.cfg
+
+
+.. note::
+   LIA maps are perfect products to be stored and reused.
+
+.. note::
+   This scenario requires `DiapOTB
+   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
+   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
+   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Eventually both will be guaranteed in S1Tiling docker images.
+
+
+.. _scenario.masks:
+
+Generate masks on final products
+++++++++++++++++++++++++++++++++
+
+Pixel masks of valid data can be produced in all :program:`S1Processor`
+scenarios when the option :ref:`generate_border_mask
+<Mask.generate_border_mask>` is ``True``.
+
+.. _scenario.parallelize_date:
+
+Process huge quantities of data
++++++++++++++++++++++++++++++++
+
+This use case concerns people that:
+
+- have a lot of images to process over many tiles and over a consequent
+  time-range,
+- and have access to computing resources like HPC clusters
+
+In that case, S1Tiling will be much more efficient if the parallelization is
+done time-wise. We recommended to cut the full time range in smaller subranges,
+and to distribute each subrange (with all S2 tiles) to a different node -- with
+jobarrays for instances.
+
+
+.. warning::
+   This scenario is not compatible with ``normlim`` calibration where the LIA
+   maps would be computed on-the-fly. For ``normlim`` calibration, it's
+   imperative to precompute (and store LIA maps) before going massively
+   parallel.
 
 .. _request-config-file:
 
@@ -72,6 +219,11 @@ You can use this :download:`this template
       .. _paths.output:
   * - ``output``
     - Where products are generated.
+
+      .. _paths.lia:
+  * - ``lia``
+    - Where Local Incidence Maps and sin(LIA) products are generated. Its
+      default value is ``{output}/_LIA``.
 
       .. _paths.tmp:
   * - ``tmp``
@@ -215,7 +367,8 @@ You can use this :download:`this template
 
       .. _Processing.calibration:
   * - ``calibration``
-    - Defines the calibration type: ``gamma`` or ``sigma``
+    - Defines the calibration type: ``gamma``, ``beta``, ``sigma``, or
+      ``normlim``.
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
@@ -321,6 +474,22 @@ You can use this :download:`this template
         should be <= to the number of cores on the machine.
 
       .. _Processing.override_azimuth_cut_threshold_to:
+
+  * - ``produce_lia_map``
+    - When :ref:`LIA sine map <lia-files>` is produced, we may also desire the
+      angle values in degrees (x100).
+
+      Possible values are:
+
+      :``True``:         Do generate the angle map in degrees x 100.
+      :``False``:        Don't generate the angle map in degrees x 100.
+
+      .. note::
+        This option will be ignored when no LIA sine map is required. The LIA
+        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>` ,
+        or when :ref:`calibration mode <Processing.calibration>` is
+        ``"normlim"``.
+
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be
       forced to 0 in :ref:`cutting step <cutting>`. |br|
@@ -335,6 +504,108 @@ You can use this :download:`this template
       .. warning::
         This option is not meant to be used. It only makes sense in some very
         specific scenarios like tests.
+
+
+      .. _Processing.fname_fmt:
+  * - ``fname_fmt.*``
+    - Set of filename format templates that permits to override the default
+      filename formats used to generate filenames.
+
+      The filename formats can be overridden for both intermediary and final
+      products. Only the final products are documented here. Filename formats
+      for intermediary products are best left alone.
+
+      If you change any, make sure to not introduce ambiguity by removing a
+      field that would be used to distinguish two unrelated products.
+
+      Available fields comme from :func:`internal metadata <s1tiling.libs.otbpipeline.StepFactory.complete_meta>`. The main
+      ones of interest are:
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Field
+          - Content
+          - Applies to geometry
+
+        * - flying_unit_code
+          - ``s1a``, ``s1b``
+          - S1/S2
+        * - tile_name
+          - ex: ``33NWB``
+          - S2
+
+        * - polarisation
+          - ``hh``, ``hv``, ``vh``, ``vv``
+          - S1/S2
+
+        * - orbit_direction
+          - ``ASC``/``DES``
+          - S1/S2
+
+        * - orbit
+          - 5-digits number that identifies the S1 orbit
+          - S1/S2
+
+        * - acquisition_time
+          - the full timestamp (:samp:`{yymmdd}t{hhmmss}`)
+          - S1/S2
+
+        * - acquisition_day
+          - only the day (:samp:`{yymmdd}txxxxxx`)
+          - S1/S2
+
+        * - acquisition_stamp
+          - either the full timestamp (:samp:`{yymmdd}t{hhmmss}`), or the day
+            (:samp:`{yymmdd}txxxxxx`)
+          - S1/S2
+
+        * - LIA_kind
+          - ``LIA``/``sin_LIA``
+          - S2
+
+        * - basename
+          - Filename of initial S1 image.
+          - S1
+
+        * - rootname
+          - ``basename`` without the file extension.
+          - S1
+
+        * - calibration_type
+          - ``beta``/``gamma``/``sigma``/``dn``
+          - S1/S2
+
+        * - polarless_basename
+          - Same as ``basename`` (with file extension), but without
+            ``polarisation`` field. Used when the product only depends on the
+            S1 image geometry and not its content.
+          - S1
+
+        * - polarless_rootname
+          - Same as ``rootname`` (without file extension), but without
+            ``polarisation`` field. Used when the product only depends on the
+            S1 image geometry and not its content.
+          - S1
+
+      .. _Processing.fname_fmt.concatenation:
+  * - ``fname_fmt.concatenation``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
+      for β°, σ° and γ° calibrations.
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
+
+      .. _Processing.fname_fmt.lia_corrected:
+  * - ``fname_fmt.s2_lia_corrected``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`
+      when NORMLIM calibrated.
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
+
+      .. _Processing.fname_fmt.lia_product:
+  * - ``fname_fmt.lia_product``
+    - File format pattern for LIA and sin(LIA) files
+      :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
 .. _Filtering:
 
@@ -480,6 +751,11 @@ The following exit code are produced when :program:`S1Processor` returns:
   * - 76
     - :ref:`Geoid file <paths.geoid_file>` is missing or the specified path is
       incorrect. See the log produced.
+  * - 77
+    - Some processing cannot be done because external applications cannot
+      be executed. Likelly OTB and/or NORMLIM related applications aren't
+      correctly installed.
+      See the log produced.
 
   * - any other
     - Unknown error. It could be related to `Bash

@@ -100,7 +100,7 @@ def init_logger(mode, paths):
 
 class Configuration():
     """This class handles the parameters from the cfg file"""
-    def __init__(self, configFile):
+    def __init__(self, configFile, do_show_configuration=True):
         config = configparser.ConfigParser(os.environ)
         config.read(configFile)
 
@@ -110,10 +110,13 @@ class Configuration():
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
         if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+            # OTB DEBUG logs are displayed iff level is DEBUG and configFile mode
+            # is debug as well.
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
         self.output_preprocess = config.get('Paths', 'output')
+        self.lia_directory     = config.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         self.raw_directory     = config.get('Paths', 's1_images')
         self.srtm              = config.get('Paths', 'srtm')
         self.tmpdir            = config.get('Paths', 'tmp')
@@ -162,14 +165,14 @@ class Configuration():
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(exits.CONFIG_ERROR)
 
-        self._SRTMShapefile = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        self._SRTMShapefile       = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
 
-        self.grid_spacing = config.getfloat('Processing', 'orthorectification_gridspacing')
-        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method',
-                                               fallback='nn')
+        self.grid_spacing         = config.getfloat('Processing', 'orthorectification_gridspacing')
+        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
         try:
             tiles_file = config.get('Processing', 'tiles_list_in_file')
-            self.tile_list = open(tiles_file, 'r').readlines()
+            with open(tiles_file, 'r') as tiles_file_handle:
+                self.tile_list = tiles_file_handle.readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
         except Exception:  # pylint: disable=broad-except
@@ -180,6 +183,8 @@ class Configuration():
         self.nb_procs                  = config.getint('Processing', 'nb_parallel_processes')
         self.ram_per_process           = config.getint('Processing', 'ram_per_process')
         self.OTBThreads                = config.getint('Processing', 'nb_otb_threads')
+
+        self.produce_lia_map           = config.getboolean('Processing', 'produce_lia_map', fallback=False)
         # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
         # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
         # self.Window_radius             = config.getint('Filtering', 'window_radius')
@@ -189,11 +194,27 @@ class Configuration():
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             self.override_azimuth_cut_threshold_to = None
 
+        # Permit to override default file name formats
+        fname_fmt_keys = ['calibration', 'cut_borders', 'orthorectification', 'concatenation',
+                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
+                'lia_orthorectification', 'lia_concatenation', 'lia_product', 's2_lia_corrected']
+        self.fname_fmt = {}
+        for key in fname_fmt_keys:
+            fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
+            # Default value is defined in associated StepFactories
+            if fmt:
+                self.fname_fmt[key] = fmt
+
+        if do_show_configuration:
+            self.show_configuration()
+
+    def show_configuration(self):
         logging.debug("Running S1Tiling with:")
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s", self.GeoidFile)
-        logging.debug("- output                         : %s", self.output_preprocess)
         logging.debug("- s1_images                      : %s", self.raw_directory)
+        logging.debug("- output                         : %s", self.output_preprocess)
+        logging.debug("- LIA                            : %s", self.lia_directory)
         logging.debug("- srtm                           : %s", self.srtm)
         logging.debug("- tmp                            : %s", self.tmpdir)
         logging.debug("[DataSource]")
@@ -217,8 +238,12 @@ class Configuration():
         logging.debug("- tile_to_product_overlap_ratio  : %s", self.TileToProductOverlapRatio)
         logging.debug("- tiles                          : %s", self.tile_list)
         logging.debug("- tiles_shapefile                : %s", self.output_grid)
+        logging.debug("- produce LIA° map               : %s", self.produce_lia_map)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s", self.mask_cond)
+        logging.debug('File formats')
+        for k, fmt in self.fname_fmt.items():
+            logging.debug(' - %s --> %s', k, fmt)
 
     @property
     def srtm_db_filepath(self):
@@ -227,19 +252,19 @@ class Configuration():
         """
         return str(self._SRTMShapefile)
 
-    def check_date(self):
-        """
-        DEPRECATED
-        """
-        import datetime
-
-        fd = self.first_date
-        ld = self.last_date
-
-        try:
-            F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
-            L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
-            return F_Date, L_Date
-        except Exception:  # pylint: disable=broad-except
-            logging.critical("Invalid date")
-            sys.exit(exits.CONFIG_ERROR)
+    # def check_date(self):
+    #     """
+    #     DEPRECATED
+    #     """
+    #     import datetime
+    #
+    #     fd = self.first_date
+    #     ld = self.last_date
+    #
+    #     try:
+    #         F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
+    #         L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
+    #         return F_Date, L_Date
+    #     except Exception:  # pylint: disable=broad-except
+    #         logging.critical("Invalid date")
+    #         sys.exit(exits.CONFIG_ERROR)

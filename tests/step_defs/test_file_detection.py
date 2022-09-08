@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
+from tests.mock_otb import isfile, isdir, glob, dirname
 import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
@@ -73,16 +74,7 @@ class Configuration():
         self.tmpdir            = tmpdir
         self.output_preprocess = outputdir
         self.cache_srtm_by     = 'symlink'
-
-def isfile(filename, existing_files):
-    res = filename in existing_files
-    logging.debug("mock.isfile(%s) = %s ∈ %s", filename, res, existing_files)
-    return res
-
-def isdir(dirname, existing_dirs):
-    res = dirname in existing_dirs
-    logging.debug("mock.isdir(%s) = %s ∈ %s", dirname, res, existing_dirs)
-    return res
+        self.fname_fmt         = {}
 
 class MockDirEntry:
     def __init__(self, pathname):
@@ -98,10 +90,6 @@ def list_dirs(dir, pat, known_dirs):
     logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
     return [MockDirEntry(kd) for kd in known_dirs]
 
-def glob(pat, known_files):
-    res = [fn for fn in known_files if fnmatch.fnmatch(fn, pat)]
-    logging.debug('mock.glob(%s) ---> %s', pat, res)
-    return res
 
 @pytest.fixture
 def known_files():
@@ -125,11 +113,6 @@ def configuration(mocker):
     cfg = Configuration(INPUT, TMPDIR, OUTPUT)
     return cfg
 
-def dirname(path, depth):
-    for i in range(depth):
-        path = os.path.dirname(path)
-    return path
-
 # ======================================================================
 # Given steps
 
@@ -144,7 +127,6 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns):
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
-    # mocker.patch('s1tiling.libs.S1FileManager.list_dirs', return_value=files)
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
     mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
 

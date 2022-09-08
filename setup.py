@@ -76,10 +76,10 @@ setup(
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 
-    python_requires='>=3.3, <4',
+    python_requires='>=3.8, <4',
     install_requires=[
         "click",
-        "dask[distributed]",
+        "dask[distributed]>=2022.8.1",
         "eodag",
         "gdal=="+request_gdal_version(),
         "graphviz",
@@ -101,19 +101,21 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
-            "pytest-bdd",
+            "pytest-bdd < 6",  # Using "example table" feature, removed from v6
+            #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",
             "pylint",
             ],
         "docs": [
-            "sphinx == 1.8.0",
+            "jinja2 == 3.0.3",
+            "m2r2",
             "natsort",
             "nbsphinx == 0.3.5",
             "nbsphinx-link == 1.1.1",
-            "m2r2",
-            "sphinx_rtd_theme"
+            "sphinx == 1.8.0",
+            "sphinx_rtd_theme",
             ],
         },
 
@@ -147,6 +149,7 @@ setup(
     entry_points = {
         'console_scripts': [
             'S1Processor = s1tiling.S1Processor:run',
+            'S1LIAMap    = s1tiling.S1Processor:run_lia',
         ],
     },
 )

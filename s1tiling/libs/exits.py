@@ -27,6 +27,10 @@
 #
 # =========================================================================
 
+"""
+This module lists EXIT codes
+"""
+
 TASK_FAILED         = 66
 DOWNLOAD_ERROR      = 67
 OFFLINE_DATA        = 68
@@ -38,3 +42,4 @@ NO_S2_TILE          = 73
 NO_S1_IMAGE         = 74
 MISSING_SRTM        = 75
 MISSING_GEOID       = 76
+MISSING_APP         = 77

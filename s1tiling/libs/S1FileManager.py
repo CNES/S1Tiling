@@ -30,6 +30,7 @@
 
 """ This module contains the S1FileManager class"""
 
+from enum import Enum
 import fnmatch
 from functools import partial
 import glob
@@ -44,11 +45,10 @@ import tempfile
 
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
-from osgeo import ogr
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_files, list_dirs
+from .Utils import get_shape, list_dirs, Layer
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 
@@ -57,36 +57,16 @@ setup_logging(verbose=1)
 logger = logging.getLogger('s1tiling')
 
 
-class Layer:
+class WorkspaceKinds(Enum):
     """
-    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
+    Enum used to list the kinds of "workspaces" needed.
+    A workspace is a directory where products will be stored.
+
+    :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
+        Indeed At this moment, only two kinds of workspaces are supported.
     """
-    def __init__(self, grid, driver_name="ESRI Shapefile"):
-        self.__grid        = grid
-        self.__driver      = ogr.GetDriverByName(driver_name)
-        self.__data_source = self.__driver.Open(self.__grid, 0)
-        self.__layer       = self.__data_source.GetLayer()
-
-    def __iter__(self):
-        return self.__layer.__iter__()
-
-    def reset_reading(self):
-        """
-        Reset feature reading to start on the first feature.
-
-        This affects iteration.
-        """
-        return self.__layer.ResetReading()
-
-    def find_tile_named(self, tile_name_field):
-        """
-        Search for a tile that maches the name.
-        """
-        for tile in self.__layer:
-            if tile.GetField('NAME') in tile_name_field:
-                return tile
-        return None
-
+    TILE = 1
+    LIA  = 2
 
 def product_property(prod, key, default=None):
     """
@@ -96,19 +76,19 @@ def product_property(prod, key, default=None):
     return res
 
 
-def unzip_images(raw_directory):
-    """This method handles unzipping of product archives"""
-    for file_it in list_files(raw_directory, '*.zip'):
-        logger.debug("unzipping %s", file_it.name)
-        try:
-            with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
-                zip_ref.extractall(raw_directory)
-        except zipfile.BadZipfile:
-            logger.warning("%s is corrupted. This file will be removed", file_it.path)
-        try:
-            os.remove(file_it.path)
-        except OSError:
-            pass
+# def unzip_images(raw_directory):
+#     """This method handles unzipping of product archives"""
+#     for file_it in list_files(raw_directory, '*.zip'):
+#         logger.debug("unzipping %s", file_it.name)
+#         try:
+#             with zipfile.ZipFile(file_it.path, 'r') as zip_ref:
+#                 zip_ref.extractall(raw_directory)
+#         except zipfile.BadZipfile:
+#             logger.warning("%s is corrupted. This file will be removed", file_it.path)
+#         try:
+#             os.remove(file_it.path)
+#         except OSError:
+#             pass
 
 
 def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
@@ -129,14 +109,10 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
     sat, start = prod_re.match(product.as_dict()['id']).groups()
     for pol in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        #pat = '%s_%s_%s_*_%stxxxxxx.tif' % (sat.lower(), tile_name, pol, start)
-        #pat_filtered = '%s_%s_%s_*_%stxxxxxx_filtered.tif' % (sat.lower(), tile_name, 'vh', start)
-
-        pat = '%s_%s_%s_*_%st??????.tif' % (sat.lower(), tile_name, pol, start)
-        pat_filtered = '%s_%s_%s_*_%st??????_filtered.tif' % (sat.lower(), tile_name, 'vh', start)
-
+        pat          = f'{sat.lower()}_{tile_name}_{pol}_*_{start}t??????.tif'
+        pat_filtered = f'{sat.lower()}_{tile_name}_vh_*_{start}t??????_filtered.tif'
         found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
-        logger.debug('searching w/ %s ==> Found: %s', pat, found)
+        logger.debug('searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
         if not found:
             return True
     return False
@@ -161,22 +137,23 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-def discard_small_redundant(products, id=None):
+def discard_small_redundant(products, ident=None):
     """
     Sometimes there are several S1 product with the same start date, but a different end-date.
     Let's discard the smallest products
     """
     if not products:
         return products
-    if not id:
-        id = lambda name: name
+    if not ident:
+        ident = lambda name: name
     prod_re = re.compile(r'S1._IW_...._...._(\d{8}T\d{6})_(\d{8}T\d{6}).*')
 
-    ordered_products = sorted(products, key=lambda p: id(p))
+    ordered_products = sorted(products, key=lambda p: ident(p))
+    # logger.debug("all products before clean: %s", ordered_products)
     res = [ordered_products[0]]
-    last, _ = prod_re.match(id(res[0])).groups()
+    last, _ = prod_re.match(ident(res[0])).groups()
     for product in ordered_products[1:]:
-        start, __unused = prod_re.match(id(product)).groups()
+        start, __unused = prod_re.match(ident(product)).groups()
         if last == start:
             # We can suppose the new end date to be >
             # => let's replace
@@ -196,23 +173,31 @@ def _download_and_extract_one_product(dag, raw_directory, product):
     Some products are already unzipped on the fly by eodag.
     """
     logging.info("Starting download of %s...", product)
-    ok_msg = "Successful download (and extraction) of %s" % (product, )  # because eodag'll clear product
+    ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
-    path = dag.download(
-            product,      # EODAG will clear this variable
-            extract=True  # Let's eodag do the job
-            )
-    logging.debug(ok_msg)
-    if os.path.exists(file) :
-        try:
-            logger.debug('Removing downloaded ZIP: %s', file)
-            os.remove(file)
-        except OSError:
-            pass
+    try:
+        path = dag.download(
+                product,       # EODAG will clear this variable
+                extract=True,  # Let's eodag do the job
+                wait=1,        # Wait time in minutes between two download tries
+                timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
+                )
+        logging.debug(ok_msg)
+        if os.path.exists(file) :
+            try:
+                logger.debug('Removing downloaded ZIP: %s', file)
+                os.remove(file)
+            except OSError:
+                pass
+    except BaseException:  # pylint: disable=broad-except
+        logging.error('Failed to download (and extract) %s', product)
+        path = None
+
     return path
 
 
-def _parallel_download_and_extraction_of_products(dag, raw_directory, products, nb_procs, tile_name):
+def _parallel_download_and_extraction_of_products(
+        dag, raw_directory, products, nb_procs, tile_name):
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
@@ -249,10 +234,10 @@ class S1FileManager:
         assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
-        self.vh_pattern       = "measurement/*vh*-???.tiff"
-        self.vv_pattern       = "measurement/*vv*-???.tiff"
-        self.hh_pattern       = "measurement/*hh*-???.tiff"
-        self.hv_pattern       = "measurement/*hv*-???.tiff"
+        # self.vh_pattern       = "measurement/*vh*-???.tiff"
+        # self.vv_pattern       = "measurement/*vv*-???.tiff"
+        # self.hh_pattern       = "measurement/*hh*-???.tiff"
+        # self.hv_pattern       = "measurement/*hv*-???.tiff"
         self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
@@ -305,19 +290,25 @@ class S1FileManager:
             if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
-    def ensure_tile_workspaces_exist(self, tile_name):
+    def ensure_tile_workspaces_exist(self, tile_name, required_workspaces):
         """
         Makes sure the directories used for :
-        - output data/{tile}
-        - and temporary data/S2/{tile}
+        - output data/{tile},
+        - temporary data/S2/{tile}
+        - and LIA data (if required)
         all exist
         """
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
         os.makedirs(working_directory, exist_ok=True)
 
-        out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
-        os.makedirs(out_dir, exist_ok=True)
-        return working_directory, out_dir
+        if WorkspaceKinds.TILE in required_workspaces:
+            out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
+            os.makedirs(out_dir, exist_ok=True)
+
+        # if self.cfg.calibration_type == 'normlim':
+        if WorkspaceKinds.LIA in required_workspaces:
+            lia_directory = self.cfg.lia_directory
+            os.makedirs(lia_directory, exist_ok=True)
 
     def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
         """
@@ -412,7 +403,7 @@ class S1FileManager:
         #   Sometimes there are several S1 product with the same start
         #   date, but a different end-date.  Let's discard the
         #   smallest products
-        products = discard_small_redundant(products, id=lambda p: p.as_dict()['id'])
+        products = discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
 
         # - already exist in the "cache"
@@ -429,11 +420,12 @@ class S1FileManager:
         #   TODO: We should actually inject the expected filenames into the task graph
         #   generator in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
-        s2images_pat = 's1?_%s_*.tif' % (tile_name, )
+        s2images_pat = f's1?_{tile_name}_*.tif'
         logger.debug('search %s for %s', s2images_pat, polarizations)
         s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
-                if does_final_product_need_to_be_generated_for(p, tile_name, polarizations, s2images)
+                if does_final_product_need_to_be_generated_for(
+                    p, tile_name, polarizations, s2images)
                 ]
 
         # And finally download all!
@@ -498,12 +490,13 @@ class S1FileManager:
 
         self.raw_raster_list = []
         self.product_list    = []
-        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # get rid of `.download` on the-fly
+        content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
-        content = discard_small_redundant(content, id=lambda d: d.name)
+        content = discard_small_redundant(content, ident=lambda d: d.name)
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            logger.debug('current_content: %s', current_content)
             safe_dir = os.path.join(
                     current_content.path,
                     os.path.basename(current_content.path) + '.SAFE')
@@ -585,7 +578,7 @@ class S1FileManager:
         if not match:
             return False
         YYYY, MM, DD = match.groups()
-        start = '%s-%s-%s' % (YYYY, MM, DD)
+        start = f'{YYYY}-{MM}-{DD}'
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
                 path, is_in_range, self.first_date, start, self.last_date)
@@ -605,7 +598,7 @@ class S1FileManager:
         """
         logger.debug('Test intersections of %s', tile_name_field)
         # date_exist = [os.path.basename(f)[21:21+8]
-        #         for f in glob.glob(os.path.join(self.cfg.output_preprocess, tile_name_field, "s1?_*.tif"))]
+        #    for f in glob.glob(os.path.join(self.cfg.output_preprocess, tile_name_field, "s1?_*.tif"))]
         intersect_raster = []
 
         layer = Layer(self.cfg.output_grid)
@@ -632,7 +625,12 @@ class S1FileManager:
             if intersection.GetArea() != 0:
                 area_polygon = tile_footprint.GetGeometryRef(0)
                 points = area_polygon.GetPoints()
-                intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
+                # intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
+                intersect_raster.append( {
+                    'raster': image,
+                    'tile_origin': [(point[0], point[1]) for point in points[:-1]],
+                    'tile_coverage': intersection.GetArea() / tile_footprint.GetArea()
+                    })
 
         return intersect_raster
 

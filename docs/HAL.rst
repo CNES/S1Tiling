@@ -121,13 +121,13 @@ project) environment.
     ml purge
     cd "${TST_DIR}"
     # Install OTB binaries
-    wget https://www.orfeo-toolbox.org/packages/OTB-7.4.0-Linux64.run
-    bash OTB-7.4.0-Linux64.run
+    wget https://www.orfeo-toolbox.org/packages/OTB-7.4.1-Linux64.run
+    bash OTB-7.4.1-Linux64.run
 
     # Patches gdal-config
-    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-7.4.0-Linux64/bin/
+    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-7.4.1-Linux64/bin/
     # Patches LD_LIBRARY_PATH
-    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.4.0-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.4.0-Linux64/otbenv.profile
+    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.4.1-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.4.1-Linux64/otbenv.profile
 
 .. note::
 
@@ -157,11 +157,11 @@ for the chosen version of Python.
     pip install numpy
 
     # - load OTB binaries
-    source OTB-7.4.0-Linux64/otbenv.profile
+    source OTB-7.4.1-Linux64/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.0-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-7.4.1-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -179,7 +179,7 @@ To use it
     ml purge
     ml conda
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
-    source "${TST_DIR}/OTB-7.4.0-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-7.4.1-Linux64/otbenv.profile"
 
     S1Processor requestfile.cfg
 
@@ -208,11 +208,11 @@ for the chosen version of Python.
     pip install numpy
 
     # - load OTB binaries
-    source OTB-7.4.0-Linux64/otbenv.profile
+    source OTB-7.4.1-Linux64/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.0-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-7.4.1-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -228,7 +228,7 @@ To use it
 
     ml purge
     source install_with_otb_binaries/bin/activate
-    source "${TST_DIR}/OTB-7.4.0-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-7.4.1-Linux64/otbenv.profile"
 
     S1Processor requestfile.cfg
 

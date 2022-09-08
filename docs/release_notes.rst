@@ -3,16 +3,33 @@
 Release notes
 =============
 
+Version 1.0.0
+-------------
+
+This version is a major improvement over v 0.3.x versions. A few breaking
+changes have been made in parameters, internal API...
+
+v1.0.0 Improvements
++++++++++++++++++++
+
+- This new version can automatically :ref:`produce Local Incidence Angle Maps
+  <scenario.S1LIAMap>` over requested S2 tiles thanks to :program:`S1LIAMap`,
+  or :ref:`generate S2 products <scenario.S1ProcessorLIA>` calibrated with
+  :math:`σ^0_{RTC}` NORMLIM calibration described in [Small2011]_.
+  (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_).
+  See
+
+
 Version 0.3.2
 -------------
 
-Improvements for version 0.3
+Improvements over version 0.3
 
-v0.3.2 Improvements 
+v0.3.2 Improvements
 +++++++++++++++++++
 
 - Avoid downloading of already processed S1 images
-    (`#107 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/107>`_).
+  (`#107 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/107>`_).
 
 Version 0.3.1
 -------------
@@ -26,14 +43,14 @@ v0.3.1 Bug fixed
   S2 tile at a requested time
   (`#104 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/104>`_).
 
-Version 0.3
------------
+Version 0.3.0
+-------------
 
 This version is a minor release with critical but non trivial fixes before
 version 1.0.0
 
-v0.3 Improvements
-+++++++++++++++++
+v0.3.0 Improvements
++++++++++++++++++++
 
 - Don't remove timestamp from final products when no concatenation is done
   (`#69 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/69>`_).
@@ -48,8 +65,8 @@ v0.3 Improvements
 - Permit also to filter polarisation only on ``VV``, ``VH``, ``HV``, or ``HH``
   (`#92 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/92>`_).
 
-v0.3 Optimizations
-++++++++++++++++++
+v0.3.0 Optimizations
+++++++++++++++++++++
 
 - Downloading and unzipping of Sentinel-1 products is done in parallel
   (`!31 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/31>`_)

@@ -78,7 +78,7 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
 
 .. code-block:: bash
 
-    cd OTB-7.4.0-Linux64
+    cd OTB-7.4.1-Linux64
     source otbenv.profile
     # Load module on HAL
     module load gcc
@@ -186,7 +186,7 @@ provided as Ubuntu 18.04 dockers.
 You can browse the full list of available dockers in `S1Tiling registry
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
 Their naming scheme is
-:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.0`,
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.1`,
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
@@ -195,7 +195,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.0
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
 
 or even directly used with
 
@@ -206,7 +206,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.0 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
         /data/MyS1ToS2.cfg
 
 .. note::
