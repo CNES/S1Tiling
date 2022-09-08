@@ -18,7 +18,7 @@ from .mock_data import FileDB
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
 
-from s1tiling.libs.otbpipeline import _fetch_input_data
+from s1tiling.libs.otbpipeline import _fetch_input_data, out_filename
 
 
 # ======================================================================
@@ -185,9 +185,17 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     mocker.patch('os.makedirs',      lambda dir, **kw  : makedirs(dir, known_dirs))
     mocker.patch('os.path.getctime', lambda file : 0)
     # TODO: Test written meta data as well
-    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
-    mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
-    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                   lambda tmp, out : True)
+    # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
+    # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
+    def mock_write_image_metadata(slf):
+        img_meta = slf.meta.get('image_metadata', {})
+        fullpath = out_filename(slf.meta)
+        logging.debug('Set metadata in %s', fullpath)
+        for (kw, val) in img_meta.items():
+            assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
+            logging.debug(' - %s -> %s', kw, val)
+    mocker.patch('s1tiling.libs.otbpipeline.AbstractStep._write_image_metadata',  mock_write_image_metadata)
+    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                     lambda tmp, out : True)
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
