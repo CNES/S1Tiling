@@ -275,7 +275,7 @@ def given_pipeline_concat(pipelines, pipeline_ids, calibration):
     pipeline_ids['last'] = pipeline
 
 @given(parsers.parse('that {builds} masks'))
-def given_pipeline_concat(pipelines, builds, pipeline_ids):
+def given_pipeline_mask(pipelines, builds, pipeline_ids):
     if builds == 'builds':
         # logging.info('REGISTER MASKS')
         pipeline = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
@@ -420,7 +420,7 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 # Then steps
 
 @then(parsers.parse('a txxxxxx S2 file is expected but not required'))
-def then_require_txxxxxx_and_mask(dependencies):
+def then_expect_txxxxxx(dependencies):
     expected_tn = [concattask('vv')]
 
     required, previous, task2outfile_map = dependencies

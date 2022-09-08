@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -76,10 +76,10 @@ setup(
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 
-    python_requires='>=3.6, <4',
+    python_requires='>=3.8, <4',
     install_requires=[
         "click",
-        "dask[distributed]",
+        "dask[distributed]>=2022.8.1",
         "eodag",
         "gdal=="+request_gdal_version(),
         "graphviz",
@@ -101,7 +101,8 @@ setup(
             "wheel",
             "flake8",
             "pre-commit",
-            "pytest-bdd",
+            "pytest-bdd < 6",  # Using "example table" feature, removed from v6
+            #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",
@@ -131,6 +132,9 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering :: GIS",
         ],
 

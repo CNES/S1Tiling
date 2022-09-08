@@ -63,6 +63,8 @@ Eventually,
    have to watch this directory and eventually clean it.
 
 
+.. _scenario.S1ProcessorLIA:
+
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -206,7 +208,7 @@ You can use this :download:`this template
 
       .. _paths.s1_images:
   * - ``s1_images``
-    - Where S1 images are downloaded thanks to `eodag
+    - Where S1 images are downloaded thanks to `EODAG
       <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
@@ -258,16 +260,16 @@ You can use this :download:`this template
 
       .. _DataSource.eodag_config:
   * - ``eodag_config``
-    - Designates where the eodag configuration file is expected to be found.
+    - Designates where the EODAG configuration file is expected to be found.
       |br|
       Default value: :file:`%(HOME)s/.config/eodag/eodag.yml`.
 
-      From S1Tiling point of view, eodag configuration file will list the
+      From S1Tiling point of view, EODAG configuration file will list the
       authentification credentials for the know providers and their respective
       priorities.
       |br|
-      See `eodag § on How to configure authentication for available providers
-      <https://eodag.readthedocs.io/en/latest/intro.html#how-to-configure-authentication-for-available-providers>`_
+      See `EODAG § on Configure EODAG
+      <https://eodag.readthedocs.io/en/latest/getting_started_guide/configure.html>`_
 
       For instance, given a PEPS account, :file:`$HOME/.config/eodag/eodag.yml` could
       contain

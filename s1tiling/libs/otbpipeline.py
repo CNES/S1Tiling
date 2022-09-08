@@ -664,7 +664,15 @@ class StepFactory(ABC):
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
-        meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
+        def check_product(meta):
+            filename        = out_filename(meta)
+            exist_file_name = os.path.isfile(filename)
+            logger.debug('Checking %s product: %s => %s',
+                    self.__class__.__name__,
+                    filename, '∃' if exist_file_name else '∅')
+            return exist_file_name
+        meta['does_product_exist'] = lambda : check_product(meta)
+        # meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
         meta.pop('task_name',           None)
         meta.pop('task_basename',       None)
         meta.pop('update_out_filename', None)
@@ -1428,7 +1436,7 @@ class PipelineDescriptionSequence:
         for name, meta in required.items():
             logger.debug("check task_name: %s", name)
             if product_exists(meta):
-                logger.debug("Ignoring %s as the product already exist", name)
+                logger.debug("Ignoring %s as the product already exists", name)
                 previous[name] = False  # for the next log
             else:
                 required_task_names.add(name)

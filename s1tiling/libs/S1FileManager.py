@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2021 (c) CNES. All rights reserved.
+#   Copyright 2017-2022 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -109,9 +109,10 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
     sat, start = prod_re.match(product.as_dict()['id']).groups()
     for pol in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        pat = f'{sat.lower()}_{tile_name}_{pol}_*_{start}txxxxxx.tif'
-        found = fnmatch.filter(s2images, pat)
-        logger.debug('searching w/ %s ==> Found: %s', pat, found)
+        pat          = f'{sat.lower()}_{tile_name}_{pol}_*_{start}t??????.tif'
+        pat_filtered = f'{sat.lower()}_{tile_name}_vh_*_{start}t??????_filtered.tif'
+        found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
+        logger.debug('searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
         if not found:
             return True
     return False
@@ -421,7 +422,7 @@ class S1FileManager:
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
         logger.debug('search %s for %s', s2images_pat, polarizations)
-        s2images = glob.glob1(tile_out_dir, s2images_pat)
+        s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
                     p, tile_name, polarizations, s2images)
