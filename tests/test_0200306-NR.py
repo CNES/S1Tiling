@@ -165,7 +165,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 # Mocked versions
 # ======================================================================
 
-def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
+def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, application_mocker):
     # logging.debug('_declare_know_files(%s)', patterns)
     all_files = file_db.all_files()
     # logging.debug('- all_files: %s', all_files)
@@ -190,12 +190,14 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db):
     def mock_write_image_metadata(slf):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
+        application_mocker.assert_these_metadata_are_expected(fullpath, img_meta)
+
         logging.debug('Set metadata in %s', fullpath)
         for (kw, val) in img_meta.items():
             assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.otbpipeline.AbstractStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                     lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                    lambda tmp, out : True)
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
@@ -254,7 +256,17 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'lut'        : raw_calibration,
             'removenoise': False,
             'out'        : 'ResetMargin|>OrthoRectification|>'+orthofile,
-            }, None)
+            }, None,
+            {
+                'ACQUISITION_DATETIME': file_db.start_time(i),
+                'CALIBRATION'         : raw_calibration,
+                'FLYING_UNIT_CODE'    : 's1a',
+                'IMAGE_TYPE'          : 'GRD',
+                'INPUT_S1_IMAGES'     : file_db.product_name(i),
+                'ORBIT'               : '007',
+                'ORBIT_DIRECTION'     : 'DES',
+                'POLARIZATION'        : 'vv',
+                })
 
         application_mocker.set_expectations('ResetMargin', {
             'in'               : input_file+'|>SARCalibration',
@@ -264,7 +276,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'threshold.y.end'  : 0,
             'mode'             : 'threshold',
             'out'              : 'OrthoRectification|>'+orthofile,
-            }, None)
+            }, None, None)
 
         application_mocker.set_expectations('OrthoRectification', {
             'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
@@ -283,7 +295,13 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : orthofile,
-            }, None)
+            }, None,
+            {
+                'ORTHORECTIFIED'            : 'true',
+                'S2_TILE_CORRESPONDING_CODE': '33NWB',
+                'SPATIAL_RESOLUTION'        : '10.0',
+                'TIFFTAG_IMAGEDESCRIPTION'  : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
+                })
 
     for i in range(N//2):
         orthofile1 = file_db.orthofile(2*i,   False, calibration='_'+raw_calibration)
@@ -292,7 +310,14 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N=2):
             'ram'      : '2048',
             'il'       : [orthofile1, orthofile2],
             'out'      : file_db.concatfile_from_two(i, True, calibration='_'+raw_calibration),
-            }, None)
+            }, None,
+            {
+                'ACQUISITION_DATETIME'  : file_db.start_time_for_two(i),
+                'ACQUISITION_DATETIME_1': file_db.start_time(2*i),
+                'ACQUISITION_DATETIME_2': file_db.start_time(2*i+1),
+                'INPUT_S1_IMAGES'       : '%s, %s' % (file_db.product_name(2*i), file_db.product_name(2*i+1)),
+                'TIFFTAG_IMAGEDESCRIPTION'  : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
+                })
 
 
 def mock_masking(application_mocker, file_db, calibration, N=2):
@@ -311,7 +336,10 @@ def mock_masking(application_mocker, file_db, calibration, N=2):
             'il'       : [infile(i, False)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+out_mask,
-            }, {'out': otb.ImagePixelType_uint8})
+            }, {'out': otb.ImagePixelType_uint8},
+            {
+                'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD border mask S2 tile',
+                })
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [infile(i, False)+'|>BandMath'],
             'ram'      : '2048',
@@ -320,7 +348,10 @@ def mock_masking(application_mocker, file_db, calibration, N=2):
             'yradius'  : 5,
             'filter'   : 'opening',
             'out'      : out_mask,
-            }, {'out': otb.ImagePixelType_uint8})
+            }, {'out': otb.ImagePixelType_uint8},
+            {
+                'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
+                })
 
 
 def mock_LIA(application_mocker, file_db):
@@ -332,7 +363,7 @@ def mock_LIA(application_mocker, file_db):
         exp_out_dem       = file_db.sardemprojfile(idx, False)
         exp_in_srtm_files = [f"{srtmdir}/{srtm}.hgt" for srtm in exp_srtm_names]
 
-        application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_srtm_files, None)
+        application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_srtm_files, None, None)
 
         application_mocker.set_expectations('SARDEMProjection', {
             'ram'        : '2048',
@@ -341,7 +372,18 @@ def mock_LIA(application_mocker, file_db):
             'withxyz'    : True,
             'nodata'     : -32768,
             'out'        : file_db.sardemprojfile(idx, True),
-            }, None)
+            }, None,
+            {
+                'ACQUISITION_DATETIME'     : file_db.start_time(idx),
+                'DEM_LIST'                 : ', '.join(exp_srtm_names),
+                'FLYING_UNIT_CODE'         : 's1a',
+                'IMAGE_TYPE'               : 'GRD',
+                'INPUT_S1_IMAGES'          : file_db.product_name(idx),
+                'ORBIT'                    : '007',
+                'ORBIT_DIRECTION'          : 'DES',
+                'POLARIZATION'             : '',  # <=> removing the key
+                'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
+                })
 
         application_mocker.set_expectations('SARCartesianMeanEstimation2', {
             'ram'             : '2048',
@@ -353,14 +395,23 @@ def mock_LIA(application_mocker, file_db):
             'mlran'           : 1,
             'mlazi'           : 1,
             'out'             : file_db.xyzfile(idx, True),
-            }, None)
+            }, None,
+            {
+                'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
+                'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
+                'PRJ.GAIN'                 : '',  # <=> removing the key
+                'TIFFTAG_IMAGEDESCRIPTION' : 'Cartesian XYZ coordinates estimation',
+                })
 
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : '2048',
             'xyz'             : file_db.xyzfile(idx, False),
             'nodata'          : -32768,
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
-            }, None)
+            }, None,
+            {
+                'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-1A IW GRD',
+                })
 
         application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
             'ram'             : '2048',
@@ -369,7 +420,12 @@ def mock_LIA(application_mocker, file_db):
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
             'nodata'          : -32768,
-            }, None)
+            }, None,
+            {
+                # TODO: 2 files to test!!!
+                # 'DATA_TYPE'                : 'sin(LIA)',
+                'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
+                })
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : '2048',
@@ -388,7 +444,14 @@ def mock_LIA(application_mocker, file_db):
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.orthoLIAfile(idx, True),
-            }, {'io.out': otb.ImagePixelType_int16})
+            }, {'io.out': otb.ImagePixelType_int16},
+            {
+                'DATA_TYPE'                 : '100 * degree(LIA)',
+                'ORTHORECTIFIED'            : 'true',
+                'S2_TILE_CORRESPONDING_CODE': '33NWB',
+                'SPATIAL_RESOLUTION'        : '10.0',
+                'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified LIA Sentinel-1A IW GRD',
+                })
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : '2048',
@@ -407,7 +470,14 @@ def mock_LIA(application_mocker, file_db):
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.orthosinLIAfile(idx, True),
-            }, None)
+            }, None,
+            {
+                'DATA_TYPE'                 : 'SIN(LIA)',
+                'ORTHORECTIFIED'            : 'true',
+                'S2_TILE_CORRESPONDING_CODE': '33NWB',
+                'SPATIAL_RESOLUTION'        : '10.0',
+                'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
+                })
 
     # endfor on 2 consecutive images
 
@@ -415,13 +485,27 @@ def mock_LIA(application_mocker, file_db):
         'ram'      : '2048',
         'il'       : [file_db.orthoLIAfile(0, False), file_db.orthoLIAfile(1, False)],
         'out'      : file_db.concatLIAfile_from_two(0, True),
-        }, {'out': otb.ImagePixelType_int16})
+        }, {'out': otb.ImagePixelType_int16},
+        {
+            'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
+            'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
+            'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified LIA Sentinel-1A IW GRD',
+            })
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : '2048',
         'il'       : [file_db.orthosinLIAfile(0, False), file_db.orthosinLIAfile(1, False)],
         'out'      : file_db.concatsinLIAfile_from_two(0, True),
-        }, None)
+        }, None,
+        {
+            'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
+            'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
+            'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
+            })
 
 
 def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
@@ -448,7 +532,7 @@ def test_33NWB_202001_NR_core_mocked(baselinedir, outputdir, liadir, tmpdir, srt
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
     mock_upto_concat_S2(application_mocker, file_db, 'sigma')
@@ -486,7 +570,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
@@ -525,7 +609,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
@@ -538,7 +622,12 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
         'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
-        }, None)
+        }, None,
+        {
+            'CALIBRATION'              : 'Normlim',
+            'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
+            })
 
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
@@ -578,7 +667,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db)
+    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     for i in range(number_dates):
         assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
 
@@ -592,7 +681,12 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
             'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
-            }, None)
+            }, None,
+        {
+            'CALIBRATION'              : 'Normlim',
+            'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
+            })
 
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,

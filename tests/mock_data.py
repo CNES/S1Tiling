@@ -29,6 +29,7 @@ class FileDB:
     FILES = [
             # 08 jan 2020
             {
+                'start_time'          : '2020:01:08 04:41:50',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
                 's1_basename'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
                 's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044150',
@@ -40,6 +41,7 @@ class FileDB:
                 'relative_orbit'      : 7,
                 },
             {
+                'start_time'          : '2020:01:08 04:42:15',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 's1_basename'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
                 's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044215',
@@ -52,6 +54,7 @@ class FileDB:
                 },
             # 20 jan 2020
             {
+                'start_time'          : '2020:01:20 04:41:49',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
                 's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
                 's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
@@ -63,6 +66,7 @@ class FileDB:
                 'relative_orbit'      : 7,
                 },
             {
+                'start_time'          : '2020:01:20 04:42:14',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
                 's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
                 's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
@@ -75,6 +79,7 @@ class FileDB:
                 },
             # 02 feb 2020
             {
+                'start_time'          : '2020:02:01 04:41:49',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
                 's1_basename'         : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
                 's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
@@ -86,6 +91,7 @@ class FileDB:
                 'relative_orbit'      : 7,
                 },
             {
+                'start_time'          : '2020:02:01 04:42:14',
                 's1dir'               : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
                 's1_basename'         : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
                 's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
@@ -102,6 +108,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
+                'start_time'  : '2020:01:08 00:00:00',
                 'first_date'  : '2020-01-01',
                 'last_date'   : '2020-01-10',
                 },
@@ -109,6 +116,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
+                'start_time'  : '2020:01:20 00:00:00',
                 'first_date'  : '2020-01-10',
                 'last_date'   : '2020-01-21',
                 },
@@ -116,6 +124,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
+                'start_time'  : '2020:02:01 00:00:00',
                 'first_date'  : '2020-02-01',
                 'last_date'   : '2020-02-05',
                 },
@@ -219,6 +228,16 @@ class FileDB:
 
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]
+
+    def start_time(self, idx):
+        return self.FILES[idx]['start_time']
+
+    def start_time_for_two(self, idx):
+        return self.CONCATS[idx]['start_time']
+
+    def product_name(self, idx):
+        s1dir  = self.FILES[idx]['s1dir']
+        return s1dir
 
     def safe_dir(self, idx):
         s1dir  = self.FILES[idx]['s1dir']
