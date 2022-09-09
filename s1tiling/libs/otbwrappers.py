@@ -129,17 +129,20 @@ class ExtractSentinel1Metadata(StepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['IMAGE_TYPE']       = 'GRD'
-        imd['FLYING_UNIT_CODE'] = meta['flying_unit_code']
-        imd['ORBIT']            = meta['orbit']
-        imd['ORBIT_DIRECTION']  = meta['orbit_direction']
-        imd['POLARIZATION']     = meta['polarisation']
-        imd['TIFFTAG_SOFTWARE'] = 'S1 Tiling v'+__version__
-        imd['INPUT_S1_IMAGES']  = manifest_to_product_name(meta['manifest'])
+        imd['IMAGE_TYPE']            = 'GRD'
+        imd['FLYING_UNIT_CODE']      = meta['flying_unit_code']
+        imd['ORBIT']                 = meta['orbit']
+        imd['ORBIT_DIRECTION']       = meta['orbit_direction']
+        imd['POLARIZATION']          = meta['polarisation']
+        imd['TIFFTAG_SOFTWARE']      = 'S1 Tiling v'+__version__
+        imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
+        # Only one input image at this point, we don't introduce any
+        # ACQUISITION_DATETIMES or ACQUISITION_DATETIME_1...
 
         acquisition_time = meta['acquisition_time']
         date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
         if acquisition_time[9] == 'x':
+            # This case should not happen, here
             date += ' 00:00:00'
         else:
             date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
@@ -590,7 +593,15 @@ class _ConcatenatorFactory(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         inp = self._get_canonical_input(all_inputs)
-        imd['INPUT_S1_IMAGES'] = ', '.join([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
+        if len(inp.input_metas) >= 2:
+            product_names = [manifest_to_product_name(m['manifest']) for m in inp.input_metas]
+            imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
+            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} 00:00:00'.format_map(Utils.extract_product_start_time(product_names[0]))
+            for idx, pn in enumerate(product_names, start=1):
+                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(pn))
+        else:
+            imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
+
 
     def parameters(self, meta):
         """
@@ -914,7 +925,7 @@ class SARDEMProjection(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description="SARDEM projection of {inbasename} onto MNT list",
+                image_description="SARDEM projection onto DEM list",
                 )
         self.__srtm_db_filepath = cfg.srtm_db_filepath
 
@@ -959,7 +970,7 @@ class SARDEMProjection(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['MNT_LIST']     = ', '.join(meta['srtms'])
+        imd['DEM_LIST']     = ', '.join(meta['srtms'])
 
     def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
         """
@@ -1042,7 +1053,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Cartesian XYZ coordinates estimation on {inbasename}',
+                image_description='Cartesian XYZ coordinates estimation',
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1254,7 +1265,7 @@ class ComputeLIA(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
-                image_description='LIA angles on Sentinel-{flying_unit_code_short} IW GRD',
+                image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1421,16 +1432,20 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         assert isinstance(inp, str), f"A single string inp was expected, got {inp}"
         return inp   # meta['in_filename']
 
-    def _add_extra_meta_data(self, dst, meta):
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set LIA kind related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
         types = {
-                'sin_LIA': 'GRD-SIN-LIA',
-                'LIA': 'GRD-LIA'
+                'sin_LIA': 'SIN(LIA)',
+                'LIA': '100 * degree(LIA)'
                 }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']
         assert kind in types, f'The only LIA kind accepted are {types.keys()}'
-        dst.SetMetadataItem('IMAGE_TYPE', types[kind])
-        return dst
+        imd = meta['image_metadata']
+        imd['DATA_TYPE'] = types[kind]
 
     def set_output_pixel_type(self, app, meta):
 
@@ -1605,7 +1620,7 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Sigma° Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
+                image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def complete_meta(self, meta, all_inputs):
@@ -1615,7 +1630,8 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        meta['inputs'] = all_inputs
+        meta['inputs']           = all_inputs
+        meta['calibration_type'] = 'Normlim'  # Update meta from now on
         return meta
 
     def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
@@ -1623,9 +1639,12 @@ class ApplyLIACalibration(OTBStepFactory):
         Set σ° normlim calibration related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
+        inputs = meta['inputs']
+        in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['CALIBRATION'] = meta['calibration_type']
+        imd['LIA_FILE']    = os.path.basename(in_sin_LIA)
 
     def _get_canonical_input(self, inputs):
         """

@@ -267,6 +267,22 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
     return tuple_out
 
 
+def extract_product_start_time(product):
+    """
+    Extracts product start time.
+
+    Returns: dictionary of keys {'YYYY', 'MM', 'DD', 'hh', 'mm', 'ss'}
+             or None if the product name cannot be decoded.
+    """
+    prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*')
+    path = os.path.basename(product)
+    match = prod_re.match(path)
+    if not match:
+        return None
+    YYYY, MM, DD, hh, mm, ss = match.groups()
+    return {'YYYY': YYYY, 'MM': MM, 'DD': DD, 'hh': hh, 'mm': mm, 'ss': ss}
+
+
 def get_date_from_s1_raster(path_to_raster):
     """
     Small utilty function that parses a s1 raster file name to extract date.
