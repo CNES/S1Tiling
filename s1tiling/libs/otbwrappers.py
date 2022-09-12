@@ -1490,6 +1490,14 @@ class ConcatenateLIA(_ConcatenatorFactory):
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
 
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Update concatenated LIA related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        imd = meta['image_metadata']
+        imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
+
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
         Unlike usual :class:`Concatenate`, the output filename will always ends

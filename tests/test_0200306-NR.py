@@ -558,6 +558,7 @@ def mock_LIA(application_mocker, file_db):
             'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
             'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
             'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified LIA Sentinel-1A IW GRD',
             })
@@ -571,6 +572,7 @@ def mock_LIA(application_mocker, file_db):
             'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
             'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
             'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
             })
