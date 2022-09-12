@@ -356,8 +356,9 @@ class OTBApplicationsMockContext:
         # assert new_metadata == self.__last_expected_metadata
         tc = TestCase()
         tc.maxDiff = None
-        tc.assertDictEqual(new_metadata , self.__last_expected_metadata)
-        self.__last_expected_metadata = {}
+        last_expected_metadata = self.__last_expected_metadata
+        self.__last_expected_metadata = {} # Make sure to clear before the assert
+        tc.assertDictEqual(new_metadata , last_expected_metadata)
         pass
 
     def assert_app_is_expected(self, appname, params, pixel_types):
