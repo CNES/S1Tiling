@@ -94,16 +94,39 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, srt
     logging.info("Full test")
     EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram)
     assert EX == 0
-    for im in images:
-        expected = baseline_path / im
-        produced = outputdir / im
-        assert os.path.isfile(produced)
-        assert otb_compare(expected, produced) == 0, \
-                ("Comparison of %s against %s failed" % (produced, expected))
-        assert comparable_metadata(expected) == comparable_metadata(produced)
-    # The following line permits to test otb_compare correctly detect differences when
-    # called from pytest.
-    # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
+    descr_ortho = 'sigma calibrated orthorectified Sentinel-1A IW GRD'
+    descr_mask  = 'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile'
+    for kind, descr in zip(['', '_BorderMask'], [descr_ortho, descr_mask]):
+        for polar in ['vh', 'vv']:
+            im = f'33NWB/s1a_33NWB_{polar}_DES_007_20200108txxxxxx{kind}.tif'
+            expected = baseline_path / im
+            produced = outputdir / im
+            assert os.path.isfile(produced)
+            assert otb_compare(expected, produced) == 0, \
+                    ("Comparison of %s against %s failed" % (produced, expected))
+            # expected_md = comparable_metadata(expected)
+            expected_md = {
+                    'ACQUISITION_DATETIME'       : '2020:01:08 00:00:00',
+                    'ACQUISITION_DATETIME_1'     : '2020:01:08 04:41:50',
+                    'ACQUISITION_DATETIME_2'     : '2020:01:08 04:42:15',
+                    'AREA_OR_POINT'              : 'Area',
+                    'CALIBRATION'                : 'sigma',
+                    'FLYING_UNIT_CODE'           : 's1a',
+                    'IMAGE_TYPE'                 : 'GRD',
+                    'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                    'ORBIT'                      : '007',
+                    'ORBIT_DIRECTION'            : 'DES',
+                    'ORTHORECTIFIED'             : 'true',
+                    'POLARIZATION'               : polar,
+                    'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+                    'SPATIAL_RESOLUTION'         : '10.0',
+                    'TIFFTAG_IMAGEDESCRIPTION'   : descr,
+                    'TIFFTAG_SOFTWARE'           : 'S1 Tiling',
+                    }
+            assert expected_md == comparable_metadata(produced)
+        # The following line permits to test otb_compare correctly detect differences when
+        # called from pytest.
+        # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
 def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram):
@@ -152,13 +175,34 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
     dirs_to_clean = [tmpdir/'S1', tmpdir/'S2'] # do not clear outputdir in that case
     EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram, dirs_to_clean)
     assert EX == 0
-    for im in images:
+    for im, polar in zip(images, ['vh', 'vv']):
         expected = baseline_path / im
         produced = outputdir / im
         assert os.path.isfile(produced)
         assert otb_compare(expected, produced) == 0, \
                 ("Comparison of %s against %s failed" % (produced, expected))
-        assert comparable_metadata(expected) == comparable_metadata(produced)
+        # expected_md = comparable_metadata(expected)
+        expected_md = {
+                # 'ACQUISITION_DATETIME'       : '2020:01:08 00:00:00',
+                'ACQUISITION_DATETIME'       : '2020:01:08 04:41:50',  # Start point has it
+                # For now, the start points don't have this...
+                # 'ACQUISITION_DATETIME_1'     : '2020:01:08 04:41:50',
+                # 'ACQUISITION_DATETIME_2'     : '2020:01:08 04:42:15',
+                'AREA_OR_POINT'              : 'Area',
+                'CALIBRATION'                : 'sigma',
+                'FLYING_UNIT_CODE'           : 's1a',
+                'IMAGE_TYPE'                 : 'GRD',
+                # 'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                'ORBIT'                      : '007',
+                'ORBIT_DIRECTION'            : 'DES',
+                'ORTHORECTIFIED'             : 'true',
+                'POLARIZATION'               : polar,
+                'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+                'SPATIAL_RESOLUTION'         : '10.0',
+                'TIFFTAG_IMAGEDESCRIPTION'   : 'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
+                'TIFFTAG_SOFTWARE'           : 'S1 Tiling',
+                }
+        assert expected_md == comparable_metadata(produced)
 
 
 # ======================================================================
