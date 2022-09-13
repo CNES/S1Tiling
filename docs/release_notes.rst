@@ -17,7 +17,11 @@ v1.0.0 Improvements
   or :ref:`generate S2 products <scenario.S1ProcessorLIA>` calibrated with
   :math:`σ^0_{RTC}` NORMLIM calibration described in [Small2011]_.
   (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_).
-  See
+
+- Correctly update image metadata, and fill in particular the list of
+  Sentinel-1 :samp:`INPUT_FILES` used to produce tiles, as well as the full
+  list of :samp:`ACQUISITION_DATETIME_{{id}}`
+  (`#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/25>`_).
 
 
 Version 0.3.2
