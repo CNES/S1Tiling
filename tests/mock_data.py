@@ -29,72 +29,78 @@ class FileDB:
     FILES = [
             # 08 jan 2020
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1_basename'         : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
-                's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044150',
-                's1_polarless'        : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200108t044150',
-                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'             : [(1.137156, 14.233953), (0.660935, 16.461103), (2.173307, 16.77552), (2.645077, 14.545785), (1.137156, 14.233953)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:01:08 04:41:50',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+                's1_basename'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
+                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044150',
+                's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
+                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'polygon'         : [(1.137156, 14.233953), (0.660935, 16.461103), (2.173307, 16.77552), (2.645077, 14.545785), (1.137156, 14.233953)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1_basename'         : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
-                's2_basename'         : 's1a_33NWB_vv_DES_007_20200108t044215',
-                's1_polarless'        : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200108t044215',
-                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'             : [(-0.370174, 13.917268), (-0.851051, 16.143845), (0.660845, 16.461084), (1.137179, 14.233407), (-0.370174, 13.917268)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:01:08 04:42:15',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                's1_basename'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
+                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044215',
+                's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
+                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                'polygon'         : [(-0.370174, 13.917268), (-0.851051, 16.143845), (0.660845, 16.461084), (1.137179, 14.233407), (-0.370174, 13.917268)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             # 20 jan 2020
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
-                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
-                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
-                's1_polarless'        : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200120t044149',
-                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'             : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:01:20 04:41:49',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
+                's1_polarless'    : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200120t044149',
+                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'polygon'         : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
-                's1_basename'         : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
-                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
-                's1_polarless'        : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200120t044214',
-                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'             : [(-0.370036, 13.917237), (-0.850946, 16.143806), (0.660948, 16.461067), (1.137315, 14.233396), (-0.370036, 13.917237)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:01:20 04:42:14',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
+                's1_polarless'    : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200120t044214',
+                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                'polygon'         : [(-0.370036, 13.917237), (-0.850946, 16.143806), (0.660948, 16.461067), (1.137315, 14.233396), (-0.370036, 13.917237)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             # 02 feb 2020
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
-                's1_basename'         : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
-                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
-                's1_polarless'        : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149-{nr}',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200201t044149',
-                'dem_coverage'        : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'             : [(1.137385, 14.233961), (0.661111, 16.461193), (2.173392, 16.775606), (2.645215, 14.54579), (1.137385, 14.233961)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:02:01 04:41:49',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
+                's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149-{nr}',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200201t044149',
+                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+                'polygon'         : [(1.137385, 14.233961), (0.661111, 16.461193), (2.173392, 16.775606), (2.645215, 14.54579), (1.137385, 14.233961)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             {
-                's1dir'               : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
-                's1_basename'         : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
-                's2_basename'         : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
-                's1_polarless'        : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149-{nr}',
-                's2_polarless'        : 's1a_33NWB_DES_007_20200201t044214',
-                'dem_coverage'        : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'             : [(-0.370053, 13.91733), (-0.850965, 16.1439), (0.661021, 16.461174), (1.137389, 14.233503), (-0.370053, 13.91733)],
-                'orbit_direction'     : 'DES',
-                'relative_orbit'      : 7,
+                'start_time'      : '2020:02:01 04:42:14',
+                's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
+                's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149-{nr}',
+                's2_polarless'    : 's1a_33NWB_DES_007_20200201t044214',
+                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+                'polygon'         : [(-0.370053, 13.91733), (-0.850965, 16.1439), (0.661021, 16.461174), (1.137389, 14.233503), (-0.370053, 13.91733)],
+                'orbit_direction' : 'DES',
+                'relative_orbit'  : 7,
                 },
             ]
     CONCATS = [
@@ -102,6 +108,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
+                'start_time'  : '2020:01:08 04:41:50',
                 'first_date'  : '2020-01-01',
                 'last_date'   : '2020-01-10',
                 },
@@ -109,6 +116,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
+                'start_time'  : '2020:01:20 04:41:49',
                 'first_date'  : '2020-01-10',
                 'last_date'   : '2020-01-21',
                 },
@@ -116,6 +124,7 @@ class FileDB:
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
                 's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
+                'start_time'  : '2020:02:01 04:41:49',
                 'first_date'  : '2020-02-01',
                 'last_date'   : '2020-02-05',
                 },
@@ -219,6 +228,16 @@ class FileDB:
 
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]
+
+    def start_time(self, idx):
+        return self.FILES[idx]['start_time']
+
+    def start_time_for_two(self, idx):
+        return self.CONCATS[idx]['start_time']
+
+    def product_name(self, idx):
+        s1dir  = self.FILES[idx]['s1dir']
+        return s1dir
 
     def safe_dir(self, idx):
         s1dir  = self.FILES[idx]['s1dir']

@@ -6,6 +6,7 @@ import logging
 import os
 import re
 from s1tiling.libs.Utils import get_shape_from_polygon
+from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
@@ -122,6 +123,7 @@ class MockOTBApplication:
         self.__appname      = appname
         self.__params       = {}
         self.__pixel_types  = {}
+        self.__metadata     = {}
         self.__expectations = {}
         self.__mock_ctx     = mock_ctx
 
@@ -258,11 +260,12 @@ class OTBApplicationsMockContext:
         """
         constructor
         """
-        self.__applications   = []
-        self.__expectations   = []
-        self.__configuration  = cfg
-        self.__known_files    = []
-        self.__tmp_to_out_map = tmp_to_out_map
+        self.__applications           = []
+        self.__expectations           = []
+        self.__configuration          = cfg
+        self.__known_files            = []
+        self.__tmp_to_out_map         = tmp_to_out_map
+        self.__last_expected_metadata = {}
 
         self.__known_files.append(cfg.srtm_db_filepath)
         mocker.patch('s1tiling.libs.otbpipeline.otb.Registry.CreateApplication', lambda a : self.create_application(a))
@@ -299,10 +302,12 @@ class OTBApplicationsMockContext:
     def clear(self):
         self.__applications = []
 
-    def set_expectations(self, appname, cmdline, pixel_types):
+    def set_expectations(self, appname, cmdline, pixel_types, metadata):
         expectation = {'cmdline': CommandLine(appname, cmdline), 'appname': appname}
         if pixel_types:
             expectation['pixel_types'] = pixel_types
+        if metadata:
+            expectation['metadata'] = metadata
         self.__expectations.append(expectation)
 
     def _remaining_expectations_as_str(self, appname = None):
@@ -344,6 +349,18 @@ class OTBApplicationsMockContext:
                 assert isinstance(params[kv], list) # of str...
             return params[kv]
 
+    def assert_these_metadata_are_expected(self, filename, new_metadata):
+        # Clean some useless/instable metadata
+        new_metadata.pop('TIFFTAG_SOFTWARE', None)
+        new_metadata.pop('TIFFTAG_DATETIME', None)
+        # assert new_metadata == self.__last_expected_metadata
+        tc = TestCase()
+        tc.maxDiff = None
+        last_expected_metadata = self.__last_expected_metadata
+        self.__last_expected_metadata = {} # Make sure to clear before the assert
+        tc.assertDictEqual(new_metadata , last_expected_metadata)
+        pass
+
     def assert_app_is_expected(self, appname, params, pixel_types):
         # Find out what the root input filename is (as we may not have any
         # input filename when dealing with in-memory processing
@@ -365,6 +382,8 @@ class OTBApplicationsMockContext:
                 assert pixel_types == exp_pixel_type, f'Pixel type set to "{pixel_types}" for {appname}. "{exp_pixel_type}" was expected.'
                 logging.debug('Expectation found for %s', params)
                 logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
+                if exp.get('metadata', None):
+                    self.__last_expected_metadata.update(exp['metadata'])
                 self.__expectations.remove(exp)
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
@@ -382,6 +401,8 @@ class OTBApplicationsMockContext:
             if cmdlinelist == exp['cmdline']:
                 logging.debug('Expectation found for %s', _as_cmdline_call(cmdlinelist))
                 logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
+                if exp.get('metadata', None):
+                    self.__last_expected_metadata.update(exp['metadata'])
                 self.__expectations.remove(exp)
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"

@@ -35,7 +35,7 @@ import logging
 import os
 import shutil
 import re
-import datetime
+# import datetime
 from abc import abstractmethod
 
 import numpy as np
@@ -43,8 +43,9 @@ from osgeo import gdal
 import otbApplication as otb
 
 from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory,
-        ExecutableStepFactory, in_filename, out_filename, tmp_filename, AbstractStep,
-        otb_version, _check_input_step_type, _fetch_input_data, OutputFilenameGenerator,
+        ExecutableStepFactory, in_filename, out_filename, tmp_filename,
+        manifest_to_product_name, AbstractStep, otb_version, _check_input_step_type,
+        _fetch_input_data, OutputFilenameGenerator,
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
         ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
         get_task_name, Step)
@@ -120,6 +121,32 @@ class ExtractSentinel1Metadata(StepFactory):
 
         meta['task_name']        = f'ExtractS1Meta_{meta["basename"]}'
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set the common and root information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE']            = 'GRD'
+        imd['FLYING_UNIT_CODE']      = meta['flying_unit_code']
+        imd['ORBIT']                 = meta['orbit']
+        imd['ORBIT_DIRECTION']       = meta['orbit_direction']
+        imd['POLARIZATION']          = meta['polarisation']
+        imd['TIFFTAG_SOFTWARE']      = 'S1 Tiling v'+__version__
+        imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
+        # Only one input image at this point, we don't introduce any
+        # ACQUISITION_DATETIMES or ACQUISITION_DATETIME_1...
+
+        acquisition_time = meta['acquisition_time']
+        date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
+        if acquisition_time[9] == 'x':
+            # This case should not happen, here
+            date += ' 00:00:00'
+        else:
+            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
+        imd['ACQUISITION_DATETIME'] = date
 
     def _get_canonical_input(self, inputs):
         """
@@ -262,6 +289,7 @@ class Calibrate(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
                 )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
@@ -274,6 +302,15 @@ class Calibrate(OTBStepFactory):
         Injects the ``calibration_type`` in step metadata.
         """
         meta['calibration_type'] = self.__calibration_type
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set calibration related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['CALIBRATION'] = meta['calibration_type']
 
     def parameters(self, meta):
         """
@@ -369,7 +406,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `tile_name`
     - `tile_origin`
     """
-    def __init__(self, cfg, fname_fmt):
+    def __init__(self, cfg, fname_fmt, image_description):
         """
         Constructor.
         Extract and cache configuration options.
@@ -380,6 +417,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description=image_description,
                 )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -398,11 +436,18 @@ class _OrthoRectifierFactory(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
-        append_to(meta, 'post', self.add_ortho_metadata)
 
         # Some workaround when ortho is not sequenced along with calibration
         meta['calibration_type'] = self.__calibration_type
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
+        imd['ORTHORECTIFIED']             = 'true'
+        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
 
     @abstractmethod
     def _get_input_image(self, meta):
@@ -454,41 +499,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 }
         return parameters
 
-    def add_ortho_metadata(self, meta, *args, **kwargs):  # pylint: disable=unused-argument
-        """
-        Post-application hook used to complete GDAL metadata.
-        """
-        fullpath = out_filename(meta)
-        logger.debug('Set metadata in %s', fullpath)
-        dst = gdal.Open(fullpath, gdal.GA_Update)
-        assert dst
-
-        dst.SetMetadataItem('S2_TILE_CORRESPONDING_CODE', meta['tile_name'])
-        dst.SetMetadataItem('TIFFTAG_DATETIME',           str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
-        dst.SetMetadataItem('ORTHORECTIFIED',             'true')
-        dst.SetMetadataItem('SPATIAL_RESOLUTION',         str(self.__out_spatial_res))
-        dst.SetMetadataItem('FLYING_UNIT_CODE',           meta['flying_unit_code'])
-        dst.SetMetadataItem('ORBIT',                      meta['orbit'])
-        dst.SetMetadataItem('ORBIT_DIRECTION',            meta['orbit_direction'])
-        dst.SetMetadataItem('TIFFTAG_SOFTWARE',           'S1 Tiling v'+__version__)
-        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION',   'Orthorectified Sentinel-'+meta['flying_unit_code'][1:].upper()+' IW GRD on S2 tile')
-
-        acquisition_time = meta['acquisition_time']
-        date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
-        if acquisition_time[9] == 'x':
-            date += ' 00:00:00'
-        else:
-            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
-        dst.SetMetadataItem('ACQUISITION_DATETIME', date)
-        self._add_extra_meta_data(dst, meta)
-        dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
-        del dst
-
-    def _add_extra_meta_data(self, dst, meta):  # pylint: disable=unused-argument,no-self-use
-        """
-        Variation point used by subclasses to add specific metadata.
-        """
-        return dst
 
 
 class OrthoRectify(_OrthoRectifierFactory):
@@ -521,20 +531,12 @@ class OrthoRectify(_OrthoRectifierFactory):
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}_{calibration_type}.tif'
         fname_fmt = cfg.fname_fmt.get('orthorectification') or fname_fmt
-        super().__init__(cfg, fname_fmt)
+        super().__init__(cfg, fname_fmt,
+                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
+                )
 
     def _get_input_image(self, meta):
         return in_filename(meta)   # meta['in_filename']
-
-    def _add_extra_meta_data(self, dst, meta):
-        """
-        Add metadata specific to orthorectified S1 tiles.
-        """
-        dst.SetMetadataItem('IMAGE_TYPE',   'GRD')
-        # TODO: Move CALIBRATION definition to Calibration Step
-        dst.SetMetadataItem('CALIBRATION',  meta['calibration_type'])
-        dst.SetMetadataItem('POLARIZATION', meta['polarisation'])
-        return dst
 
 
 class _ConcatenatorFactory(OTBStepFactory):
@@ -582,6 +584,24 @@ class _ConcatenatorFactory(OTBStepFactory):
         else:
             logger.debug('DONT register single file to remove after concatenation: %s', in_file)
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set concatenation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        inp = self._get_canonical_input(all_inputs)
+        if len(inp.input_metas) >= 2:
+            product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
+            imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
+            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(product_names[0]))
+            for idx, pn in enumerate(product_names, start=1):
+                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(pn))
+        else:
+            imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
+
 
     def parameters(self, meta):
         """
@@ -657,6 +677,7 @@ class Concatenate(_ConcatenatorFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=gen_output_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=unused-argument
@@ -733,7 +754,8 @@ class BuildBorderMask(OTBStepFactory):
                 appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif'])
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
+                image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
                 )
 
     def set_output_pixel_type(self, app, meta):
@@ -777,7 +799,8 @@ class SmoothBorderMask(OTBStepFactory):
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif'])
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+                image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
                 )
 
     def set_output_pixel_type(self, app, meta):
@@ -902,6 +925,7 @@ class SARDEMProjection(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description="SARDEM projection onto DEM list",
                 )
         self.__srtm_db_filepath = cfg.srtm_db_filepath
 
@@ -933,32 +957,33 @@ class SARDEMProjection(OTBStepFactory):
         # find DEMs that intersect the input image
         meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
             in_filename(meta), self.__srtm_db_filepath))
-        logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        logger.debug("SARDEMProjection: SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        _, inbasename = os.path.split(in_filename(meta))
+        meta['inbasename'] = inbasename
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set SARDEMProjection related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_LIST']     = ', '.join(meta['srtms'])
 
     def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
         """
         Post-application hook used to complete GDAL metadata.
+
+        As :func:`update_image_metadata` is not designed to access OTB
+        application information (``directiontoscandeml``...), we need this
+        extra hook to fetch and propagate the PRJ information.
         """
         fullpath = out_filename(meta)
         logger.debug('Set metadata in %s', fullpath)
         dst = gdal.Open(fullpath, gdal.GA_Update)
         assert dst
-
-        dst.SetMetadataItem('TIFFTAG_DATETIME',         str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S')))
-        dst.SetMetadataItem('ORBIT',                    meta['orbit'])
-        dst.SetMetadataItem('ORBIT_DIRECTION',          meta['orbit_direction'])
-        dst.SetMetadataItem('TIFFTAG_SOFTWARE',         'S1 Tiling v'+__version__)
-        _, inbasename = os.path.split(in_filename(meta))
-        dst.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'SARDEM projection of %s onto %s' %(inbasename, ', '.join(meta['srtms'])))
-
-        acquisition_time = meta['acquisition_time']
-        date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
-        if acquisition_time[9] == 'x':
-            date += ' 00:00:00'
-        else:
-            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
-        dst.SetMetadataItem('ACQUISITION_DATETIME', date)
 
         # Pointless here! :(
         assert app
@@ -1028,6 +1053,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='Cartesian XYZ coordinates estimation',
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1069,8 +1095,22 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         indem     = _fetch_input_data('indem',     all_inputs).out_filename
         indemproj = _fetch_input_data('indemproj', all_inputs).out_filename
         meta['files_to_remove'] = [indem, indemproj]
+        _, inbasename = os.path.split(in_filename(meta))
+        meta['inbasename'] = inbasename
         logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set SARCartesianMeanEstimation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        # Clear PRJ.* information: makes no sense anymore
+        imd['PRJ.DIRECTIONTOSCANDEML'] = ""
+        imd['PRJ.DIRECTIONTOSCANDEMC'] = ""
+        imd['PRJ.GAIN']                = ""
 
     def fetch_direction(self, inputpath, meta):  # pylint: disable=no-self-use
         """
@@ -1149,6 +1189,7 @@ class ComputeNormals(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1224,6 +1265,7 @@ class ComputeLIA(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
+                image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def _update_filename_meta_pre_hook(self, meta):
@@ -1376,7 +1418,9 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         """
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
         fname_fmt = cfg.fname_fmt.get('lia_orthorectification') or fname_fmt
-        super().__init__(cfg, fname_fmt)
+        super().__init__(cfg, fname_fmt,
+                image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
+                )
 
     def _update_filename_meta_pre_hook(self, meta):
         meta = super()._update_filename_meta_pre_hook(meta)
@@ -1388,16 +1432,20 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         assert isinstance(inp, str), f"A single string inp was expected, got {inp}"
         return inp   # meta['in_filename']
 
-    def _add_extra_meta_data(self, dst, meta):
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set LIA kind related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
         types = {
-                'sin_LIA': 'GRD-SIN-LIA',
-                'LIA': 'GRD-LIA'
+                'sin_LIA': 'SIN(LIA)',
+                'LIA': '100 * degree(LIA)'
                 }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']
         assert kind in types, f'The only LIA kind accepted are {types.keys()}'
-        dst.SetMetadataItem('IMAGE_TYPE', types[kind])
-        return dst
+        imd = meta['image_metadata']
+        imd['DATA_TYPE'] = types[kind]
 
     def set_output_pixel_type(self, app, meta):
 
@@ -1429,6 +1477,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def _update_filename_meta_post_hook(self, meta):
@@ -1440,6 +1489,14 @@ class ConcatenateLIA(_ConcatenatorFactory):
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Update concatenated LIA related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        imd = meta['image_metadata']
+        imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
 
     def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
         """
@@ -1531,6 +1588,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
             commit_execution(out_filename(inp.meta), out_filename(meta))
 
         # Return a dummy Step
+        # logger.debug("%s step executed!", self.name)
         res = AbstractStep('move', **meta)
         return res
 
@@ -1570,6 +1628,7 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
     def complete_meta(self, meta, all_inputs):
@@ -1579,8 +1638,21 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        meta['inputs'] = all_inputs
+        meta['inputs']           = all_inputs
+        meta['calibration_type'] = 'Normlim'  # Update meta from now on
         return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set σ° normlim calibration related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        inputs = meta['inputs']
+        in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['CALIBRATION'] = meta['calibration_type']
+        imd['LIA_FILE']    = os.path.basename(in_sin_LIA)
 
     def _get_canonical_input(self, inputs):
         """
@@ -1627,8 +1699,8 @@ class ApplyLIACalibration(OTBStepFactory):
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params = {
-                'ram'              : str(self.ram_per_process),
-                self.param_in      : [in_concat_S2, in_sin_LIA],
-                'exp'              : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
+                'ram'         : str(self.ram_per_process),
+                self.param_in : [in_concat_S2, in_sin_LIA],
+                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
                 }
         return params

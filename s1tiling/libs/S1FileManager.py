@@ -48,7 +48,7 @@ from eodag.utils.logging import setup_logging
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_dirs, Layer
+from .Utils import get_shape, list_dirs, Layer, extract_product_start_time
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 
@@ -67,6 +67,7 @@ class WorkspaceKinds(Enum):
     """
     TILE = 1
     LIA  = 2
+
 
 def product_property(prod, key, default=None):
     """
@@ -571,17 +572,13 @@ class S1FileManager:
         """
         Returns whether the product name is within time range [first_date, last_date]
         """
-        prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T\d{6}.*')
-        path = os.path.basename(product)
-        logger.debug('prod: %s', path)
-        match = prod_re.match(path)
-        if not match:
+        start_time = extract_product_start_time(product)
+        if not start_time:
             return False
-        YYYY, MM, DD = match.groups()
-        start = f'{YYYY}-{MM}-{DD}'
+        start = '{YYYY}-{MM}-{DD}'.format_map(start_time)
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
-                path, is_in_range, self.first_date, start, self.last_date)
+                os.path.basename(product), is_in_range, self.first_date, start, self.last_date)
         return is_in_range
 
     def get_s1_intersect_by_tile(self, tile_name_field):
