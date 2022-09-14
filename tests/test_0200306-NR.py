@@ -106,7 +106,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, srt
                     ("Comparison of %s against %s failed" % (produced, expected))
             # expected_md = comparable_metadata(expected)
             expected_md = {
-                    'ACQUISITION_DATETIME'       : '2020:01:08 00:00:00',
+                    'ACQUISITION_DATETIME'       : '2020:01:08 04:41:50',
                     'ACQUISITION_DATETIME_1'     : '2020:01:08 04:41:50',
                     'ACQUISITION_DATETIME_2'     : '2020:01:08 04:42:15',
                     'AREA_OR_POINT'              : 'Area',

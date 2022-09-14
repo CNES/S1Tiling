@@ -594,9 +594,9 @@ class _ConcatenatorFactory(OTBStepFactory):
         imd = meta['image_metadata']
         inp = self._get_canonical_input(all_inputs)
         if len(inp.input_metas) >= 2:
-            product_names = [manifest_to_product_name(m['manifest']) for m in inp.input_metas]
+            product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
             imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} 00:00:00'.format_map(Utils.extract_product_start_time(product_names[0]))
+            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(product_names[0]))
             for idx, pn in enumerate(product_names, start=1):
                 imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(pn))
         else:
@@ -1699,8 +1699,8 @@ class ApplyLIACalibration(OTBStepFactory):
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params = {
-                'ram'              : str(self.ram_per_process),
-                self.param_in      : [in_concat_S2, in_sin_LIA],
-                'exp'              : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
+                'ram'         : str(self.ram_per_process),
+                self.param_in : [in_concat_S2, in_sin_LIA],
+                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
                 }
         return params
