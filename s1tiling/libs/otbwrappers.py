@@ -310,7 +310,8 @@ class Calibrate(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['CALIBRATION'] = meta['calibration_type']
+        imd['CALIBRATION']   = meta['calibration_type']
+        imd['NOISE_REMOVED'] = str(self.__removethermalnoise)
 
     def parameters(self, meta):
         """
@@ -328,6 +329,61 @@ class Calibrate(OTBStepFactory):
         else:
             # Don't try to do anything, let's keep the noise
             params['noise']       = True
+        return params
+
+
+class CorrectDenoising(OTBStepFactory):
+    """
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
+    documentation.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - base name -- to generate typical output filename
+    - input filename
+    - output filename
+    - noise_correction
+    """
+    def __init__(self, cfg):
+        """
+        Constructor.
+        """
+        fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
+        fname_fmt = cfg.fname_fmt.get('correct_denoising') or fname_fmt
+        super().__init__(cfg,
+                appname='BandMath', name='DenoisingCorrection',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
+                )
+        self.__noise_correction = cfg.noise_correction
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set noise correction related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['NULL_DENOISING_CHANGED_TO'] = self.__noise_correction
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for changing 0.0 into noise_correction
+        """
+        params = {
+                'ram'              : str(self.ram_per_process),
+                self.param_in      : in_filename(meta),
+                # self.param_out     : out_filename(meta),
+                'exp'              : f'im1b1==0?{self.__noise_correction}:im1b1'
+                }
         return params
 
 

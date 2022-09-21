@@ -68,6 +68,8 @@ Orthorectified S2 tiles
         - List of the input Sentinel-1 images used to generate this product
       * - ``LIA_FILE``
         - (when applies) name of the LIA file used for Normlim calibration
+      * - ``NOISE_REMOVED``
+        - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
       * - ``ORBIT``
         - :samp:`{{orbitnumber}}`
       * - ``ORBIT_DIRECTION``
@@ -252,6 +254,8 @@ Cut and calibrated S1 images ready for orthorectification
         - :samp:`GRD`
       * - ``INPUT_S1_IMAGES``
         - Name of the input Sentinel-1 image used to generate this product
+      * - ``NOISE_REMOVED``
+        - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
       * - ``ORBIT``
         - :samp:`{{orbitnumber}}`
       * - ``ORBIT_DIRECTION``

@@ -158,6 +158,11 @@ class Configuration():
             logging.critical("ERROR: OTB %s does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '%s'", otb_version(), configFile)
             sys.exit(exits.CONFIG_ERROR)
 
+        self.noise_correction = config.getfloat('Processing', 'noise_correction', fallback=1e-7)
+        if self.noise_correction <= 0:  # TODO test nan, and >= 1e-3 ?
+            logging.critical("ERROR: 'noise_correction' parameter shall be a positive (small value) aimed at replacing null value produced by denoising. Please fix '%s'", configFile)
+            sys.exit(exits.CONFIG_ERROR)
+
         self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 
         self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))

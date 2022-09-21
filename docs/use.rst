@@ -378,6 +378,17 @@ You can use this :download:`this template
 
          This feature requires a version of OTB >= 7.4.0
 
+      .. _Processing.correct_denoising:
+  * - ``correct_denoising``
+    - Noise removal may set some pixel values to 0.
+      However, 0, is currently reserved by S1Tiling chain as a "nodata" value
+      introduced by :ref:`Margin Cutting<cutting>` and :ref:`Orthorectification
+      <orthorectification>`.
+
+      This parameter defines which value to use instead of 0 when :ref:`noise is
+      removed <Processing.remove_thermal_noise>`.  By default: 1e-7 will be
+      used.
+
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``
     - Pixel size (in meters) of the output images
