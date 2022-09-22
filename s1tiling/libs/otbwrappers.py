@@ -347,14 +347,14 @@ class CorrectDenoising(OTBStepFactory):
     - base name -- to generate typical output filename
     - input filename
     - output filename
-    - noise_correction
+    - lower_signal_value
     """
     def __init__(self, cfg):
         """
         Constructor.
         """
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
-        fname_fmt = cfg.fname_fmt.get('correct_denoising') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('lower_signal_value') or fname_fmt
         super().__init__(cfg,
                 appname='BandMath', name='DenoisingCorrection',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -362,7 +362,7 @@ class CorrectDenoising(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
                 )
-        self.__noise_correction = cfg.noise_correction
+        self.__lower_signal_value = cfg.lower_signal_value
 
     def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
         """
@@ -371,18 +371,18 @@ class CorrectDenoising(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['NULL_DENOISING_CHANGED_TO'] = self.__noise_correction
+        imd['LOWER_SIGNAL_VALUE'] = self.__lower_signal_value
 
     def parameters(self, meta):
         """
         Returns the parameters to use with :std:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for changing 0.0 into noise_correction
+        <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
         """
         params = {
                 'ram'              : str(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
-                'exp'              : f'im1b1==0?{self.__noise_correction}:im1b1'
+                'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
                 }
         return params
 

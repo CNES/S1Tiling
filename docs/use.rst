@@ -378,8 +378,8 @@ You can use this :download:`this template
 
          This feature requires a version of OTB >= 7.4.0
 
-      .. _Processing.correct_denoising:
-  * - ``correct_denoising``
+      .. _Processing.lower_signal_value:
+  * - ``lower_signal_value``
     - Noise removal may set some pixel values to 0.
       However, 0, is currently reserved by S1Tiling chain as a "nodata" value
       introduced by :ref:`Margin Cutting<cutting>` and :ref:`Orthorectification
