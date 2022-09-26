@@ -354,7 +354,7 @@ class CorrectDenoising(OTBStepFactory):
         Constructor.
         """
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
-        fname_fmt = cfg.fname_fmt.get('lower_signal_value') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('correct_denoising') or fname_fmt
         super().__init__(cfg,
                 appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
