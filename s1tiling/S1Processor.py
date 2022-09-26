@@ -69,10 +69,12 @@ from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
-        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate,
-        BuildBorderMask, SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
-        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA,
-        ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
+        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
+        CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
+        SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
+        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
+        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
+        ApplyLIACalibration)
 from s1tiling.libs import exits
 
 # Graphs
