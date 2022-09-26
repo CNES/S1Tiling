@@ -356,7 +356,7 @@ class CorrectDenoising(OTBStepFactory):
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
         fname_fmt = cfg.fname_fmt.get('lower_signal_value') or fname_fmt
         super().__init__(cfg,
-                appname='BandMath', name='DenoisingCorrection',
+                appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -371,7 +371,7 @@ class CorrectDenoising(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['LOWER_SIGNAL_VALUE'] = self.__lower_signal_value
+        imd['LOWER_SIGNAL_VALUE'] = str(self.__lower_signal_value)
 
     def parameters(self, meta):
         """
