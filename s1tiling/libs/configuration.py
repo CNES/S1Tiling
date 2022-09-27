@@ -133,6 +133,13 @@ class Configuration():
         self.ROI_by_tiles              = config.get('DataSource', 'roi_by_tiles')
         self.first_date                = config.get('DataSource', 'first_date')
         self.last_date                 = config.get('DataSource', 'last_date')
+        self.orbit_direction           = config.get('DataSource', 'orbit_direction', fallback=None)
+        if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
+            logging.critical("Parameter [orbit_direction] must be either unset or DES, or ASC")
+            logging.critical("Please correct the config file ")
+            sys.exit(exits.CONFIG_ERROR)
+        relative_orbit_list_str        = config.get('DataSource', 'relative_orbit_list', fallback='')
+        self.relative_orbit_list       = [int(o) for o in re.findall(r'\d+', relative_orbit_list_str)]
         self.polarisation              = config.get('DataSource', 'polarisation')
         if   self.polarisation == 'VV-VH':
             self.polarisation = 'VV VH'

@@ -23,6 +23,10 @@ v1.0.0 Improvements
   list of :samp:`ACQUISITION_DATETIME_{{id}}`
   (`#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/25>`_).
 
+- New filters can be used to select products to download: :ref:`orbit_direction
+  <DataSource.orbit_direction>` and :ref:`relative_orbit_list
+  <DataSource.relative_orbit_list>`.
+  (`#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_).
 
 Version 0.3.2
 -------------

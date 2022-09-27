@@ -352,7 +352,8 @@ class S1FileManager:
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
-            tile_out_dir, tile_name, polarization,
+            tile_out_dir, tile_name,
+            orbit_direction, relative_orbit_list, polarization,
             searched_items_per_page,dryrun):
         """
         Process with the call to eodag download.
@@ -366,11 +367,15 @@ class S1FileManager:
                 }
         products = []
         page = 1
+        k_dir_assoc = { 'ASC': 'ascending', 'DES': 'descending' }
         while True:
+            assert (not orbit_direction) or (orbit_direction in ['ASC', 'DES'])
             assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
             # In case only 'VV' or 'VH' is requested, we still need to
             # request 'VV VH' to the data provider through eodag.
             dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
+            dag_orbit_dir_param    = k_dir_assoc.get(orbit_direction, None)  # None => all
+            dag_orbit_list_param   = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
                     productType=product_type,
@@ -378,24 +383,39 @@ class S1FileManager:
                     box=extent,
                     # If we have eodag v1.6, we try to filter product during the search request
                     polarizationMode=dag_polarization_param,
-                    sensorMode="IW"
+                    sensorMode="IW",
+                    orbitDirection=dag_orbit_dir_param,        # None => all
+                    relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
             products += page_products
             page += 1
             if len(page_products) < searched_items_per_page:
                 break
-        logger.info("%s remote S1 products found: %s", len(products), products)
+        logger.debug("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
 
-        # First only keep "IW" sensor products with the expected polarisation
-        # -> This filter is required with eodag < v1.6, it's redundant w/ v1.6+
-        products = [p for p in products
-                if (    product_property(p, "sensorMode",       "") == "IW"
-                    and product_property(p, "polarizationMode", "") == dag_polarization_param)
-                ]
-        logger.debug("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
+        # Filter relative_orbits -- if it could not be done earier in the search() request.
+        if len(relative_orbit_list) > 1:
+            filtered_products = []
+            for rel_orbit in relative_orbit_list:
+                filtered_products.extend(products.filter_property(relativeOrbitNumber=rel_orbit))
+            products = filtered_products
+
+        extra_filter_log1 = ''
+        if dag_orbit_dir_param:
+            extra_filter_log1 = f'{dag_orbit_dir_param} '
+        extra_filter_log2 = ''
+        if len(relative_orbit_list) > 0:
+            if len(relative_orbit_list) > 1:
+                extra_filter_log2 = 's'
+            extra_filter_log2 += ' ' + ', '.join([str(i) for i in relative_orbit_list])
+        extra_filter_log = ''
+        if extra_filter_log1 or extra_filter_log2:
+            extra_filter_log = f' && {extra_filter_log1}orbit{extra_filter_log2}'
+        logger.info("%s remote S1 product(s) found and filtered (IW && %s%s): %s", len(products), polarization, extra_filter_log, products)
+
         if not products:  # no need to continue
             return []
 
@@ -431,7 +451,13 @@ class S1FileManager:
 
         # And finally download all!
         # TODO: register downloading into Dask
-        logger.info("%s remote S1 product(s) will be downloaded: %s", len(products), products)
+        logger.info("%s remote S1 product(s) will be downloaded", len(products))
+        for p in products:
+            logger.info('- %s: %s %s, [%s]', p,
+                    product_property(p, "orbitDirection", ""),
+                    product_property(p, "relativeOrbitNumber", ""),
+                    product_property(p, "startTimeFromAscendingNode", ""),
+                    )
         if not products:  # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
             return []
@@ -474,7 +500,9 @@ class S1FileManager:
                         self.first_date, self.last_date,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
                         tile_name,
-                        self.cfg.polarisation,
+                        orbit_direction=self.cfg.orbit_direction,
+                        relative_orbit_list=self.cfg.relative_orbit_list,
+                        polarization=self.cfg.polarisation,
                         searched_items_per_page=searched_items_per_page,
                         dryrun=dryrun)
         self._update_s1_img_list()

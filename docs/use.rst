@@ -311,6 +311,37 @@ You can use this :download:`this template
       Only six values are valid: ``HH-HV``, ``VV-VH``, ``VV``, ``VH``, ``HV``,
       and ``HH``.
 
+      .. _DataSource.orbit_direction:
+  * - ``orbit_direction``
+    - Download only the products acquired in ascending (``ASC``) or in
+      descending (``DES``) order.  By default (when left unspecified), no
+      filter is applied.
+
+      .. warning::
+        This filter only applies to download, and not to products already
+        downloaded.
+
+      .. warning::
+        Each relative orbit is exclusive to one orbit direction,
+        :ref:`orbit_direction <DataSource.orbit_direction>` and
+        :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
+        considered as exclusive.
+
+      .. _DataSource.relative_orbit_list:
+  * - ``relative_orbit_list``
+    - Download only the products from the specified relative orbits. By default
+      (when left unspecified), no filter is applied.
+
+      .. warning::
+        This filter only applies to download, and not to products already
+        downloaded.
+
+      .. warning::
+        Each relative orbit is exclusive to one orbit direction,
+        :ref:`orbit_direction <DataSource.orbit_direction>` and
+        :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
+        considered as exclusive.
+
       .. _DataSource.first_date:
   * - ``first_date``
     - Initial date in ``YYYY-MM-DD`` format.
