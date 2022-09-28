@@ -350,6 +350,11 @@ You can use this :download:`this template
   * - ``last_date``
     - Final date in ``YYYY-MM-DD`` format.
 
+      .. _DataSource.tile_to_product_overlap_ratio:
+  * - ``tile_to_product_overlap_ratio``
+    - Percentage of tile area to be covered for a pair of Sentinel-1 products
+      to be retained.
+
 .. _Mask:
 
 ``[Mask]`` section
@@ -455,15 +460,6 @@ You can use this :download:`this template
         .. code-block:: ini
 
             tiles_list_in_file : ~/MyListOfTiles.txt
-
-      .. _Processing.tile_to_product_overlap_ratio:
-  * - ``tile_to_product_overlap_ratio``
-    - Percentage of tile area to be covered for a tile to be retained in
-      ``ALL`` mode
-
-      .. note::
-        At this moment this field is ignored, but it's likely to be used in the
-        future.
 
       .. _Processing.mode:
   * - ``mode``

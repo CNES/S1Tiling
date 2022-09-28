@@ -45,6 +45,12 @@ import tempfile
 
 from eodag.api.core import EODataAccessGateway
 from eodag.utils.logging import setup_logging
+from eodag.utils import get_geometry_from_various
+try:
+    from shapely.errors import TopologicalError
+except ImportError:
+    from shapely.geos import TopologicalError
+
 import numpy as np
 
 from s1tiling.libs import exits
@@ -75,6 +81,45 @@ def product_property(prod, key, default=None):
     """
     res = prod.properties.get(key, default)
     return res
+
+
+def product_cover(product, geometry):
+    """
+    Compute the coverage of the intersection of the product and the target geometry
+    relativelly to the target geometry.
+    Return a percentile in the range [0..100].
+
+    This function has been extracted and adapted from
+    :func:`eodag.plugins.crunch.filter_overlap.FilterOverlap.proceed`, which is
+    under the Apache Licence 2.0.
+
+    Unlike the original function, the actual filtering is done differenty and we
+    only need the computed coverage. Also, we are not interrested in the
+    coverage of the intersection relativelly to the input product.
+    """
+    search_geom = get_geometry_from_various(geometry=geometry)
+    if product.search_intersection:
+        intersection = product.search_intersection
+        product_geometry = product.geometry
+    elif product.geometry.is_valid:
+        product_geometry = product.geometry
+        intersection = search_geom.intersection(product_geometry)
+    else:
+        logger.debug(
+                "Trying our best to deal with invalid geometry on product: %r",
+                product,
+                )
+        product_geometry = product.geometry.buffer(0)
+        try:
+            intersection = search_geom.intersection(product_geometry)
+        except TopologicalError:
+            logger.debug(
+                    "Product geometry still invalid. Force its acceptance"
+                    )
+        return 100
+
+    ipos = (intersection.area / search_geom.area) * 100
+    return ipos
 
 
 # def unzip_images(raw_directory):
@@ -136,6 +181,47 @@ def filter_images_or_ortho(kind, all_images):
                 for f in fnmatch.filter(all_images, ortho_pattern)]
         logger.debug("    %s images from Ortho: %s", kind, images)
     return images
+
+
+def filter_images_providing_enough_cover_by_pair(products, target_cover, target_geometry, ident=None):
+    """
+    Associate products of the same date and orbit into pairs (at most),
+    to compute the total coverage of the target zone.
+    If the total coverage is inferior to the target coverage, the products
+    are filtered out.
+    """
+    if not products or not target_cover:
+        return products
+    if not ident:
+        ident = lambda name: name
+    prod_re = re.compile(r'S1._IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
+    kept_products = []
+    date_grouped_products = {}
+    logger.debug('Checking coverage for each product')
+    for p in products:
+        id    = ident(p)
+        date  = prod_re.match(id).groups()[0]
+        cover = product_cover(p, target_geometry)
+        ron   = product_property(p, 'relativeOrbitNumber')
+        dron  = f'{date}#{ron:03}'
+        logger.debug('* @ %s, %s%% coverage for %s', dron, round(cover, 2), id)
+        if dron not in date_grouped_products:
+            date_grouped_products[dron] = {}
+        date_grouped_products[dron].update({cover : p})
+
+    logger.debug('Checking coverage for each date (and # relative orbit number)')
+    for dron, cov_prod in date_grouped_products.items():
+        covers         = cov_prod.keys()
+        cov_sum        = round(sum(covers), 2)
+        str_cov_to_sum = '+'.join((str(round(c, 2)) for c in covers))
+        logger.debug('* @ %s -> %s%% = %s', dron, cov_sum, str_cov_to_sum)
+        if cov_sum < target_cover:
+            logger.warning('Reject products @ %s for insufficient coverage: %s=%s%% < %s%% %s',
+                    dron, str_cov_to_sum, cov_sum, target_cover,
+                    [ident(p) for p in cov_prod.values()])
+        else:
+            kept_products.extend(cov_prod.values())
+    return kept_products
 
 
 def discard_small_redundant(products, ident=None):
@@ -353,7 +439,7 @@ class S1FileManager:
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
             tile_out_dir, tile_name,
-            orbit_direction, relative_orbit_list, polarization,
+            orbit_direction, relative_orbit_list, polarization, cover,
             searched_items_per_page,dryrun):
         """
         Process with the call to eodag download.
@@ -403,6 +489,7 @@ class S1FileManager:
                 filtered_products.extend(products.filter_property(relativeOrbitNumber=rel_orbit))
             products = filtered_products
 
+        # Final log
         extra_filter_log1 = ''
         if dag_orbit_dir_param:
             extra_filter_log1 = f'{dag_orbit_dir_param} '
@@ -426,6 +513,14 @@ class S1FileManager:
         #   smallest products
         products = discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
+        # Filter cover
+        if cover:
+            products = filter_images_providing_enough_cover_by_pair(
+                    products, cover, extent, ident=lambda p: p.as_dict()['id'])
+            # products = products.filter_overlap(
+            #         minimum_overlap=cover, geometry=extent)
+            logger.debug("%s remote S1 product(s) found and filtered (cover >= %s): %s", len(products), cover, products)
+
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
@@ -503,6 +598,7 @@ class S1FileManager:
                         orbit_direction=self.cfg.orbit_direction,
                         relative_orbit_list=self.cfg.relative_orbit_list,
                         polarization=self.cfg.polarisation,
+                        cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
                         dryrun=dryrun)
         self._update_s1_img_list()

@@ -121,7 +121,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
         else:
             tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
-                    100 * cfg.TileToProductOverlapRatio, tiles_to_process)
+                    100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
