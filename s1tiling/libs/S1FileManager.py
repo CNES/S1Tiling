@@ -54,7 +54,7 @@ except ImportError:
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_dirs, Layer, extract_product_start_time
+from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 
@@ -224,7 +224,7 @@ def filter_images_providing_enough_cover_by_pair(products, target_cover, target_
     return kept_products
 
 
-def discard_small_redundant(products, ident=None):
+def _discard_small_redundant(products, ident=None):
     """
     Sometimes there are several S1 product with the same start date, but a different end-date.
     Let's discard the smallest products
@@ -250,6 +250,39 @@ def discard_small_redundant(products, ident=None):
             res.append(product)
             last = start
     return res
+
+
+def _keep_requested_orbits(products, rq_orbit_direction, rq_relative_orbit_list,
+        manifest_pattern):
+    """
+    Takes care of discarding product that don't match the request orbit
+    specification.
+
+    Note: Beware that specifications could be contradictory and end up
+    discarding everything.
+    """
+    if not rq_orbit_direction and not rq_relative_orbit_list:
+        return products
+    kept_products = []
+    for p in products:
+        safe_dir = os.path.join(p.path, os.path.basename(p.path) + '.SAFE')
+        if not os.path.isdir(safe_dir):
+            continue
+        manifest = os.path.join(safe_dir, manifest_pattern)
+        if rq_orbit_direction:
+            direction = get_orbit_direction(manifest)
+            if direction != rq_orbit_direction:
+                logger.debug('Discard %s as its direction (%s) differs from the requested %s',
+                        p.name, direction, rq_orbit_direction)
+                continue
+        if rq_relative_orbit_list:
+            orbit = get_relative_orbit(manifest)
+            if orbit not in rq_relative_orbit_list:
+                logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
+                        p.name, orbit, rq_relative_orbit_list)
+                continue
+        kept_products.append(p)
+    return kept_products
 
 
 def _download_and_extract_one_product(dag, raw_directory, product):
@@ -511,7 +544,7 @@ class S1FileManager:
         #   Sometimes there are several S1 product with the same start
         #   date, but a different end-date.  Let's discard the
         #   smallest products
-        products = discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
+        products = _discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
         # Filter cover
         if cover:
@@ -617,7 +650,9 @@ class S1FileManager:
         self.product_list    = []
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
-        content = discard_small_redundant(content, ident=lambda d: d.name)
+        content = _keep_requested_orbits(content, self.cfg.orbit_direction,
+                self.cfg.relative_orbit_list, self.manifest_pattern)
+        content = _discard_small_redundant(content, ident=lambda d: d.name)
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
@@ -748,9 +783,11 @@ class S1FileManager:
                 points = area_polygon.GetPoints()
                 # intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
                 intersect_raster.append( {
-                    'raster': image,
-                    'tile_origin': [(point[0], point[1]) for point in points[:-1]],
-                    'tile_coverage': intersection.GetArea() / tile_footprint.GetArea()
+                    'raster'         : image,
+                    'tile_origin'    : [(point[0], point[1]) for point in points[:-1]],
+                    'tile_coverage'  : intersection.GetArea() / tile_footprint.GetArea(),
+                    'orbit_direction': get_orbit_direction(manifest),
+                    'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
                     })
 
         return intersect_raster

@@ -318,10 +318,6 @@ You can use this :download:`this template
       filter is applied.
 
       .. warning::
-        This filter only applies to download, and not to products already
-        downloaded.
-
-      .. warning::
         Each relative orbit is exclusive to one orbit direction,
         :ref:`orbit_direction <DataSource.orbit_direction>` and
         :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
@@ -331,10 +327,6 @@ You can use this :download:`this template
   * - ``relative_orbit_list``
     - Download only the products from the specified relative orbits. By default
       (when left unspecified), no filter is applied.
-
-      .. warning::
-        This filter only applies to download, and not to products already
-        downloaded.
 
       .. warning::
         Each relative orbit is exclusive to one orbit direction,
