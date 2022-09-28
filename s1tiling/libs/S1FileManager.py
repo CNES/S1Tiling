@@ -252,8 +252,7 @@ def _discard_small_redundant(products, ident=None):
     return res
 
 
-def _keep_requested_orbits(products, rq_orbit_direction, rq_relative_orbit_list,
-        manifest_pattern):
+def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_list):
     """
     Takes care of discarding product that don't match the request orbit
     specification.
@@ -264,11 +263,11 @@ def _keep_requested_orbits(products, rq_orbit_direction, rq_relative_orbit_list,
     if not rq_orbit_direction and not rq_relative_orbit_list:
         return products
     kept_products = []
-    for p in products:
-        safe_dir = os.path.join(p.path, os.path.basename(p.path) + '.SAFE')
-        if not os.path.isdir(safe_dir):
-            continue
-        manifest = os.path.join(safe_dir, manifest_pattern)
+    for ci in content_info:
+        p        = ci['product']
+        safe_dir = ci['safe_dir']
+        manifest = ci['manifest']
+        logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
         if rq_orbit_direction:
             direction = get_orbit_direction(manifest)
             if direction != rq_orbit_direction:
@@ -281,7 +280,7 @@ def _keep_requested_orbits(products, rq_orbit_direction, rq_relative_orbit_list,
                 logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
                         p.name, orbit, rq_relative_orbit_list)
                 continue
-        kept_products.append(p)
+        kept_products.append(ci)
     return kept_products
 
 
@@ -650,21 +649,29 @@ class S1FileManager:
         self.product_list    = []
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
-        content = _keep_requested_orbits(content, self.cfg.orbit_direction,
-                self.cfg.relative_orbit_list, self.manifest_pattern)
         content = _discard_small_redundant(content, ident=lambda d: d.name)
 
-        for current_content in content:
+        # Build triples of {product_dir, safe_dir, manifest_path}
+        content_info = [ {
+            'product':  p,
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            'safe_dir': os.path.join(p.path, os.path.basename(p.path) + '.SAFE'),
+            } for p in content]
+        content_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), content_info))
+        for ci in content_info:
+            ci.update({'manifest': os.path.join(ci['safe_dir'], self.manifest_pattern)})
+
+        # Apply last filters
+        content_info = _keep_requested_orbits(content_info, self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+
+        # Finally, search for the files with the requested polarities only
+        for ci in content_info:
+            current_content = ci['product']
+            safe_dir        = ci['safe_dir']
+            manifest        = ci['manifest']
             logger.debug('current_content: %s', current_content)
-            safe_dir = os.path.join(
-                    current_content.path,
-                    os.path.basename(current_content.path) + '.SAFE')
-            if not os.path.isdir(safe_dir):
-                continue
 
             self.product_list += [os.path.basename(current_content.path)]
-            manifest = os.path.join(safe_dir, self.manifest_pattern)
             acquisition = S1DateAcquisition(manifest, [])
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
             logger.debug("# Safe dir: %s", safe_dir)
