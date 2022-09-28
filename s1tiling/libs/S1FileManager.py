@@ -183,7 +183,8 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-def filter_images_providing_enough_cover_by_pair(products, target_cover, target_geometry, ident=None):
+def filter_images_providing_enough_cover_by_pair(products, target_cover,
+        ident, get_cover, get_orbit):
     """
     Associate products of the same date and orbit into pairs (at most),
     to compute the total coverage of the target zone.
@@ -192,8 +193,6 @@ def filter_images_providing_enough_cover_by_pair(products, target_cover, target_
     """
     if not products or not target_cover:
         return products
-    if not ident:
-        ident = lambda name: name
     prod_re = re.compile(r'S1._IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
     kept_products = []
     date_grouped_products = {}
@@ -201,8 +200,8 @@ def filter_images_providing_enough_cover_by_pair(products, target_cover, target_
     for p in products:
         id    = ident(p)
         date  = prod_re.match(id).groups()[0]
-        cover = product_cover(p, target_geometry)
-        ron   = product_property(p, 'relativeOrbitNumber')
+        cover = get_cover(p)
+        ron   = get_orbit(p)
         dron  = f'{date}#{ron:03}'
         logger.debug('* @ %s, %s%% coverage for %s', dron, round(cover, 2), id)
         if dron not in date_grouped_products:
@@ -222,6 +221,24 @@ def filter_images_providing_enough_cover_by_pair(products, target_cover, target_
         else:
             kept_products.extend(cov_prod.values())
     return kept_products
+
+
+def _keep_products_with_enough_coverage(content_info, target_cover, current_tile):
+    tile_footprint = current_tile.GetGeometryRef()
+    for ci in content_info:
+        p        = ci['product']
+        safe_dir = ci['safe_dir']
+        manifest = ci['manifest']
+        poly = get_shape(manifest)
+        intersection = poly.Intersection(tile_footprint)
+        ci['coverage'] = intersection.GetArea() / tile_footprint.GetArea() * 100
+
+    return filter_images_providing_enough_cover_by_pair(
+            content_info, target_cover,
+            ident=lambda ci: ci['product'].name,
+            get_cover=lambda ci: ci['coverage'],
+            get_orbit=lambda ci: ci['relative_orbit'],
+            )
 
 
 def _discard_small_redundant(products, ident=None):
@@ -267,15 +284,18 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
         p        = ci['product']
         safe_dir = ci['safe_dir']
         manifest = ci['manifest']
-        logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
+        # logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
+        direction = get_orbit_direction(manifest)
+        ci['orbit_direction'] = direction
+        orbit = get_relative_orbit(manifest)
+
+        ci['relative_orbit'] = orbit
         if rq_orbit_direction:
-            direction = get_orbit_direction(manifest)
             if direction != rq_orbit_direction:
                 logger.debug('Discard %s as its direction (%s) differs from the requested %s',
                         p.name, direction, rq_orbit_direction)
                 continue
         if rq_relative_orbit_list:
-            orbit = get_relative_orbit(manifest)
             if orbit not in rq_relative_orbit_list:
                 logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
                         p.name, orbit, rq_relative_orbit_list)
@@ -364,7 +384,7 @@ class S1FileManager:
 
         self.first_date = cfg.first_date
         self.last_date  = cfg.last_date
-        self._update_s1_img_list()
+        # self._update_s1_img_list()  # not before we know what we are looking for (tile id)
         if self.cfg.download:
             logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
             self._dag = EODataAccessGateway(self.cfg.eodagConfig)
@@ -453,7 +473,7 @@ class S1FileManager:
 
         return self.__tmpsrtmdir.name
 
-    def keep_X_latest_S1_files(self, threshold):
+    def keep_X_latest_S1_files(self, threshold, tile_name):
         """
         Makes sure there is no more than `threshold`  S1 SAFEs in the raw directory.
         Oldest ones will be removed.
@@ -465,7 +485,7 @@ class S1FileManager:
             for safe in safefile_list[ : len(safefile_list) - threshold]:
                 logger.debug("Remove old SAFE: %s", os.path.basename(safe))
                 shutil.rmtree(safe, ignore_errors=True)
-            self._update_s1_img_list()
+            self._update_s1_img_list(tile_name)
 
     def _download(self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
@@ -548,7 +568,11 @@ class S1FileManager:
         # Filter cover
         if cover:
             products = filter_images_providing_enough_cover_by_pair(
-                    products, cover, extent, ident=lambda p: p.as_dict()['id'])
+                    products, cover,
+                    ident=lambda p: p.as_dict()['id'],
+                    get_cover=lambda p: product_cover(p, extent),
+                    get_orbit=lambda p: product_property(p, 'relativeOrbitNumber')
+                    )
             # products = products.filter_overlap(
             #         minimum_overlap=cover, geometry=extent)
             logger.debug("%s remote S1 product(s) found and filtered (cover >= %s): %s", len(products), cover, products)
@@ -556,6 +580,7 @@ class S1FileManager:
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
+        self._update_s1_img_list(tile_name) # to know what we need to download
         products = [p for p in products
                 if not p.as_dict()['id'] in self.product_list
                 ]
@@ -633,9 +658,9 @@ class S1FileManager:
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
                         dryrun=dryrun)
-        self._update_s1_img_list()
+        # self._update_s1_img_list()
 
-    def _update_s1_img_list(self):
+    def _update_s1_img_list(self, tile_name):
         """
         This method updates the list of S1 images available
         (from analysis of raw_directory)
@@ -663,6 +688,14 @@ class S1FileManager:
 
         # Apply last filters
         content_info = _keep_requested_orbits(content_info, self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+        layer = Layer(self.cfg.output_grid)
+        current_tile = layer.find_tile_named(tile_name)
+        if not current_tile:
+            logger.info("Tile %s does not exist", tile_name)
+            return []
+        logger.debug('CI: %s', content_info[0])
+        content_info = _keep_products_with_enough_coverage(content_info,
+                self.cfg.tile_to_product_overlap_ratio, current_tile)
 
         # Finally, search for the files with the requested polarities only
         for ci in content_info:
@@ -793,8 +826,8 @@ class S1FileManager:
                     'raster'         : image,
                     'tile_origin'    : [(point[0], point[1]) for point in points[:-1]],
                     'tile_coverage'  : intersection.GetArea() / tile_footprint.GetArea(),
-                    'orbit_direction': get_orbit_direction(manifest),
-                    'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
+                    # 'orbit_direction': get_orbit_direction(manifest),
+                    # 'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
                     })
 
         return intersect_raster
