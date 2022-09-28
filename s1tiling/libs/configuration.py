@@ -158,6 +158,11 @@ class Configuration():
             logging.critical("ERROR: OTB %s does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '%s'", otb_version(), configFile)
             sys.exit(exits.CONFIG_ERROR)
 
+        self.lower_signal_value = config.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
+        if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
+            logging.critical("ERROR: 'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising. Please fix '%s'", configFile)
+            sys.exit(exits.CONFIG_ERROR)
+
         self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 
         self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
@@ -195,9 +200,11 @@ class Configuration():
             self.override_azimuth_cut_threshold_to = None
 
         # Permit to override default file name formats
-        fname_fmt_keys = ['calibration', 'cut_borders', 'orthorectification', 'concatenation',
-                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
-                'lia_orthorectification', 'lia_concatenation', 'lia_product', 's2_lia_corrected']
+        fname_fmt_keys = ['calibration', 'correct_denoising', 'cut_borders',
+                'orthorectification', 'concatenation', 'dem_s1_agglomeration',
+                's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
+                'lia_orthorectification', 'lia_concatenation', 'lia_product',
+                's2_lia_corrected']
         self.fname_fmt = {}
         for key in fname_fmt_keys:
             fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
