@@ -67,14 +67,16 @@ class Configuration():
         """
         constructor
         """
-        self.first_date        = '2020-01-01'
-        self.last_date         = '2020-01-10'
-        self.download          = False
-        self.raw_directory     = inputdir
-        self.tmpdir            = tmpdir
-        self.output_preprocess = outputdir
-        self.cache_srtm_by     = 'symlink'
-        self.fname_fmt         = {}
+        self.first_date          = '2020-01-01'
+        self.last_date           = '2020-01-10'
+        self.download            = False
+        self.raw_directory       = inputdir
+        self.tmpdir              = tmpdir
+        self.output_preprocess   = outputdir
+        self.cache_srtm_by       = 'symlink'
+        self.fname_fmt           = {}
+        self.orbit_direction     = None
+        self.relative_orbit_list = []
 
 class MockDirEntry:
     def __init__(self, pathname):
@@ -126,9 +128,13 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns):
     known_files.extend(files)
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
+    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
-    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
+    # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
+    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
+    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit', lambda manifest : 7)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
 
 
 @given('All files are known')
@@ -150,7 +156,8 @@ def given_all_VH_files_are_know(mocker, known_files, known_dirs):
 def _search(configuration, image_list, polarisation):
     configuration.polarisation = polarisation
     manager = S1FileManager(configuration)
-    manager._update_s1_img_list()
+    manager._refresh_s1_product_list()
+    manager._update_s1_img_list_for('33NWB')
     logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     for p in manager.get_raster_list():
         for im in p.get_images_list():

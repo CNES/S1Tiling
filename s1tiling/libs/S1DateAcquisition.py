@@ -31,10 +31,10 @@
 
 class S1DateAcquisition:
     """This class handles the list of images for one S1 product"""
-    def __init__(self, manifest, image_filenames_list):
-        self.manifest = manifest
+    def __init__(self, manifest, image_filenames_list, product_info):
+        self.manifest             = manifest
         self.image_filenames_list = image_filenames_list
-
+        self.product_info         = product_info
 
     def __repr__(self):
         return f"S1DateAcquisition('{self.manifest}', {self.image_filenames_list})"

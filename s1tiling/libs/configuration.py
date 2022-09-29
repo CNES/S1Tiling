@@ -153,7 +153,7 @@ class Configuration():
         # 0 => no filter
         self.tile_to_product_overlap_ratio = config.getint('DataSource', 'tile_to_product_overlap_ratio', fallback=0)
         if self.tile_to_product_overlap_ratio > 100:
-            logging.critical("Parameter [tile_to_product_overlap_ratio] must be a percentile in [1, 100]")
+            logging.critical("Parameter [tile_to_product_overlap_ratio] must be a percentage in [1, 100]")
             logging.critical("Please correct the config file")
             sys.exit(exits.CONFIG_ERROR)
 

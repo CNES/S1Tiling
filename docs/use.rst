@@ -344,8 +344,10 @@ You can use this :download:`this template
 
       .. _DataSource.tile_to_product_overlap_ratio:
   * - ``tile_to_product_overlap_ratio``
-    - Percentage of tile area to be covered for a pair of Sentinel-1 products
-      to be retained.
+    - Percentage of tile area to be covered for a single or a pair of
+      Sentinel-1 products to be retained.
+
+      The number is expected as an integer in the [1..100] range.
 
 .. _Mask:
 

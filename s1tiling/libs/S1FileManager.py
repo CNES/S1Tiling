@@ -87,7 +87,7 @@ def product_cover(product, geometry):
     """
     Compute the coverage of the intersection of the product and the target geometry
     relativelly to the target geometry.
-    Return a percentile in the range [0..100].
+    Return a percentage in the range [0..100].
 
     This function has been extracted and adapted from
     :func:`eodag.plugins.crunch.filter_overlap.FilterOverlap.proceed`, which is
@@ -183,13 +183,17 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-def filter_images_providing_enough_cover_by_pair(products, target_cover,
+def _filter_images_providing_enough_cover_by_pair(products, target_cover,
         ident, get_cover, get_orbit):
     """
     Associate products of the same date and orbit into pairs (at most),
     to compute the total coverage of the target zone.
     If the total coverage is inferior to the target coverage, the products
     are filtered out.
+
+    This function can be used on product information returned by EODAG as well
+    as product information extracted from existing files. It's acheived thanks
+    to the `ident`, `get_cover` and `get_orbit` variation points.
     """
     if not products or not target_cover:
         return products
@@ -224,16 +228,25 @@ def filter_images_providing_enough_cover_by_pair(products, target_cover,
 
 
 def _keep_products_with_enough_coverage(content_info, target_cover, current_tile):
+    """
+    Helper function that filters the products (/pairs of products) that provide
+    enough coverage.
+    It's meant to be used on product information extracted from existing files.
+    """
     tile_footprint = current_tile.GetGeometryRef()
+    area_polygon = tile_footprint.GetGeometryRef(0)
+    points = area_polygon.GetPoints()
+    origin = [(point[0], point[1]) for point in points[:-1]]
     for ci in content_info:
-        p        = ci['product']
-        safe_dir = ci['safe_dir']
+        # p        = ci['product']
+        # safe_dir = ci['safe_dir']
         manifest = ci['manifest']
         poly = get_shape(manifest)
         intersection = poly.Intersection(tile_footprint)
-        ci['coverage'] = intersection.GetArea() / tile_footprint.GetArea() * 100
+        ci['coverage']    = intersection.GetArea() / tile_footprint.GetArea() * 100
+        ci['tile_origin'] = origin
 
-    return filter_images_providing_enough_cover_by_pair(
+    return _filter_images_providing_enough_cover_by_pair(
             content_info, target_cover,
             ident=lambda ci: ci['product'].name,
             get_cover=lambda ci: ci['coverage'],
@@ -278,18 +291,16 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
     discarding everything.
     """
     if not rq_orbit_direction and not rq_relative_orbit_list:
-        return products
+        return content_info
     kept_products = []
     for ci in content_info:
-        p        = ci['product']
-        safe_dir = ci['safe_dir']
-        manifest = ci['manifest']
+        p         = ci['product']
+        # safe_dir  = ci['safe_dir']
+        # manifest  = ci['manifest']
+        direction = ci['orbit_direction']
+        orbit     = ci['relative_orbit']
         # logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
-        direction = get_orbit_direction(manifest)
-        ci['orbit_direction'] = direction
-        orbit = get_relative_orbit(manifest)
 
-        ci['relative_orbit'] = orbit
         if rq_orbit_direction:
             if direction != rq_orbit_direction:
                 logger.debug('Discard %s as its direction (%s) differs from the requested %s',
@@ -373,10 +384,6 @@ class S1FileManager:
         assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
-        # self.vh_pattern       = "measurement/*vh*-???.tiff"
-        # self.vv_pattern       = "measurement/*vv*-???.tiff"
-        # self.hh_pattern       = "measurement/*hh*-???.tiff"
-        # self.hv_pattern       = "measurement/*hv*-???.tiff"
         self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
@@ -384,7 +391,7 @@ class S1FileManager:
 
         self.first_date = cfg.first_date
         self.last_date  = cfg.last_date
-        # self._update_s1_img_list()  # not before we know what we are looking for (tile id)
+        self._refresh_s1_product_list()
         if self.cfg.download:
             logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
             self._dag = EODataAccessGateway(self.cfg.eodagConfig)
@@ -485,6 +492,7 @@ class S1FileManager:
             for safe in safefile_list[ : len(safefile_list) - threshold]:
                 logger.debug("Remove old SAFE: %s", os.path.basename(safe))
                 shutil.rmtree(safe, ignore_errors=True)
+            self._refresh_s1_product_list()
             self._update_s1_img_list(tile_name)
 
     def _download(self, dag: EODataAccessGateway,
@@ -567,7 +575,7 @@ class S1FileManager:
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
         # Filter cover
         if cover:
-            products = filter_images_providing_enough_cover_by_pair(
+            products = _filter_images_providing_enough_cover_by_pair(
                     products, cover,
                     ident=lambda p: p.as_dict()['id'],
                     get_cover=lambda p: product_cover(p, extent),
@@ -580,9 +588,9 @@ class S1FileManager:
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
-        self._update_s1_img_list(tile_name) # to know what we need to download
+        self._refresh_s1_product_list()
         products = [p for p in products
-                if not p.as_dict()['id'] in self.product_list
+                if not p.as_dict()['id'] in self._product_list
                 ]
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
@@ -658,69 +666,136 @@ class S1FileManager:
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
                         dryrun=dryrun)
-        # self._update_s1_img_list()
+        self._refresh_s1_product_list()
 
-    def _update_s1_img_list(self, tile_name):
+    def _refresh_s1_product_list(self):
         """
-        This method updates the list of S1 images available
-        (from analysis of raw_directory)
+        Scan all the available products and filter them according to:
+        - orbit requirements
+        - date requirements
 
-        Returns:
-           the list of S1 images available as instances
-           of S1DateAcquisition class
+        Todo: optimize the workflow:
+            - be able to add new products from list of downloaded products
+              (may require _discard_small_redundant() again)
+            - remove product (from keep_X_latest_S1_files()
         """
+        self._product_list = []
 
-        self.raw_raster_list = []
-        self.product_list    = []
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
+        # Filter by date specification
         content = [d for d in content if self.is_product_in_time_range(d.path)]
+        # Discard incomplete products (when the complete products are there)
         content = _discard_small_redundant(content, ident=lambda d: d.name)
 
-        # Build triples of {product_dir, safe_dir, manifest_path}
-        content_info = [ {
+        # Build tuples of {product_dir, safe_dir, manifest_path,
+        # orbit_direction, relative_orbit}
+        products_info = [ {
             'product':  p,
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
             'safe_dir': os.path.join(p.path, os.path.basename(p.path) + '.SAFE'),
             } for p in content]
-        content_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), content_info))
-        for ci in content_info:
-            ci.update({'manifest': os.path.join(ci['safe_dir'], self.manifest_pattern)})
+        products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
 
-        # Apply last filters
-        content_info = _keep_requested_orbits(content_info, self.cfg.orbit_direction, self.cfg.relative_orbit_list)
-        layer = Layer(self.cfg.output_grid)
-        current_tile = layer.find_tile_named(tile_name)
-        if not current_tile:
-            logger.info("Tile %s does not exist", tile_name)
-            return []
-        logger.debug('CI: %s', content_info[0])
-        content_info = _keep_products_with_enough_coverage(content_info,
-                self.cfg.tile_to_product_overlap_ratio, current_tile)
+        for ci in products_info:
+            manifest = os.path.join(ci['safe_dir'], self.manifest_pattern)
+            ci['manifest']        = manifest
+            ci['orbit_direction'] = get_orbit_direction(manifest)
+            ci['relative_orbit']  = get_relative_orbit(manifest)
 
-        # Finally, search for the files with the requested polarities only
-        for ci in content_info:
+        # Filter by orbit specification
+        products_info = _keep_requested_orbits(products_info,
+                self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+
+        self._products_info = products_info
+        for ci in products_info:
             current_content = ci['product']
             safe_dir        = ci['safe_dir']
             manifest        = ci['manifest']
             logger.debug('current_content: %s', current_content)
 
-            self.product_list += [os.path.basename(current_content.path)]
-            acquisition = S1DateAcquisition(manifest, [])
+            self._product_list += [os.path.basename(current_content.path)]
+
+    def _filter_products_with_enough_coverage(self, tile_name):
+        """
+        Filter products (/pairs of products) that provide enough coverage for
+        the requested tile.
+
+        This function is meant to be a mock entry-point.
+        """
+        layer = Layer(self.cfg.output_grid)
+        current_tile = layer.find_tile_named(tile_name)
+        if not current_tile:
+            logger.info("Tile %s does not exist", tile_name)
+            return []
+        products_info = _keep_products_with_enough_coverage(self._products_info,
+                self.cfg.tile_to_product_overlap_ratio, current_tile)
+        return products_info
+
+    def _update_s1_img_list_for(self, tile_name):
+        """
+        This method updates the list of S1 images available
+        (from analysis of raw_directory), and it keeps only the images (/pairs
+        or images) that provide enough coverage.
+
+        Returns:
+           the list of S1 images available as instances
+           of S1DateAcquisition class
+        """
+        self.raw_raster_list = []
+
+        # Filter products with enough coverage of the tile
+        products_info = self._filter_products_with_enough_coverage(tile_name)
+
+        # Finally, search for the files with the requested polarities only
+        for ci in products_info:
+            current_content = ci['product']
+            safe_dir        = ci['safe_dir']
+            manifest        = ci['manifest']
+            logger.debug('current_content: %s', current_content)
+
+            self._product_list += [os.path.basename(current_content.path)]
+            acquisition = S1DateAcquisition(manifest, [], ci)
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
             logger.debug("# Safe dir: %s", safe_dir)
             logger.debug("  all tiffs: %s", list(all_tiffs))
 
-            vv_images = filter_images_or_ortho('vv', all_tiffs) if self.cfg.polarisation in ['VV', 'VV VH'] else []
-            vh_images = filter_images_or_ortho('vh', all_tiffs) if self.cfg.polarisation in ['VH', 'VV VH'] else []
-            hv_images = filter_images_or_ortho('hv', all_tiffs) if self.cfg.polarisation in ['HV', 'HH HV'] else []
-            hh_images = filter_images_or_ortho('hh', all_tiffs) if self.cfg.polarisation in ['HH', 'HH HV'] else []
+            l_vv, vv_images = self._filter_images_or_ortho_according_to_conf('vv', all_tiffs)
+            l_vh, vh_images = self._filter_images_or_ortho_according_to_conf('vh', all_tiffs)
+            l_hv, hv_images = self._filter_images_or_ortho_according_to_conf('hv', all_tiffs)
+            l_hh, hh_images = self._filter_images_or_ortho_according_to_conf('hh', all_tiffs)
 
             for image in vv_images + vh_images + hv_images + hh_images:
                 if image not in self.processed_filenames:
                     acquisition.add_image(image)
                     self.nb_images += 1
+            if l_vv + l_vh + l_hv + l_hh == 0:
+                # There is not a single file that would have been compatible
+                # with what is expected
+                logger.critical("Problem with %s", manifest)
+                logger.critical("Please remove the raw data for %s SAFE file", manifest)
+                sys.exit(exits.CORRUPTED_DATA_SAFE)
 
             self.raw_raster_list.append(acquisition)
+
+    def _filter_images_or_ortho_according_to_conf(self, polarisation, all_tiffs):
+        """
+        Helper function that returns the images compatible with the required
+        polarisation, and if that polarisation has been requested in the
+        configuration file.
+
+        It also returns the number of file that would have been compatibles,
+        independently of the requested polarisation. This will permit to control
+        the SAFE contains what it's expected to contain.
+        """
+        k_polarisation_associations = {
+                'vv' : ['VV', 'VV VH'],
+                'vh' : ['VH', 'VV VH'],
+                'hv' : ['HV', 'HH HV'],
+                'hh' : ['HH', 'HH HV'],
+                }
+        all_images = filter_images_or_ortho(polarisation, all_tiffs)
+        pol_images = all_images if self.cfg.polarisation in k_polarisation_associations[polarisation] else []
+        return len(all_images), pol_images
 
     def tile_exists(self, tile_name_field):
         """
@@ -797,38 +872,21 @@ class S1FileManager:
         #    for f in glob.glob(os.path.join(self.cfg.output_preprocess, tile_name_field, "s1?_*.tif"))]
         intersect_raster = []
 
-        layer = Layer(self.cfg.output_grid)
-        current_tile = layer.find_tile_named(tile_name_field)
-        if not current_tile:
-            logger.info("Tile %s does not exist", tile_name_field)
-            return intersect_raster
-
-        tile_footprint = current_tile.GetGeometryRef()
+        # Get all the images that cover enough of the requested tile (the
+        # coverage may be obtained with 2 concatenated images)
+        self._update_s1_img_list_for(tile_name_field)
 
         for image in self.get_raster_list():
             logger.debug('- Manifest: %s', image.get_manifest())
             logger.debug('  Image list: %s', image.get_images_list())
-            if len(image.get_images_list()) == 0:
-                logger.critical("Problem with %s", image.get_manifest())
-                logger.critical("Please remove the raw data for %s SAFE file", image.get_manifest())
-                sys.exit(exits.CORRUPTED_DATA_SAFE)
-
-            manifest = image.get_manifest()
-            poly = get_shape(manifest)
-
-            intersection = poly.Intersection(tile_footprint)
-            logger.debug('   -> Test intersection: requested: %s  VS tile: %s --> %s', poly, tile_footprint, intersection)
-            if intersection.GetArea() != 0:
-                area_polygon = tile_footprint.GetGeometryRef(0)
-                points = area_polygon.GetPoints()
-                # intersect_raster.append((image, [(point[0], point[1]) for point in points[:-1]]))
-                intersect_raster.append( {
-                    'raster'         : image,
-                    'tile_origin'    : [(point[0], point[1]) for point in points[:-1]],
-                    'tile_coverage'  : intersection.GetArea() / tile_footprint.GetArea(),
-                    # 'orbit_direction': get_orbit_direction(manifest),
-                    # 'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
-                    })
+            assert len(image.get_images_list()) > 0
+            intersect_raster.append( {
+                'raster'         : image,
+                'tile_origin'    : image.product_info['tile_origin'],
+                'tile_coverage'  : image.product_info['coverage'],
+                # 'orbit_direction': get_orbit_direction(manifest),
+                # 'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
+                })
 
         return intersect_raster
 

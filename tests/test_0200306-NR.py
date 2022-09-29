@@ -250,6 +250,9 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
+    # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
+    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
+    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
 
     def mock_commit_execution_for_SelectLIA(inp, out):
         logging.debug('mock.mv %s %s', inp, out)

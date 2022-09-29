@@ -102,8 +102,10 @@ def raster(idx, polarity):
     s1dir  = FILES[idx]['s1dir']
     coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
     logging.debug("coverage of %s by %s = %s", TILE, FILES[idx]['s1dir'], coverage)
+    product_info = {'origin': S2_tile_origin, 'coverage': coverage}  # don't need more
     return {
-            'raster': S1DateAcquisition(f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe', [input_file(idx, 'vv')]),
+            'raster': S1DateAcquisition(f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
+                [input_file(idx, 'vv')], product_info),
             'tile_origin': S2_tile_origin,
             'tile_coverage': coverage
         }
