@@ -373,7 +373,18 @@ def _parallel_download_and_extraction_of_products(
 
 
 class S1FileManager:
-    """ Class to manage processed files (downloads, checks) """
+    """
+    Class to manage processed files (downloads, checks)
+
+    In a first step, all S1 products are found and filtered according to their
+    date, and their orbit.
+
+    Then, this list of all known products is filtered according to the target S2
+    tile to retain only the S1 products that provide enough coverage.
+
+    Eventually, the S1 products are scanned for the raster images of
+    polarisation compatible with the requested one(s).
+    """
     def __init__(self, cfg):
         self.cfg              = cfg
         self.raw_raster_list  = []
@@ -542,7 +553,7 @@ class S1FileManager:
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
 
-        # Filter relative_orbits -- if it could not be done earier in the search() request.
+        # Filter relative_orbits -- if it could not be done earlier in the search() request.
         if len(relative_orbit_list) > 1:
             filtered_products = []
             for rel_orbit in relative_orbit_list:
@@ -682,10 +693,13 @@ class S1FileManager:
         self._product_list = []
 
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
+        logger.debug('%s local products found on disk', len(content))
         # Filter by date specification
         content = [d for d in content if self.is_product_in_time_range(d.path)]
+        logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
         content = _discard_small_redundant(content, ident=lambda d: d.name)
+        logger.debug('%s local products remaining after discarding incomplete and redundant products', len(content))
 
         # Build tuples of {product_dir, safe_dir, manifest_path,
         # orbit_direction, relative_orbit}
@@ -703,15 +717,22 @@ class S1FileManager:
             ci['relative_orbit']  = get_relative_orbit(manifest)
 
         # Filter by orbit specification
-        products_info = _keep_requested_orbits(products_info,
-                self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+        if self.cfg.orbit_direction or self.cfg.relative_orbit_list:
+            products_info = _keep_requested_orbits(products_info,
+                    self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+            logger.debug('%s local products remaining after filtering requested orbits', len(products_info))
+
+        if products_info:
+            logger.debug('Time and orbit compatible products found on disk:')
+        else:
+            logger.warning('No time and orbit compatible products found on disk!')
 
         self._products_info = products_info
         for ci in products_info:
             current_content = ci['product']
             safe_dir        = ci['safe_dir']
             manifest        = ci['manifest']
-            logger.debug('current_content: %s', current_content)
+            logger.debug('* %s', current_content.name)
 
             self._product_list += [os.path.basename(current_content.path)]
 
