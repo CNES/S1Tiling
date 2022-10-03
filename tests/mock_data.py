@@ -31,8 +31,8 @@ class FileDB:
             {
                 'start_time'      : '2020:01:08 04:41:50',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1_basename'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
-                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044150',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
                 's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
                 'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
@@ -43,8 +43,8 @@ class FileDB:
             {
                 'start_time'      : '2020:01:08 04:42:15',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1_basename'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
-                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044215',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
                 's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
                 'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
@@ -229,6 +229,10 @@ class FileDB:
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]
 
+    def all_vvvh_files(self):
+        # return [f'{idx} {pol}' for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
+        return [self.input_file(idx, polarity=pol) for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
+
     def start_time(self, idx):
         return self.FILES[idx]['start_time']
 
@@ -246,7 +250,8 @@ class FileDB:
     def input_file(self, idx, polarity='vv'):
         crt    = self.FILES[idx]
         s1dir  = crt['s1dir']
-        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp=tmp_suffix(tmp))
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
     def input_file_vv(self, idx):

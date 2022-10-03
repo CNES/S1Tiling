@@ -8,6 +8,7 @@ import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
 from tests.mock_otb import isfile, isdir, glob, dirname
+from tests.mock_data import FileDB
 import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
@@ -19,45 +20,25 @@ scenarios('../features/test_file_detection.feature')
 # ======================================================================
 # Test Data
 
-FILES = [
-        {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file': 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001.tiff',
-            },
-        {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file': 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001.tiff',
-            },
-        {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-            's1file': 's1a-iw-grd-vh-20200108t044150-20200108t044215-030704-038506-001.tiff',
-            },
-        {
-            's1dir': 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-            's1file': 's1a-iw-grd-vh-20200108t044215-20200108t044240-030704-038506-001.tiff',
-            }
-        ]
-
 TMPDIR = 'TMP'
 INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
+LIADIR = 'LIADIR'
+TILE   = '33NWB'
+
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 
 def safe_dir(idx):
-    s1dir  = FILES[idx]['s1dir']
-    return f'{INPUT}/{s1dir}/{s1dir}.SAFE'
+    return file_db.safe_dir(idx)
 
-def input_file(idx):
-    s1dir  = FILES[idx]['s1dir']
-    s1file = FILES[idx]['s1file']
-    return f'{INPUT}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+def input_file(idx, polarity):
+    return file_db.input_file(idx, polarity)
 
 def input_file_vv(idx):
-    assert idx < 2
-    return input_file(idx)
+    return file_db.input_file(idx, 'vv')
 
 def input_file_vh(idx):
-    assert idx < 2
-    return input_file(idx+2)
+    return file_db.input_file(idx, 'vh')
 
 # ======================================================================
 # Mocks
@@ -118,14 +99,21 @@ def configuration(mocker):
 # ======================================================================
 # Given steps
 
-def _declare_know_files(mocker, known_files, known_dirs, patterns):
+def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
     # logging.debug('_declare_know_files(%s)', patterns)
-    all_files = [input_file(idx) for idx in range(len(FILES))]
-    # logging.debug('- all_files: %s', all_files)
+    # all_files = [input_file(idx) for idx in range(len(FILES))]
+    all_files = file_db.all_vvvh_files()
+    # logging.debug('All files:')
+    # for a in all_files:
+    #     logging.debug(' - %s', Path(*Path(a).parts[-3:]))
+    assert file_db.input_file(0, 'vv') != file_db.input_file(0, 'vh')
+    assert all_files[0] != all_files[1]
     files = []
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     known_files.extend(files)
+    # for k in known_files:
+        # logging.debug(' - %s', k)
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
@@ -137,18 +125,26 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns):
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
 
 
-@given('All files are known')
-def given_all_files_are_know(mocker, known_files, known_dirs):
-    _declare_know_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+@given('All S1 files are known')
+def given_all_S1_files_are_know(mocker, known_files, known_dirs):
+    _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
 
-@given('All VV files are known')
-def given_all_VV_files_are_know(mocker, known_files, known_dirs):
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'])
+@given('All S1 VV files are known')
+def given_all_S1_VV_files_are_know(mocker, known_files, known_dirs):
+    _declare_known_S1_files(mocker, known_files, known_dirs, ['vv'])
 
-@given('All VH files are known')
-def given_all_VH_files_are_know(mocker, known_files, known_dirs):
-    _declare_know_files(mocker, known_files, known_dirs, ['vh'])
+@given('All S1 VH files are known')
+def given_all_S1_VH_files_are_know(mocker, known_files, known_dirs):
+    _declare_known_S1_files(mocker, known_files, known_dirs, ['vh'])
 
+
+def _declare_known_S2_files(mocker, known_files, known_dirs):
+    pass
+
+
+@given('All S2 files are known')
+def given_all_S2_files_are_know(mocker, known_files, known_dirs):
+    _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
 
 # ======================================================================
 # When steps
@@ -160,7 +156,9 @@ def _search(configuration, image_list, polarisation):
     manager._update_s1_img_list_for('33NWB')
     logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     for p in manager.get_raster_list():
+        # logging.debug(" * %s", p.get_manifest())
         for im in p.get_images_list():
+            # logging.debug("   -> %s", im)
             image_list.append(im)
 
 @when('VV-VH files are searched')
