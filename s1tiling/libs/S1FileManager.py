@@ -57,6 +57,7 @@ from s1tiling.libs import exits
 from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
+from .outcome import Outcome
 
 setup_logging(verbose=1)
 
@@ -326,12 +327,12 @@ def _download_and_extract_one_product(dag, raw_directory, product):
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
     try:
-        path = dag.download(
-                product,       # EODAG will clear this variable
-                extract=True,  # Let's eodag do the job
-                wait=1,        # Wait time in minutes between two download tries
-                timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
-                )
+        path = Outcome(dag.download(
+            product,       # EODAG will clear this variable
+            extract=True,  # Let's eodag do the job
+            wait=1,        # Wait time in minutes between two download tries
+            timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
+            ))
         logging.debug(ok_msg)
         if os.path.exists(file) :
             try:
@@ -339,9 +340,10 @@ def _download_and_extract_one_product(dag, raw_directory, product):
                 os.remove(file)
             except OSError:
                 pass
-    except BaseException:  # pylint: disable=broad-except
+    except BaseException as e:  # pylint: disable=broad-except
         logging.error('Failed to download (and extract) %s', product)
-        path = None
+        path = Outcome(e)
+        path.add_related_filename(product)
 
     return path
 
@@ -360,9 +362,15 @@ def _parallel_download_and_extraction_of_products(
         log_queue_listener.start()
         try:
             for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
-                logger.info("%s correctly downloaded", result)
-                logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                paths.append(result)
+                if result:
+                    logger.info("%s correctly downloaded", result.value())
+                    logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
+                    paths.append(result.value())
+                else:
+                    logger.warning("Cannot downloaded %s", result.related_filenames())
+                    # TODO: make it possible to detect missing products in the
+                    # analysis
+                    paths.append(result)
         finally:
             pool.close()
             pool.join()
