@@ -241,8 +241,12 @@ def _keep_products_with_enough_coverage(content_info, target_cover, current_tile
     for ci in content_info:
         # p        = ci['product']
         # safe_dir = ci['safe_dir']
-        manifest = ci['manifest']
-        poly = get_shape(manifest)
+        if 'product_shape' not in ci:
+            manifest = ci['manifest']
+            poly = get_shape(manifest)
+            ci['product_shape'] = poly
+        else:
+            poly = ci['product_shape']
         intersection = poly.Intersection(tile_footprint)
         ci['coverage']    = intersection.GetArea() / tile_footprint.GetArea() * 100
         ci['tile_origin'] = origin
@@ -511,7 +515,7 @@ class S1FileManager:
             for safe in safefile_list[ : len(safefile_list) - threshold]:
                 logger.debug("Remove old SAFE: %s", os.path.basename(safe))
                 shutil.rmtree(safe, ignore_errors=True)
-            self._refresh_s1_product_list()
+            self._refresh_s1_product_list()  # TODO: decremental update
             self._update_s1_img_list(tile_name)
 
     def _download(self, dag: EODataAccessGateway,
@@ -607,9 +611,11 @@ class S1FileManager:
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
-        self._refresh_s1_product_list()
+        # self._refresh_s1_product_list()  # No need: as it has been done at startup, and after download
+                                           # And let's suppose nobody deletd files
+                                           # manually!
         products = [p for p in products
-                if not p.as_dict()['id'] in self._product_list
+                if not p.as_dict()['id'] in self._product_list.keys()
                 ]
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
@@ -621,7 +627,7 @@ class S1FileManager:
         #   generator in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
-        logger.debug('search %s for %s', s2images_pat, polarizations)
+        logger.debug('Search %s for %s on disk', s2images_pat, polarizations)
         s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
@@ -665,6 +671,7 @@ class S1FileManager:
             tiles_list = self.roi_by_tiles
         logger.debug("Tiles requested to download: %s", tiles_list)
 
+        downloaded_products = []
         layer = Layer(self.cfg.output_grid)
         for current_tile in layer:
             tile_name = current_tile.GetField('NAME')
@@ -674,7 +681,7 @@ class S1FileManager:
                 latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
                 lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
                 lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
-                self._download(self._dag,
+                downloaded_products += self._download(self._dag,
                         lonmin, lonmax, latmin, latmax,
                         self.first_date, self.last_date,
                         os.path.join(self.cfg.output_preprocess, tiles_list),
@@ -685,23 +692,46 @@ class S1FileManager:
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
                         dryrun=dryrun)
-        self._refresh_s1_product_list()
+        if downloaded_products:
+            failed_products = list(filter(lambda p: not p, downloaded_products))
+            if failed_products:
+                logger.warning('Some products could not be downloaded:')
+                for fp in failed_products:
+                    logger.warning('* %s', fp)
+            success_products = list(filter(lambda p: p, downloaded_products))
+            self._refresh_s1_product_list(success_products)  # incremental update
 
-    def _refresh_s1_product_list(self):
+    def _refresh_s1_product_list(self, new_products=None):
         """
         Scan all the available products and filter them according to:
         - orbit requirements
         - date requirements
 
         Todo: optimize the workflow:
-            - be able to add new products from list of downloaded products
-              (may require _discard_small_redundant() again)
             - remove product (from keep_X_latest_S1_files()
         """
-        self._product_list = []
-
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         logger.debug('%s local products found on disk', len(content))
+        # Filter with new product only
+        if new_products:
+            # content is DirEntry
+            # NEW is str!! Always
+            # logger.debug('content[0]: %s -> %s', type(content[0]), content[0])
+            # logger.debug('NEW[0]: %s -> %s', type(new_products[0]), new_products[0])
+            # logger.debug('dirs found: %s', content)
+            # If the directory appear directly
+            content0 = content
+            content = list(filter(lambda d: d.path in new_products, content0))
+            # Or if the directory appear with an indirection: e.g. {prod}/{prord}.SAFE
+            content += list(filter(lambda d: d.path in (os.path.dirname(p) for p in new_products), content0))
+
+            logger.debug('dirs found & filtered: %s', content)
+            logger.debug("products DL'ed: %s", new_products)
+            assert len(content) == len(new_products), f'Not all new products found in {self.cfg.raw_directory}: {new_products}'
+        else:
+            self._product_list = {}
+            self._products_info = []
+
         # Filter by date specification
         content = [d for d in content if self.is_product_in_time_range(d.path)]
         logger.debug('%s local products remaining in the specified time range', len(content))
@@ -714,7 +744,7 @@ class S1FileManager:
         products_info = [ {
             'product':  p,
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
-            'safe_dir': os.path.join(p.path, os.path.basename(p.path) + '.SAFE'),
+            'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
             } for p in content]
         products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
 
@@ -730,19 +760,16 @@ class S1FileManager:
                     self.cfg.orbit_direction, self.cfg.relative_orbit_list)
             logger.debug('%s local products remaining after filtering requested orbits', len(products_info))
 
+        # Final log + extend "global" products_info with newly analysed ones
         if products_info:
             logger.debug('Time and orbit compatible products found on disk:')
+            for ci in products_info:
+                current_content = ci['product']
+                logger.debug('* %s', current_content.name)
+                self._product_list[current_content.name] = current_content
+            self._products_info.extend(products_info)
         else:
             logger.warning('No time and orbit compatible products found on disk!')
-
-        self._products_info = products_info
-        for ci in products_info:
-            current_content = ci['product']
-            safe_dir        = ci['safe_dir']
-            manifest        = ci['manifest']
-            logger.debug('* %s', current_content.name)
-
-            self._product_list += [os.path.basename(current_content.path)]
 
     def _filter_products_with_enough_coverage(self, tile_name):
         """
@@ -782,7 +809,7 @@ class S1FileManager:
             manifest        = ci['manifest']
             logger.debug('current_content: %s', current_content)
 
-            self._product_list += [os.path.basename(current_content.path)]
+            # self._product_list[current_content.name] = current_content
             acquisition = S1DateAcquisition(manifest, [], ci)
             all_tiffs = glob.glob(os.path.join(safe_dir, self.tiff_pattern))
             logger.debug("# Safe dir: %s", safe_dir)
