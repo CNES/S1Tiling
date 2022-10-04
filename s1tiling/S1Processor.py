@@ -69,10 +69,12 @@ from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
-        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate,
-        BuildBorderMask, SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
-        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA, OrthoRectifyLIA,
-        ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
+        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
+        CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
+        SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
+        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
+        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
+        ApplyLIACalibration)
 from s1tiling.libs import exits
 
 # Graphs
@@ -499,11 +501,18 @@ def s1_process(config_opt,
     """
     def builder(config, dryrun, debug_caches):
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+
+        calib_seq = [ExtractSentinel1Metadata, AnalyseBorders, Calibrate]
+        if config.removethermalnoise:
+            calib_seq += [CorrectDenoising]
+        calib_seq += [CutBorders]
+
         if cache_before_ortho:
-            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders], 'PrepareForOrtho', product_required=False, is_name_incremental=True)
-            pipelines.register_pipeline([OrthoRectify],                                                    'OrthoRectify',    product_required=False)
+            pipelines.register_pipeline(calib_seq,      'PrepareForOrtho', product_required=False, is_name_incremental=True)
+            pipelines.register_pipeline([OrthoRectify], 'OrthoRectify',    product_required=False)
         else:
-            pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify], 'FullOrtho', product_required=False, is_name_incremental=True)
+            calib_seq += [OrthoRectify]
+            pipelines.register_pipeline(calib_seq, 'FullOrtho', product_required=False, is_name_incremental=True)
 
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)

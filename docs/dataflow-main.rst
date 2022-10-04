@@ -146,6 +146,11 @@ The type of calibration is controlled with :ref:`[Processing].calibration
    in memory with :ref:`cutting <cutting>` to produce :ref:`orthorectification
    ready images <orthoready-files>`
 
+.. note:: An extra artificial step is realized just after calibration to
+   replace null values produced by denoising with a :ref:`minimal signal value
+   <Processing.lower_signal_value>` > 0. This way, 0 can be used all along the
+   way as the *no data* value.
+
 
 .. _cutting:
 .. index:: Margin cutting

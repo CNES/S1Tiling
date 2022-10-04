@@ -310,7 +310,8 @@ class Calibrate(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['CALIBRATION'] = meta['calibration_type']
+        imd['CALIBRATION']   = meta['calibration_type']
+        imd['NOISE_REMOVED'] = str(self.__removethermalnoise)
 
     def parameters(self, meta):
         """
@@ -328,6 +329,61 @@ class Calibrate(OTBStepFactory):
         else:
             # Don't try to do anything, let's keep the noise
             params['noise']       = True
+        return params
+
+
+class CorrectDenoising(OTBStepFactory):
+    """
+    Factory that prepares steps that run
+    :std:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
+    documentation.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - base name -- to generate typical output filename
+    - input filename
+    - output filename
+    - lower_signal_value
+    """
+    def __init__(self, cfg):
+        """
+        Constructor.
+        """
+        fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
+        fname_fmt = cfg.fname_fmt.get('correct_denoising') or fname_fmt
+        super().__init__(cfg,
+                appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
+                )
+        self.__lower_signal_value = cfg.lower_signal_value
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set noise correction related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['LOWER_SIGNAL_VALUE'] = str(self.__lower_signal_value)
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with :std:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
+        """
+        params = {
+                'ram'              : str(self.ram_per_process),
+                self.param_in      : in_filename(meta),
+                # self.param_out     : out_filename(meta),
+                'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
+                }
         return params
 
 
@@ -659,19 +715,12 @@ class Concatenate(_ConcatenatorFactory):
         # TODO: factorise this recurring test!
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
-            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
-            # Legacy mode: the default final filename won't contain the
-            # calibration_type
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
             # This is a required product that shall end-up in outputdir
             gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
         else:
-            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
-            # Let the default force the "beta" calibration_type in the filename
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
-        fname_fmt = cfg.fname_fmt.get('concatenation') or fname_fmt
+        fname_fmt = cfg.fname_fmt_concatenation
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),

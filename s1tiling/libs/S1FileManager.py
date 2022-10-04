@@ -138,7 +138,8 @@ def product_cover(product, geometry):
 #             pass
 
 
-def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
+def does_final_product_need_to_be_generated_for(product, tile_name,
+        polarizations, cfg, s2images):
     """
     Tells whether finals products associated to a tile needs to be generated.
 
@@ -150,14 +151,29 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
     and the requested polarizations exists.
     """
-    logger.debug('Searching %s in %s', product, s2images)
+    logger.debug('Searching whether %s final product has already been generated in %s', product, s2images)
+    if len(s2images) == 0:
+        return True
     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
     prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
     sat, start = prod_re.match(product.as_dict()['id']).groups()
-    for pol in polarizations:
+    keys = {
+            'flying_unit_code'  : sat.lower(),
+            'tile_name'         : tile_name,
+            'acquisition_stamp' : f'{start}t??????',
+            'orbit_direction'   : '*',
+            'orbit'             : '*',
+            'calibration_type'  : cfg.calibration_type,
+            }
+    fname_fmt_concatenation = cfg.fname_fmt_concatenation
+    fname_fmt_filtered      = cfg.fname_fmt_filtered
+    for polarisation in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        pat          = f'{sat.lower()}_{tile_name}_{pol}_*_{start}t??????.tif'
-        pat_filtered = f'{sat.lower()}_{tile_name}_vh_*_{start}t??????_filtered.tif'
+        # We should use the `Processing.fname_fmt.concatenation` option
+        pat          = fname_fmt_concatenation.format(**keys, polarisation=polarisation)
+        pat_filtered = fname_fmt_filtered.format(**keys, polarisation=polarisation)
+        # pat          = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????.tif'
+        # pat_filtered = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????_filtered.tif'
         found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
         logger.debug('searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
         if not found:
@@ -518,22 +534,14 @@ class S1FileManager:
             self._refresh_s1_product_list()  # TODO: decremental update
             self._update_s1_img_list(tile_name)
 
-    def _download(self, dag: EODataAccessGateway,
-            lonmin, lonmax, latmin, latmax,
-            first_date, last_date,
-            tile_out_dir, tile_name,
-            orbit_direction, relative_orbit_list, polarization, cover,
+    def _search_products(self, dag: EODataAccessGateway,
+            extent, first_date, last_date,
+            orbit_direction, relative_orbit_list, polarization,
             searched_items_per_page,dryrun):
         """
-        Process with the call to eodag download.
+        Process with the call to eodag search.
         """
         product_type = 'S1_SAR_GRD'
-        extent = {
-                'lonmin': lonmin,
-                'lonmax': lonmax,
-                'latmin': latmin,
-                'latmax': latmax
-                }
         products = []
         page = 1
         k_dir_assoc = { 'ASC': 'ascending', 'DES': 'descending' }
@@ -586,6 +594,12 @@ class S1FileManager:
             extra_filter_log = f' && {extra_filter_log1}orbit{extra_filter_log2}'
         logger.info("%s remote S1 product(s) found and filtered (IW && %s%s): %s", len(products), polarization, extra_filter_log, products)
 
+        return products
+
+    def _filter_products(self, products, extent, tile_out_dir, tile_name, polarization, cover):
+        """
+        Filter products to download according to their polarization and coverage
+        """
         if not products:  # no need to continue
             return []
 
@@ -631,8 +645,30 @@ class S1FileManager:
         s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
-                    p, tile_name, polarizations, s2images)
+                    p, tile_name, polarizations, self.cfg, s2images)
                 ]
+        return products
+
+    def _download(self, dag: EODataAccessGateway,
+            lonmin, lonmax, latmin, latmax,
+            first_date, last_date,
+            tile_out_dir, tile_name,
+            orbit_direction, relative_orbit_list, polarization, cover,
+            searched_items_per_page,dryrun):
+        """
+        Process with the call to eodag search + filter + download.
+        """
+        extent = {
+                'lonmin': lonmin,
+                'lonmax': lonmax,
+                'latmin': latmin,
+                'latmax': latmax
+                }
+        products = self._search_products(dag, extent,
+                first_date, last_date, orbit_direction, relative_orbit_list,
+                polarization, searched_items_per_page,dryrun)
+
+        products = self._filter_products(products, extent, tile_out_dir, tile_name, polarization, cover)
 
         # And finally download all!
         # TODO: register downloading into Dask

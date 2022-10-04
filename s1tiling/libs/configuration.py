@@ -173,6 +173,11 @@ class Configuration():
             logging.critical("ERROR: OTB %s does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '%s'", otb_version(), configFile)
             sys.exit(exits.CONFIG_ERROR)
 
+        self.lower_signal_value = config.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
+        if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
+            logging.critical("ERROR: 'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising. Please fix '%s'", configFile)
+            sys.exit(exits.CONFIG_ERROR)
+
         self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
 
         self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
@@ -209,9 +214,11 @@ class Configuration():
             self.override_azimuth_cut_threshold_to = None
 
         # Permit to override default file name formats
-        fname_fmt_keys = ['calibration', 'cut_borders', 'orthorectification', 'concatenation',
-                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
-                'lia_orthorectification', 'lia_concatenation', 'lia_product', 's2_lia_corrected']
+        fname_fmt_keys = ['calibration', 'correct_denoising', 'cut_borders',
+                'orthorectification', 'concatenation', 'dem_s1_agglomeration',
+                's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
+                'lia_orthorectification', 'lia_concatenation', 'lia_product',
+                's2_lia_corrected', 'filtered']
         self.fname_fmt = {}
         for key in fname_fmt_keys:
             fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
@@ -267,6 +274,40 @@ class Configuration():
         Get the SRTMShapefile databe filepath
         """
         return str(self._SRTMShapefile)
+
+    @property
+    def fname_fmt_concatenation(self):
+        """
+        Helper method to return the ``Processing.fnmatch.concatenation` actual value
+        """
+        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if calibration_is_done_in_S1:
+            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+            # Legacy mode: the default final filename won't contain the calibration_type
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+        else:
+            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+            # Let the default force the "beta" calibration_type in the filename
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+        fname_fmt = self.fname_fmt.get('concatenation') or fname_fmt
+        return fname_fmt
+
+    @property
+    def fname_fmt_filtered(self):
+        """
+        Helper method to return the ``Processing.fnmatch.filtered` actual value
+        """
+        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if calibration_is_done_in_S1:
+            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+            # Legacy mode: the default final filename won't contain the calibration_type
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif'
+        else:
+            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+            # Let the default force the "beta" calibration_type in the filename
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+        fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
+        return fname_fmt
 
     # def check_date(self):
     #     """
