@@ -92,7 +92,8 @@ def product_property(prod, key, default=None):
 #             pass
 
 
-def does_final_product_need_to_be_generated_for(product, tile_name, polarizations, s2images):
+def does_final_product_need_to_be_generated_for(product, tile_name,
+        polarizations, cfg, s2images):
     """
     Tells whether finals products associated to a tile needs to be generated.
 
@@ -104,14 +105,29 @@ def does_final_product_need_to_be_generated_for(product, tile_name, polarization
     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
     and the requested polarizations exists.
     """
-    logger.debug('Searching %s in %s', product, s2images)
+    logger.debug('Searching whether %s final product has already been generated in %s', product, s2images)
+    if len(s2images) == 0:
+        return True
     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
     prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
     sat, start = prod_re.match(product.as_dict()['id']).groups()
-    for pol in polarizations:
+    keys = {
+            'flying_unit_code'  : sat.lower(),
+            'tile_name'         : tile_name,
+            'acquisition_stamp' : f'{start}t??????',
+            'orbit_direction'   : '*',
+            'orbit'             : '*',
+            'calibration_type'  : cfg.calibration_type,
+            }
+    fname_fmt_concatenation = cfg.fname_fmt_concatenation
+    fname_fmt_filtered      = cfg.fname_fmt_filtered
+    for polarisation in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        pat          = f'{sat.lower()}_{tile_name}_{pol}_*_{start}t??????.tif'
-        pat_filtered = f'{sat.lower()}_{tile_name}_vh_*_{start}t??????_filtered.tif'
+        # We should use the `Processing.fname_fmt.concatenation` option
+        pat          = fname_fmt_concatenation.format(**keys, polarisation=polarisation)
+        pat_filtered = fname_fmt_filtered.format(**keys, polarisation=polarisation)
+        # pat          = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????.tif'
+        # pat_filtered = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????_filtered.tif'
         found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
         logger.debug('searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
         if not found:
@@ -138,7 +154,7 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-def discard_small_redundant(products, ident=None):
+def _discard_small_redundant(products, ident=None):
     """
     Sometimes there are several S1 product with the same start date, but a different end-date.
     Let's discard the smallest products
@@ -235,10 +251,6 @@ class S1FileManager:
         assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
-        # self.vh_pattern       = "measurement/*vh*-???.tiff"
-        # self.vv_pattern       = "measurement/*vv*-???.tiff"
-        # self.hh_pattern       = "measurement/*hh*-???.tiff"
-        # self.hv_pattern       = "measurement/*hv*-???.tiff"
         self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
@@ -349,21 +361,14 @@ class S1FileManager:
                 shutil.rmtree(safe, ignore_errors=True)
             self._update_s1_img_list()
 
-    def _download(self, dag: EODataAccessGateway,
-            lonmin, lonmax, latmin, latmax,
-            first_date, last_date,
-            tile_out_dir, tile_name, polarization,
+    def _search_products(self, dag: EODataAccessGateway,
+            extent, first_date, last_date,
+            polarization,
             searched_items_per_page,dryrun):
         """
-        Process with the call to eodag download.
+        Process with the call to eodag search.
         """
         product_type = 'S1_SAR_GRD'
-        extent = {
-                'lonmin': lonmin,
-                'lonmax': lonmax,
-                'latmin': latmin,
-                'latmax': latmax
-                }
         products = []
         page = 1
         while True:
@@ -378,24 +383,26 @@ class S1FileManager:
                     box=extent,
                     # If we have eodag v1.6, we try to filter product during the search request
                     polarizationMode=dag_polarization_param,
-                    sensorMode="IW"
+                    sensorMode="IW",
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
             products += page_products
             page += 1
             if len(page_products) < searched_items_per_page:
                 break
-        logger.info("%s remote S1 products found: %s", len(products), products)
+        logger.debug("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
         ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
 
-        # First only keep "IW" sensor products with the expected polarisation
-        # -> This filter is required with eodag < v1.6, it's redundant w/ v1.6+
-        products = [p for p in products
-                if (    product_property(p, "sensorMode",       "") == "IW"
-                    and product_property(p, "polarizationMode", "") == dag_polarization_param)
-                ]
-        logger.debug("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
+        # Final log
+        logger.info("%s remote S1 product(s) found and filtered (IW && %s): %s", len(products), polarization, products)
+
+        return products
+
+    def _filter_products(self, products, extent, tile_out_dir, tile_name, polarization):
+        """
+        Filter products to download according to their polarization and coverage
+        """
         if not products:  # no need to continue
             return []
 
@@ -404,7 +411,7 @@ class S1FileManager:
         #   Sometimes there are several S1 product with the same start
         #   date, but a different end-date.  Let's discard the
         #   smallest products
-        products = discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
+        products = _discard_small_redundant(products, ident=lambda p: p.as_dict()['id'])
         logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
 
         # - already exist in the "cache"
@@ -422,12 +429,34 @@ class S1FileManager:
         #   generator in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
-        logger.debug('search %s for %s', s2images_pat, polarizations)
+        logger.debug('Search %s for %s on disk', s2images_pat, polarizations)
         s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
-                    p, tile_name, polarizations, s2images)
+                    p, tile_name, polarizations, self.cfg, s2images)
                 ]
+        return products
+
+    def _download(self, dag: EODataAccessGateway,
+            lonmin, lonmax, latmin, latmax,
+            first_date, last_date,
+            tile_out_dir, tile_name,
+            polarization,
+            searched_items_per_page,dryrun):
+        """
+        Process with the call to eodag search + filter + download.
+        """
+        extent = {
+                'lonmin': lonmin,
+                'lonmax': lonmax,
+                'latmin': latmin,
+                'latmax': latmax
+                }
+        products = self._search_products(dag, extent,
+                first_date, last_date,
+                polarization, searched_items_per_page,dryrun)
+
+        products = self._filter_products(products, extent, tile_out_dir, tile_name, polarization)
 
         # And finally download all!
         # TODO: register downloading into Dask
@@ -493,7 +522,7 @@ class S1FileManager:
         self.product_list    = []
         content = list_dirs(self.cfg.raw_directory, 'S1*_IW_GRD*')  # ignore of .download on the-fly
         content = [d for d in content if self.is_product_in_time_range(d.path)]
-        content = discard_small_redundant(content, ident=lambda d: d.name)
+        content = _discard_small_redundant(content, ident=lambda d: d.name)
 
         for current_content in content:
             # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
