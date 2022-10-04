@@ -204,7 +204,7 @@ class Configuration():
                 'orthorectification', 'concatenation', 'dem_s1_agglomeration',
                 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
                 'lia_orthorectification', 'lia_concatenation', 'lia_product',
-                's2_lia_corrected']
+                's2_lia_corrected', 'filtered']
         self.fname_fmt = {}
         for key in fname_fmt_keys:
             fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
@@ -258,6 +258,40 @@ class Configuration():
         Get the SRTMShapefile databe filepath
         """
         return str(self._SRTMShapefile)
+
+    @property
+    def fname_fmt_concatenation(self):
+        """
+        Helper method to return the ``Processing.fnmatch.concatenation` actual value
+        """
+        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if calibration_is_done_in_S1:
+            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+            # Legacy mode: the default final filename won't contain the calibration_type
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+        else:
+            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+            # Let the default force the "beta" calibration_type in the filename
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+        fname_fmt = self.fname_fmt.get('concatenation') or fname_fmt
+        return fname_fmt
+
+    @property
+    def fname_fmt_filtered(self):
+        """
+        Helper method to return the ``Processing.fnmatch.filtered` actual value
+        """
+        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if calibration_is_done_in_S1:
+            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+            # Legacy mode: the default final filename won't contain the calibration_type
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif'
+        else:
+            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+            # Let the default force the "beta" calibration_type in the filename
+            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+        fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
+        return fname_fmt
 
     # def check_date(self):
     #     """

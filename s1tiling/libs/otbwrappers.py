@@ -715,19 +715,12 @@ class Concatenate(_ConcatenatorFactory):
         # TODO: factorise this recurring test!
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
-            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
-            # Legacy mode: the default final filename won't contain the
-            # calibration_type
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
             # This is a required product that shall end-up in outputdir
             gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
         else:
-            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
-            # Let the default force the "beta" calibration_type in the filename
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
-        fname_fmt = cfg.fname_fmt.get('concatenation') or fname_fmt
+        fname_fmt = cfg.fname_fmt_concatenation
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
