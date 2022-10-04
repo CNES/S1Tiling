@@ -145,6 +145,10 @@ class FileDB:
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
+
+        self.nb_S1_products = NFiles
+        self.nb_S2_products = NConcats
+
         names_to_map = [
                 # function_reference,               [indices...]
                 [self.cal_ok,                       NFiles],
@@ -225,6 +229,9 @@ class FileDB:
         Property GeoidFile
         """
         return self.__GeoidFile
+
+    def all_products(self):
+        return [self.product_name(idx) for idx in range(len(self.FILES))]
 
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]

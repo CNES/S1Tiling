@@ -4,6 +4,9 @@ import fnmatch
 import logging
 import os
 from pathlib import Path
+
+import shapely
+
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
@@ -15,7 +18,7 @@ from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
 # ======================================================================
 # Scenarios
-scenarios('../features/test_file_detection.feature')
+scenarios('../features/test_file_detection.feature', '../features/test_product_downloading.feature')
 
 # ======================================================================
 # Test Data
@@ -90,6 +93,11 @@ def image_list():
     return rl
 
 @pytest.fixture
+def downloads():
+    dn = []
+    return dn
+
+@pytest.fixture
 def configuration(mocker):
     known_dirs = [INPUT, TMPDIR, OUTPUT, safe_dir(0), safe_dir(1)]
     mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
@@ -99,8 +107,21 @@ def configuration(mocker):
 # ======================================================================
 # Given steps
 
+def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
+    # for k in known_files:
+        # logging.debug(' - %s', k)
+    known_dirs.update([dirname(fn, 3) for fn in known_files])
+    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
+    # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
+    mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
+    # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
+    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
+    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit', lambda manifest : 7)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
+
+
 def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
-    # logging.debug('_declare_know_files(%s)', patterns)
+    # logging.debug('_declare_known_files(%s)', patterns)
     # all_files = [input_file(idx) for idx in range(len(FILES))]
     all_files = file_db.all_vvvh_files()
     # logging.debug('All files:')
@@ -112,39 +133,104 @@ def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     known_files.extend(files)
-    # for k in known_files:
-        # logging.debug(' - %s', k)
-    known_dirs.update([dirname(fn, 3) for fn in known_files])
-    logging.debug('Mocking w/ %s --> %s', patterns, files)
-    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
-    # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
-    # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
-    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit', lambda manifest : 7)
-    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
+    logging.debug('Mocking w/ S1: %s --> %s', patterns, files)
 
+
+@given('No S1 files are known')
+def given_no_S1_files_are_known(mocker, known_files, known_dirs):
+    # _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 files are known')
-def given_all_S1_files_are_know(mocker, known_files, known_dirs):
+def given_all_S1_files_are_known(mocker, known_files, known_dirs):
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VV files are known')
-def given_all_S1_VV_files_are_know(mocker, known_files, known_dirs):
+def given_all_S1_VV_files_are_known(mocker, known_files, known_dirs):
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv'])
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VH files are known')
-def given_all_S1_VH_files_are_know(mocker, known_files, known_dirs):
+def given_all_S1_VH_files_are_known(mocker, known_files, known_dirs):
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vh'])
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 
-def _declare_known_S2_files(mocker, known_files, known_dirs):
-    pass
+# ----------------------------------------------------------------------
+# Given / download scenarios
 
+def polygon2extent(polygon):
+    extent = {
+            'lonmin': min(a[0] for a in polygon),
+            'lonmax': max(a[0] for a in polygon),
+            'latmin': min(a[1] for a in polygon),
+            'latmax': max(a[1] for a in polygon),
+            }
+    return extent
+
+def extent2box(extent):
+    coords = ( 
+            float(extent['lonmin']),
+            float(extent['latmin']),
+            float(extent['lonmax']),
+            float(extent['latmax']),
+            )
+    return shapely.geometry.box(*coords)
+
+
+def _declare_known_products_for_download(mocker, product_ids):
+    class MockEOProduct:
+        def __init__(self, product_id):
+            self._id = file_db.product_name(product_id)
+            self.is_valid = True
+            product_poly     = file_db.FILES[product_id]['polygon']
+            product_geometry = extent2box(polygon2extent(product_poly))
+            self.geometry            = shapely.geometry.shape(product_geometry)
+            self.search_intersection = shapely.geometry.shape(product_geometry)
+            logging.debug('EOProduct(#%s) -> %s %s', product_id, self._id, self.geometry)
+        def as_dict(self):
+            return {'id': self._id}
+
+    def mock_search_products(slf, dag,
+            extent, first_date, last_date, orbit_direction, relative_orbit_list,
+            polarization, searched_items_per_page,dryrun):
+        return [MockEOProduct(p) for p in product_ids]
+
+    origin_33NWB = file_db.tile_origins('33NWB')
+    extent_33NWB = polygon2extent(origin_33NWB)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
+
+            lambda slf, dag, extent_33NWB, first_date, last_date,
+            orbit_direction, relative_orbit_list, polarization,
+            searched_items_per_page,dryrun
+            : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
+                orbit_direction, relative_orbit_list, polarization,
+                searched_items_per_page,dryrun))
+
+@given('All products are available for download')
+def given_all_products_are_available_for_download(mocker):
+    _declare_known_products_for_download(mocker, range(file_db.nb_S1_products))
+
+def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
+    nb_products = file_db.nb_S2_products
+    all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
+    files = []
+    for pattern in patterns:
+        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    logging.debug('Mocking w/ S2: %s --> %s', patterns, files)
+    for k in files:
+        logging.debug(' - %s', k)
+    known_files.extend(all_S2)
 
 @given('All S2 files are known')
-def given_all_S2_files_are_know(mocker, known_files, known_dirs):
+def given_all_S2_files_are_known(mocker, known_files, known_dirs):
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+
+@given('No S2 files are known')
+def given_no_S2_files_are_known(mocker, known_files, known_dirs):
+    # _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+    pass
 
 # ======================================================================
 # When steps
@@ -173,6 +259,32 @@ def when_searching_VV(configuration, image_list, mocker):
 def when_searching_VH(configuration, image_list, mocker):
     _search(configuration, image_list, 'VH')
 
+# ----------------------------------------------------------------------
+# When / download scenarios
+
+@when('Searching which S1 files to download')
+def when_searching_which_S1_to_download(configuration, image_list, mocker, downloads):
+    def mock_download_one_product(dag, raw_directory, product):
+        logging.debug('mock: download1 -> %s', product)
+        downloads.append(product)
+
+    # mocker.patch('s1tiling.libs.S1FileManager._search_products',
+    #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
+    #         orbit_direction, relative_orbit_list, polarization,
+    #         searched_items_per_page,dryrun
+    #         : downloads)
+    mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
+            lambda dag, dir, prod : mock_download_one_product(dag, dir, product))
+
+    polarisation = 'VV VH'
+    configuration.polarisation = polarisation
+    manager = S1FileManager(configuration)
+    manager._refresh_s1_product_list()
+    manager._update_s1_img_list_for('33NWB')
+    # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
+    manager._download(None, 0, 0, 0, 0,
+            file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
+            TMPDIR, '33NWB', None, [], polarisation, 10, 42, False)
 
 # ======================================================================
 # Then steps
@@ -194,3 +306,15 @@ def then_VH_files_are_found(image_list):
     for i in [0, 1]:
         assert input_file_vh(i) in image_list
         image_list.remove(input_file_vh(i))
+
+# ----------------------------------------------------------------------
+# Then / download scenarios
+
+@then('None are requested for download')
+def then_none_are_requested_for_download(downloads):
+    assert len(downloads) == 0
+
+@then('All are requested for download')
+def then_all_are_requested_for_download(downloads):
+    assert len(downloads) == file_db.nb_S1_products
+
