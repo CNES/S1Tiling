@@ -10,11 +10,12 @@ import shapely
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from tests.mock_otb import isfile, isdir, glob, dirname
+from tests.mock_otb  import isfile, isdir, glob, dirname
 from tests.mock_data import FileDB
 import s1tiling.libs.Utils
-from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.S1FileManager     import S1FileManager
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
+from s1tiling.libs.outcome           import Outcome
 
 # ======================================================================
 # Scenarios
@@ -24,7 +25,7 @@ scenarios('../features/test_file_detection.feature', '../features/test_product_d
 # Test Data
 
 TMPDIR = 'TMP'
-INPUT  = 'data_raw'
+INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
 LIADIR = 'LIADIR'
 TILE   = '33NWB'
@@ -51,16 +52,25 @@ class Configuration():
         """
         constructor
         """
-        self.first_date          = '2020-01-01'
-        self.last_date           = '2020-01-10'
-        self.download            = False
-        self.raw_directory       = inputdir
-        self.tmpdir              = tmpdir
-        self.output_preprocess   = outputdir
-        self.cache_srtm_by       = 'symlink'
-        self.fname_fmt           = {}
-        self.orbit_direction     = None
-        self.relative_orbit_list = []
+        self.first_date            = '2020-01-01'
+        self.last_date             = '2020-01-10'
+        self.download              = False
+        self.raw_directory         = inputdir
+        self.tmpdir                = tmpdir
+        self.output_preprocess     = outputdir
+        self.cache_srtm_by         = 'symlink'
+        self.fname_fmt             = {}
+        self.orbit_direction       = None
+        self.relative_orbit_list   = []
+        self.calibration_type      = 'sigma'
+        self.nb_download_processes = 1
+        self.fname_fmt                         = {
+                # Use "_beta" in mocked tests
+                'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+                'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+                }
+        self.fname_fmt_concatenation = self.fname_fmt['concatenation']
+        self.fname_fmt_filtered      = self.fname_fmt['filtered']
 
 class MockDirEntry:
     def __init__(self, pathname):
@@ -111,7 +121,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
     # for k in known_files:
         # logging.debug(' - %s', k)
     known_dirs.update([dirname(fn, 3) for fn in known_files])
-    mocker.patch('glob.glob', lambda pat : glob(pat, known_files))
+    mocker.patch('glob.glob',  lambda pat      : glob(      pat, known_files))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
@@ -170,7 +180,7 @@ def polygon2extent(polygon):
     return extent
 
 def extent2box(extent):
-    coords = ( 
+    coords = (
             float(extent['lonmin']),
             float(extent['latmin']),
             float(extent['lonmax']),
@@ -179,28 +189,41 @@ def extent2box(extent):
     return shapely.geometry.box(*coords)
 
 
-def _declare_known_products_for_download(mocker, product_ids):
-    class MockEOProduct:
-        def __init__(self, product_id):
-            self._id = file_db.product_name(product_id)
-            self.is_valid = True
-            product_poly     = file_db.FILES[product_id]['polygon']
-            product_geometry = extent2box(polygon2extent(product_poly))
-            self.geometry            = shapely.geometry.shape(product_geometry)
-            self.search_intersection = shapely.geometry.shape(product_geometry)
-            logging.debug('EOProduct(#%s) -> %s %s', product_id, self._id, self.geometry)
-        def as_dict(self):
-            return {'id': self._id}
+class MockEOProduct:
+    def __init__(self, product_id):
+        self._id = file_db.product_name(product_id)
+        self.is_valid = True
+        product_poly     = file_db.FILES[product_id]['polygon']
+        product_geometry = extent2box(polygon2extent(product_poly))
+        self.geometry            = shapely.geometry.shape(product_geometry)
+        self.search_intersection = shapely.geometry.shape(product_geometry)
+        self.properties = {
+                'id'                 : self._id,
+                'orbitDirection'     : file_db.get_orbit_direction(product_id),
+                'relativeOrbitNumber': file_db.get_relative_orbit(product_id),
+                }
+        logging.debug('EOProduct(#%s) -> %s %s#%s %s', product_id, self._id,
+                self.properties['orbitDirection'],
+                self.properties['relativeOrbitNumber'],
+                self.geometry)
+    def __repr__(self):
+        return "EOProduct(%s) -> %s#%s" % (self._id,
+                self.properties['orbitDirection'],
+                self.properties['relativeOrbitNumber'],
+                )
+    def as_dict(self):
+        return self.properties
 
+
+def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
             extent, first_date, last_date, orbit_direction, relative_orbit_list,
             polarization, searched_items_per_page,dryrun):
         return [MockEOProduct(p) for p in product_ids]
 
-    origin_33NWB = file_db.tile_origins('33NWB')
-    extent_33NWB = polygon2extent(origin_33NWB)
+    # origin_33NWB = file_db.tile_origins('33NWB')
+    # extent_33NWB = polygon2extent(origin_33NWB)
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
-
             lambda slf, dag, extent_33NWB, first_date, last_date,
             orbit_direction, relative_orbit_list, polarization,
             searched_items_per_page,dryrun
@@ -210,7 +233,8 @@ def _declare_known_products_for_download(mocker, product_ids):
 
 @given('All products are available for download')
 def given_all_products_are_available_for_download(mocker):
-    _declare_known_products_for_download(mocker, range(file_db.nb_S1_products))
+    # _declare_known_products_for_download(mocker, range(file_db.nb_S1_products))
+    _declare_known_products_for_download(mocker, range(2))  # 2 given the specified time range...
 
 def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
     nb_products = file_db.nb_S2_products
@@ -262,29 +286,35 @@ def when_searching_VH(configuration, image_list, mocker):
 # ----------------------------------------------------------------------
 # When / download scenarios
 
+def mock_download_one_product(dag, raw_directory, product):
+    logging.debug('mock: download1 -> %s', product)
+    return Outcome(product)
+
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, image_list, mocker, downloads):
-    def mock_download_one_product(dag, raw_directory, product):
-        logging.debug('mock: download1 -> %s', product)
-        downloads.append(product)
-
     # mocker.patch('s1tiling.libs.S1FileManager._search_products',
     #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
     #         orbit_direction, relative_orbit_list, polarization,
     #         searched_items_per_page,dryrun
     #         : downloads)
     mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
-            lambda dag, dir, prod : mock_download_one_product(dag, dir, product))
+            mock_download_one_product)
 
     polarisation = 'VV VH'
     configuration.polarisation = polarisation
     manager = S1FileManager(configuration)
     manager._refresh_s1_product_list()
+
+    origin_33NWB = file_db.tile_origins('33NWB')
+    extent_33NWB = polygon2extent(origin_33NWB)
     manager._update_s1_img_list_for('33NWB')
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
-    manager._download(None, 0, 0, 0, 0,
+    paths = manager._download(None,
+            extent_33NWB['lonmin'], extent_33NWB['lonmax'], extent_33NWB['latmin'], extent_33NWB['latmax'],
             file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
-            TMPDIR, '33NWB', None, [], polarisation, 10, 42, False)
+            OUTPUT+'/33NWB', '33NWB', None, [], polarisation, 10, 42, False)
+    downloads.extend(paths)
+
 
 # ======================================================================
 # Then steps
@@ -316,5 +346,6 @@ def then_none_are_requested_for_download(downloads):
 
 @then('All are requested for download')
 def then_all_are_requested_for_download(downloads):
-    assert len(downloads) == file_db.nb_S1_products
+    # assert len(downloads) == file_db.nb_S1_products
+    assert len(downloads) == 2  # with the specified time range
 
