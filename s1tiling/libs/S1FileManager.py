@@ -382,12 +382,13 @@ def _parallel_download_and_extraction_of_products(
         log_queue_listener.start()
         try:
             for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                # logger.debug('DL -> %s', result)
                 if result:
                     logger.info("%s correctly downloaded", result.value())
                     logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
                     paths.append(result.value())
                 else:
-                    logger.warning("Cannot downloaded %s", result.related_filenames())
+                    logger.warning("Cannot download %s", result.related_filenames())
                     # TODO: make it possible to detect missing products in the
                     # analysis
                     paths.append(result)
@@ -545,14 +546,14 @@ class S1FileManager:
         products = []
         page = 1
         k_dir_assoc = { 'ASC': 'ascending', 'DES': 'descending' }
+        assert (not orbit_direction) or (orbit_direction in ['ASC', 'DES'])
+        assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
+        # In case only 'VV' or 'VH' is requested, we still need to
+        # request 'VV VH' to the data provider through eodag.
+        dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
+        dag_orbit_dir_param    = k_dir_assoc.get(orbit_direction, None)  # None => all
+        dag_orbit_list_param   = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
         while True:
-            assert (not orbit_direction) or (orbit_direction in ['ASC', 'DES'])
-            assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
-            # In case only 'VV' or 'VH' is requested, we still need to
-            # request 'VV VH' to the data provider through eodag.
-            dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
-            dag_orbit_dir_param    = k_dir_assoc.get(orbit_direction, None)  # None => all
-            dag_orbit_list_param   = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
                     productType=product_type,
@@ -631,6 +632,7 @@ class S1FileManager:
         products = [p for p in products
                 if not p.as_dict()['id'] in self._product_list.keys()
                 ]
+        # logger.debug('Products cache: %s', self._product_list.keys())
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
             return []
@@ -641,8 +643,11 @@ class S1FileManager:
         #   generator in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
-        logger.debug('Search %s for %s on disk', s2images_pat, polarizations)
-        s2images = glob.glob1(tile_out_dir, s2images_pat) + glob.glob1(os.path.join(tile_out_dir, "filtered"), s2images_pat)
+        logger.debug('Search %s for %s on disk in %s', s2images_pat, polarizations, tile_out_dir)
+        def glob1(pat, *paths):
+            pathname = glob.escape(os.path.join(*paths))
+            return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
+        s2images = glob1(s2images_pat, tile_out_dir) + glob1(s2images_pat, tile_out_dir, "filtered")
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
                     p, tile_name, polarizations, self.cfg, s2images)
