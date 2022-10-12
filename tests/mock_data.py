@@ -289,22 +289,28 @@ class FileDB:
                 return idx
         raise AssertionError(f'{manifest_path} cannot be found in input list {[f["s1dir"] for f in self.FILES]}')
 
-    def get_origin(self, manifest_path):
+    def get_origin(self, id):
         """
         Mock alternative for Utils.get_origin
         """
-        idx = self._find_image(manifest_path)
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         origin = self.FILES[idx]['polygon'][1:]
         logging.debug('  mock.get_origin(%s) -> %s', self.FILES[idx]['s1dir'], origin)
         return origin
 
-    def get_orbit_direction(self, manifest_path):
-        idx = self._find_image(manifest_path)
+    def get_orbit_direction(self, id):
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         dir = self.FILES[idx]['orbit_direction']
         return dir
 
-    def get_relative_orbit(self, manifest_path):
-        idx = self._find_image(manifest_path)
+    def get_relative_orbit(self, id):
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         dir = self.FILES[idx]['relative_orbit']
         return dir
 
@@ -332,7 +338,7 @@ class FileDB:
             ext = self.extended_compress
         else:
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
     def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
         return self._concatfile_for_all(crt, tmp, polarity, calibration)
