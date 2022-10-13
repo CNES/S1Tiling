@@ -106,9 +106,7 @@ Mask files
 
 :Format: Byte GeoTIFF, deflate compressed
 
-:Metadata: This file contains the same metadata as the one from :ref:`the S2
-           tiles <full-S2-tiles>`  it has been generated from, with the
-           following as the only difference:
+:Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
     .. list-table::
       :widths: auto
