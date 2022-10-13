@@ -311,6 +311,29 @@ You can use this :download:`this template
       Only six values are valid: ``HH-HV``, ``VV-VH``, ``VV``, ``VH``, ``HV``,
       and ``HH``.
 
+      .. _DataSource.orbit_direction:
+  * - ``orbit_direction``
+    - Download only the products acquired in ascending (``ASC``) or in
+      descending (``DES``) order.  By default (when left unspecified), no
+      filter is applied.
+
+      .. warning::
+        Each relative orbit is exclusive to one orbit direction,
+        :ref:`orbit_direction <DataSource.orbit_direction>` and
+        :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
+        considered as exclusive.
+
+      .. _DataSource.relative_orbit_list:
+  * - ``relative_orbit_list``
+    - Download only the products from the specified relative orbits. By default
+      (when left unspecified), no filter is applied.
+
+      .. warning::
+        Each relative orbit is exclusive to one orbit direction,
+        :ref:`orbit_direction <DataSource.orbit_direction>` and
+        :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
+        considered as exclusive.
+
       .. _DataSource.first_date:
   * - ``first_date``
     - Initial date in ``YYYY-MM-DD`` format.
@@ -318,6 +341,13 @@ You can use this :download:`this template
       .. _DataSource.last_date:
   * - ``last_date``
     - Final date in ``YYYY-MM-DD`` format.
+
+      .. _DataSource.tile_to_product_overlap_ratio:
+  * - ``tile_to_product_overlap_ratio``
+    - Percentage of tile area to be covered for a single or a pair of
+      Sentinel-1 products to be retained.
+
+      The number is expected as an integer in the [1..100] range.
 
 .. _Mask:
 
@@ -435,15 +465,6 @@ You can use this :download:`this template
         .. code-block:: ini
 
             tiles_list_in_file : ~/MyListOfTiles.txt
-
-      .. _Processing.tile_to_product_overlap_ratio:
-  * - ``tile_to_product_overlap_ratio``
-    - Percentage of tile area to be covered for a tile to be retained in
-      ``ALL`` mode
-
-      .. note::
-        At this moment this field is ignored, but it's likely to be used in the
-        future.
 
       .. _Processing.mode:
   * - ``mode``

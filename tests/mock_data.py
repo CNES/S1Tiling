@@ -31,8 +31,8 @@ class FileDB:
             {
                 'start_time'      : '2020:01:08 04:41:50',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1_basename'     : 's1a-iw-grd-vv-20200108t044150-20200108t044215-030704-038506-001',
-                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044150',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
                 's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
                 'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
@@ -43,8 +43,8 @@ class FileDB:
             {
                 'start_time'      : '2020:01:08 04:42:15',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1_basename'     : 's1a-iw-grd-vv-20200108t044215-20200108t044240-030704-038506-001',
-                's2_basename'     : 's1a_33NWB_vv_DES_007_20200108t044215',
+                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
+                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
                 's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
                 'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
@@ -145,6 +145,10 @@ class FileDB:
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
+
+        self.nb_S1_products = NFiles
+        self.nb_S2_products = NConcats
+
         names_to_map = [
                 # function_reference,               [indices...]
                 [self.cal_ok,                       NFiles],
@@ -226,8 +230,15 @@ class FileDB:
         """
         return self.__GeoidFile
 
+    def all_products(self):
+        return [self.product_name(idx) for idx in range(len(self.FILES))]
+
     def all_files(self):
         return [self.input_file(idx) for idx in range(len(self.FILES))]
+
+    def all_vvvh_files(self):
+        # return [f'{idx} {pol}' for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
+        return [self.input_file(idx, polarity=pol) for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
 
     def start_time(self, idx):
         return self.FILES[idx]['start_time']
@@ -246,7 +257,8 @@ class FileDB:
     def input_file(self, idx, polarity='vv'):
         crt    = self.FILES[idx]
         s1dir  = crt['s1dir']
-        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp=tmp_suffix(tmp))
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
 
     def input_file_vv(self, idx):
@@ -277,22 +289,28 @@ class FileDB:
                 return idx
         raise AssertionError(f'{manifest_path} cannot be found in input list {[f["s1dir"] for f in self.FILES]}')
 
-    def get_origin(self, manifest_path):
+    def get_origin(self, id):
         """
         Mock alternative for Utils.get_origin
         """
-        idx = self._find_image(manifest_path)
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         origin = self.FILES[idx]['polygon'][1:]
         logging.debug('  mock.get_origin(%s) -> %s', self.FILES[idx]['s1dir'], origin)
         return origin
 
-    def get_orbit_direction(self, manifest_path):
-        idx = self._find_image(manifest_path)
+    def get_orbit_direction(self, id):
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         dir = self.FILES[idx]['orbit_direction']
         return dir
 
-    def get_relative_orbit(self, manifest_path):
-        idx = self._find_image(manifest_path)
+    def get_relative_orbit(self, id):
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
         dir = self.FILES[idx]['relative_orbit']
         return dir
 
@@ -320,7 +338,7 @@ class FileDB:
             ext = self.extended_compress
         else:
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity='vv', nr="001" if polarity == "vv" else "002")
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
     def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma'):
         crt = self.FILES[idx]
         return self._concatfile_for_all(crt, tmp, polarity, calibration)

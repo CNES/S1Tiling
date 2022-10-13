@@ -123,7 +123,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
         else:
             tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
-                    100 * cfg.TileToProductOverlapRatio, tiles_to_process)
+                    100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
@@ -324,12 +324,13 @@ def process_one_tile(
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    s1_file_manager.keep_X_latest_S1_files(1000)
+    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
             s1_file_manager.download_images(tiles=tile_name,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+            # download_images will have updated the list of know products
     except BaseException:  # pylint: disable=broad-except
         logger.exception('Cannot download S1 images associated to %s', tile_name)
         sys.exit(exits.DOWNLOAD_ERROR)
