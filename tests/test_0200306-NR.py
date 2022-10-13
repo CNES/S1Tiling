@@ -297,7 +297,7 @@ def set_environ_mocked(inputdir, outputdir, liadir, srtmdir, tmpdir, ram):
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
 
-def mock_upto_concat_S2(application_mocker, file_db, calibration, N):
+def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=False):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(N):
         input_file = file_db.input_file_vv(i)
@@ -327,7 +327,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N):
         application_mocker.set_expectations('ResetMargin', {
             'in'               : input_file+'|>SARCalibration',
             'ram'              : '2048',
-            'threshold.x'      : 1000,
+            'threshold.x'      : 1000 if old_IPF else 0,
             'threshold.y.start': 0,
             'threshold.y.end'  : 0,
             'mode'             : 'threshold',
@@ -588,6 +588,8 @@ def mock_LIA(application_mocker, file_db):
 def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, srtmdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
+
+    In this flavour, we emulate old IPF 002.50 where image borders needed to be cut.
     """
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
@@ -612,7 +614,18 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
-    mock_upto_concat_S2(application_mocker, file_db, 'sigma', 2)
+
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 1000,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
+
+    mock_upto_concat_S2(application_mocker, file_db, 'sigma', 2, old_IPF=True)
     mock_masking(application_mocker, file_db, 'sigma', 2)
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
@@ -647,6 +660,17 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     _declare_know_files(mocker, known_files, known_dirs, ['vv-20200108t044150-20200108t044215'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert not os.path.isfile(file_db.input_file_vv(1))
+
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
+
     mock_upto_concat_S2(application_mocker, file_db, 'sigma', 1)
     mock_masking(application_mocker, file_db, 'sigma', 1)
     s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
@@ -725,6 +749,16 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
+
     mock_upto_concat_S2(application_mocker, file_db, 'normlim', 2)
     mock_LIA(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'normlim', 2)
@@ -782,6 +816,16 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
     for i in range(number_dates):
         assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
+
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
     mock_upto_concat_S2(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
     mock_LIA(application_mocker, file_db)  # always N=2
