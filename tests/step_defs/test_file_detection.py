@@ -219,12 +219,14 @@ class MockEOProduct:
 
 @given('Request on 8th jan')
 def given_requets_on_8th_jan(configuration):
+    logging.debug('Request on 8th jan')
     configuration.first_date              = file_db.CONCATS[0]['first_date']
     configuration.last_date               = file_db.CONCATS[0]['last_date']
     configuration.nb_products_to_download = 2
 
 @given('Request on all dates')
-def given_requets_on_8th_jan(configuration):
+def given_requets_on_all_dates(configuration):
+    logging.debug('Request on all dates')
     configuration.first_date              = file_db.CONCATS[0]['first_date']
     configuration.last_date               = file_db.CONCATS[-1]['last_date']
     configuration.nb_products_to_download = len(file_db.FILES)
