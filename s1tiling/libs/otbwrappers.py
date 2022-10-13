@@ -269,10 +269,16 @@ class AnalyseBorders(StepFactory):
 
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
+
+        thr_x   = cut_overlap_range
+        thr_y_s = cut_overlap_azimuth if crop1 else 0
+        thr_y_e = cut_overlap_azimuth if crop2 else 0
+
         meta['cut'] = {
                 'threshold.x'      : cut_overlap_range,
-                'threshold.y.start': cut_overlap_azimuth if crop1 else 0,
-                'threshold.y.end'  : cut_overlap_azimuth if crop2 else 0,
+                'threshold.y.start': thr_y_s,
+                'threshold.y.end'  : thr_y_e,
+                'skip'             : thr_x==0 and thr_y_s==0 and thr_y_e==0,
                 }
         return meta
 
@@ -439,6 +445,20 @@ class CutBorders(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
+
+    def create_step(self, in_memory: bool, previous_steps):
+        """
+        This overrides checks whether ResetMargin would cut any border.
+
+        In the likelly other case, the method returns ``None`` to say **Don't
+        register any OTB application and skip this step!**.
+        """
+        inputs = self._get_inputs(previous_steps)
+        inp    = self._get_canonical_input(inputs)
+        if inp.meta['cut'].get('skip', False):
+            return None
+        else:
+            return super().create_step(in_memory, previous_steps)
 
     def parameters(self, meta):
         """
