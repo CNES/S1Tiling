@@ -36,6 +36,9 @@ v1.0.0 Improvements
   *nodata* value.
   (`#87 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/87>`_).
 
+- Borders are no longer cut for Sentinel-1 IPF 2.9+ products
+  (`#88 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/88>`_).
+
 
 Version 0.3.2
 -------------

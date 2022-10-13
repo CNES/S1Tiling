@@ -172,10 +172,15 @@ are detected within the margin. This phenomenon happens on coasts. The margins
 aren't cut out like what :std:doc:`ExtractROI <Applications/app_ExtractROI>`
 would do but filled with 0's, which permits to keeps the initial geometry.
 
-The implemented heuristic is to always cut 1000 pixels on the sides (2 x 10
-km), and 1600 pixels (16km) on the top (/resp on the bottom) of the image if
-more than 2000 NoData (NoData is assimilated with 0 here) pixels are detected
-on the 100th row from the top (/resp from the bottom).
+The implemented heuristic is to:
+
+- always cut 1000 pixels on the sides (2 x 10 km) products before Sentinel-1
+  IPF v2.90 (see `MPC-0243: Masking "No-value" Pixels on GRD Products generated
+  by the Sentinel-1 ESA IPF
+  <https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000>`_),
+- and 1600 pixels (16km) on the top (/resp on the bottom) of the image if more
+  than 2000 NoData (NoData is assimilated with 0 here) pixels are detected on
+  the 100th row from the top (/resp from the bottom).
 
 .. note::
    The heuristic can be overridden thanks
