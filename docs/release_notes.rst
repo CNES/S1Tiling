@@ -32,7 +32,7 @@ v1.0.0 Improvements
 
 - Null values obtained after the optional *denoising* done during the
   :ref:`calibration <calibration>` wil be set to a :ref:`minimal signal value
-  <Processing.lower_signal_value>` > 0. The objective is to keep 0 a the
+  <Processing.lower_signal_value>` > 0. The objective is to keep 0 as the
   *nodata* value.
   (`#87 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/87>`_).
 
