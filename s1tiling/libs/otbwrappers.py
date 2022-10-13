@@ -37,6 +37,7 @@ import shutil
 import re
 # import datetime
 from abc import abstractmethod
+from packaging import version
 
 import numpy as np
 from osgeo import gdal
@@ -73,6 +74,18 @@ def has_too_many_NoData(image, threshold, nodata):
     """
     nbNoData = len(np.argwhere(image == nodata))
     return nbNoData > threshold
+
+
+def extract_IPF_version(tifftag_software):
+    """
+    Extracts a comparable IPF version number
+    for packaging.version.parse for instance.
+    """
+    match = re.search(r'Sentinel-1 IPF (\d+\.\d+)$', tifftag_software)
+    if not match:
+        logger.warning('Cannot extract IPF version from "%s"', tifftag_software)
+        return '000.00'
+    return match.group(1)
 
 
 class ExtractSentinel1Metadata(StepFactory):
@@ -227,8 +240,16 @@ class AnalyseBorders(StepFactory):
         #     north = ds_reader.read(1, window=Window(0, 100, xsize + 1, 1))
         #     south = ds_reader.read(1, window=Window(0, ysize - 100, xsize + 1, 1))
 
+        # Since 2.9 version of IPF S1, range borders are correctly generated
+        # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
+        ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
+        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
+        # Ex: Sentinel-1 IPF 003.10
+        ipf_version = extract_IPF_version(tifftag_software)
+        if version.parse(ipf_version) >= version.parse('2.90'):
+            cut_overlap_range = 0
+
         if self.__override_azimuth_cut_threshold_to is None:
-            ds_reader = gdal.Open(meta['out_filename'])
             xsize = ds_reader.RasterXSize
             ysize = ds_reader.RasterYSize
             north = ds_reader.ReadAsArray(0, 100, xsize, 1)
@@ -237,13 +258,14 @@ class AnalyseBorders(StepFactory):
             crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
             del south
             del north
-            del ds_reader
             south = None
             north = None
-            ds_reader = None
         else:
             crop1 = self.__override_azimuth_cut_threshold_to
             crop2 = self.__override_azimuth_cut_threshold_to
+
+        del ds_reader
+        ds_reader = None
 
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
