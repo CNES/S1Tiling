@@ -56,6 +56,7 @@ class Configuration():
 
         self.first_date              = '2020-01-01'
         self.last_date               = '2020-01-10'
+        self.polarisation            = None
         self.download                = False
         self.raw_directory           = inputdir
         self.tmpdir                  = tmpdir
@@ -151,21 +152,25 @@ def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
 
 @given('No S1 files are known')
 def given_no_S1_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: No S1 files are known')
     # _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 files are known')
 def given_all_S1_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S1 files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VV files are known')
 def given_all_S1_VV_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S1 VV files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VH files are known')
 def given_all_S1_VH_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S1 VH files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
@@ -231,6 +236,16 @@ def given_requets_on_all_dates(configuration):
     configuration.last_date               = file_db.CONCATS[-1]['last_date']
     configuration.nb_products_to_download = len(file_db.FILES)
 
+@given('Request on VV')
+def given_requets_on_8th_jan(configuration):
+    logging.debug('Request on VV')
+    configuration.polarisation = 'VV'
+
+@given('Request on VH')
+def given_requets_on_8th_jan(configuration):
+    logging.debug('Request on VH')
+    configuration.polarisation = 'VH'
+
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
             extent, first_date, last_date, orbit_direction, relative_orbit_list,
@@ -247,6 +262,7 @@ def _declare_known_products_for_download(mocker, product_ids):
 
 @given('All products are available for download')
 def given_all_products_are_available_for_download(mocker, configuration):
+    logging.debug('Given: All products are available for download')
     _declare_known_products_for_download(mocker, range(configuration.nb_products_to_download))
 
 def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
@@ -258,14 +274,26 @@ def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
     logging.debug('Mocking w/ S2: %s --> %s', patterns, files)
     for k in files:
         logging.debug(' - %s', k)
-    known_files.extend(all_S2)
+    known_files.extend(files)
 
 @given('All S2 files are known')
 def given_all_S2_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S2 files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
+
+@given('All S2 VV files are known')
+def given_all_S2_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S2 VV files are known')
+    _declare_known_S2_files(mocker, known_files, known_dirs, ['vv'])
+
+@given('All S2 VH files are known')
+def given_all_S2_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: All S2 VH files are known')
+    _declare_known_S2_files(mocker, known_files, known_dirs, ['vh'])
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known(mocker, known_files, known_dirs):
+    logging.debug('Given: No S2 files are known')
     # _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     pass
 
@@ -286,14 +314,17 @@ def _search(configuration, image_list, polarisation):
 
 @when('VV-VH files are searched')
 def when_searching_VV_VH(configuration, image_list, mocker):
+    logging.debug('When: VV-VH files are searched')
     _search(configuration, image_list, 'VV VH')
 
 @when('VV files are searched')
 def when_searching_VV(configuration, image_list, mocker):
+    logging.debug('When: VV files are searched')
     _search(configuration, image_list, 'VV')
 
 @when('VH files are searched')
 def when_searching_VH(configuration, image_list, mocker):
+    logging.debug('When: VH files are searched')
     _search(configuration, image_list, 'VH')
 
 # ----------------------------------------------------------------------
@@ -305,6 +336,7 @@ def mock_download_one_product(dag, raw_directory, product):
 
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, image_list, mocker, downloads):
+    logging.debug('When: Searching which S1 files to download')
     # mocker.patch('s1tiling.libs.S1FileManager._search_products',
     #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
     #         orbit_direction, relative_orbit_list, polarization,
@@ -313,8 +345,8 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
             mock_download_one_product)
 
-    polarisation = 'VV VH'
-    configuration.polarisation = polarisation
+    default_polarisation = 'VV VH'
+    configuration.polarisation = configuration.polarisation or default_polarisation
     manager = S1FileManager(configuration)
     manager._refresh_s1_product_list()
 
@@ -325,7 +357,7 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     paths = manager._download(None,
             extent_33NWB['lonmin'], extent_33NWB['lonmax'], extent_33NWB['latmin'], extent_33NWB['latmax'],
             file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
-            OUTPUT+'/33NWB', '33NWB', None, [], polarisation, 10, 42, False)
+            OUTPUT+'/33NWB', '33NWB', None, [], configuration.polarisation, 10, 42, False)
     downloads.extend(paths)
 
 
@@ -334,10 +366,12 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
 
 @then('No (other) files are found')
 def then_no_other_files_are_found(image_list):
+    logging.debug('Then: No (other) files are found')
     assert len(image_list) == 0
 
 @then('VV files are found')
 def then_VV_files_are_found(image_list):
+    logging.debug('Then: VV files are found')
     assert len(image_list) >= 2
     for i in [0, 1]:
         assert input_file_vv(i) in image_list
@@ -345,6 +379,7 @@ def then_VV_files_are_found(image_list):
 
 @then('VH files are found')
 def then_VH_files_are_found(image_list):
+    logging.debug('Then: VH files are found')
     assert len(image_list) >= 2
     for i in [0, 1]:
         assert input_file_vh(i) in image_list
@@ -355,9 +390,11 @@ def then_VH_files_are_found(image_list):
 
 @then('None are requested for download')
 def then_none_are_requested_for_download(downloads):
+    logging.debug('Then: None are requested for download')
     assert len(downloads) == 0
 
 @then('All are requested for download')
 def then_all_are_requested_for_download(downloads, configuration):
+    logging.debug('Then: All are requested for download')
     assert len(downloads) == configuration.nb_products_to_download
 
