@@ -305,12 +305,17 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
 
         orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
         assert '_'+raw_calibration in orthofile
+
+        out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
+        in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
+
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : '2048',
             'in'         : input_file,
             'lut'        : raw_calibration,
             'removenoise': False,
-            'out'        : 'ResetMargin|>OrthoRectification|>'+orthofile,
+            # 'out'        : 'ResetMargin|>OrthoRectification|>'+orthofile,
+            'out'        : out_calib,
             }, None,
             {
                 'ACQUISITION_DATETIME': file_db.start_time(i),
@@ -324,18 +329,20 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
                 'POLARIZATION'        : 'vv',
                 })
 
-        application_mocker.set_expectations('ResetMargin', {
-            'in'               : input_file+'|>SARCalibration',
-            'ram'              : '2048',
-            'threshold.x'      : 1000 if old_IPF else 0,
-            'threshold.y.start': 0,
-            'threshold.y.end'  : 0,
-            'mode'             : 'threshold',
-            'out'              : 'OrthoRectification|>'+orthofile,
-            }, None, None)
+        if old_IPF:
+            application_mocker.set_expectations('ResetMargin', {
+                'in'               : input_file+'|>SARCalibration',
+                'ram'              : '2048',
+                'threshold.x'      : 1000 if old_IPF else 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                'mode'             : 'threshold',
+                'out'              : 'OrthoRectification|>'+orthofile,
+                }, None, None)
 
         application_mocker.set_expectations('OrthoRectification', {
-            'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
+            # 'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
+            'io.in'           : in_ortho,
             'opt.ram'         : '2048',
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
@@ -621,6 +628,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
                 'threshold.x'      : 1000,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
+                'skip'             : False,
                 }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
@@ -667,6 +675,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
+                'skip'             : True,
                 }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
@@ -755,6 +764,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
+                'skip'             : True,
                 }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
@@ -823,6 +833,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
+                'skip'             : True,
                 }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
