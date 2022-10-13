@@ -52,20 +52,21 @@ class Configuration():
         """
         constructor
         """
-        self.first_date            = '2020-01-01'
-        self.last_date             = '2020-01-10'
-        self.download              = False
-        self.raw_directory         = inputdir
-        self.tmpdir                = tmpdir
-        self.output_preprocess     = outputdir
-        self.cache_srtm_by         = 'symlink'
-        self.fname_fmt             = {}
-        self.orbit_direction       = None
-        self.relative_orbit_list   = []
-        self.calibration_type      = 'sigma'
-        self.nb_download_processes = 1
-        self.fname_fmt                         = {
-                # Use "_beta" in mocked tests
+        self.nb_products_to_download = 2
+
+        self.first_date              = '2020-01-01'
+        self.last_date               = '2020-01-10'
+        self.download                = False
+        self.raw_directory           = inputdir
+        self.tmpdir                  = tmpdir
+        self.output_preprocess       = outputdir
+        self.cache_srtm_by           = 'symlink'
+        self.fname_fmt               = {}
+        self.orbit_direction         = None
+        self.relative_orbit_list     = []
+        self.calibration_type        = 'sigma'
+        self.nb_download_processes   = 1
+        self.fname_fmt               = {
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
                 'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
                 }
@@ -109,8 +110,6 @@ def downloads():
 
 @pytest.fixture
 def configuration(mocker):
-    known_dirs = [INPUT, TMPDIR, OUTPUT, safe_dir(0), safe_dir(1)]
-    mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
     cfg = Configuration(INPUT, TMPDIR, OUTPUT)
     return cfg
 
@@ -120,10 +119,14 @@ def configuration(mocker):
 def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
     # for k in known_files:
         # logging.debug(' - %s', k)
-    known_dirs.update([dirname(fn, 3) for fn in known_files])
-    mocker.patch('glob.glob',  lambda pat      : glob(      pat, known_files))
+    known_dirs.update([INPUT, TMPDIR, OUTPUT])
+    known_dirs.update([dirname(fn, 2) for fn in known_files])
+    mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
+    mocker.patch('glob.glob',  lambda pat : glob(pat, known_files))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs))
+    # It's used to filter the product paths => don't register every possible known directory
+    known_dirs_4_list_dir = [dirname(fn, 3) for fn in known_files]
+    mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
     mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit', lambda manifest : 7)
@@ -214,6 +217,17 @@ class MockEOProduct:
     def as_dict(self):
         return self.properties
 
+@given('Request on 8th jan')
+def given_requets_on_8th_jan(configuration):
+    configuration.first_date              = file_db.CONCATS[0]['first_date']
+    configuration.last_date               = file_db.CONCATS[0]['last_date']
+    configuration.nb_products_to_download = 2
+
+@given('Request on all dates')
+def given_requets_on_8th_jan(configuration):
+    configuration.first_date              = file_db.CONCATS[0]['first_date']
+    configuration.last_date               = file_db.CONCATS[-1]['last_date']
+    configuration.nb_products_to_download = len(file_db.FILES)
 
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
@@ -221,8 +235,6 @@ def _declare_known_products_for_download(mocker, product_ids):
             polarization, searched_items_per_page,dryrun):
         return [MockEOProduct(p) for p in product_ids]
 
-    # origin_33NWB = file_db.tile_origins('33NWB')
-    # extent_33NWB = polygon2extent(origin_33NWB)
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
             lambda slf, dag, extent_33NWB, first_date, last_date,
             orbit_direction, relative_orbit_list, polarization,
@@ -232,9 +244,8 @@ def _declare_known_products_for_download(mocker, product_ids):
                 searched_items_per_page,dryrun))
 
 @given('All products are available for download')
-def given_all_products_are_available_for_download(mocker):
-    # _declare_known_products_for_download(mocker, range(file_db.nb_S1_products))
-    _declare_known_products_for_download(mocker, range(2))  # 2 given the specified time range...
+def given_all_products_are_available_for_download(mocker, configuration):
+    _declare_known_products_for_download(mocker, range(configuration.nb_products_to_download))
 
 def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
     nb_products = file_db.nb_S2_products
@@ -345,7 +356,6 @@ def then_none_are_requested_for_download(downloads):
     assert len(downloads) == 0
 
 @then('All are requested for download')
-def then_all_are_requested_for_download(downloads):
-    # assert len(downloads) == file_db.nb_S1_products
-    assert len(downloads) == 2  # with the specified time range
+def then_all_are_requested_for_download(downloads, configuration):
+    assert len(downloads) == configuration.nb_products_to_download
 
