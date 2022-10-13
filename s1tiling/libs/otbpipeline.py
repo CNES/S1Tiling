@@ -912,7 +912,8 @@ class Pipeline:
         steps = [self.__inputs]
         for crt in self.__pipeline:
             step = crt.create_step(self.__in_memory, steps)
-            steps.append([{'__last': step}])
+            if step:  # a StepFactory may return no step so it can be skipped
+                steps.append([{'__last': step}])
 
         assert len(steps[-1]) == 1
         res = steps[-1][0]['__last'].out_filename
@@ -1874,6 +1875,10 @@ class OTBStepFactory(_FileProducingStepFactory):
         Note: While `previous_steps` is ignored in this specialization, it's
         used in :func:`Store.create_step()` where it's eventually used to
         release all OTB Application objects.
+
+        Note: it's possible to override this method to return no step
+        (``None``). In that case, no OTB Application would be registered in
+        the actual :class:`Pipeline`.
         """
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
