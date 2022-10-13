@@ -76,5 +76,23 @@ Feature: Test download requests
         Then  All are requested for download
 
 
-# + fname_fmt
+    # + scenarios with fname_fmt mismatch
+    Scenario Outline: Nothing was downloaded and everything was generated but for another calibration
+        Given Request on <dates>
+        And   Request for _beta
+        And   No S1 files are known
+        And   All S2 files are known
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  All are requested for download
+
+    Scenario Outline: Nothing was downloaded and everything was generated but for another fname_fmt
+        Given Request on <dates>
+        And   Request with default fname_fmt_concatenation
+        And   No S1 files are known
+        And   All S2 files are known
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  All are requested for download
+
 

@@ -69,6 +69,7 @@ class Configuration():
         self.nb_download_processes   = 1
         self.fname_fmt               = {
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+                # 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
                 'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
                 }
         self.fname_fmt_concatenation = self.fname_fmt['concatenation']
@@ -123,14 +124,14 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
     known_dirs.update([INPUT, TMPDIR, OUTPUT])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
-    mocker.patch('glob.glob',  lambda pat : glob(pat, known_files))
+    mocker.patch('glob.glob',     lambda pat : glob(pat, known_files))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
     known_dirs_4_list_dir = [dirname(fn, 3) for fn in known_files]
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
-    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit', lambda manifest : 7)
+    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : 7)
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
 
 
@@ -201,6 +202,7 @@ class MockEOProduct:
     def __init__(self, product_id):
         self._id = file_db.product_name(product_id)
         self.is_valid = True
+        # TODO: geometry is not correctly set
         product_poly     = file_db.FILES[product_id]['polygon']
         product_geometry = extent2box(polygon2extent(product_poly))
         self.geometry            = shapely.geometry.shape(product_geometry)
@@ -222,6 +224,7 @@ class MockEOProduct:
     def as_dict(self):
         return self.properties
 
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @given('Request on 8th jan')
 def given_requets_on_8th_jan(configuration):
     logging.debug('Request on 8th jan')
@@ -237,15 +240,27 @@ def given_requets_on_all_dates(configuration):
     configuration.nb_products_to_download = len(file_db.FILES)
 
 @given('Request on VV')
-def given_requets_on_8th_jan(configuration):
+def given_requets_on_VV(configuration):
     logging.debug('Request on VV')
     configuration.polarisation = 'VV'
 
 @given('Request on VH')
-def given_requets_on_8th_jan(configuration):
+def given_requets_on_VH(configuration):
     logging.debug('Request on VH')
     configuration.polarisation = 'VH'
 
+@given('Request for _beta')
+def given_requets_for_beta(configuration):
+    logging.debug('Request for _beta')
+    configuration.calibration_type = 'beta'
+
+@given('Request with default fname_fmt_concatenation')
+def given_requets_for_beta(configuration):
+    logging.debug('Request with default fname_fmt_concatenation')
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+    configuration.fname_fmt_concatenation = configuration.fname_fmt['concatenation']
+
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
             extent, first_date, last_date, orbit_direction, relative_orbit_list,
@@ -265,6 +280,8 @@ def given_all_products_are_available_for_download(mocker, configuration):
     logging.debug('Given: All products are available for download')
     _declare_known_products_for_download(mocker, range(configuration.nb_products_to_download))
 
+
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
     nb_products = file_db.nb_S2_products
     all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
