@@ -361,7 +361,7 @@ def _download_and_extract_one_product(dag, raw_directory, product):
             except OSError:
                 pass
     except BaseException as e:  # pylint: disable=broad-except
-        logging.error('Failed to download (and extract) %s', product)
+        logger.error('%s', e)  # EODAG error message is good and precise enough, just use it!
         path = Outcome(e)
         path.add_related_filename(product)
 
@@ -419,6 +419,11 @@ class S1FileManager:
         self.raw_raster_list  = []
         self.nb_images        = 0
 
+        # Failures related to download (e.g. missing products)
+        self.__download_failures   = []
+        self.__download_blacklist  = []
+        self.__skipped_s2_products = []
+
         self.__tmpsrtmdir     = None
         self.__caching_option = cfg.cache_srtm_by
         assert self.__caching_option in ['copy', 'symlink']
@@ -463,6 +468,9 @@ class S1FileManager:
             self.__tmpsrtmdir.cleanup()
             self.__tmpsrtmdir = None
         return False
+
+    def get_download_failures(self):
+        return self.__download_failures
 
     def _ensure_workspaces_exist(self):
         """
@@ -736,11 +744,23 @@ class S1FileManager:
         if downloaded_products:
             failed_products = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
-                logger.warning('Some products could not be downloaded:')
-                for fp in failed_products:
-                    logger.warning('* %s', fp)
-            success_products = list(filter(lambda p: p, downloaded_products))
+                self._analyse_download_failures(failed_products)
+            success_products = list(filter(lambda p: p.has_value(), downloaded_products))
             self._refresh_s1_product_list(success_products)  # incremental update
+
+    def _analyse_download_failures(self, failed_products):
+        """
+        Record the download failures and mark S2 products that cannot be generated.
+        """
+        logger.warning('Some products could not be downloaded:')
+        self.__download_blacklist = []
+        for fp in failed_products:
+            logger.warning('* %s', fp.error())
+            prod  = fp.related_filenames()[0]  # expect only 1
+            day   = extract_product_start_time(prod.as_dict()['id'])
+            orbit = product_property(prod, 'relativeOrbitNumber')
+            self.__download_blacklist.append({'day': day, 'orbit': orbit})
+        self.__download_failures.extend(failed_products)
 
     def _refresh_s1_product_list(self, new_products=None):
         """
@@ -840,6 +860,7 @@ class S1FileManager:
         """
         self.raw_raster_list = []
 
+        # TODO: Filter products not associated to offline/timeout-ed products
         # Filter products with enough coverage of the tile
         products_info = self._filter_products_with_enough_coverage(tile_name)
 

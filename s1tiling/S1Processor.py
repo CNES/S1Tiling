@@ -435,11 +435,15 @@ def do_process_with_pipeline(config_opt,
                             debug_tasks=debug_tasks)
                     results += res
 
-            nb_error_detected = sum(not bool(res) for res in results)
+            nb_errors_detected = sum(not bool(res) for res in results)
+
+            download_failures = s1_file_manager.get_download_failures()
+            nb_errors_detected += len(download_failures) # TODO: use skipped S2 products
+            results.extend([fp.error() for fp in download_failures]) # TODO improve
 
             logger.debug('#############################################################################')
-            if nb_error_detected > 0:
-                logger.warning('Execution report: %s errors detected', nb_error_detected)
+            if nb_errors_detected > 0:
+                logger.warning('Execution report: %s errors detected', nb_errors_detected)
             else:
                 logger.info('Execution report: no error detected')
 
@@ -449,7 +453,8 @@ def do_process_with_pipeline(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
-            return nb_error_detected
+            # TODO: propagate exits.OFFLINE_DATA if need be
+            return nb_errors_detected
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
@@ -617,7 +622,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
 
     Returns the number of tasks that could not be processed.
     """
-    nb_error_detected = s1_process( config_filename,
+    nb_errors_detected = s1_process( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
@@ -625,7 +630,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
-    if nb_error_detected > 0:
+    if nb_errors_detected > 0:
         sys.exit(exits.TASK_FAILED)
 
 # ======================================================================
@@ -664,14 +669,14 @@ def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram
 
     Returns the number of tasks that could not be processed.
     """
-    nb_error_detected = s1_process_lia( config_filename,
+    nb_errors_detected = s1_process_lia( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
                 debug_caches=debug_caches,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks)
-    if nb_error_detected > 0:
+    if nb_errors_detected > 0:
         sys.exit(exits.TASK_FAILED)
 
 # ======================================================================
