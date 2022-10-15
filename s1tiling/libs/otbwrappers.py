@@ -694,9 +694,9 @@ class _ConcatenatorFactory(OTBStepFactory):
         if len(inp.input_metas) >= 2:
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
             imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(product_names[0]))
+            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(product_names[0])))
             for idx, pn in enumerate(product_names, start=1):
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(pn))
+                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(pn)))
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
 

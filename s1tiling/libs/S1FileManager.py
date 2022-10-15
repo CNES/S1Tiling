@@ -774,7 +774,7 @@ class S1FileManager:
             self._products_info = []
 
         # Filter by date specification
-        content = [d for d in content if self.is_product_in_time_range(d.path)]
+        content = [d for d in content if self.is_product_in_time_range(d.name)]
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
         content = _discard_small_redundant(content, ident=lambda d: d.name)
@@ -939,17 +939,18 @@ class S1FileManager:
                         tiles.append(tile_name)
         return tiles
 
-    def is_product_in_time_range(self, product):
+    def is_product_in_time_range(self, product : str):
         """
         Returns whether the product name is within time range [first_date, last_date]
         """
+        assert '/' not in product, f"Expecting a basename for {product}"
         start_time = extract_product_start_time(product)
         if not start_time:
             return False
         start = '{YYYY}-{MM}-{DD}'.format_map(start_time)
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
-                os.path.basename(product), is_in_range, self.first_date, start, self.last_date)
+                product, is_in_range, self.first_date, start, self.last_date)
         return is_in_range
 
     def get_s1_intersect_by_tile(self, tile_name_field):
