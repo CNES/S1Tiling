@@ -725,6 +725,8 @@ Working on clusters
   - storing :ref:`input files <paths.s1_images>`, like for instance
     :file:`$TMPDIR/data_raw/` on HAL for instance.
 
+.. _exit_codes:
+
 Process return code
 -------------------
 
@@ -746,10 +748,11 @@ The following exit code are produced when :program:`S1Processor` returns:
   * - 67
     - Downloading error. See the log produced.
   * - 68
-    - .. todo::
+    - When offline S1 data could not be retrieved before the configured
+      timeout, the associated S2 products will not be generated and this exit
+      code will be used. See the log produced.
 
-        Download incomplete (data not available online (`#71
-        <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_)
+      If more critical errors occur, this exit will be superceded.
   * - 69
     - .. todo::
 
