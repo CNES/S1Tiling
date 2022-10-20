@@ -439,9 +439,9 @@ class S1FileManager:
         self.nb_images        = 0
 
         # Failures related to download (e.g. missing products)
-        self.__download_failures   = []
-        self.__download_blacklist  = {}  # TODO rename
-        self.__skipped_S2_products = []
+        self.__download_failures              = []
+        self.__failed_S1_downloads_by_S2_uid  = {}  # by S2 unique id: date + rel_orbit
+        self.__skipped_S2_products            = []
 
         self.__tmpsrtmdir     = None
         self.__caching_option = cfg.cache_srtm_by
@@ -773,7 +773,7 @@ class S1FileManager:
             failed_products = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
                 self._analyse_download_failures(failed_products)
-            success_products = list(filter(lambda p: p.has_value(), downloaded_products))
+            success_products = list((p.value() for p in filter(lambda p: p.has_value(), downloaded_products)))
             self._refresh_s1_product_list(success_products)  # incremental update
 
     def _analyse_download_failures(self, failed_products):
@@ -781,18 +781,18 @@ class S1FileManager:
         Record the download failures and mark S2 products that cannot be generated.
         """
         logger.warning('Some products could not be downloaded. Analysing donwload failures...')
-        self.__download_blacklist = {}  # Needs to be reset for each tile!
+        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
         for fp in failed_products:
             logger.warning('* %s', fp.error())
             prod  = fp.related_filenames()[0]  # expect only 1
             day   = '{YYYY}{MM}{DD}'.format_map(extract_product_start_time(prod.as_dict()['id']))
             orbit = product_property(prod, 'relativeOrbitNumber')
             key = f'{day}#{orbit}'
-            if key in self.__download_blacklist:
-                self.__download_blacklist[key].append(fp)
+            if key in self.__failed_S1_downloads_by_S2_uid:
+                self.__failed_S1_downloads_by_S2_uid[key].append(fp)
             else:
-                self.__download_blacklist[key] = [fp]
-            logger.debug('Register product to ignore: %s --> %s', key, self.__download_blacklist[key])
+                self.__failed_S1_downloads_by_S2_uid[key] = [fp]
+            logger.debug('Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
         self.__download_failures.extend(failed_products)
 
     def _refresh_s1_product_list(self, new_products=None):
@@ -883,7 +883,7 @@ class S1FileManager:
         # even if we have no S1 product associated. We cannot use s1_products_info
         # list for that purpose as it only contains S1 products that have been
         # successfully downloaded. => we iterate over the download blacklist
-        for failure, missing in self.__download_blacklist.items():
+        for failure, missing in self.__failed_S1_downloads_by_S2_uid.items():
             # Reference missing product for the orbit + date
             # (we suppose there won't be a mix of S1A + S1B for the same pair)
             ref_missing_S1_product = missing[0].related_filenames()[0]
