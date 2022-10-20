@@ -437,7 +437,7 @@ def do_process_with_pipeline(config_opt,
 
             nb_errors_detected = sum(not bool(res) for res in results)
 
-            download_failures = s1_file_manager.get_download_failures()
+            download_failures = s1_file_manager.get_skipped_S2_products()
             nb_errors_detected += len(download_failures) # TODO: use skipped S2 products
             results.extend([fp.error() for fp in download_failures]) # TODO improve
 
