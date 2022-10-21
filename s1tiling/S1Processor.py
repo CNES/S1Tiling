@@ -438,11 +438,10 @@ def do_process_with_pipeline(config_opt,
             nb_errors_detected = sum(not bool(res) for res in results)
 
             download_failures = s1_file_manager.get_skipped_S2_products()
-            nb_errors_detected += len(download_failures) # TODO: use skipped S2 products
-            results.extend([fp.error() for fp in download_failures]) # TODO improve
+            results.extend([fp for fp in download_failures])
 
             logger.debug('#############################################################################')
-            if nb_errors_detected > 0:
+            if nb_errors_detected + len(download_failures) > 0:
                 logger.warning('Execution report: %s errors detected', nb_errors_detected)
             else:
                 logger.info('Execution report: no error detected')
@@ -453,8 +452,11 @@ def do_process_with_pipeline(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
-            # TODO: propagate exits.OFFLINE_DATA if need be
-            return nb_errors_detected
+            return exits.Situation(
+                    nb_computation_errors=nb_errors_detected,
+                    nb_download_failures=len(download_failures),
+                    nb_download_timeouts=0
+                    )
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
@@ -622,7 +624,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
 
     Returns the number of tasks that could not be processed.
     """
-    nb_errors_detected = s1_process( config_filename,
+    situation = s1_process( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
@@ -630,8 +632,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
-    if nb_errors_detected > 0:
-        sys.exit(exits.TASK_FAILED)
+    sys.exit(situation.code)
 
 # ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -669,15 +670,14 @@ def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram
 
     Returns the number of tasks that could not be processed.
     """
-    nb_errors_detected = s1_process_lia( config_filename,
+    situation = s1_process_lia( config_filename,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
                 debug_caches=debug_caches,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks)
-    if nb_errors_detected > 0:
-        sys.exit(exits.TASK_FAILED)
+    sys.exit(situation.code)
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
