@@ -361,9 +361,9 @@ def _download_and_extract_one_product(dag, raw_directory, product):
             except OSError:
                 pass
     except BaseException as e:  # pylint: disable=broad-except
-        logger.error('%s', e)  # EODAG error message is good and precise enough, just use it!
+        logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
-        logger.error('Exception type is: %s', e.__class__.__name__)
+        logger.debug('Exception type is: %s', e.__class__.__name__)
         ## ERROR - Product is OFFLINE
         ## ERROR - Exception type is: NotAvailableError
         # logger.error('======================')
@@ -808,6 +808,9 @@ class S1FileManager:
         logger.debug('%s local products found on disk', len(content))
         # Filter with new product only
         if new_products:
+            logger.debug('new products:')
+            for np in new_products:
+                logger.debug('%s -> %s', np.__class__.__name__, np)
             # content is DirEntry
             # NEW is str!! Always
             # logger.debug('content[0]: %s -> %s', type(content[0]), content[0])
@@ -816,8 +819,10 @@ class S1FileManager:
             # If the directory appear directly
             content0 = content
             content = list(filter(lambda d: d.path in new_products, content0))
-            # Or if the directory appear with an indirection: e.g. {prod}/{prord}.SAFE
-            content += list(filter(lambda d: d.path in (p.parent for p in new_products), content0))
+            # Or if the directory appear with an indirection: e.g. {prod}/{prod}.SAFE
+            # content += list(filter(lambda d: d.path in (p.parent for p in new_products), content0))
+            parent_dirs = [os.path.dirname(p) for p in new_products]
+            content += list(filter(lambda d: d.path in parent_dirs, content0))
 
             logger.debug('dirs found & filtered: %s', content)
             logger.debug("products DL'ed: %s", new_products)
@@ -867,16 +872,14 @@ class S1FileManager:
 
     def _filter_complete_dowloads_by_pair(self, tile_name, s1_products_info):
         keys = {
-                # 'flying_unit_code'  : sat.lower(),
                 'tile_name'         : tile_name,
-                # 'acquisition_stamp' : f'{start}t??????',
-                # 'orbit_direction'   : '*',
-                # 'orbit'             : '*',
                 'calibration_type'  : self.cfg.calibration_type,
                 }
         fname_fmt_concatenation = self.cfg.fname_fmt_concatenation
-        ident=lambda ci: ci['product'].name
-        get_orbit=lambda ci: ci['relative_orbit']
+        k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
+        ident     = lambda ci: ci['product'].name
+        get_orbit = lambda ci: ci['relative_orbit']
+        get_direc = lambda ci: k_dir_assoc.get(ci['orbit_direction'], ci['orbit_direction'])
         prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
 
         # We need to report every S2 product that could not be generated,
@@ -889,6 +892,7 @@ class S1FileManager:
             ref_missing_S1_product = missing[0].related_filenames()[0]
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
             eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
+            eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)
             eo_id   = ref_missing_S1_product.as_dict()['id']
             eo_date = prod_re.match(eo_id).groups()[1]
             # Generate the reference name of S2 products that can't be produced
@@ -903,11 +907,11 @@ class S1FileManager:
                 id   = ident(ci)
                 date = prod_re.match(id).groups()[1]
                 ron  = get_orbit(ci)
-                logger.debug('Check paired product to ignore with key: %s', failure)
+                logger.debug('Check if the ignore-key %s matches the paired S1 product %s', failure, id)
                 if f'{date}#{ron}' == failure:
                     assert eo_date == date
                     assert eo_ron  == ron
-                    assert eo_dir  == get_orbit_direction(ci)
+                    assert eo_dir  == get_direc(ci), f"EO product: {eo_id} doesn't match product on disk: {id}"
                     logger.debug('%s will be ignored to produce %s because: %s', ci, s2_product_name, missing)
                     # At most this could happen once as s1 products go by pairs,
                     # and thus a DL failure may be associated to zero or one DL success.
@@ -917,7 +921,7 @@ class S1FileManager:
                     keeps.append(ci)
             s1_products_info = keeps
             logger.warning("Don't generate %s, because %s", s2_product_name, missing)
-            self.__skipped_S2_products.append(f'{s2_product_name} cannot be produced because the following input is/are missing {missing}')
+            self.__skipped_S2_products.append(f'Download failure: {s2_product_name} cannot be produced because of the following issues with the inputs: {missing}')
         return s1_products_info
 
     def _filter_products_with_enough_coverage(self, tile_name, products_info):

@@ -145,7 +145,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
     mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : 7)
-    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, tile, pi: slf._products_info)
 
 
 def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
