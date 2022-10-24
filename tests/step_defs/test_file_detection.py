@@ -64,7 +64,7 @@ class Configuration():
         self.nb_products_to_download = 2
 
         self.first_date              = '2020-01-01'
-        self.last_date               = '2020-01-10'
+        self.last_date               = '2020-01-30'
         self.polarisation            = None
         self.download                = False
         self.raw_directory           = inputdir
@@ -451,33 +451,17 @@ def dl_kepts():
     l = []
     return l
 
-@given('All S1 products have been downloaded')
-def given_all_S1_products_have_been_downloaded(dl_successes, dl_failures, known_files, known_dirs, mocker):
-    logging.debug('Given: All S1 products have been downloaded')
-    dl_successes.extend([MockEOProduct(p) for p in (0, 1)])
-    assert len(dl_successes) == 2
-    assert len(dl_failures) == 0
-    _declare_known_S1_files(mocker, known_files, known_dirs, [p.as_dict()['id'] for p in dl_successes])
+@given(parsers.parse('S1 product {idx} has been downloaded'))
+def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, mocker, idx):
+    logging.debug('Given: S1 product #%s has been downloaded', idx)
+    product = MockEOProduct(int(idx))
+    dl_successes.append(product)
+    _declare_known_S1_files(mocker, known_files, known_dirs, [product.as_dict()['id']])
 
-@given('First S1 product has been downloaded')
-def given_first_S1_product_has_been_downloaded(dl_successes, known_files, known_dirs, mocker):
-    logging.debug('Given: First S1 product has been downloaded')
-    dl_successes.append(MockEOProduct(0))
-    _declare_known_S1_files(mocker, known_files, known_dirs, [p.as_dict()['id'] for p in dl_successes])
-
-@given('First S1 product download timed-out')
-def given_first_S1_product_has_timed_out(dl_failures):
-    logging.debug('Given: First S1 product download timed-out')
-    missing_product = MockEOProduct(0)
-    failed = Outcome(NotAvailableError(
-        f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"))
-    failed.add_related_filename(missing_product)
-    dl_failures.append(failed)
-
-@given('Second S1 product download timed-out')
-def given_second_S1_product_has_timed_out(dl_failures):
-    logging.debug('Given: Second S1 product download timed-out')
-    missing_product = MockEOProduct(1)
+@given(parsers.parse('S1 product {idx} download has timed-out'))
+def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx):
+    logging.debug('Given: S1 product #%s download timed-out', idx)
+    missing_product = MockEOProduct(int(idx))
     failed = Outcome(NotAvailableError(
         f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"))
     failed.add_related_filename(missing_product)
@@ -491,7 +475,7 @@ def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_
     manager = S1FileManager(configuration)
     # `manager._products_info` is filled-up during manager construction
     # from the scanned (mocked) directories
-    assert len(manager._products_info) == len(dl_successes)
+    assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p["product"] for p in manager._products_info]},\nDownloading: {dl_successes}'
     if dl_failures:
         manager._analyse_download_failures(dl_failures)
     assert len(dl_kepts) == 0
@@ -513,4 +497,10 @@ def then_all_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts):
 def then_no_S2_product_will_be_generated(dl_successes, dl_failures, dl_kepts):
     logging.debug('Then: No S2 product will be generated')
     assert len(dl_kepts) == 0, f'Keeping {dl_kepts} instead of nothing'
+
+@then(parsers.parse('{nb} S2 product(s) will be generated'))
+def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, nb):
+    logging.debug('Then: %s S2 products will be generated', nb)
+    assert len(dl_kepts) == 2*int(nb), f'Keeping {[p["product"] for p in dl_kepts]} instead of {nb}'
+    # assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
 
