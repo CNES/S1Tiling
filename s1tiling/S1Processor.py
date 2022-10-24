@@ -437,12 +437,12 @@ def do_process_with_pipeline(config_opt,
 
             nb_errors_detected = sum(not bool(res) for res in results)
 
-            download_failures = s1_file_manager.get_skipped_S2_products()
-            results.extend([fp for fp in download_failures])
+            skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
+            results.extend([fp for fp in skipped_for_download_failures])
 
             logger.debug('#############################################################################')
-            if nb_errors_detected + len(download_failures) > 0:
-                logger.warning('Execution report: %s errors detected', nb_errors_detected)
+            if nb_errors_detected + len(skipped_for_download_failures) > 0:
+                logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
             else:
                 logger.info('Execution report: no error detected')
 
@@ -452,10 +452,12 @@ def do_process_with_pipeline(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
+            download_failures = s1_file_manager.get_download_failures()
+            download_timeouts = s1_file_manager.get_download_timeouts()
             return exits.Situation(
                     nb_computation_errors=nb_errors_detected,
                     nb_download_failures=len(download_failures),
-                    nb_download_timeouts=0
+                    nb_download_timeouts=len(download_timeouts)
                     )
 
 
