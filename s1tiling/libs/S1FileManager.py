@@ -43,13 +43,14 @@ import shutil
 import sys
 import tempfile
 
-from eodag.api.core import EODataAccessGateway
-from eodag.utils.logging import setup_logging
-from eodag.utils import get_geometry_from_various
+from eodag.api.core         import EODataAccessGateway
+from eodag.utils.logging    import setup_logging
+from eodag.utils.exceptions import NotAvailableError
+from eodag.utils            import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
 except ImportError:
-    from shapely.geos import TopologicalError
+    from shapely.geos   import TopologicalError
 
 import numpy as np
 
@@ -498,6 +499,9 @@ class S1FileManager:
     def get_download_failures(self):
         return self.__download_failures
 
+    def get_download_timeouts(self):
+        return list(filter(lambda f: isinstance(f.error(), NotAvailableError), self.__download_failures))
+
     def _ensure_workspaces_exist(self):
         """
         Makes sure the directories used for :
@@ -731,7 +735,7 @@ class S1FileManager:
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
                 tile_name)
-        logger.info("Remote S1 products saved into %s", (p.value for p in paths if p.has_value()))
+        logger.info("Remote S1 products saved into %s", [p.value for p in paths if p.has_value()])
         return paths
 
     def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
@@ -907,7 +911,7 @@ class S1FileManager:
                 id   = ident(ci)
                 date = prod_re.match(id).groups()[1]
                 ron  = get_orbit(ci)
-                logger.debug('Check if the ignore-key %s matches the paired S1 product %s', failure, id)
+                logger.debug('Check if the ignore-key %s matches the key (%s) of the paired S1 product %s', f'{date}#{ron}', failure, id)
                 if f'{date}#{ron}' == failure:
                     assert eo_date == date
                     assert eo_ron  == ron
@@ -936,7 +940,7 @@ class S1FileManager:
         if not current_tile:
             logger.info("Tile %s does not exist", tile_name)
             return []
-        products_info = _keep_products_with_enough_coverage(self._products_info,
+        products_info = _keep_products_with_enough_coverage(products_info,
                 self.cfg.tile_to_product_overlap_ratio, current_tile)
         return products_info
 
@@ -955,6 +959,7 @@ class S1FileManager:
         # Filter products not associated to offline/timeout-ed products
         # [p.properties["storageStatus"] for p in search_results]
         products_info = self._filter_complete_dowloads_by_pair(tile_name, self._products_info)
+        logger.debug('%s products remaining after clearing out download failures: %s', len(products_info), products_info)
 
         # Filter products with enough coverage of the tile
         products_info = self._filter_products_with_enough_coverage(tile_name, products_info)
