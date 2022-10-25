@@ -83,6 +83,10 @@ from s1tiling.libs.vis import SimpleComputationGraph
 logger = None
 # logger = logging.getLogger('s1tiling')
 
+# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
+EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
+EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
+
 
 def remove_files(files):
     """
@@ -313,7 +317,7 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
         s1_file_manager, pipelines, client,
-        required_workspaces, searched_items_per_page,
+        required_workspaces, dl_wait, dl_timeout, searched_items_per_page,
         debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
     """
     Process one S2 tile.
@@ -329,6 +333,7 @@ def process_one_tile(
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
             s1_file_manager.download_images(tiles=tile_name,
+                    dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products
     except BaseException:  # pylint: disable=broad-except
@@ -367,6 +372,7 @@ def read_config(config_opt):
 
 def do_process_with_pipeline(config_opt,
         pipeline_builder,
+        dl_wait, dl_timeout,
         searched_items_per_page=20,
         dryrun=False,
         debug_caches=False,
@@ -430,16 +436,20 @@ def do_process_with_pipeline(config_opt,
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, dask_client.client,
                             required_workspaces,
+                            dl_wait=dl_wait, dl_timeout=dl_timeout,
                             searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
                     results += res
 
-            nb_error_detected = sum(not bool(res) for res in results)
+            nb_errors_detected = sum(not bool(res) for res in results)
+
+            skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
+            results.extend([fp for fp in skipped_for_download_failures])
 
             logger.debug('#############################################################################')
-            if nb_error_detected > 0:
-                logger.warning('Execution report: %s errors detected', nb_error_detected)
+            if nb_errors_detected + len(skipped_for_download_failures) > 0:
+                logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
             else:
                 logger.info('Execution report: no error detected')
 
@@ -449,7 +459,13 @@ def do_process_with_pipeline(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
-            return nb_error_detected
+            download_failures = s1_file_manager.get_download_failures()
+            download_timeouts = s1_file_manager.get_download_timeouts()
+            return exits.Situation(
+                    nb_computation_errors=nb_errors_detected,
+                    nb_download_failures=len(download_failures),
+                    nb_download_timeouts=len(download_timeouts)
+                    )
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
@@ -480,6 +496,8 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
 
 
 def s1_process(config_opt,
+        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page=20,
         dryrun=False,
         debug_otb=False,
@@ -531,6 +549,7 @@ def s1_process(config_opt,
 
     return do_process_with_pipeline(config_opt, builder,
             searched_items_per_page=searched_items_per_page,
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
             dryrun=dryrun,
             debug_otb=debug_otb,
             debug_caches=debug_caches,
@@ -540,6 +559,8 @@ def s1_process(config_opt,
 
 
 def s1_process_lia(config_opt,
+        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page=20,
         dryrun=False,
         debug_otb=False,
@@ -566,6 +587,7 @@ def s1_process_lia(config_opt,
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(config_opt, builder,
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             dryrun=dryrun,
             debug_caches=debug_caches,
@@ -590,6 +612,16 @@ def s1_process_lia(config_opt,
         help="Number of products simultaneously requested by eodag"
         )
 @click.option(
+        "--eodag_download_timeout",
+        default=20,
+        help="If download fails, maximum time in mins before stop retrying to download (default: 20 mins)"
+        )
+@click.option(
+        "--eodag_download_wait",
+        default=2,
+        help="If download fails, wait time in minutes between two download tries (default: 2 mins)"
+        )
+@click.option(
         "--dryrun",
         is_flag=True,
         help="Display the processing shall would be realized, but none is done.")
@@ -611,13 +643,15 @@ def s1_process_lia(config_opt,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
 def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
-         debug_tasks, cache_before_ortho, config_filename):
+         debug_tasks, cache_before_ortho, config_filename,
+         eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
 
     Returns the number of tasks that could not be processed.
     """
-    nb_error_detected = s1_process( config_filename,
+    situation = s1_process( config_filename,
+                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
@@ -625,8 +659,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks,
                 cache_before_ortho=cache_before_ortho)
-    if nb_error_detected > 0:
-        sys.exit(exits.TASK_FAILED)
+    sys.exit(situation.code)
 
 # ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -635,6 +668,16 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         "--searched_items_per_page",
         default=20,
         help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--eodag_download_timeout",
+        default=20,
+        help="If download fails, maximum time in mins before stop retrying to download"
+        )
+@click.option(
+        "--eodag_download_wait",
+        default=2,
+        help="If download fails, wait time in minutes between two download tries"
         )
 @click.option(
         "--dryrun",
@@ -658,21 +701,21 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
 def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
-         debug_tasks, config_filename):
+         debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
 
     Returns the number of tasks that could not be processed.
     """
-    nb_error_detected = s1_process_lia( config_filename,
+    situation = s1_process_lia( config_filename,
+                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 searched_items_per_page=searched_items_per_page,
                 dryrun=dryrun,
                 debug_otb=debug_otb,
                 debug_caches=debug_caches,
                 watch_ram=watch_ram,
                 debug_tasks=debug_tasks)
-    if nb_error_detected > 0:
-        sys.exit(exits.TASK_FAILED)
+    sys.exit(situation.code)
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422

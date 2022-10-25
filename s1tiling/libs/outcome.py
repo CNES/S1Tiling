@@ -45,11 +45,18 @@ class Outcome:
         self.__related_filenames = []
         self.__pipeline_name     = None
 
-    def __bool__(self):
+    def has_value(self):
         return not self.__is_error
+
+    def __bool__(self):
+        return self.has_value()
 
     def value(self):
         assert not self.__is_error
+        return self.__value_or_error
+
+    def error(self):
+        assert self.__is_error
         return self.__value_or_error
 
     def related_filenames(self):

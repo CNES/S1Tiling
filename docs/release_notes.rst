@@ -39,6 +39,20 @@ v1.0.0 Improvements
 - Borders are no longer cut for Sentinel-1 IPF 2.9+ products
   (`#88 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/88>`_).
 
+v1.0.0 Bug fixed
+++++++++++++++++
+
+- Offline S1 products are now correctly detected and processed
+  (`#71 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_,
+  `#93 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/93>`_,
+  `#108 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/108>`_):
+
+    - their associated (and available) products won't be used to produce a S2
+      product,
+    - the final report will list the S1 products that could not be retrieved,
+    - and the exit code :ref:`exits.OFFLINE_DATA (68) <exit_codes>` will be
+      used.
+
 
 Version 0.3.2
 -------------

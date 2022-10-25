@@ -43,13 +43,14 @@ import shutil
 import sys
 import tempfile
 
-from eodag.api.core import EODataAccessGateway
-from eodag.utils.logging import setup_logging
-from eodag.utils import get_geometry_from_various
+from eodag.api.core         import EODataAccessGateway
+from eodag.utils.logging    import setup_logging
+from eodag.utils.exceptions import NotAvailableError
+from eodag.utils            import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
 except ImportError:
-    from shapely.geos import TopologicalError
+    from shapely.geos   import TopologicalError
 
 import numpy as np
 
@@ -336,7 +337,7 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
     return kept_products
 
 
-def _download_and_extract_one_product(dag, raw_directory, product):
+def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
     """
     Takes care of downloading exactly one remote product and unzipping it,
     if required.
@@ -348,10 +349,10 @@ def _download_and_extract_one_product(dag, raw_directory, product):
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
     try:
         path = Outcome(dag.download(
-            product,       # EODAG will clear this variable
-            extract=True,  # Let's eodag do the job
-            wait=1,        # Wait time in minutes between two download tries
-            timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
+            product,           # EODAG will clear this variable
+            extract=True,      # Let's eodag do the job
+            wait=dl_wait,      # Wait time in minutes between two download tries
+            timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
             ))
         logging.debug(ok_msg)
         if os.path.exists(file) :
@@ -361,7 +362,24 @@ def _download_and_extract_one_product(dag, raw_directory, product):
             except OSError:
                 pass
     except BaseException as e:  # pylint: disable=broad-except
-        logging.error('Failed to download (and extract) %s', product)
+        logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
+        # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
+        logger.debug('Exception type is: %s', e.__class__.__name__)
+        ## ERROR - Product is OFFLINE
+        ## ERROR - Exception type is: NotAvailableError
+        # logger.error('======================')
+        # logger.exception(e)
+        ## Traceback (most recent call last):
+        ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
+        ##     path = Outcome(dag.download(
+        ##   File "site-packages/eodag/api/core.py", line 1487, in download
+        ##     path = product.download(
+        ##   File "site-packages/eodag/api/product/_product.py", line 288, in download
+        ##     fs_path = self.downloader.download(
+        ##   File "site-packages/eodag/plugins/download/http.py", line 269, in download
+        ##     raise NotAvailableError(
+        ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E is not available (OFFLINE) and could not be downloaded, timeout reached
+
         path = Outcome(e)
         path.add_related_filename(product)
 
@@ -369,15 +387,17 @@ def _download_and_extract_one_product(dag, raw_directory, product):
 
 
 def _parallel_download_and_extraction_of_products(
-        dag, raw_directory, products, nb_procs, tile_name):
+        dag, raw_directory, products, nb_procs, tile_name, dl_wait, dl_timeout):
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
+
+    Returns :class:`Outcome` of :class:`EOProduct` or Exception.
     """
     paths = []
     log_queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
@@ -386,7 +406,7 @@ def _parallel_download_and_extraction_of_products(
                 if result:
                     logger.info("%s correctly downloaded", result.value())
                     logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                    paths.append(result.value())
+                    paths.append(result)
                 else:
                     logger.warning("Cannot download %s", result.related_filenames())
                     # TODO: make it possible to detect missing products in the
@@ -418,6 +438,11 @@ class S1FileManager:
         self.cfg              = cfg
         self.raw_raster_list  = []
         self.nb_images        = 0
+
+        # Failures related to download (e.g. missing products)
+        self.__download_failures              = []
+        self.__failed_S1_downloads_by_S2_uid  = {}  # by S2 unique id: date + rel_orbit
+        self.__skipped_S2_products            = []
 
         self.__tmpsrtmdir     = None
         self.__caching_option = cfg.cache_srtm_by
@@ -463,6 +488,19 @@ class S1FileManager:
             self.__tmpsrtmdir.cleanup()
             self.__tmpsrtmdir = None
         return False
+
+    def get_skipped_S2_products(self):
+        """
+        List of S2 products whose production will be skipped because of a
+        download failure of a S1 product.
+        """
+        return self.__skipped_S2_products
+
+    def get_download_failures(self):
+        return self.__download_failures
+
+    def get_download_timeouts(self):
+        return list(filter(lambda f: isinstance(f.error(), NotAvailableError), self.__download_failures))
 
     def _ensure_workspaces_exist(self):
         """
@@ -659,9 +697,11 @@ class S1FileManager:
             first_date, last_date,
             tile_out_dir, tile_name,
             orbit_direction, relative_orbit_list, polarization, cover,
-            searched_items_per_page,dryrun):
+            searched_items_per_page,dryrun, dl_wait, dl_timeout):
         """
         Process with the call to eodag search + filter + download.
+
+        Returns :class:`Outcome` of :class:`EOProduct` or Exception.
         """
         extent = {
                 'lonmin': lonmin,
@@ -694,11 +734,13 @@ class S1FileManager:
 
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
-                tile_name)
-        logger.info("Remote S1 products saved into %s", paths)
+                tile_name, dl_wait, dl_timeout)
+        logger.info("Remote S1 products saved into %s", [p.value for p in paths if p.has_value()])
         return paths
 
-    def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
+    def download_images(self, searched_items_per_page,
+            dl_wait, dl_timeout,
+            dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -732,15 +774,32 @@ class S1FileManager:
                         polarization=self.cfg.polarisation,
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun)
+                        dryrun=dryrun, dl_wait=dl_wait, dl_timeout=dl_timeout)
         if downloaded_products:
             failed_products = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
-                logger.warning('Some products could not be downloaded:')
-                for fp in failed_products:
-                    logger.warning('* %s', fp)
-            success_products = list(filter(lambda p: p, downloaded_products))
+                self._analyse_download_failures(failed_products)
+            success_products = list((p.value() for p in filter(lambda p: p.has_value(), downloaded_products)))
             self._refresh_s1_product_list(success_products)  # incremental update
+
+    def _analyse_download_failures(self, failed_products):
+        """
+        Record the download failures and mark S2 products that cannot be generated.
+        """
+        logger.warning('Some products could not be downloaded. Analysing donwload failures...')
+        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
+        for fp in failed_products:
+            logger.warning('* %s', fp.error())
+            prod  = fp.related_filenames()[0]  # expect only 1
+            day   = '{YYYY}{MM}{DD}'.format_map(extract_product_start_time(prod.as_dict()['id']))
+            orbit = product_property(prod, 'relativeOrbitNumber')
+            key = f'{day}#{orbit}'
+            if key in self.__failed_S1_downloads_by_S2_uid:
+                self.__failed_S1_downloads_by_S2_uid[key].append(fp)
+            else:
+                self.__failed_S1_downloads_by_S2_uid[key] = [fp]
+            logger.debug('Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
+        self.__download_failures.extend(failed_products)
 
     def _refresh_s1_product_list(self, new_products=None):
         """
@@ -755,6 +814,9 @@ class S1FileManager:
         logger.debug('%s local products found on disk', len(content))
         # Filter with new product only
         if new_products:
+            logger.debug('new products:')
+            for np in new_products:
+                logger.debug('%s -> %s', np.__class__.__name__, np)
             # content is DirEntry
             # NEW is str!! Always
             # logger.debug('content[0]: %s -> %s', type(content[0]), content[0])
@@ -763,8 +825,10 @@ class S1FileManager:
             # If the directory appear directly
             content0 = content
             content = list(filter(lambda d: d.path in new_products, content0))
-            # Or if the directory appear with an indirection: e.g. {prod}/{prord}.SAFE
-            content += list(filter(lambda d: d.path in (os.path.dirname(p) for p in new_products), content0))
+            # Or if the directory appear with an indirection: e.g. {prod}/{prod}.SAFE
+            # content += list(filter(lambda d: d.path in (p.parent for p in new_products), content0))
+            parent_dirs = [os.path.dirname(p) for p in new_products]
+            content += list(filter(lambda d: d.path in parent_dirs, content0))
 
             logger.debug('dirs found & filtered: %s', content)
             logger.debug("products DL'ed: %s", new_products)
@@ -774,7 +838,7 @@ class S1FileManager:
             self._products_info = []
 
         # Filter by date specification
-        content = [d for d in content if self.is_product_in_time_range(d.path)]
+        content = [d for d in content if self.is_product_in_time_range(d.name)]
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
         content = _discard_small_redundant(content, ident=lambda d: d.name)
@@ -812,7 +876,61 @@ class S1FileManager:
         else:
             logger.warning('No time and orbit compatible products found on disk!')
 
-    def _filter_products_with_enough_coverage(self, tile_name):
+    def _filter_complete_dowloads_by_pair(self, tile_name, s1_products_info):
+        keys = {
+                'tile_name'         : tile_name,
+                'calibration_type'  : self.cfg.calibration_type,
+                }
+        fname_fmt_concatenation = self.cfg.fname_fmt_concatenation
+        k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
+        ident     = lambda ci: ci['product'].name
+        get_orbit = lambda ci: ci['relative_orbit']
+        get_direc = lambda ci: k_dir_assoc.get(ci['orbit_direction'], ci['orbit_direction'])
+        prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
+
+        # We need to report every S2 product that could not be generated,
+        # even if we have no S1 product associated. We cannot use s1_products_info
+        # list for that purpose as it only contains S1 products that have been
+        # successfully downloaded. => we iterate over the download blacklist
+        for failure, missing in self.__failed_S1_downloads_by_S2_uid.items():
+            # Reference missing product for the orbit + date
+            # (we suppose there won't be a mix of S1A + S1B for the same pair)
+            ref_missing_S1_product = missing[0].related_filenames()[0]
+            eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
+            eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
+            eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)
+            eo_id   = ref_missing_S1_product.as_dict()['id']
+            eo_date = prod_re.match(eo_id).groups()[1]
+            # Generate the reference name of S2 products that can't be produced
+            keys['orbit_direction']   = eo_dir
+            keys['orbit']             = f'{eo_ron:03}'  # 3 digits, pad w/ zeros
+            keys['flying_unit_code']  = prod_re.match(eo_id).groups()[0].lower()
+            keys['acquisition_stamp'] = f'{eo_date}txxxxxx'
+            keys['polarisation']      = '*'
+            s2_product_name = fname_fmt_concatenation.format_map(keys)
+            keeps   = []  # Workaround to filter out the current list.
+            for ci in s1_products_info:
+                id   = ident(ci)
+                date = prod_re.match(id).groups()[1]
+                ron  = get_orbit(ci)
+                logger.debug('Check if the ignore-key %s matches the key (%s) of the paired S1 product %s', f'{date}#{ron}', failure, id)
+                if f'{date}#{ron}' == failure:
+                    assert eo_date == date
+                    assert eo_ron  == ron
+                    assert eo_dir  == get_direc(ci), f"EO product: {eo_id} doesn't match product on disk: {id}"
+                    logger.debug('%s will be ignored to produce %s because: %s', ci, s2_product_name, missing)
+                    # At most this could happen once as s1 products go by pairs,
+                    # and thus a DL failure may be associated to zero or one DL success.
+                    # assert len(self.__download_failures[failure]) == 1
+                    # dont-break  # We don't actually need to continue except to... keep non "failure" products...
+                else:
+                    keeps.append(ci)
+            s1_products_info = keeps
+            logger.warning("Don't generate %s, because %s", s2_product_name, missing)
+            self.__skipped_S2_products.append(f'Download failure: {s2_product_name} cannot be produced because of the following issues with the inputs: {missing}')
+        return s1_products_info
+
+    def _filter_products_with_enough_coverage(self, tile_name, products_info):
         """
         Filter products (/pairs of products) that provide enough coverage for
         the requested tile.
@@ -824,7 +942,7 @@ class S1FileManager:
         if not current_tile:
             logger.info("Tile %s does not exist", tile_name)
             return []
-        products_info = _keep_products_with_enough_coverage(self._products_info,
+        products_info = _keep_products_with_enough_coverage(products_info,
                 self.cfg.tile_to_product_overlap_ratio, current_tile)
         return products_info
 
@@ -840,8 +958,13 @@ class S1FileManager:
         """
         self.raw_raster_list = []
 
+        # Filter products not associated to offline/timeout-ed products
+        # [p.properties["storageStatus"] for p in search_results]
+        products_info = self._filter_complete_dowloads_by_pair(tile_name, self._products_info)
+        logger.debug('%s products remaining after clearing out download failures: %s', len(products_info), products_info)
+
         # Filter products with enough coverage of the tile
-        products_info = self._filter_products_with_enough_coverage(tile_name)
+        products_info = self._filter_products_with_enough_coverage(tile_name, products_info)
 
         # Finally, search for the files with the requested polarities only
         for ci in products_info:
@@ -939,17 +1062,18 @@ class S1FileManager:
                         tiles.append(tile_name)
         return tiles
 
-    def is_product_in_time_range(self, product):
+    def is_product_in_time_range(self, product : str):
         """
         Returns whether the product name is within time range [first_date, last_date]
         """
+        assert '/' not in product, f"Expecting a basename for {product}"
         start_time = extract_product_start_time(product)
         if not start_time:
             return False
         start = '{YYYY}-{MM}-{DD}'.format_map(start_time)
         is_in_range = self.first_date <= start <= self.last_date
         logger.debug('  %s %s /// %s == %s <= %s <= %s', 'KEEP' if is_in_range else 'DISCARD',
-                os.path.basename(product), is_in_range, self.first_date, start, self.last_date)
+                product, is_in_range, self.first_date, start, self.last_date)
         return is_in_range
 
     def get_s1_intersect_by_tile(self, tile_name_field):

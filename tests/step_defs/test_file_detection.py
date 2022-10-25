@@ -17,9 +17,18 @@ from s1tiling.libs.S1FileManager     import S1FileManager
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 from s1tiling.libs.outcome           import Outcome
 
+from eodag.utils.exceptions import (
+    # AuthenticationError,
+    NotAvailableError,
+)
+
 # ======================================================================
 # Scenarios
-scenarios('../features/test_file_detection.feature', '../features/test_product_downloading.feature')
+scenarios(
+        '../features/test_file_detection.feature',
+        '../features/test_product_downloading.feature',
+        '../features/test_offline_products.feature',
+        )
 
 # ======================================================================
 # Test Data
@@ -83,11 +92,15 @@ class MockDirEntry:
         self.path = pathname
         # `name`: relative to scandir...
         self.name = os.path.relpath(pathname, INPUT)
+        self.parent = os.path.dirname(pathname)
+
+    def __repr__(self):
+        return self.path
 
 
 def list_dirs(dir, pat, known_dirs):
     logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
-    return [MockDirEntry(kd) for kd in known_dirs]
+    return [MockDirEntry(kd) for kd in sorted(set(known_dirs))]
 
 
 @pytest.fixture
@@ -124,15 +137,15 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs):
     known_dirs.update([INPUT, TMPDIR, OUTPUT])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
-    mocker.patch('glob.glob',     lambda pat : glob(pat, known_files))
+    mocker.patch('glob.glob',     lambda pat : glob(pat, sorted(set(known_files))))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
-    known_dirs_4_list_dir = [dirname(fn, 3) for fn in known_files]
+    known_dirs_4_list_dir = sorted(set([dirname(fn, 3) for fn in known_files]))
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
     mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : 7)
-    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, pi: slf._products_info)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, tile, pi: slf._products_info)
 
 
 def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
@@ -148,7 +161,9 @@ def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     known_files.extend(files)
-    logging.debug('Mocking w/ S1: %s --> %s', patterns, files)
+    logging.debug('Mocking w/ S1: %s', patterns)
+    for file in files:
+        logging.debug('--> %s', file)
 
 
 @given('No S1 files are known')
@@ -216,6 +231,8 @@ class MockEOProduct:
                 self.properties['orbitDirection'],
                 self.properties['relativeOrbitNumber'],
                 self.geometry)
+        self._expected_path = MockDirEntry(f'{INPUT}/{self._id}/{self._id}.SAFE')
+
     def __repr__(self):
         return "EOProduct(%s) -> %s#%s" % (self._id,
                 self.properties['orbitDirection'],
@@ -347,7 +364,7 @@ def when_searching_VH(configuration, image_list, mocker):
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, product):
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
     logging.debug('mock: download1 -> %s', product)
     return Outcome(product)
 
@@ -374,7 +391,7 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     paths = manager._download(None,
             extent_33NWB['lonmin'], extent_33NWB['lonmax'], extent_33NWB['latmin'], extent_33NWB['latmax'],
             file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
-            OUTPUT+'/33NWB', '33NWB', None, [], configuration.polarisation, 10, 42, False)
+            OUTPUT+'/33NWB', '33NWB', None, [], configuration.polarisation, 10, 42, False, None, None)
     downloads.extend(paths)
 
 
@@ -414,4 +431,87 @@ def then_none_are_requested_for_download(downloads):
 def then_all_are_requested_for_download(downloads, configuration):
     logging.debug('Then: All are requested for download')
     assert len(downloads) == configuration.nb_products_to_download
+
+
+# ######################################################################
+# Test download failures
+
+@pytest.fixture
+def dl_successes():
+    l = []
+    return l
+
+@pytest.fixture
+def dl_failures():
+    l = []
+    return l
+
+@pytest.fixture
+def dl_kepts():
+    l = []
+    return l
+
+@given(parsers.parse('S1 product {idx} has been downloaded'))
+def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, mocker, idx):
+    logging.debug('Given: S1 product #%s has been downloaded', idx)
+    product = MockEOProduct(int(idx))
+    dl_successes.append(product)
+    _declare_known_S1_files(mocker, known_files, known_dirs, [product.as_dict()['id']])
+
+@given(parsers.parse('S1 product {idx} download has timed-out'))
+def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx):
+    logging.debug('Given: S1 product #%s download timed-out', idx)
+    missing_product = MockEOProduct(int(idx))
+    failed = Outcome(NotAvailableError(
+        f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"))
+    failed.add_related_filename(missing_product)
+    dl_failures.append(failed)
+
+
+@when('Filtering products to use')
+def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_kepts, mocker, known_files, known_dirs):
+    logging.debug('When: Filtering products to use')
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
+    manager = S1FileManager(configuration)
+    # `manager._products_info` is filled-up during manager construction
+    # from the scanned (mocked) directories
+    assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p["product"] for p in manager._products_info]},\nDownloading: {dl_successes}'
+    if dl_failures:
+        manager._analyse_download_failures(dl_failures)
+    assert len(dl_kepts) == 0
+    dl_kepts.extend(
+            manager._filter_complete_dowloads_by_pair(TILE, manager._products_info)
+            )
+    assert dl_kepts is not manager._products_info
+    logging.debug('Keeping: %s/%s', len(dl_kepts), len(manager._products_info))
+    for k in dl_kepts:
+        logging.debug(' -> %s', k)
+
+@then('All S2 products will be generated')
+def then_all_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts):
+    logging.debug('Then: All S2 products will be generated')
+    assert len(dl_kepts) == len(dl_successes), f'Keeping {dl_kepts} instead of {dl_successes}'
+    assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
+
+@then('No S2 product will be generated')
+def then_no_S2_product_will_be_generated(dl_successes, dl_failures, dl_kepts):
+    logging.debug('Then: No S2 product will be generated')
+    assert len(dl_kepts) == 0, f'Keeping {dl_kepts} instead of nothing'
+
+@then(parsers.parse('{nb} S2 product(s) will be generated'))
+def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, nb):
+    logging.debug('Then: %s S2 product(s) will be generated', nb)
+    assert len(dl_kepts) == 2*int(nb), f'Keeping {[p["product"] for p in dl_kepts]} instead of {nb}'
+    # assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
+
+@then(parsers.parse('S2 product n° {idx} will be generated'))
+def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, idx):
+    idx = int(idx)
+    logging.debug('Then: S2 product %s will be generated', idx)
+    kept_product_names = [str(p['product']) for p in dl_kepts]
+    logging.debug('Keeping: %s', kept_product_names)
+    for i in range(2*idx, 2*idx+2):
+        prod = '%s/%s' % (INPUT, file_db.product_name(i))
+        logging.debug('...checking #%s: %s', i, prod)
+        assert prod in kept_product_names
 

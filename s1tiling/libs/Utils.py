@@ -267,16 +267,17 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
     return tuple_out
 
 
-def extract_product_start_time(product):
+_k_prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*')
+
+def extract_product_start_time(product_name : str):
     """
-    Extracts product start time.
+    Extracts product start time from its name.
 
     Returns: dictionary of keys {'YYYY', 'MM', 'DD', 'hh', 'mm', 'ss'}
              or None if the product name cannot be decoded.
     """
-    prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*')
-    path = os.path.basename(product)
-    match = prod_re.match(path)
+    assert '/' not in product_name, f"Expecting a basename for {product_name}"
+    match = _k_prod_re.match(product_name)
     if not match:
         return None
     YYYY, MM, DD, hh, mm, ss = match.groups()
