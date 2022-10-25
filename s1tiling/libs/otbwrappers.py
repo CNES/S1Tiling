@@ -823,6 +823,9 @@ class Concatenate(_ConcatenatorFactory):
             meta['does_product_exist'] = lambda : check_product(meta)
 
 
+# ----------------------------------------------------------------------
+# Mask related applications
+
 class BuildBorderMask(OTBStepFactory):
     """
     Factory that prepares the first step that generates border maks as
@@ -916,6 +919,69 @@ class SmoothBorderMask(OTBStepFactory):
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
                 }
+
+
+# ----------------------------------------------------------------------
+# Despeckling related applications
+class SpatialDespeckle(OTBStepFactory):
+    """
+    Factory that prepares the first step that smoothes border maks as
+    described in :ref:`Spatial despeckle filtering` documentation.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(self, cfg):
+        super().__init__(cfg,
+                appname='Despeckle', name='Despeckle',
+                param_in='in', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=os.path.join(cfg.output_preprocess, 'filter', '{tile_name}'),
+                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+                image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
+                )
+        self.__filter  = cfg.filter
+        self.__rad     = cfg.filter_rad
+        self.__nblooks = cfg.filter_nb_looks
+        self.__deramp  = cfg.filter_deramp
+
+        assert self.__rad
+        assert (self.__filter in ['lee', 'gammamap', 'kuan']) == (self.__nblooks != 0) \
+                , f'Unexpected nblooks value ({self.__nblooks} for {self.__filter} despeckle filter'
+        assert (self.__filter in ['frost']) == (self.__deramp != 0.) \
+                , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
+
+    # def set_output_pixel_type(self, app, meta):
+    #     """
+    #     Force the output pixel type to ``UINT8``.
+    #     """
+    #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`Despeckle OTB application
+        <Applications/app_Despeckle>` to perform speckle noise reduction.
+        """
+        assert self.__rad
+        params = {
+                'ram'                         : str(self.ram_per_process),
+                self.param_in                 : in_filename(meta),
+                # self.param_out              : out_filename(meta),
+                'filter'                      : self.__filter,
+                f'filter.{self.__filter}.rad' : self.__rad,
+                }
+        if self.__nblooks:
+            params[f'filter.{self.__filter}.nblooks'] = self.__nblooks
+        if self.__deramp:
+            params[f'filter.{self.__filter}.deramp']  = self.__deramp
+        return params
 
 
 # ======================================================================

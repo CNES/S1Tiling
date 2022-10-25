@@ -204,9 +204,20 @@ class Configuration():
         self.OTBThreads                    = config.getint('Processing', 'nb_otb_threads')
 
         self.produce_lia_map               = config.getboolean('Processing', 'produce_lia_map', fallback=False)
-        # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
-        # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
-        # self.Window_radius             = config.getint('Filtering', 'window_radius')
+
+        self.filter = config.get('Filtering', 'filter', fallback='').lower()
+        if self.filter and self.filter == 'none':
+            self.filter = ''
+        if self.filter:
+            self.filter_rad = config.getint('Filtering', 'window_radius')
+            if self.filter == 'frost':
+                self.filter_deramp = config.getfloat('Filtering', 'deramp')
+            elif self.filter in ['lee', 'gammamap', 'kuan']:
+                self.filter_nblooks = config.getfloat('Filtering', 'nblooks')
+            else:
+                logging.critical("ERROR: Invalid despeckling filter value '%s'. Select one among none/lee/frost/gammamap/kuan", self.filter)
+                sys.exit(exits.CONFIG_ERROR)
+
         try:
             self.override_azimuth_cut_threshold_to = config.getboolean('Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except

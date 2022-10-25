@@ -545,6 +545,12 @@ def s1_process(config_opt,
 
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+
+        if config.filter:
+            required_workspaces.append(WorkspaceKinds.FILTER)
+            # Use Despeckle, only if filter ∈ [lee, gammamap, frost, kuan]
+            pipelines.register_pipeline([Despeckle], product_required=True)
+
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(config_opt, builder,

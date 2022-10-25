@@ -73,8 +73,9 @@ class WorkspaceKinds(Enum):
     :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
         Indeed At this moment, only two kinds of workspaces are supported.
     """
-    TILE = 1
-    LIA  = 2
+    TILE   = 1
+    LIA    = 2
+    FILTER = 3
 
 
 def product_property(prod, key, default=None):
@@ -528,6 +529,10 @@ class S1FileManager:
         if WorkspaceKinds.TILE in required_workspaces:
             out_dir = os.path.join(self.cfg.output_preprocess, tile_name)
             os.makedirs(out_dir, exist_ok=True)
+
+        if WorkspaceKinds.FILTER in required_workspaces:
+            filter_directory = os.path.join(self.cfg.output_preprocess, 'filter', tile_name)
+            os.makedirs(filter_directory, exist_ok=True)
 
         # if self.cfg.calibration_type == 'normlim':
         if WorkspaceKinds.LIA in required_workspaces:
