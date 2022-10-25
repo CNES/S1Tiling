@@ -44,7 +44,8 @@ v1.0.0 Bug fixed
 
 - Offline S1 products are now correctly detected and processed
   (`#71 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_,
-  `#93 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/93>`_):
+  `#93 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/93>`_,
+  `#108 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/108>`_):
 
     - their associated (and available) products won't be used to produce a S2
       product,
