@@ -500,7 +500,18 @@ def then_no_S2_product_will_be_generated(dl_successes, dl_failures, dl_kepts):
 
 @then(parsers.parse('{nb} S2 product(s) will be generated'))
 def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, nb):
-    logging.debug('Then: %s S2 products will be generated', nb)
+    logging.debug('Then: %s S2 product(s) will be generated', nb)
     assert len(dl_kepts) == 2*int(nb), f'Keeping {[p["product"] for p in dl_kepts]} instead of {nb}'
     # assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
+
+@then(parsers.parse('S2 product n° {idx} will be generated'))
+def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, idx):
+    idx = int(idx)
+    logging.debug('Then: S2 product %s will be generated', idx)
+    kept_product_names = [str(p['product']) for p in dl_kepts]
+    logging.debug('Keeping: %s', kept_product_names)
+    for i in range(2*idx, 2*idx+2):
+        prod = '%s/%s' % (INPUT, file_db.product_name(i))
+        logging.debug('...checking #%s: %s', i, prod)
+        assert prod in kept_product_names
 
