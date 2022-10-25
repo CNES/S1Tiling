@@ -337,7 +337,7 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
     return kept_products
 
 
-def _download_and_extract_one_product(dag, raw_directory, product):
+def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
     """
     Takes care of downloading exactly one remote product and unzipping it,
     if required.
@@ -349,10 +349,10 @@ def _download_and_extract_one_product(dag, raw_directory, product):
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
     try:
         path = Outcome(dag.download(
-            product,       # EODAG will clear this variable
-            extract=True,  # Let's eodag do the job
-            wait=1,        # Wait time in minutes between two download tries
-            timeout=2      # Maximum time in mins before stop retrying to download (default=20’)
+            product,           # EODAG will clear this variable
+            extract=True,      # Let's eodag do the job
+            wait=dl_wait,      # Wait time in minutes between two download tries
+            timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
             ))
         logging.debug(ok_msg)
         if os.path.exists(file) :
@@ -387,7 +387,7 @@ def _download_and_extract_one_product(dag, raw_directory, product):
 
 
 def _parallel_download_and_extraction_of_products(
-        dag, raw_directory, products, nb_procs, tile_name):
+        dag, raw_directory, products, nb_procs, tile_name, dl_wait, dl_timeout):
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
@@ -397,7 +397,7 @@ def _parallel_download_and_extraction_of_products(
     paths = []
     log_queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
@@ -697,7 +697,7 @@ class S1FileManager:
             first_date, last_date,
             tile_out_dir, tile_name,
             orbit_direction, relative_orbit_list, polarization, cover,
-            searched_items_per_page,dryrun):
+            searched_items_per_page,dryrun, dl_wait, dl_timeout):
         """
         Process with the call to eodag search + filter + download.
 
@@ -734,11 +734,13 @@ class S1FileManager:
 
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
-                tile_name)
+                tile_name, dl_wait, dl_timeout)
         logger.info("Remote S1 products saved into %s", [p.value for p in paths if p.has_value()])
         return paths
 
-    def download_images(self, searched_items_per_page, dryrun=False, tiles=None):
+    def download_images(self, searched_items_per_page,
+            dl_wait, dl_timeout,
+            dryrun=False, tiles=None):
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -772,7 +774,7 @@ class S1FileManager:
                         polarization=self.cfg.polarisation,
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun)
+                        dryrun=dryrun, dl_wait=dl_wait, dl_timeout=dl_timeout)
         if downloaded_products:
             failed_products = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
