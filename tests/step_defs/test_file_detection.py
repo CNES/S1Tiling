@@ -64,7 +64,7 @@ class Configuration():
         self.nb_products_to_download = 2
 
         self.first_date              = '2020-01-01'
-        self.last_date               = '2020-01-30'
+        self.last_date               = '2020-01-10'
         self.polarisation            = None
         self.download                = False
         self.raw_directory           = inputdir

@@ -21,7 +21,8 @@ Feature: Test behaviour on non-available products
         Then  No S2 product will be generated
 
     Scenario: Some are available, some are not...
-        Given S1 product 0 has been downloaded
+        Given Request on all dates
+        And   S1 product 0 has been downloaded
         And   S1 product 1 has been downloaded
         And   S1 product 2 has been downloaded
         And   S1 product 3 download has timed-out
