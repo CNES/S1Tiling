@@ -644,8 +644,7 @@ You can use this :download:`this template
 ``[Filtering]`` section
 +++++++++++++++++++++++
 
-.. note:: The following options will eventually be used for the multitemporal
-   filtering. They are not used by S1Tiling application.
+.. note:: Multitemporal filtering is not yet integrated in S1Tiling.
 
 
 .. list-table::
@@ -656,10 +655,49 @@ You can use this :download:`this template
   * - Option
     - Description
 
-      .. _Filtering.filtering_activated:
-  * - ``filtering_activated``
-    - If ``True``, the multiImage filtering is activated after the tiling process
+      .. _Filtering.filter:
+  * - ``filter``
+    - If ``none`` or empty, then no filtering is done. Otherwise the following
+      spatial speckling filter methods from :std:doc:`OTB Despeckle application
+      <Applications/app_Despeckle>` are supported: ``Lee``, ``Frost``,
+      ``Gammamap``, ``Kuan``.
 
+      .. _Filtering.window_radius:
+  * - ``window_radius``
+    - Sets the window radius for the spatial filtering. |br|
+      Take care that it is a radius, i.e. radius=1 means the filter does an 3x3
+      pixels averaging.
+
+      .. _Filtering.deramp:
+  * - ``deramp``
+    - Deramp factor -- for Frost filter only. |br|
+      Factor use to control the exponential function used to weight effect of
+      the distance between the central pixel and its neighborhood. Increasing
+      the deramp parameter will lead to take more into account pixels farther
+      from the center and therefore increase the smoothing effects.
+
+      .. _Filtering.nblooks:
+  * - ``nblooks``
+    - Number of looks -- for all but Frost => Lee, Gammamap and Kuan
+
+      .. _Filtering.keep_non_filtered_products:
+  * - ``keep_non_filtered_products``
+    - If not caring for non-filtered product (and if filter method is
+      specified), then the orthorectified and concatenated products won't be
+      considered as mandatory and they will not be kept at the end of the
+      processing.
+      This (exclusion) feature cannot be used alongside
+      :ref:`[Mask].generate_border_mask <Mask.generate_border_mask>` (i.e.
+      ``keep_non_filtered_products`` cannot be False if
+      ``generate_border_mask`` is True)
+
+      .. warning::
+           Note: This feature is only supported after LIA calibration as of
+           V1.0 of S1Tiling.  See Issue `#118
+           <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/118>`_.
+
+
+.. commented-out-to-be-implemented:
       .. _Filtering.reset_outcore:
   * - ``reset_outcore``
     - - If ``True``, the outcore of the multiImage filter is reset before
@@ -667,12 +705,6 @@ You can use this :download:`this template
         the new images only.
       - If ``False``, the outcore is updated with the new images. Then, the
         outcore integrates previous images and new images.
-
-      .. _Filtering.window_radius:
-  * - ``window_radius``
-    - Sets the window radius for the spatial filtering. |br|
-      Take care that it is a radius, i.e. radius=1 means the filter does an 3x3
-      pixels averaging.
 
 
 .. index:: Log configuration
