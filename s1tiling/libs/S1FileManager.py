@@ -531,7 +531,7 @@ class S1FileManager:
             os.makedirs(out_dir, exist_ok=True)
 
         if WorkspaceKinds.FILTER in required_workspaces:
-            filter_directory = os.path.join(self.cfg.output_preprocess, 'filter', tile_name)
+            filter_directory = os.path.join(self.cfg.output_preprocess, 'filtered', tile_name)
             os.makedirs(filter_directory, exist_ok=True)
 
         # if self.cfg.calibration_type == 'normlim':

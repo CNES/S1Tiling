@@ -74,7 +74,7 @@ from s1tiling.libs.otbwrappers import (
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
-        ApplyLIACalibration)
+        ApplyLIACalibration, SpatialDespeckle)
 from s1tiling.libs import exits
 
 # Graphs
@@ -518,8 +518,15 @@ def s1_process(config_opt,
       Parameters have to be set by the user in the S1Processor.cfg file
     """
     def builder(config, dryrun, debug_caches):
+        assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
+                'Cannot purge non filtered products when mask are also produced!'
+
+        chain_LIA_and_despeckle_inmemory    = config.filter and not config.keep_non_filtered_products
+        chain_concat_and_despeckle_inmemory = False  # See issue #118
+
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
 
+        # Calibration ... OrthoRectification
         calib_seq = [ExtractSentinel1Metadata, AnalyseBorders, Calibrate]
         if config.removethermalnoise:
             calib_seq += [CorrectDenoising]
@@ -533,23 +540,45 @@ def s1_process(config_opt,
             pipelines.register_pipeline(calib_seq, 'FullOrtho', product_required=False, is_name_incremental=True)
 
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
-        concat_S2 = pipelines.register_pipeline([Concatenate], product_required=calibration_is_done_in_S1)
+
+        # Concatenation (... + Despeckle)  // not working yet, see issue #118
+        concat_seq = [Concatenate]
+        if chain_concat_and_despeckle_inmemory:
+            concat_seq.append(SpatialDespeckle)
+        else:
+            need_to_keep_non_filtered_products = True
+
+        concat_S2 = pipelines.register_pipeline(concat_seq, product_required=calibration_is_done_in_S1, is_name_incremental=True)
+        last_product_S2 = concat_S2
 
         required_workspaces = [WorkspaceKinds.TILE]
 
+        # LIA Calibration (...+ Despeckle)
         if config.calibration_type == 'normlim':
+            apply_LIA_seq = [ApplyLIACalibration]
+            if chain_LIA_and_despeckle_inmemory:
+                apply_LIA_seq.append(SpatialDespeckle)
+            else:
+                need_to_keep_non_filtered_products = True
+
             concat_sin = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
-            pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
-                    inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
+            apply_LIA = pipelines.register_pipeline(apply_LIA_seq, product_required=True,
+                    inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2}, is_name_incremental=True)
+            last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
 
+        # Masking
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
 
+        # Despeckle in non-inmemory case
         if config.filter:
+            # Use SpatialDespeckle, only if filter ∈ [lee, gammamap, frost, kuan]
             required_workspaces.append(WorkspaceKinds.FILTER)
-            # Use Despeckle, only if filter ∈ [lee, gammamap, frost, kuan]
-            pipelines.register_pipeline([Despeckle], product_required=True)
+            if need_to_keep_non_filtered_products:  # config.keep_non_filtered_products:
+                # Define another pipeline if chaining cannot be done in memory
+                pipelines.register_pipeline([SpatialDespeckle], product_required=True,
+                        inputs={'in': last_product_S2})
 
         return pipelines, required_workspaces
 

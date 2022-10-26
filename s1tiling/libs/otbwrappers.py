@@ -456,6 +456,7 @@ class CutBorders(OTBStepFactory):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         if inp.meta['cut'].get('skip', False):
+            logger.debug('Margins cutting is not required and thus skipped!')
             return None
         else:
             return super().create_step(in_memory, previous_steps)
@@ -937,31 +938,65 @@ class SpatialDespeckle(OTBStepFactory):
     - input filename
     - output filename
     """
+
+    # TODO: (#118) This Step doesn't support yet in-memory chaining after Concatenation.
+    # Indeed: Concatenation is a non trival step that:
+    # - recognizes 2 compatibles inputs and changes the output filename in consequence
+    # - rename orthorectification output when there is only one input.
+    #
+    # To be chained in-memory SpatialDespeckle would need to:
+    # - recognize 2 compatibles inputs and change the output filename in consequence
+    # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
     def __init__(self, cfg):
+        fname_fmt = cfg.fname_fmt_filtered
+        # calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+        if cfg.calibration_type in ['normlim']:  # TODO: use a cleaner and more open approach
+            fname_fmt = fname_fmt.replace('{calibration_type}', 'NormLim')
         super().__init__(cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, 'filter', '{tile_name}'),
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+                # TODO: Offer an option to choose output directory name scheme
+                # TODO: synchronize with S1FileManager.ensure_tile_workspaces_exist()
+                gen_output_dir=os.path.join(cfg.output_preprocess, 'filtered', '{tile_name}'),
+                # gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_filtered.tif']),
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
                 )
         self.__filter  = cfg.filter
-        self.__rad     = cfg.filter_rad
-        self.__nblooks = cfg.filter_nb_looks
-        self.__deramp  = cfg.filter_deramp
+        self.__rad     = cfg.filter_options.get('rad', 0)
+        self.__nblooks = cfg.filter_options.get('nblooks', 0)
+        self.__deramp  = cfg.filter_options.get('deramp', 0)
 
         assert self.__rad
-        assert (self.__filter in ['lee', 'gammamap', 'kuan']) == (self.__nblooks != 0) \
+        # filter in list => nblooks != 0 ~~~> filter not in list OR nblooks != 0
+        assert (self.__filter not in ['lee', 'gammamap', 'kuan']) or (self.__nblooks != 0) \
                 , f'Unexpected nblooks value ({self.__nblooks} for {self.__filter} despeckle filter'
-        assert (self.__filter in ['frost']) == (self.__deramp != 0.) \
+        # filter in list => deramp != 0 ~~~> filter not in list OR deramp != 0
+        assert (self.__filter not in ['frost']) or (self.__deramp != 0.) \
                 , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
+        assert (self.__nblooks != 0.) != (self.__deramp != 0.)
 
     # def set_output_pixel_type(self, app, meta):
     #     """
     #     Force the output pixel type to ``UINT8``.
     #     """
     #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set despeckling related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['FILTERED'] = 'true'
+        imd['FILTERING_METHOD']        = self.__filter
+        imd['FILTERING_WINDOW_RADIUS'] = str(self.__rad)
+        if self.__deramp:
+            imd['FILTERING_DERAMP']    = str(self.__deramp)
+        if self.__nblooks:
+            imd['FILTERING_NBLOOKS']   = str(self.__nblooks)
 
     def parameters(self, meta):
         """

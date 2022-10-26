@@ -917,7 +917,8 @@ class Pipeline:
 
         assert len(steps[-1]) == 1
         res = steps[-1][0]['__last'].out_filename
-        assert res == self.output
+        assert res == self.output, \
+                f"Step output {self.output} doesn't match expected output {res}.\nThis is likely happenning because pipeline name generation isn't incremental."
         steps = None
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
         return Outcome(res)
@@ -1269,6 +1270,7 @@ class PipelineDescriptionSequence:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
+        logger.debug('Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
 
