@@ -545,6 +545,7 @@ def s1_process(config_opt,
         concat_seq = [Concatenate]
         if chain_concat_and_despeckle_inmemory:
             concat_seq.append(SpatialDespeckle)
+            need_to_keep_non_filtered_products = False
         else:
             need_to_keep_non_filtered_products = True
 
@@ -558,6 +559,7 @@ def s1_process(config_opt,
             apply_LIA_seq = [ApplyLIACalibration]
             if chain_LIA_and_despeckle_inmemory:
                 apply_LIA_seq.append(SpatialDespeckle)
+                need_to_keep_non_filtered_products = False
             else:
                 need_to_keep_non_filtered_products = True
 

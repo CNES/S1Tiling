@@ -927,16 +927,25 @@ class SmoothBorderMask(OTBStepFactory):
 class SpatialDespeckle(OTBStepFactory):
     """
     Factory that prepares the first step that smoothes border maks as
-    described in :ref:`Spatial despeckle filtering` documentation.
+    described in :ref:`Spatial despeckle filtering <spatial-despeckle>`
+    documentation.
 
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `fname_fmt_filtered`
+    - `filter`:  the name of the filter method
+    - `rad`:     the filter windows radius
+    - `nblooks`: the number of looks
+    - `deramp`:  the deramp factor
 
     Requires the following information from the metadata dictionary
 
     - input filename
     - output filename
+    - the keys used to generate the filename: `flying_unit_code`, `tile_name`,
+      `orbit_direction`, `orbit`, `calibration_type`, `acquisition_stamp`,
+      `polarisation`...
     """
 
     # TODO: (#118) This Step doesn't support yet in-memory chaining after Concatenation.
@@ -982,6 +991,29 @@ class SpatialDespeckle(OTBStepFactory):
     #     Force the output pixel type to ``UINT8``.
     #     """
     #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+
+    def _update_filename_meta_post_hook(self, meta):
+        """
+        Register ``is_compatible`` hook for
+        :func:`s1tiling.libs.otbpipeline.is_compatible`.
+        It will tell in the case Despeckle is chained in memory after
+        ApplyLIACalibration whether a given sin_LIA input is compatible with
+        the current S2 tile.
+        """
+        # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
+        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
+
+    def _is_compatible(self, output_meta, input_meta):
+        """
+        Tells in the case Despeckle is chained in memory after
+        ApplyLIACalibration whether a given sin_LIA input is compatible with
+        the current S2 tile.
+
+        ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit``
+        have to be identical.
+        """
+        fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+        return all(input_meta[k] == output_meta[k] for k in fields)
 
     def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
         """
