@@ -607,7 +607,7 @@ You can use this :download:`this template
           - S1
 
         * - calibration_type
-          - ``beta``/``gamma``/``sigma``/``dn``
+          - ``beta``/``gamma``/``sigma``/``dn``/``Normlim``
           - S1/S2
 
         * - polarless_basename
@@ -638,6 +638,14 @@ You can use this :download:`this template
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
       :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+
+      .. _Processing.fname_fmt.filtered:
+  * - ``fname_fmt.filtered``
+    - File format pattern for :ref:`filtered files <filtered-files>`
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
+      for β°, σ° and γ° calibrations,
+      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
+
 
 .. _Filtering:
 

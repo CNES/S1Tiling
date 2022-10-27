@@ -135,7 +135,12 @@ Filtered files
 :File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
             `_filtered` appended
 
-:Format: Byte GeoTIFF, deflate compressed
+:File name format:
+
+    - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`, see :ref:`[Processing].fname_fmt.concatenation <Processing.fname_fmt.concatenation>`
+    - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered_NormLim.tif`, see :ref:`[Processing].fname_fmt.lia_corrected <Processing.fname_fmt.lia_corrected>`
+
+:Format: Float32 GeoTIFF, deflate compressed
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
