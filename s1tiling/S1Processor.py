@@ -571,7 +571,8 @@ def s1_process(config_opt,
 
         # Masking
         if config.mask_cond:
-            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True)
+            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',
+                    product_required=True, inputs={'in': last_product_S2})
 
         # Despeckle in non-inmemory case
         if config.filter:

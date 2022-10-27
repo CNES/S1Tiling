@@ -599,7 +599,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
         return parameters
 
 
-
 class OrthoRectify(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
@@ -700,7 +699,6 @@ class _ConcatenatorFactory(OTBStepFactory):
                 imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(pn)))
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
-
 
     def parameters(self, meta):
         """
@@ -958,9 +956,6 @@ class SpatialDespeckle(OTBStepFactory):
     # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
     def __init__(self, cfg):
         fname_fmt = cfg.fname_fmt_filtered
-        # calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
-        if cfg.calibration_type in ['normlim']:  # TODO: use a cleaner and more open approach
-            fname_fmt = fname_fmt.replace('{calibration_type}', 'NormLim')
         super().__init__(cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
@@ -968,7 +963,6 @@ class SpatialDespeckle(OTBStepFactory):
                 # TODO: Offer an option to choose output directory name scheme
                 # TODO: synchronize with S1FileManager.ensure_tile_workspaces_exist()
                 gen_output_dir=os.path.join(cfg.output_preprocess, 'filtered', '{tile_name}'),
-                # gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_filtered.tif']),
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
                 )
@@ -1014,6 +1008,15 @@ class SpatialDespeckle(OTBStepFactory):
         """
         fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
         return all(input_meta[k] == output_meta[k] for k in fields)
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Complete meta information with inputs, and set compression method to
+        DEFLATE.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        return meta
 
     def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
         """
@@ -1898,7 +1901,9 @@ class ApplyLIACalibration(OTBStepFactory):
         It will tell whether a given sin_LIA input is compatible with the
         current S2 tile.
         """
-        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
+        meta['is_compatible']    = lambda input_meta : self._is_compatible(meta, input_meta)
+        meta['basename']         = self._get_nominal_output_basename(meta)
+        meta['calibration_type'] = 'Normlim'
 
     def _is_compatible(self, output_meta, input_meta):
         """
