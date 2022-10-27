@@ -1,6 +1,6 @@
 .. include:: <isoamsa.txt>
 
-.. _dataflow-main:
+.. _dataflow-filter:
 
 .. index:: S1Tiling data flow for speckle filtering
 
@@ -30,4 +30,5 @@ Spatial Despeckle filter
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SpatialDespeckle`
 
 This step applies any of the 3 spatial despeckling filters supported by
-:std:doc:`Despeckle <Applications/app_Despeckle>`
+:std:doc:`OTB Despeckle <Applications/app_Despeckle>`. See the documentation of
+this OTB application for more precise information.
