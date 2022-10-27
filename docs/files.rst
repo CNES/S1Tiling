@@ -120,6 +120,55 @@ Mask files
         - :samp:`Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile`
 
 
+.. _filtered-files:
+.. index:: Filtered files
+
+Filtered files
+++++++++++++++
+
+:Content:
+
+    .. todo:: Thierry?
+
+:Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/`
+
+:File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
+            `_filtered` appended
+
+:File name format:
+
+    - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`, see :ref:`[Processing].fname_fmt.concatenation <Processing.fname_fmt.concatenation>`
+    - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered_NormLim.tif`, see :ref:`[Processing].fname_fmt.lia_corrected <Processing.fname_fmt.lia_corrected>`
+
+:Format: Float32 GeoTIFF, deflate compressed
+
+:Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``FILTERED``
+        - :samp:`true`
+
+      * - ``FILTERING_METHOD``
+        - The method used:
+          :samp:`Lee`/:samp:`Frost`/:samp:`gammamap`/:samp:`Kuan`
+
+      * - ``FILTERING_WINDOW_RADIUS``
+        - The window radius used.
+
+      * - ``FILTERING_DERAMP``
+        - The deramp factor used (only for Frost method)
+
+      * - ``FILTERING_NBLOOKS``
+        - The number of looks used (only for Lee, Gammamap and Kuan methods)
+
+
 .. _lia-files:
 .. index:: Local Incidence Angle map files
 

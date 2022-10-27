@@ -395,7 +395,8 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
 
 
 def mock_masking(application_mocker, file_db, calibration, N):
-    raw_calibration = 'beta' if calibration == 'normlim' else calibration
+    # raw_calibration = 'beta' if calibration == 'normlim' else calibration
+    raw_calibration = 'NormLim' if calibration == 'normlim' else calibration
     if N >= 2:
         outfile = lambda idx, tmp, calibration: file_db.maskfile_from_two(idx, tmp, calibration=calibration)
         if calibration == 'normlim':

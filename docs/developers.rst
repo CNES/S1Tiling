@@ -333,6 +333,13 @@ Main processings
    :members:
    :show-inheritance:
 
+``SpatialDespeckle``
+^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: s1tiling.libs.otbwrappers.SpatialDespeckle
+   :members:
+   :show-inheritance:
+
 Processings for advanced calibration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

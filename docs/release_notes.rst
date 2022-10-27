@@ -39,6 +39,9 @@ v1.0.0 Improvements
 - Borders are no longer cut for Sentinel-1 IPF 2.9+ products
   (`#88 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/88>`_).
 
+- Spatial Speckle Filtering is supported
+  (`#116 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/116>`_).
+
 v1.0.0 Bug fixed
 ++++++++++++++++
 

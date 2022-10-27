@@ -917,7 +917,8 @@ class Pipeline:
 
         assert len(steps[-1]) == 1
         res = steps[-1][0]['__last'].out_filename
-        assert res == self.output
+        assert res == self.output, \
+                f"Step output {self.output} doesn't match expected output {res}.\nThis is likely happenning because pipeline name generation isn't incremental."
         steps = None
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
         return Outcome(res)
@@ -1006,7 +1007,7 @@ class PipelineDescription:
             return res
         except CannotGenerateFilename as e:  # pylint: disable=broad-except
             # logger.exception('expected(%s) rejected because', input_meta)
-            logger.debug('expected(%s) rejected because: %s', input_meta, e)
+            logger.debug('%s => rejecting expected(%s)', e, input_meta)
             return None
 
     @property
@@ -1226,7 +1227,8 @@ def _register_new_input_and_update_out_filename(
         _update_out_filename(new_task_meta, task_inputs)
         logger.debug('    ...to (%s)', new_task_meta)
         already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == task_name]
-        assert len(already_registered_next_input) == 1, f'{len(already_registered_next_input)} != 1 => {already_registered_next_input}'
+        assert len(already_registered_next_input) == 1, \
+                f'{len(already_registered_next_input)} != 1 => {already_registered_next_input}'
         _update_out_filename(already_registered_next_input[0], task_inputs)
         # Can't we simply override the already_registered_next_input with expected fields?
         already_registered_next_input[0].update(new_task_meta)
@@ -1269,6 +1271,7 @@ class PipelineDescriptionSequence:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
+        logger.debug('Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
 

@@ -204,9 +204,26 @@ class Configuration():
         self.OTBThreads                    = config.getint('Processing', 'nb_otb_threads')
 
         self.produce_lia_map               = config.getboolean('Processing', 'produce_lia_map', fallback=False)
-        # self.filtering_activated       = config.getboolean('Filtering', 'filtering_activated')
-        # self.Reset_outcore             = config.getboolean('Filtering', 'reset_outcore')
-        # self.Window_radius             = config.getint('Filtering', 'window_radius')
+
+        self.filter = config.get('Filtering', 'filter', fallback='').lower()
+        if self.filter and self.filter == 'none':
+            self.filter = ''
+        if self.filter:
+            self.keep_non_filtered_products = config.getboolean('Filtering', 'keep_non_filtered_products')
+            # if generate_border_mask, override this value
+            if self.mask_cond:
+                logging.warning('As masks are produced, Filtering.keep_non_filtered_products value will be ignored')
+                self.keep_non_filtered_products = True
+
+            self.filter_options = {'rad': config.getint('Filtering', 'window_radius')}
+            if self.filter == 'frost':
+                self.filter_options['deramp']  = config.getfloat('Filtering', 'deramp')
+            elif self.filter in ['lee', 'gammamap', 'kuan']:
+                self.filter_options['nblooks'] = config.getfloat('Filtering', 'nblooks')
+            else:
+                logging.critical("ERROR: Invalid despeckling filter value '%s'. Select one among none/lee/frost/gammamap/kuan", self.filter)
+                sys.exit(exits.CONFIG_ERROR)
+
         try:
             self.override_azimuth_cut_threshold_to = config.getboolean('Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except
@@ -264,6 +281,16 @@ class Configuration():
         logging.debug("- produce LIA° map               : %s",     self.produce_lia_map)
         logging.debug("[Mask]")
         logging.debug("- generate_border_mask           : %s",     self.mask_cond)
+        logging.debug("[Filter]")
+        logging.debug("- Speckle filtering method       : %s",     self.filter or "none")
+        if self.filter:
+            logging.debug("- Keeping previous products      : %s",     self.keep_non_filtered_products)
+            logging.debug("- Window radius                  : %s",     self.filter_options['rad'])
+            if   self.filter in ['lee', 'gammamap', 'kuan']:
+                logging.debug("- nblooks                        : %s",     self.filter_options['nblooks'])
+            elif self.filter in ['frost']:
+                logging.debug("- deramp                         : %s",     self.filter_options['deramp'])
+
         logging.debug('File formats')
         for k, fmt in self.fname_fmt.items():
             logging.debug(' - %s --> %s', k, fmt)

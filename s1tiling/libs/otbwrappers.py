@@ -456,6 +456,7 @@ class CutBorders(OTBStepFactory):
         inputs = self._get_inputs(previous_steps)
         inp    = self._get_canonical_input(inputs)
         if inp.meta['cut'].get('skip', False):
+            logger.debug('Margins cutting is not required and thus skipped!')
             return None
         else:
             return super().create_step(in_memory, previous_steps)
@@ -598,7 +599,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
         return parameters
 
 
-
 class OrthoRectify(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
@@ -699,7 +699,6 @@ class _ConcatenatorFactory(OTBStepFactory):
                 imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(pn)))
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
-
 
     def parameters(self, meta):
         """
@@ -823,6 +822,9 @@ class Concatenate(_ConcatenatorFactory):
             meta['does_product_exist'] = lambda : check_product(meta)
 
 
+# ----------------------------------------------------------------------
+# Mask related applications
+
 class BuildBorderMask(OTBStepFactory):
     """
     Factory that prepares the first step that generates border maks as
@@ -916,6 +918,140 @@ class SmoothBorderMask(OTBStepFactory):
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
                 }
+
+
+# ----------------------------------------------------------------------
+# Despeckling related applications
+class SpatialDespeckle(OTBStepFactory):
+    """
+    Factory that prepares the first step that smoothes border maks as
+    described in :ref:`Spatial despeckle filtering <spatial-despeckle>`
+    documentation.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `fname_fmt_filtered`
+    - `filter`:  the name of the filter method
+    - `rad`:     the filter windows radius
+    - `nblooks`: the number of looks
+    - `deramp`:  the deramp factor
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - the keys used to generate the filename: `flying_unit_code`, `tile_name`,
+      `orbit_direction`, `orbit`, `calibration_type`, `acquisition_stamp`,
+      `polarisation`...
+    """
+
+    # TODO: (#118) This Step doesn't support yet in-memory chaining after Concatenation.
+    # Indeed: Concatenation is a non trival step that:
+    # - recognizes 2 compatibles inputs and changes the output filename in consequence
+    # - rename orthorectification output when there is only one input.
+    #
+    # To be chained in-memory SpatialDespeckle would need to:
+    # - recognize 2 compatibles inputs and change the output filename in consequence
+    # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
+    def __init__(self, cfg):
+        fname_fmt = cfg.fname_fmt_filtered
+        super().__init__(cfg,
+                appname='Despeckle', name='Despeckle',
+                param_in='in', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                # TODO: Offer an option to choose output directory name scheme
+                # TODO: synchronize with S1FileManager.ensure_tile_workspaces_exist()
+                gen_output_dir=os.path.join(cfg.output_preprocess, 'filtered', '{tile_name}'),
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
+                )
+        self.__filter  = cfg.filter
+        self.__rad     = cfg.filter_options.get('rad', 0)
+        self.__nblooks = cfg.filter_options.get('nblooks', 0)
+        self.__deramp  = cfg.filter_options.get('deramp', 0)
+
+        assert self.__rad
+        # filter in list => nblooks != 0 ~~~> filter not in list OR nblooks != 0
+        assert (self.__filter not in ['lee', 'gammamap', 'kuan']) or (self.__nblooks != 0) \
+                , f'Unexpected nblooks value ({self.__nblooks} for {self.__filter} despeckle filter'
+        # filter in list => deramp != 0 ~~~> filter not in list OR deramp != 0
+        assert (self.__filter not in ['frost']) or (self.__deramp != 0.) \
+                , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
+        assert (self.__nblooks != 0.) != (self.__deramp != 0.)
+
+    # def set_output_pixel_type(self, app, meta):
+    #     """
+    #     Force the output pixel type to ``UINT8``.
+    #     """
+    #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+
+    def _update_filename_meta_post_hook(self, meta):
+        """
+        Register ``is_compatible`` hook for
+        :func:`s1tiling.libs.otbpipeline.is_compatible`.
+        It will tell in the case Despeckle is chained in memory after
+        ApplyLIACalibration whether a given sin_LIA input is compatible with
+        the current S2 tile.
+        """
+        # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
+        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
+
+    def _is_compatible(self, output_meta, input_meta):
+        """
+        Tells in the case Despeckle is chained in memory after
+        ApplyLIACalibration whether a given sin_LIA input is compatible with
+        the current S2 tile.
+
+        ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit``
+        have to be identical.
+        """
+        fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+        return all(input_meta[k] == output_meta[k] for k in fields)
+
+    def complete_meta(self, meta, all_inputs):
+        """
+        Complete meta information with inputs, and set compression method to
+        DEFLATE.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
+        return meta
+
+    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+        """
+        Set despeckling related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['FILTERED'] = 'true'
+        imd['FILTERING_METHOD']        = self.__filter
+        imd['FILTERING_WINDOW_RADIUS'] = str(self.__rad)
+        if self.__deramp:
+            imd['FILTERING_DERAMP']    = str(self.__deramp)
+        if self.__nblooks:
+            imd['FILTERING_NBLOOKS']   = str(self.__nblooks)
+
+    def parameters(self, meta):
+        """
+        Returns the parameters to use with
+        :std:doc:`Despeckle OTB application
+        <Applications/app_Despeckle>` to perform speckle noise reduction.
+        """
+        assert self.__rad
+        params = {
+                'ram'                         : str(self.ram_per_process),
+                self.param_in                 : in_filename(meta),
+                # self.param_out              : out_filename(meta),
+                'filter'                      : self.__filter,
+                f'filter.{self.__filter}.rad' : self.__rad,
+                }
+        if self.__nblooks:
+            params[f'filter.{self.__filter}.nblooks'] = self.__nblooks
+        if self.__deramp:
+            params[f'filter.{self.__filter}.deramp']  = self.__deramp
+        return params
 
 
 # ======================================================================
@@ -1765,7 +1901,9 @@ class ApplyLIACalibration(OTBStepFactory):
         It will tell whether a given sin_LIA input is compatible with the
         current S2 tile.
         """
-        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
+        meta['is_compatible']    = lambda input_meta : self._is_compatible(meta, input_meta)
+        meta['basename']         = self._get_nominal_output_basename(meta)
+        meta['calibration_type'] = 'Normlim'
 
     def _is_compatible(self, output_meta, input_meta):
         """
