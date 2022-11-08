@@ -193,7 +193,7 @@ In order to use other DEM inputs, we need:
 
 1. DEM files stored in :ref:`[PATHS].dem_dir <paths.dem_dir>` directory.
    |br|
-   The format of these DEM files need to be supported by OTB/GDAL.
+   The format of these DEM files needs to be supported by OTB/GDAL.
 
 2. A DEM (GPKG) database that holds a key (or set of keys) that enable(s) to
    locate/name DEM files associated to a DEM geometry.
