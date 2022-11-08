@@ -42,6 +42,9 @@ v1.0.0 Improvements
 - Spatial Speckle Filtering is supported
   (`#116 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/116>`_).
 
+- Support any other type of DEM files
+  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+
 v1.0.0 Bug fixed
 ++++++++++++++++
 
