@@ -147,6 +147,12 @@ masking....
    8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
    Eventually both will be guaranteed in S1Tiling docker images.
 
+.. note::
+   To run :program:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
+   as the first parameter to the docker execution (just before the the
+   request configuration file and other S1LIAMap related parameters). See
+   :ref:`Using S1LIAMap with a docker <docker.S1LIAMap>`.
+
 
 .. _scenario.masks:
 

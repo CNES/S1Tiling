@@ -12,4 +12,9 @@ export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 . "${OTB_INSTALL_DIRNAME}/otbenv.profile"
 . "${S1TILING_VENV}/bin/activate"
-S1Processor "$@"
+if [ "$1" = "--lia" ] ; then
+    shift
+    S1LIAMap "$@"
+else
+    S1Processor "$@"
+fi
