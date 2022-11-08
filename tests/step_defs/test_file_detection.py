@@ -70,7 +70,7 @@ class Configuration():
         self.raw_directory           = inputdir
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
-        self.cache_srtm_by           = 'symlink'
+        self.cache_dem_by            = 'symlink'
         self.fname_fmt               = {}
         self.orbit_direction         = None
         self.relative_orbit_list     = []

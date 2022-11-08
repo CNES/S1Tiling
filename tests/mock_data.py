@@ -133,15 +133,15 @@ class FileDB:
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
 
-    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, srtmdir, geoid_file):
-        self.__input_dir      = inputdir
-        self.__tmp_dir        = tmpdir
-        self.__output_dir     = outputdir
-        self.__lia_dir        = liadir
-        self.__tmp_dir        = tmpdir
-        self.__tile           = tile
-        self.__srtm_dir       = srtmdir
-        self.__GeoidFile      = geoid_file
+    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, demdir, geoid_file):
+        self.__input_dir  = inputdir
+        self.__tmp_dir    = tmpdir
+        self.__output_dir = outputdir
+        self.__lia_dir    = liadir
+        self.__tmp_dir    = tmpdir
+        self.__tile       = tile
+        self.__dem_dir    = demdir
+        self.__GeoidFile  = geoid_file
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
@@ -217,11 +217,11 @@ class FileDB:
         return self.__output_dir
 
     @property
-    def srtmdir(self):
+    def demdir(self):
         """
-        Property srtmdir
+        Property demdir
         """
-        return self.__srtm_dir
+        return self.__dem_dir
 
     @property
     def GeoidFile(self):

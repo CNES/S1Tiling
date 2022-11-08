@@ -185,27 +185,43 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
     return intersect_tile
 
 
-def find_srtm_intersecting_raster(s1image, srtm_db_filepath):
+def find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id):
     """
-    Searches the SRTM tiles that intersect the S1 Image.
+    Searches the DEM tiles that intersect the specifid polygon
     """
-    # srtm_layer = Layer(srtm_shapefile)
-    srtm_tiles = {}
-    poly = get_s1image_poly(s1image)
-    logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
+    # main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, dem_field_ids))
+    # main_id = (main_ids or dem_field_ids)[0]
+    # logger.debug('Using %s as DEM tile main id for name', main_id)
 
-    srtm_shapefile = srtm_db_filepath
-    assert srtm_shapefile
-    assert os.path.isfile(srtm_shapefile)
-    srtm_layer = Layer(srtm_shapefile, driver_name='GPKG')
-    for tile in srtm_layer:
-        tile_footprint = tile.GetGeometryRef()
-        intersection = poly.Intersection(tile_footprint)
+    dem_tiles = {}
+    area = poly.GetArea()
+
+    dem_layer.reset_reading()
+    for dem_tile in dem_layer:
+        dem_footprint = dem_tile.GetGeometryRef()
+        intersection = poly.Intersection(dem_footprint)
         if intersection.GetArea() > 0.0:
-            # logging.debug("Tile: %s", tile)
-            file = tile.GetField('id')
-            srtm_tiles[file] = 1
-    return sorted(srtm_tiles.keys())
+            # logging.debug("Tile: %s", dem_tile)
+            coverage = intersection.GetArea() / area
+            dem_info = {}
+            for field_id in dem_field_ids:
+                dem_info[field_id] = dem_tile.GetField(field_id)
+            dem_info['_coverage'] = coverage
+            dem_tiles[dem_info[main_id]] = dem_info
+    return dem_tiles
+
+
+def find_dem_intersecting_raster(s1image, dem_db_filepath, dem_field_ids, main_id):
+    """
+    Searches the DEM tiles that intersect the S1 Image.
+    """
+    poly = get_s1image_poly(s1image)
+    assert dem_db_filepath
+    assert os.path.isfile(dem_db_filepath)
+    dem_layer = Layer(dem_db_filepath, driver_name='GPKG')
+
+    logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
+    return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
 
 
 def get_orbit_direction(manifest):

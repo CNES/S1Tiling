@@ -43,7 +43,7 @@ CORRUPTED_DATA_SAFE = 71
 CONFIG_ERROR        = 72
 NO_S2_TILE          = 73
 NO_S1_IMAGE         = 74
-MISSING_SRTM        = 75
+MISSING_DEM         = 75
 MISSING_GEOID       = 76
 MISSING_APP         = 77
 
