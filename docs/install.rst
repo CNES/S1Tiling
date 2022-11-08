@@ -213,7 +213,7 @@ or even directly used with
 
     This example considers:
 
-    - SRTM's are available on local host through :file:`/localpath/to/MNT/` and
+    - DEM's are available on local host through :file:`/localpath/to/MNT/` and
       they will be mounted into the docker as :file:`/MNT/`.
     - Logs and output files will be produced in current working directory (i.e.
       :file:`$(pwd)`) which will be mounted as :file:`data/`.
@@ -228,7 +228,7 @@ or even directly used with
 
             [Paths]
             output : /data/data_out
-            srtm : /MNT/SRTM_30_hgt
+            dem_dir : /MNT/SRTM_30_hgt
             ...
             [DataSource]
             eodagConfig : /eo_config/eodag.yml

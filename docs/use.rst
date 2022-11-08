@@ -180,6 +180,46 @@ jobarrays for instances.
    imperative to precompute (and store LIA maps) before going massively
    parallel.
 
+
+.. _scenario.choose_dem:
+
+Use any other set of DEM inputs
++++++++++++++++++++++++++++++++
+
+By default S1Tiling comes with a GPKG database that associates SRTM 30 tile ids
+to SRTM geometries.
+
+In order to use other DEM inputs, we need:
+
+1. DEM files stored in :ref:`[PATHS].dem_dir <paths.dem_dir>` directory.
+   |br|
+   The format of these DEM files need to be supported by OTB/GDAL.
+
+2. A DEM (GPKG) database that holds a key (or set of keys) that enable(s) to
+   locate/name DEM files associated to a DEM geometry.
+   |br|
+   Set the :ref:`[PATHS].dem_database <paths.dem_database>` key accordingly.
+   |br|
+   For instance, `eotile <https://github.com/CS-SI/eotile>`_ provides a couple
+   of DEM databases for various types of DEM files.
+
+3. A naming scheme that will associate an identifier key from the :ref:`DEM
+   database <paths.dem_database>` to a DEM filename (located in
+   :ref:`[PATHS].dem_dir <paths.dem_dir>` directory).
+   |br|
+   Set the :ref:`[PATHS].dem_format <paths.dem_format>` key accordingly.
+   |br|
+   The default :file:`{{id}}.hgt` associates the ``id`` key to STRM 30m DEM
+   files.
+   |br|
+   Using `eotile <https://github.com/CS-SI/eotile>`_ :file:`DEM_Union.gpkg` as
+   DEM database, we could instead use:
+
+   - :file:`{{Product10}}.tif`  for Copernicus 30m DEM files, using
+     ``Product10`` key from the GPKG file.
+   - :file:`{{Product30}}.tif`  for Copernicus 90m DEM files, using
+     ``Product30`` key from the GPKG file.
+
 .. _request-config-file:
 
 .. index:: Request configuration file
@@ -235,9 +275,30 @@ You can use this :download:`this template
     - Path to Geoid model. If left unspecified, it'll point automatically to
       the geoid resource shipped with S1 Tiling.
 
+      .. _paths.dem_database:
+  * - ``dem_database``
+    - Path to DEM (``.gpkg``) database.
+      |br|
+      By default points to the internal :file:`shapefile/srtm_tiles.gpkg` file
+      which knows the geometry of SRTM 30 DEM files.
+
+      .. _paths.dem_dir:
+  * - ``dem_dir``
+    - Path to DEM files.
+
+      .. _paths.dem_format:
+  * - ``dem_format``
+    - Filename format string to locate the DEM file associated to an
+      *identifier* within the :ref:`[PATHS].dem_dir <paths.dem_dir>` directory.
+      |br|
+      By default associates the ``id`` key of tiles found in the :ref:`DEM
+      database <paths.dem_database>` to :file:`{{id}}.hgt`. One may want to use
+      the keys from `eotile <https://github.com/CS-SI/eotile>`_ DEM database
+      like for instance :file:`{{Product10}}.tif` for Copernicus 30m DEM.
+
       .. _paths.srtm:
   * - ``srtm``
-    - Path to SRTM files.
+    - **(deprecated)** Use :ref:`[PATHS].dem_dir <paths.dem_dir>`. Path to SRTM files.
 
 .. _DataSource:
 
@@ -381,16 +442,16 @@ You can use this :download:`this template
   * - Option
     - Description
 
-      .. _Processing.cache_srtm_by:
-  * - ``cache_srtm_by``
-    - Tells whether SRTM files are copied in a temporary directory, or if
+      .. _Processing.cache_dem_by:
+  * - ``cache_dem_by``
+    - Tells whether DEM files are copied in a temporary directory, or if
       symbolic links are to be created.
 
       For performance reasons with OTB 7.X, it's better to regroup the minimal
-      subset of the SRTM files required for processing. Symbolic links work
+      subset of the DEM files required for processing. Symbolic links work
       fine most of the time, however if the files are on a remote shared
       filesystem (GPFS, NAS...), performances will be degraded. In those cases,
-      it's better to copy the required SRTM files on a local filesystem.
+      it's better to copy the required DEM files on a local filesystem.
 
       Two values are supported for this option: ``copy`` and ``symlink``.
       (default: ``symlink``).
@@ -820,7 +881,7 @@ The following exit code are produced when :program:`S1Processor` returns:
       products are searched in the :ref:`local input directory
       <paths.s1_images>`.  See the log produced.
   * - 75
-    - Cannot find all the :ref:`SRTM products <paths.srtm>` that cover the
+    - Cannot find all the :ref:`DEM products <paths.dem_dir>` that cover the
       :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`. See the log
       produced.
   * - 76

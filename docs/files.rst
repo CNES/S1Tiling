@@ -350,7 +350,7 @@ Orthorectified S1 images
 DEM VRT files
 +++++++++++++
 
-:Content: Virtual aggregate of all the SRTM files that fully cover the
+:Content: Virtual aggregate of all the DEM files that fully cover the
           associated input S1 images (in both polarities).
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
