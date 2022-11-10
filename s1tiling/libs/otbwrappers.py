@@ -245,9 +245,15 @@ class AnalyseBorders(StepFactory):
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
         tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
-        ipf_version = extract_IPF_version(tifftag_software)
-        if version.parse(ipf_version) >= version.parse('2.90'):
-            cut_overlap_range = 0
+        
+        # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
+        # see Issue #88
+        #Temporary correction:
+        #     The cut margin (right and left)  is done for any version of IPF
+       
+        #ipf_version = extract_IPF_version(tifftag_software)
+        # if version.parse(ipf_version) >= version.parse('2.90'):
+        #    cut_overlap_range = 0
 
         if self.__override_azimuth_cut_threshold_to is None:
             xsize = ds_reader.RasterXSize
