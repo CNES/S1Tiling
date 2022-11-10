@@ -446,20 +446,20 @@ class CutBorders(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    def create_step(self, in_memory: bool, previous_steps):
-        """
-        This overrides checks whether ResetMargin would cut any border.
-
-        In the likelly other case, the method returns ``None`` to say **Don't
-        register any OTB application and skip this step!**.
-        """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        if inp.meta['cut'].get('skip', False):
-            logger.debug('Margins cutting is not required and thus skipped!')
-            return None
-        else:
-            return super().create_step(in_memory, previous_steps)
+    # def create_step(self, in_memory: bool, previous_steps):
+    #     """
+    #     This overrides checks whether ResetMargin would cut any border.
+    #
+    #     In the likelly other case, the method returns ``None`` to say **Don't
+    #     register any OTB application and skip this step!**.
+    #     """
+    #     inputs = self._get_inputs(previous_steps)
+    #     inp    = self._get_canonical_input(inputs)
+    #     if inp.meta['cut'].get('skip', False):
+    #         logger.debug('Margins cutting is not required and thus skipped!')
+    #         return None
+    #     else:
+    #         return super().create_step(in_memory, previous_steps)
 
     def parameters(self, meta):
         """
