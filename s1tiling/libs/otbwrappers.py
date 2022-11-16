@@ -245,9 +245,15 @@ class AnalyseBorders(StepFactory):
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
         tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
-        ipf_version = extract_IPF_version(tifftag_software)
-        if version.parse(ipf_version) >= version.parse('2.90'):
-            cut_overlap_range = 0
+        
+        # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
+        # see Issue #88
+        #Temporary correction:
+        #     The cut margin (right and left)  is done for any version of IPF
+       
+        #ipf_version = extract_IPF_version(tifftag_software)
+        # if version.parse(ipf_version) >= version.parse('2.90'):
+        #    cut_overlap_range = 0
 
         if self.__override_azimuth_cut_threshold_to is None:
             xsize = ds_reader.RasterXSize
@@ -446,20 +452,20 @@ class CutBorders(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    def create_step(self, in_memory: bool, previous_steps):
-        """
-        This overrides checks whether ResetMargin would cut any border.
-
-        In the likelly other case, the method returns ``None`` to say **Don't
-        register any OTB application and skip this step!**.
-        """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        if inp.meta['cut'].get('skip', False):
-            logger.debug('Margins cutting is not required and thus skipped!')
-            return None
-        else:
-            return super().create_step(in_memory, previous_steps)
+    # def create_step(self, in_memory: bool, previous_steps):
+    #     """
+    #     This overrides checks whether ResetMargin would cut any border.
+    #
+    #     In the likelly other case, the method returns ``None`` to say **Don't
+    #     register any OTB application and skip this step!**.
+    #     """
+    #     inputs = self._get_inputs(previous_steps)
+    #     inp    = self._get_canonical_input(inputs)
+    #     if inp.meta['cut'].get('skip', False):
+    #         logger.debug('Margins cutting is not required and thus skipped!')
+    #         return None
+    #     else:
+    #         return super().create_step(in_memory, previous_steps)
 
     def parameters(self, meta):
         """

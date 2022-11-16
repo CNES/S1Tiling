@@ -234,3 +234,26 @@ or even directly used with
             eodagConfig : /eo_config/eodag.yml
             ...
 
+.. _docker.S1LIAMap:
+
+Using S1LIAMap with a docker
+++++++++++++++++++++++++++++
+
+It's also possible to run :program:`S1LIAMap` in the docker -- see :ref:`LIA
+Map production scenario <scenario.S1LIAMap>`. In order to do that, pass
+``--lia`` as the first parameter to the docker *entry point*.
+
+In other word, run the docker with something like the following
+
+.. code-block:: bash
+
+    docker run                            \
+        -v /localpath/to/MNT:/MNT         \
+        -v "$(pwd)":/data                 \
+        -v $HOME/.config/eodag:/eo_config \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --lia                             \
+        /data/MyS1ToS2.cfg
+
+The only difference with the *normal case* example: there is a ``--lia``
+parameter in the penultimate line.

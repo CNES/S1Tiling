@@ -16,7 +16,8 @@ v1.0.0 Improvements
   <scenario.S1LIAMap>` over requested S2 tiles thanks to :program:`S1LIAMap`,
   or :ref:`generate S2 products <scenario.S1ProcessorLIA>` calibrated with
   :math:`σ^0_{RTC}` NORMLIM calibration described in [Small2011]_.
-  (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_).
+  (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_,
+  `#119 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/119>`_).
 
 - Correctly update image metadata, and fill in particular the list of
   Sentinel-1 :samp:`INPUT_FILES` used to produce tiles, as well as the full
@@ -35,9 +36,6 @@ v1.0.0 Improvements
   <Processing.lower_signal_value>` > 0. The objective is to keep 0 as the
   *nodata* value.
   (`#87 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/87>`_).
-
-- Borders are no longer cut for Sentinel-1 IPF 2.9+ products
-  (`#88 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/88>`_).
 
 - Spatial Speckle Filtering is supported
   (`#116 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/116>`_).

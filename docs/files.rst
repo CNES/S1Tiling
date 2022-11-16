@@ -137,8 +137,8 @@ Filtered files
 
 :File name format:
 
-    - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`, see :ref:`[Processing].fname_fmt.concatenation <Processing.fname_fmt.concatenation>`
-    - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered_NormLim.tif`, see :ref:`[Processing].fname_fmt.lia_corrected <Processing.fname_fmt.lia_corrected>`
+    - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`, see :ref:`[Processing].fname_fmt.filtered <Processing.fname_fmt.filtered>`
+    - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif`
 
 :Format: Float32 GeoTIFF, deflate compressed
 
