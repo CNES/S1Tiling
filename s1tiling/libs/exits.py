@@ -46,6 +46,7 @@ NO_S1_IMAGE         = 74
 MISSING_SRTM        = 75
 MISSING_GEOID       = 76
 MISSING_APP         = 77
+UNKNOWN_REASON      = 78
 
 logger = logging.getLogger('s1tiling')
 
@@ -68,3 +69,4 @@ class Situation:
             self.code = OFFLINE_DATA
         else:
             self.code = OK
+

@@ -42,12 +42,64 @@ import re
 import sys
 import yaml
 
-from s1tiling.libs import exits
+from s1tiling.libs import exceptions
 from .otbpipeline import otb_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 
+# Helper functions for extracting configuration options
+
+def _get_opt(getter, config_filename, section, name, **kwargs):
+    """
+    Root helper function to report errors while extracting configuration
+    options.
+
+    The default exception returned won't always report the invalid
+    section+optionname pair. Also, we prefer to obtain
+    :class:`s1tiling.libs.exceptions.ConfigurationError` exception objects in
+    case of error.
+    """
+    try:
+        value = getter(section, name, **kwargs)
+        return value
+    except configparser.NoOptionError as e:
+        # Convert the exception type
+        raise exceptions.ConfigurationError(e, config_filename)
+    except ValueError as e:
+        # Convert the exception type, and give more context to the error.
+        raise exceptions.ConfigurationError(f"Cannot decode '{name}' option '{section}' section: {e}", config_filename)
+
+
+def get_opt(cfg, config_filename, section, name, **kwargs):
+    """
+    Helper function to report errors while extracting string configuration options
+    """
+    return _get_opt(cfg.get, config_filename, section, name, **kwargs)
+
+
+def getint_opt(cfg, config_filename, section, name, **kwargs):
+    """
+    Helper function to report errors while extracting int configuration options
+    """
+    return _get_opt(cfg.getint, config_filename, section, name, **kwargs)
+
+
+def getfloat_opt(cfg, config_filename, section, name, **kwargs):
+    """
+    Helper function to report errors while extracting floatting point configuration options
+    """
+    return _get_opt(cfg.getfloat, config_filename, section, name, **kwargs)
+
+
+def getboolean_opt(cfg, config_filename, section, name, **kwargs):
+    """
+    Helper function to report errors while extracting boolean configuration options
+    """
+    return _get_opt(cfg.getboolean, config_filename, section, name, **kwargs)
+
+
+# Helper functions related to logs
 def init_logger(mode, paths):
     """
     Initializes logging service.
@@ -98,6 +150,7 @@ def init_logger(mode, paths):
         return None
 
 
+# The configuration decoding specific to S1Tiling application
 class Configuration():
     """This class handles the parameters from the cfg file"""
     def __init__(self, configFile, do_show_configuration=True):
@@ -105,7 +158,7 @@ class Configuration():
         config.read(configFile)
 
         # Logs
-        self.Mode = config.get('Processing', 'mode')
+        self.Mode = get_opt(config, configFile, 'Processing', 'mode')
         self.log_config = init_logger(self.Mode, [Path(configFile).parent.absolute()])
         # self.log_queue = multiprocessing.Queue()
         # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
@@ -115,117 +168,104 @@ class Configuration():
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
-        self.output_preprocess = config.get('Paths', 'output')
-        self.lia_directory     = config.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
-        self.raw_directory     = config.get('Paths', 's1_images')
-        self.srtm              = config.get('Paths', 'srtm')
-        self.tmpdir            = config.get('Paths', 'tmp')
+        self.output_preprocess = get_opt(config, configFile, 'Paths', 'output')
+        self.lia_directory     = get_opt(config, configFile, 'Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.raw_directory     = get_opt(config, configFile, 'Paths', 's1_images')
+        self.srtm              = get_opt(config, configFile, 'Paths', 'srtm')
+        self.tmpdir            = get_opt(config, configFile, 'Paths', 'tmp')
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
-            logging.critical("ERROR: tmpdir=%s is not a valid path", self.tmpdir)
-            sys.exit(exits.CONFIG_ERROR)
-        self.GeoidFile         = config.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
+            raise exceptions.ConfigurationError(f"tmpdir={self.tmpdir} is not a valid path", configFile)
+        self.GeoidFile         = get_opt(config, configFile, 'Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         if config.has_section('PEPS'):
-            logging.critical('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
-            sys.exit(exits.CONFIG_ERROR)
-        self.eodagConfig               = config.get('DataSource', 'eodagConfig', fallback=None)
-        self.download                  = config.getboolean('DataSource', 'download')
-        self.ROI_by_tiles              = config.get('DataSource', 'roi_by_tiles')
-        self.first_date                = config.get('DataSource', 'first_date')
-        self.last_date                 = config.get('DataSource', 'last_date')
-        self.orbit_direction           = config.get('DataSource', 'orbit_direction', fallback=None)
+            raise exceptions.ConfigurationError('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
+        self.eodagConfig               = get_opt(config, configFile, 'DataSource', 'eodagConfig', fallback=None)
+        self.download                  = getboolean_opt(config, configFile, 'DataSource', 'download')
+        self.ROI_by_tiles              = get_opt(config, configFile, 'DataSource', 'roi_by_tiles')
+        self.first_date                = get_opt(config, configFile, 'DataSource', 'first_date')
+        self.last_date                 = get_opt(config, configFile, 'DataSource', 'last_date')
+        self.orbit_direction           = get_opt(config, configFile, 'DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
-            logging.critical("Parameter [orbit_direction] must be either unset or DES, or ASC")
-            logging.critical("Please correct the config file")
-            sys.exit(exits.CONFIG_ERROR)
-        relative_orbit_list_str        = config.get('DataSource', 'relative_orbit_list', fallback='')
+            raise exceptions.ConfigurationError("Parameter [orbit_direction] must be either unset or DES, or ASC", configFile)
+        relative_orbit_list_str        = get_opt(config, configFile, 'DataSource', 'relative_orbit_list', fallback='')
         self.relative_orbit_list       = [int(o) for o in re.findall(r'\d+', relative_orbit_list_str)]
-        self.polarisation              = config.get('DataSource', 'polarisation')
+        self.polarisation              = get_opt(config, configFile, 'DataSource', 'polarisation')
         if   self.polarisation == 'VV-VH':
             self.polarisation = 'VV VH'
         elif self.polarisation == 'HH-HV':
             self.polarisation = 'HH HV'
         elif self.polarisation not in ['VV', 'VH', 'HH', 'HV']:
-            logging.critical("Parameter [polarisation] must be either HH-HV, VV-VH, HH, HV, VV or VH")
-            logging.critical("Please correct the config file")
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.ConfigurationError("Parameter [polarisation] must be either HH-HV, VV-VH, HH, HV, VV or VH", configFile)
 
         # 0 => no filter
-        self.tile_to_product_overlap_ratio = config.getint('DataSource', 'tile_to_product_overlap_ratio', fallback=0)
+        self.tile_to_product_overlap_ratio = getint_opt(config, configFile, 'DataSource', 'tile_to_product_overlap_ratio', fallback=0)
         if self.tile_to_product_overlap_ratio > 100:
-            logging.critical("Parameter [tile_to_product_overlap_ratio] must be a percentage in [1, 100]")
-            logging.critical("Please correct the config file")
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.ConfigurationError("Parameter [tile_to_product_overlap_ratio] must be a percentage in [1, 100]", configFile)
 
         if self.download:
-            self.nb_download_processes = config.getint('DataSource', 'nb_parallel_downloads', fallback=1)
+            self.nb_download_processes = getint_opt(config, configFile, 'DataSource', 'nb_parallel_downloads', fallback=1)
 
         self.type_image         = "GRD"
-        self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
-        self.cache_srtm_by      = config.get('Processing', 'cache_srtm_by', fallback='symlink')
+        self.mask_cond          = getboolean_opt(config, configFile, 'Mask', 'generate_border_mask')
+        self.cache_srtm_by      = get_opt(config, configFile, 'Processing', 'cache_srtm_by', fallback='symlink')
         if self.cache_srtm_by not in ['symlink', 'copy']:
-            logging.critical("Unexpected value for Processing.cache_srtm_by option: '%s' is neither 'copy' no 'symlink'", self.cache_srtm_by)
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.ConfigurationError(f"Unexpected value for Processing.cache_srtm_by option: '{self.cache_srtm_by}' is neither 'copy' nor 'symlink'", configFile)
 
-        self.calibration_type   = config.get('Processing', 'calibration')
-        self.removethermalnoise = config.getboolean('Processing', 'remove_thermal_noise')
+        self.calibration_type   = get_opt(config, configFile, 'Processing', 'calibration')
+        self.removethermalnoise = getboolean_opt(config, configFile, 'Processing', 'remove_thermal_noise')
         if self.removethermalnoise and otb_version() < '7.4.0':
-            logging.critical("ERROR: OTB %s does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '%s'", otb_version(), configFile)
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.InvalidOTBVersionError(f"ERROR: OTB {otb_version()} does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '{configFile}'")
 
-        self.lower_signal_value = config.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
+        self.lower_signal_value = getfloat_opt(config, configFile, 'Processing', 'lower_signal_value', fallback=1e-7)
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
-            logging.critical("ERROR: 'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising. Please fix '%s'", configFile)
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.ConfigurationError("'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.", configFile)
 
-        self.out_spatial_res    = config.getfloat('Processing', 'output_spatial_resolution')
+        self.out_spatial_res    = getfloat_opt(config, configFile, 'Processing', 'output_spatial_resolution')
 
-        self.output_grid        = config.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
+        self.output_grid        = get_opt(config, configFile, 'Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
-            logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
-            sys.exit(exits.CONFIG_ERROR)
+            raise exceptions.ConfigurationError(f"output_grid={self.output_grid} is not a valid path", configFile)
 
         self._SRTMShapefile       = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
 
-        self.grid_spacing         = config.getfloat('Processing', 'orthorectification_gridspacing')
-        self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
+        self.grid_spacing         = getfloat_opt(config, configFile, 'Processing', 'orthorectification_gridspacing')
+        self.interpolation_method = get_opt(config, configFile, 'Processing', 'orthorectification_interpolation_method', fallback='nn')
         try:
-            tiles_file = config.get('Processing', 'tiles_list_in_file')
+            tiles_file = get_opt(config, configFile, 'Processing', 'tiles_list_in_file')
             with open(tiles_file, 'r') as tiles_file_handle:
                 self.tile_list = tiles_file_handle.readlines()
             self.tile_list = [s.rstrip() for s in self.tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
         except Exception:  # pylint: disable=broad-except
-            tiles = config.get('Processing', 'tiles')
+            tiles = get_opt(config, configFile, 'Processing', 'tiles')
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
-        self.nb_procs                      = config.getint('Processing', 'nb_parallel_processes')
-        self.ram_per_process               = config.getint('Processing', 'ram_per_process')
-        self.OTBThreads                    = config.getint('Processing', 'nb_otb_threads')
+        self.nb_procs                      = getint_opt(config, configFile, 'Processing', 'nb_parallel_processes')
+        self.ram_per_process               = getint_opt(config, configFile, 'Processing', 'ram_per_process')
+        self.OTBThreads                    = getint_opt(config, configFile, 'Processing', 'nb_otb_threads')
 
-        self.produce_lia_map               = config.getboolean('Processing', 'produce_lia_map', fallback=False)
+        self.produce_lia_map               = getboolean_opt(config, configFile, 'Processing', 'produce_lia_map', fallback=False)
 
-        self.filter = config.get('Filtering', 'filter', fallback='').lower()
+        self.filter = get_opt(config, configFile, 'Filtering', 'filter', fallback='').lower()
         if self.filter and self.filter == 'none':
             self.filter = ''
         if self.filter:
-            self.keep_non_filtered_products = config.getboolean('Filtering', 'keep_non_filtered_products')
+            self.keep_non_filtered_products = getboolean_opt(config, configFile, 'Filtering', 'keep_non_filtered_products')
             # if generate_border_mask, override this value
             if self.mask_cond:
                 logging.warning('As masks are produced, Filtering.keep_non_filtered_products value will be ignored')
                 self.keep_non_filtered_products = True
 
-            self.filter_options = {'rad': config.getint('Filtering', 'window_radius')}
+            self.filter_options = {'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')}
             if self.filter == 'frost':
-                self.filter_options['deramp']  = config.getfloat('Filtering', 'deramp')
+                self.filter_options['deramp']  = getfloat_opt(config, configFile, 'Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:
-                self.filter_options['nblooks'] = config.getfloat('Filtering', 'nblooks')
+                self.filter_options['nblooks'] = getfloat_opt(config, configFile, 'Filtering', 'nblooks')
             else:
-                logging.critical("ERROR: Invalid despeckling filter value '%s'. Select one among none/lee/frost/gammamap/kuan", self.filter)
-                sys.exit(exits.CONFIG_ERROR)
+                raise exceptions.ConfigurationError(f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan", configFile)
 
         try:
-            self.override_azimuth_cut_threshold_to = config.getboolean('Processing', 'override_azimuth_cut_threshold_to')
+            self.override_azimuth_cut_threshold_to = getboolean_opt(config, configFile, 'Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             self.override_azimuth_cut_threshold_to = None
@@ -238,7 +278,7 @@ class Configuration():
                 's2_lia_corrected', 'filtered']
         self.fname_fmt = {}
         for key in fname_fmt_keys:
-            fmt = config.get('Processing', f'fname_fmt.{key}', fallback=None)
+            fmt = get_opt(config, configFile, 'Processing', f'fname_fmt.{key}', fallback=None)
             # Default value is defined in associated StepFactories
             if fmt:
                 self.fname_fmt[key] = fmt
@@ -335,20 +375,3 @@ class Configuration():
             fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
         return fname_fmt
-
-    # def check_date(self):
-    #     """
-    #     DEPRECATED
-    #     """
-    #     import datetime
-    #
-    #     fd = self.first_date
-    #     ld = self.last_date
-    #
-    #     try:
-    #         F_Date = datetime.date(int(fd[0:4]), int(fd[5:7]), int(fd[8:10]))
-    #         L_Date = datetime.date(int(ld[0:4]), int(ld[5:7]), int(ld[8:10]))
-    #         return F_Date, L_Date
-    #     except Exception:  # pylint: disable=broad-except
-    #         logging.critical("Invalid date")
-    #         sys.exit(exits.CONFIG_ERROR)

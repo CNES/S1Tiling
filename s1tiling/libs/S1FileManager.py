@@ -54,7 +54,7 @@ except ImportError:
 
 import numpy as np
 
-from s1tiling.libs import exits
+from s1tiling.libs import exceptions
 from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
@@ -996,9 +996,7 @@ class S1FileManager:
             if l_vv + l_vh + l_hv + l_hh == 0:
                 # There is not a single file that would have been compatible
                 # with what is expected
-                logger.critical("Problem with %s", manifest)
-                logger.critical("Please remove the raw data for %s SAFE file", manifest)
-                sys.exit(exits.CORRUPTED_DATA_SAFE)
+                raise exceptions.CorruptedDataSAFEError(manifest)
 
             self.raw_raster_list.append(acquisition)
 
