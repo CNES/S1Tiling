@@ -15,8 +15,9 @@ Manual installation with pip
 OTB & GDAL dependency
 +++++++++++++++++++++
 
-S1 Tiling depends on OTB 7.3+, but we recommend the latest, `OTB 7.4
-<https://www.orfeo-toolbox.org/CookBook-7.4/>`_ at the time.
+S1 Tiling depends on OTB 7.3+, or OTB 8.1.1+, but we recommend the latest, `OTB
+7.4.1 <https://www.orfeo-toolbox.org/CookBook-7.4/>`_ at the time, or `OTB
+8.1.1 <https://www.orfeo-toolbox.org/CookBook-8.1.1/>`_
 First install OTB on your platform. See the `related documentation
 <https://www.orfeo-toolbox.org/CookBook-7.4/Installation.html>`_ to install OTB
 on your system..
@@ -171,12 +172,12 @@ Using S1Tiling with a docker
 ----------------------------
 
 As the installation of S1Tiling could be tedious, versions ready to be used are
-provided as Ubuntu 18.04 dockers.
+provided as Ubuntu 20.04 dockers.
 
 You can browse the full list of available dockers in `S1Tiling registry
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
 Their naming scheme is
-:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.0`,
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.1`,
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
@@ -185,7 +186,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.0
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
 
 or even directly used with
 
@@ -196,7 +197,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.0 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
         /data/MyS1ToS2.cfg
 
 .. note::
