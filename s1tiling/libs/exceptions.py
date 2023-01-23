@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -69,6 +69,11 @@ class CorruptedDataSAFEError(Error):
         super().__init__(f"Problem with {manifest}.\nPlease remove the raw data for {manifest} SAFE file.",
                          code=exits.CORRUPTED_DATA_SAFE, *args, **kwargs)
         self.manifest = manifest
+
+    def __reduce__(self):
+        # __reduce__ is required as this error will be pickled from subprocess
+        # when transported in the :class:`Outcome` object.
+        return (CorruptedDataSAFEError, (self.manifest, ))
 
 
 class DownloadS1FileError(Error):

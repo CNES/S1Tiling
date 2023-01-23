@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -45,7 +45,7 @@ import tempfile
 
 from eodag.api.core         import EODataAccessGateway
 from eodag.utils.logging    import setup_logging
-from eodag.utils.exceptions import NotAvailableError
+from eodag.utils.exceptions import NotAvailableError, DownloadError
 from eodag.utils            import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
@@ -347,7 +347,8 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
     """
     logging.info("Starting download of %s...", product)
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
-    file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
+    prod_id = product.as_dict()['id']
+    zip_file = os.path.join(raw_directory, prod_id) + '.zip'
     try:
         path = Outcome(dag.download(
             product,           # EODAG will clear this variable
@@ -356,12 +357,20 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
             timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
             ))
         logging.debug(ok_msg)
-        if os.path.exists(file) :
+        if os.path.exists(zip_file) :
             try:
-                logger.debug('Removing downloaded ZIP: %s', file)
-                os.remove(file)
+                logger.debug('Removing downloaded ZIP: %s', zip_file)
+                os.remove(zip_file)
             except OSError:
                 pass
+        # eodag may say the product is correctly downloaded while it failed to do so
+        # => let's do a quick sanity check
+        manifest = os.path.join(raw_directory, prod_id, prod_id+'.SAFE', 'manifest.safe')
+        if not os.path.exists(manifest):
+            logger.error('Actually download of %s failed, the expected manifest could not be found (%s)', prod_id, manifest)
+            e = exceptions.CorruptedDataSAFEError(manifest)
+            path = Outcome(e)
+            path.add_related_filename(product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -821,7 +830,7 @@ class S1FileManager:
         if new_products:
             logger.debug('new products:')
             for np in new_products:
-                logger.debug('%s -> %s', np.__class__.__name__, np)
+                logger.debug('-> %s', np)
             # content is DirEntry
             # NEW is str!! Always
             # logger.debug('content[0]: %s -> %s', type(content[0]), content[0])

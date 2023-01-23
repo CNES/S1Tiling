@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -336,7 +336,8 @@ def process_one_tile(
                     dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products
-    except BaseException:  # pylint: disable=broad-except
+    except BaseException as e:  # pylint: disable=broad-except
+        logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
