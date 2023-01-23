@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -76,6 +76,7 @@ from s1tiling.libs.otbwrappers import (
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
         ApplyLIACalibration, SpatialDespeckle)
 from s1tiling.libs import exits
+from s1tiling.libs import exceptions
 
 # Graphs
 from s1tiling.libs.vis import SimpleComputationGraph
@@ -121,9 +122,8 @@ def extract_tiles_to_process(cfg, s1_file_manager):
 
     if all_requested:
         if cfg.download and "ALL" in cfg.roi_by_tiles:
-            logger.critical("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
+            raise exceptions.ConfigurationError("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
                     + " Change either value or deactivate download instead")
-            sys.exit(exits.CONFIG_ERROR)
         else:
             tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
             logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
@@ -160,7 +160,7 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
-            logger.warning("Tile %s has insuficient DEM coverage (%s%%)",
+            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
                     tile, 100 * current_coverage)
         else:
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
@@ -338,9 +338,9 @@ def process_one_tile(
                     dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products
-    except BaseException:  # pylint: disable=broad-except
-        logger.exception('Cannot download S1 images associated to %s', tile_name)
-        sys.exit(exits.DOWNLOAD_ERROR)
+    except BaseException as e:  # pylint: disable=broad-except
+        logger.debug('Download error intercepted: %s', e)
+        raise exceptions.DownloadS1FileError(tile_name)
 
     with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
         intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
@@ -397,8 +397,7 @@ def do_process_with_pipeline(config_opt,
     with S1FileManager(config) as s1_file_manager:
         tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
         if len(tiles_to_process) == 0:
-            logger.critical("No existing tiles found, exiting ...")
-            sys.exit(exits.NO_S2_TILE)
+            raise exceptions.NoS2TileError()
 
         tiles_to_process_checked, needed_dem_tiles = check_tiles_to_process(
                 tiles_to_process, s1_file_manager)
@@ -407,18 +406,15 @@ def do_process_with_pipeline(config_opt,
                 s1_file_manager.nb_images, tiles_to_process_checked)
 
         if len(tiles_to_process_checked) == 0:
-            logger.critical("No tiles to process, exiting ...")
-            sys.exit(exits.NO_S1_IMAGE)
+            raise exceptions.NoS1ImageError()
 
         logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
 
         if not check_dem_tiles(config, needed_dem_tiles):
-            logger.critical("Some DEM tiles are missing, exiting ...")
-            sys.exit(exits.MISSING_DEM)
+            raise exceptions.MissingDEMError()
 
         if not os.path.exists(config.GeoidFile):
-            logger.critical("Geoid file does not exists (%s), exiting ...", config.GeoidFile)
-            sys.exit(exits.MISSING_GEOID)
+            raise exceptions.MissingGeoidError(config.GeoidFile)
 
         # Prepare directories where to store temporary files
         # These directories won't be cleaned up automatically
@@ -430,8 +426,8 @@ def do_process_with_pipeline(config_opt,
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
+        results = []
         with DaskContext(config, debug_otb) as dask_client:
-            results = []
             for idx, tile_it in enumerate(tiles_to_process_checked):
                 with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
                     res = process_one_tile(
@@ -444,30 +440,30 @@ def do_process_with_pipeline(config_opt,
                             debug_tasks=debug_tasks)
                     results += res
 
-            nb_errors_detected = sum(not bool(res) for res in results)
+        nb_errors_detected = sum(not bool(res) for res in results)
 
-            skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
-            results.extend([fp for fp in skipped_for_download_failures])
+        skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
+        results.extend([fp for fp in skipped_for_download_failures])
 
-            logger.debug('#############################################################################')
-            if nb_errors_detected + len(skipped_for_download_failures) > 0:
-                logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
-            else:
-                logger.info('Execution report: no error detected')
+        logger.debug('#############################################################################')
+        if nb_errors_detected + len(skipped_for_download_failures) > 0:
+            logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
+        else:
+            logger.info('Execution report: no error detected')
 
-            if results:
-                for res in results:
-                    logger.log(log_level(res), ' - %s', res)
-            else:
-                logger.info(' -> Nothing has been executed')
+        if results:
+            for res in results:
+                logger.log(log_level(res), ' - %s', res)
+        else:
+            logger.info(' -> Nothing has been executed')
 
-            download_failures = s1_file_manager.get_download_failures()
-            download_timeouts = s1_file_manager.get_download_timeouts()
-            return exits.Situation(
-                    nb_computation_errors=nb_errors_detected,
-                    nb_download_failures=len(download_failures),
-                    nb_download_timeouts=len(download_timeouts)
-                    )
+        download_failures = s1_file_manager.get_download_failures()
+        download_timeouts = s1_file_manager.get_download_timeouts()
+        return exits.Situation(
+                nb_computation_errors=nb_errors_detected,
+                nb_download_failures=len(download_failures),
+                nb_download_timeouts=len(download_timeouts)
+                )
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
@@ -637,6 +633,36 @@ def s1_process_lia(config_opt,
             )
 
 # ======================================================================
+def cli_execute(processing, *args, **kwargs):
+    """
+    Factorize code common to all S1Tiling CLI entry points (exception
+    translation into exit codes...)
+    """
+    try:
+        situation = processing(*args, **kwargs)
+        # logger.debug('nominal exit: %s', situation.code)
+        return situation.code
+    except exceptions.ConfigurationError as e:
+        # Logger object won't exist at this time, hence we'll use click
+        # report mechanism
+        click.echo(f"Error: {e}", err=True)
+        return e.code
+    except exceptions.Error as e:
+        if logger:
+            logger.critical(f"Error: {e}")
+        else:
+            click.echo(f"Error: {e}", err=True)
+        return e.code
+    except BaseException as e:
+        if logger:
+            logger.critical(e)
+        else:
+            click.echo(f"Error: {e}", err=True)
+        # logger.exception(e)
+        return exits.UNKNOWN_REASON
+
+
+# ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.version_option()
 @click.option(
@@ -687,19 +713,17 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
          eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
-
-    Returns the number of tasks that could not be processed.
     """
-    situation = s1_process( config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks,
-                cache_before_ortho=cache_before_ortho)
-    sys.exit(situation.code)
+    sys.exit(
+            cli_execute(s1_process, config_filename,
+                        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+                        searched_items_per_page=searched_items_per_page,
+                        dryrun=dryrun,
+                        debug_otb=debug_otb,
+                        debug_caches=debug_caches,
+                        watch_ram=watch_ram,
+                        debug_tasks=debug_tasks,
+                        cache_before_ortho=cache_before_ortho))
 
 # ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -744,18 +768,16 @@ def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram
          debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
-
-    Returns the number of tasks that could not be processed.
     """
-    situation = s1_process_lia( config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks)
-    sys.exit(situation.code)
+    sys.exit(
+            cli_execute(s1_process_lia, config_filename,
+                        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+                        searched_items_per_page=searched_items_per_page,
+                        dryrun=dryrun,
+                        debug_otb=debug_otb,
+                        debug_caches=debug_caches,
+                        watch_ram=watch_ram,
+                        debug_tasks=debug_tasks))
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
