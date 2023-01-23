@@ -41,6 +41,14 @@ version.
             # For instance, type this, once!
             echo 'LD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> otbenv.profile
 
+  - You may also have to make sure ``numpy`` is installed before gdal Python
+    bindings. i.e.
+
+        .. code-block:: bash
+
+            python3 -m pip numpy
+            python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)"
+
 
 - In case you've compiled OTB from sources, you shouldn't have this kind of
   troubles.
@@ -71,7 +79,7 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
 
 .. code-block:: bash
 
-    cd OTB-7.4.0-Linux64
+    cd OTB-7.4.1-Linux64
     source otbenv.profile
     # Load module on HAL
     module load gcc
@@ -168,6 +176,8 @@ You may want to install extra packages like `bokeh
 processing by Dask.
 
 
+.. _docker:
+
 Using S1Tiling with a docker
 ----------------------------
 
@@ -202,7 +212,7 @@ or even directly used with
 
 .. note::
 
-    This examle considers:
+    This example considers:
 
     - SRTM's are available on local host through :file:`/localpath/to/MNT/` and
       they will be mounted into the docker as :file:`/MNT/`.
@@ -211,7 +221,8 @@ or even directly used with
     - EODAG configuration file to be in :file:`$HOME/.config/eodag` which will
       be mounted as :file:`/eo_config/`.
     - A :ref:`configuration file <request-config-file>` named
-      :file:`MyS1ToS2.cfg` is present in current working directory.
+      :file:`MyS1ToS2.cfg` is present in current working directory, which is
+      seen from docker perspective as in :file:`data/` directory.
     - And it relates to the volumes mounted in the docker in the following way:
 
         .. code-block:: ini
@@ -224,3 +235,26 @@ or even directly used with
             eodagConfig : /eo_config/eodag.yml
             ...
 
+.. _docker.S1LIAMap:
+
+Using S1LIAMap with a docker
+++++++++++++++++++++++++++++
+
+It's also possible to run :program:`S1LIAMap` in the docker -- see :ref:`LIA
+Map production scenario <scenario.S1LIAMap>`. In order to do that, pass
+``--lia`` as the first parameter to the docker *entry point*.
+
+In other word, run the docker with something like the following
+
+.. code-block:: bash
+
+    docker run                            \
+        -v /localpath/to/MNT:/MNT         \
+        -v "$(pwd)":/data                 \
+        -v $HOME/.config/eodag:/eo_config \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --lia                             \
+        /data/MyS1ToS2.cfg
+
+The only difference with the *normal case* example: there is a ``--lia``
+parameter in the penultimate line.

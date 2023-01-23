@@ -2,9 +2,9 @@
 @media screen and (min-width: 767px) {
 
    .wy-table-responsive table td {
-      /* !important prevents the common CSS stylesheets from overriding
+       /* !important prevents the common CSS stylesheets from overriding
          this as on RTD they are loaded after this stylesheet */
-      white-space: normal !important;
+       white-space: normal !important;
    }
 
    .wy-table-responsive {
@@ -14,4 +14,18 @@
        text-align: left;
    }
 
+
+   /* https://stackoverflow.com/a/33626140/15934:
+    * Modifying content width of the Sphinx theme 'Read the Docs' */
+   .wy-nav-content {
+       /* max-width: 75% !important; */
+       max-width: 1200px !important;
+   }
+}
+
+.section td ul {
+    /* !important prevents the common CSS stylesheets from overriding
+       this as on RTD they are loaded after this stylesheet */
+    /* avoid extra space after <ul> element in tables */
+    margin-bottom: 0px !important; /* avoid extra space after <ul> element */
 }
