@@ -88,6 +88,11 @@ class DownloadS1FileError(Error):
                          code=exits.DOWNLOAD_ERROR, *args, **kwargs)
         self.tile_name = tile_name
 
+    def __reduce__(self):
+        # __reduce__ is required as this error will be pickled from subprocess
+        # when transported in the :class:`Outcome` object.
+        return (DownloadS1FileError, (self.tile_name, ))
+
 
 class NoS2TileError(Error):
     """

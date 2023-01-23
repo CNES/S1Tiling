@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -214,7 +214,7 @@ class Configuration():
         self.calibration_type   = get_opt(config, configFile, 'Processing', 'calibration')
         self.removethermalnoise = getboolean_opt(config, configFile, 'Processing', 'remove_thermal_noise')
         if self.removethermalnoise and otb_version() < '7.4.0':
-            raise exceptions.InvalidOTBVersionError(f"ERROR: OTB {otb_version()} does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '{configFile}'")
+            raise exceptions.InvalidOTBVersionError(f"OTB {otb_version()} does not support noise removal. Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '{configFile}'")
 
         self.lower_signal_value = getfloat_opt(config, configFile, 'Processing', 'lower_signal_value', fallback=1e-7)
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?

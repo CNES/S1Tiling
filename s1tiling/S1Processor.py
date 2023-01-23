@@ -160,7 +160,7 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
-            logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
+            logger.warning("Tile %s has insufficient SRTM coverage (%s%%)",
                     tile, 100 * current_coverage)
         else:
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
@@ -404,12 +404,12 @@ def do_process_with_pipeline(config_opt,
                 s1_file_manager.nb_images, tiles_to_process_checked)
 
         if len(tiles_to_process_checked) == 0:
-            raise exceptions.NoS1ImageError("No tiles to process, exiting ...")
+            raise exceptions.NoS1ImageError()
 
         logger.info("Required SRTM tiles: %s", needed_srtm_tiles)
 
         if not check_srtm_tiles(config, needed_srtm_tiles):
-            raise exceptions.MissingDEMError("Some SRTM tiles are missing, exiting ...")
+            raise exceptions.MissingDEMError()
 
         if not os.path.exists(config.GeoidFile):
             raise exceptions.MissingGeoidError(config.GeoidFile)
@@ -646,10 +646,16 @@ def cli_execute(processing, *args, **kwargs):
         click.echo(f"Error: {e}", err=True)
         return e.code
     except exceptions.Error as e:
-        logger.critical(f"Error: {e}")
+        if logger:
+            logger.critical(f"Error: {e}")
+        else:
+            click.echo(f"Error: {e}", err=True)
         return e.code
     except BaseException as e:
-        logger.critical(e)
+        if logger:
+            logger.critical(e)
+        else:
+            click.echo(f"Error: {e}", err=True)
         # logger.exception(e)
         return exits.UNKNOWN_REASON
 
