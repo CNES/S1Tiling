@@ -47,7 +47,7 @@ version.
         .. code-block:: bash
 
             python3 -m pip numpy
-            python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)"
+            python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
 
 - In case you've compiled OTB from sources, you shouldn't have this kind of

@@ -14,7 +14,7 @@ CONFIG_GNM_ENABLED=yes
 CONFIG_FORMATS="derived gtiff hfa mem vrt  aaigrid adrg aigrid airsar arg blx bmp bsb cals ceos ceos2 coasp cosar ctg dimap dted e00grid elas envisat ers fit gff gsg gxf hf2 idrisi ignfheightasciigrid ilwis ingr iris iso8211 jaxapalsar jdem kmlsuperoverlay l1b leveller map mrf msgn ngsgeoid nitf northwood pds prf r raw rmf rs2 safe saga sdts sentinel2 sgi sigdem srtmhgt terragen til tsx usgsdem xpm xyz zmap rik ozi grib eeda plmosaic rda wcs wms wmts daas rasterlite mbtiles pdf exr openjpeg netcdf hdf5 hdf4 jpeg png  pcidsk"
 usage()
 {
-	cat <<EOF
+    cat <<EOF
 Usage: gdal-config [OPTIONS]
 Options:
 	[--prefix[=DIR]]
@@ -27,11 +27,11 @@ Options:
 	[--gnm-enabled]
 	[--formats]
 EOF
-	exit $1
+    exit $1
 }
 
 if test $# -eq 0; then
-	usage 1 1>&2
+    usage 1 1>&2
 fi
 
 case $1 in
@@ -44,6 +44,17 @@ case $1 in
     ;;
 
   --cflags)
+    if  grep -q "GLIBCXX_USE_CXX11_ABI=0" "${CONFIG_PREFIX}/share/otb/swig/build/CMakeFiles/PythonWrapperLib.dir/flags.make"  ; then
+        # Since GDAL 3.3+, GDALDataset::GetFieldDomain() takes a
+        # std::string as input. However, OTB <9 is still compiled with
+        # -D_GLIBCXX_USE_CXX11_ABI=0, which makes it incompatible with
+        # other C++ libraries compiled with C++11 string ABI..
+        # As such, we need to make sure
+        # _gdal_array.cpython-311-x86_64-linux-gnu.so is compatible with
+        # the libgdal.so provided with OTB.
+        # Note: Execute grep only if required!
+        CONFIG_CFLAGS="${CONFIG_CFLAGS} -D_GLIBCXX_USE_CXX11_ABI=0"
+    fi
     echo $CONFIG_CFLAGS
     ;;
 
