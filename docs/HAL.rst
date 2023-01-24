@@ -180,6 +180,8 @@ for the chosen version of Python.
     python -m pip install --upgrade setuptools==57.5.0
     # - numpy in order to compile OTB python bindinds for Python 3.7.2
     pip install numpy
+    # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
+    pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
     source OTB-7.4.1-Linux64/otbenv.profile
@@ -231,6 +233,8 @@ for the chosen version of Python.
     python -m pip install --upgrade setuptools==57.5.0
     # - numpy in order to compile OTB python bindinds for Python
     pip install numpy
+    # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
+    pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
     source OTB-7.4.1-Linux64/otbenv.profile
