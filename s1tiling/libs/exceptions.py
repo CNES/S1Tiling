@@ -52,7 +52,7 @@ class ConfigurationError(Error):
 
 class CorruptedDataSAFEError(Error):
     """
-    Error that signals invalid data in the data SAFE.
+    An empty data safe has been found and needs to be removed so it can be fetched again.
     """
     def __init__(self, manifest, *args, **kwargs):
         """
@@ -100,7 +100,9 @@ class NoS2TileError(Error):
 
 class NoS1ImageError(Error):
     """
-    Error that signals missing Sentinel-1 images.
+    No Sentinel-1 product has been found that intersects the :ref:`requested
+    Sentinel-2 tiles <DataSource.roi_by_tiles>` within the :ref:`requested
+    time range <DataSource.first_date>`
     """
     def __init__(self, *args, **kwargs):
         """
@@ -112,7 +114,8 @@ class NoS1ImageError(Error):
 
 class MissingDEMError(Error):
     """
-    Error that signals missing DEM file(s).
+    Cannot find all the :ref:`DEM products <paths.srtm>` that cover the
+    :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`
     """
     def __init__(self, *args, **kwargs):
         """
@@ -124,7 +127,7 @@ class MissingDEMError(Error):
 
 class MissingGeoidError(Error):
     """
-    Error that signals missing Geoid file.
+    The :ref:`geoid file <paths.geoid_file>` is missing or the specified path is incorrect.
     """
     def __init__(self, geoid_file, *args, **kwargs):
         """
@@ -149,7 +152,9 @@ class InvalidOTBVersionError(Error):
 
 class MissingApplication(Error):
     """
-    Error that signals that required OTB applications are missing
+    Some processing cannot be done because external applications cannot
+    be executed. Likelly OTB and/or NORMLIM related applications aren't
+    correctly installed.
     """
     def __init__(self, missing_apps, contexts, *args, **kwargs):
         """

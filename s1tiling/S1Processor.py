@@ -502,16 +502,59 @@ def s1_process(config_opt,
         debug_tasks=False,
         cache_before_ortho=False):
     """
-      On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
+    Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
+    :ref:`S1Tiling NORMLIM scenario <scenario.S1ProcessorLIA>` of on demand
+    Ortho-rectification of Sentinel-1 data on Sentinel-2 grid for all
+    calibration kinds.
 
-      It performs the following steps:
-      1. Download S1 images from S1 data provider (through eodag)
-      2. Calibrate the S1 images to gamma0
-      3. Orthorectify S1 images and cut their on geometric tiles
-      4. Concatenate images from the same orbit on the same tile
-      5. Build mask files
+    It performs the following steps:
 
-      Parameters have to be set by the user in the S1Processor.cfg file
+    1. Download S1 images from S1 data provider (through eodag)
+        This step may be ignored if ``config_opt`` *download* option is false;
+    2. Calibrate the S1 images according to the *calibration* option from ``config_opt``;
+    3. Orthorectify S1 images and cut their on geometric tiles;
+    4. Concatenate images from the same orbit on the same tile;
+    5. Build mask files;
+    6. Despeckle final images.
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+    :param cache_before_ortho:
+        Cutting, calibration and orthorectification are chained in memory
+        unless this option is true. In that case, :ref:`Cut and calibrated (aka
+        "OrthoReady") files <orthoready-files>` are stored in :ref:`%(tmp)
+        <paths.tmp>`:samp:`/S1/` directory.
+        Do not forget to regularly clean up this space.
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
     """
     def builder(config, dryrun, debug_caches):
         assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
@@ -603,16 +646,52 @@ def s1_process_lia(config_opt,
         debug_tasks=False,
         ):
     """
-      Generate Local Incidence Angle Maps on S2 geometry.
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
+    generates Local Incidence Angle Maps on S2 geometry.
 
-      1. Determine the S1 products to process
-          Given a list of S2 tiles, we first determine the day that'll the best
-          coverage of each S2 tile in terms of S1 products.
+    It performs the following steps:
 
-          In case there is no single day that gives the best coverage for all
-          S2 tiles, we try to determine the best solution that minimizes the
-          number of S1 products to download and process.
-      2. Process these S1 products
+    1. Determine the S1 products to process
+        Given a list of S2 tiles, we first determine the day that'll the best
+        coverage of each S2 tile in terms of S1 products.
+
+        In case there is no single day that gives the best coverage for all
+        S2 tiles, we try to determine the best solution that minimizes the
+        number of S1 products to download and process.
+    2. Process these S1 products
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
     """
     def builder(config, dryrun, debug_caches):
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)

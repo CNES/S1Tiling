@@ -73,7 +73,15 @@ def translate_exception_into_exit_code(exception):
 
 class Situation:
     """
-    Class to help determine the exit value from processing function
+    Class to help determine the exit value from processing function.
+
+    The computed ``code`` to return will be:
+
+    - ``exits.TASK_FAILED`` if computation errors have been observed;
+    - ``exits.DOWNLOAD_ERROR`` if some input S1 products could not be downloaded;
+    - ``exits.OFFLINE_DATA`` if some input S1 products could not be downloaded
+      in time because they were off-line.
+    - ``exits.OK`` if no issue has been observed
     """
     def __init__(self, nb_computation_errors, nb_download_failures, nb_download_timeouts):
         """

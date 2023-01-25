@@ -18,6 +18,8 @@ Usage
 Scenarios
 ---------
 
+.. _scenario.S1Processor:
+
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -511,8 +513,7 @@ You can use this :download:`this template
         For optimal performances, ``nb_parallel_processes*nb_otb_threads``
         should be <= to the number of cores on the machine.
 
-      .. _Processing.override_azimuth_cut_threshold_to:
-
+      .. _Processing.produce_lia_map:
   * - ``produce_lia_map``
     - When :ref:`LIA sine map <lia-files>` is produced, we may also desire the
       angle values in degrees (x100).
@@ -528,6 +529,7 @@ You can use this :download:`this template
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
+      .. _Processing.override_azimuth_cut_threshold_to:
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be
       forced to 0 in :ref:`cutting step <cutting>`. |br|
