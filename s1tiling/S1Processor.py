@@ -640,24 +640,15 @@ def cli_execute(processing, *args, **kwargs):
         situation = processing(*args, **kwargs)
         # logger.debug('nominal exit: %s', situation.code)
         return situation.code
-    except exceptions.ConfigurationError as e:
-        # Logger object won't exist at this time, hence we'll use click
-        # report mechanism
-        click.echo(f"Error: {e}", err=True)
-        return e.code
-    except exceptions.Error as e:
-        if logger:
-            logger.critical(f"Error: {e}")
-        else:
-            click.echo(f"Error: {e}", err=True)
-        return e.code
     except BaseException as e:
+        # Logger object won't always exist at this time (like in configuration
+        # errors) hence we may use click report mechanism instead.
         if logger:
             logger.critical(e)
+            # logger.exception(e)
         else:
             click.echo(f"Error: {e}", err=True)
-        # logger.exception(e)
-        return exits.UNKNOWN_REASON
+        return exits.translate_exception_into_exit_code(e)
 
 
 # ======================================================================

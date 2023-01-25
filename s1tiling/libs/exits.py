@@ -32,6 +32,7 @@ This module lists EXIT codes
 """
 
 import logging
+from s1tiling.libs import exceptions
 
 OK                  = 0
 TASK_FAILED         = 66
@@ -49,6 +50,26 @@ MISSING_APP         = 77
 UNKNOWN_REASON      = 78
 
 logger = logging.getLogger('s1tiling')
+
+
+k_exit_table = {
+        exceptions.ConfigurationError    : CONFIG_ERROR,
+        exceptions.CorruptedDataSAFEError: CORRUPTED_DATA_SAFE,
+        exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
+        exceptions.NoS2TileError         : NO_S2_TILE,
+        exceptions.NoS1ImageError        : NO_S1_IMAGE,
+        exceptions.MissingDEMError       : MISSING_SRTM,
+        exceptions.MissingGeoidError     : MISSING_GEOID,
+        exceptions.InvalidOTBVersionError: CONFIG_ERROR,
+        exceptions.MissingApplication    : MISSING_APP,
+        }
+
+def translate_exception_into_exit_code(exception):
+    """
+    This function re-couple S1Tiling internal exception into excepted exit code.
+    """
+    return k_exit_table.get(exception.__class__, UNKNOWN_REASON)
+
 
 class Situation:
     """
