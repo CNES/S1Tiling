@@ -152,6 +152,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(srtmdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
