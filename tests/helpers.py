@@ -45,7 +45,7 @@ def comparable_metadata(image):
         logging.info('TIFFTAG_SOFTWARE changed from "%s" to "%s" [in "%s"]' % (md['TIFFTAG_SOFTWARE'], ts, image))
         md['TIFFTAG_SOFTWARE'] = ts
     else:
-        logging.error('WHY???')
+        logging.error('There is no TIFFTAG_SOFTWARE information in %s image metadata!', image)
 
     return md
 
