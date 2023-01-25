@@ -33,6 +33,11 @@ def comparable_metadata(image):
 
     md.pop('TIFFTAG_DATETIME',  None)
     md.pop('PROCESSED_DATETIME', None)
+    md.pop('TileHintX', None)
+    md.pop('TileHintY', None)
+    md.pop('METADATATYPE', None)
+    md.pop('OTB_VERSION', None)
+    md.pop('DataType', None)
 
     if 'TIFFTAG_SOFTWARE' in md:
         # logging.error('PERFECT')
@@ -40,7 +45,7 @@ def comparable_metadata(image):
         logging.info('TIFFTAG_SOFTWARE changed from "%s" to "%s" [in "%s"]' % (md['TIFFTAG_SOFTWARE'], ts, image))
         md['TIFFTAG_SOFTWARE'] = ts
     else:
-        logging.error('WHY???')
+        logging.error('There is no TIFFTAG_SOFTWARE information in %s image metadata!', image)
 
     return md
 

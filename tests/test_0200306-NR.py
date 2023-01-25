@@ -17,6 +17,8 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
+import s1tiling.libs.configuration
+from s1tiling.libs.otbpipeline import ram as param_ram
 
 from s1tiling.libs.otbpipeline import _fetch_input_data, out_filename
 
@@ -150,6 +152,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -312,7 +315,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
         in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
 
         application_mocker.set_expectations('SARCalibration', {
-            'ram'        : '2048',
+            'ram'        : param_ram(2048),
             'in'         : input_file,
             'lut'        : raw_calibration,
             'removenoise': False,
@@ -334,7 +337,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
         if True:     #  workaround defect on skipping cutmargin       #old_IPF:
             application_mocker.set_expectations('ResetMargin', {
                 'in'               : input_file+'|>SARCalibration',
-                'ram'              : '2048',
+                'ram'              : param_ram(2048),
                 'threshold.x'      : 1000 if old_IPF else 0,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
@@ -345,7 +348,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
         application_mocker.set_expectations('OrthoRectification', {
             # 'io.in'           : input_file+'|>SARCalibration|>ResetMargin',
             'io.in'           : in_ortho,
-            'opt.ram'         : '2048',
+            'opt.ram'         : param_ram(2048),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -383,7 +386,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
             orthofile1 = file_db.orthofile(2*i,   False, calibration='_'+raw_calibration)
             orthofile2 = file_db.orthofile(2*i+1, False, calibration='_'+raw_calibration)
             application_mocker.set_expectations('Synthetize', {
-                'ram'      : '2048',
+                'ram'      : param_ram(2048),
                 'il'       : [orthofile1, orthofile2],
                 'out'      : file_db.concatfile_from_two(i, True, calibration='_'+raw_calibration),
                 }, None,
@@ -417,7 +420,7 @@ def mock_masking(application_mocker, file_db, calibration, N):
         out_mask = outfile(i, True, calibration=('_'+raw_calibration))
         assert ('_' + raw_calibration) in out_mask
         application_mocker.set_expectations('BandMath', {
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'il'       : [infile(i, False)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+out_mask,
@@ -427,7 +430,7 @@ def mock_masking(application_mocker, file_db, calibration, N):
                 })
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [infile(i, False)+'|>BandMath'],
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'structype': 'ball',
             'xradius'  : 5,
             'yradius'  : 5,
@@ -451,7 +454,7 @@ def mock_LIA(application_mocker, file_db):
         application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
 
         application_mocker.set_expectations('SARDEMProjection', {
-            'ram'        : '2048',
+            'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
             'indem'      : exp_out_vrt,
             'withxyz'    : True,
@@ -471,7 +474,7 @@ def mock_LIA(application_mocker, file_db):
                 })
 
         application_mocker.set_expectations('SARCartesianMeanEstimation2', {
-            'ram'             : '2048',
+            'ram'             : param_ram(2048),
             'insar'           : file_db.input_file_vv(idx),
             'indem'           : exp_out_vrt,
             'indemproj'       : exp_out_dem,
@@ -489,7 +492,7 @@ def mock_LIA(application_mocker, file_db):
                 })
 
         application_mocker.set_expectations('ExtractNormalVector', {
-            'ram'             : '2048',
+            'ram'             : param_ram(2048),
             'xyz'             : file_db.xyzfile(idx, False),
             'nodata'          : -32768,
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
@@ -499,7 +502,7 @@ def mock_LIA(application_mocker, file_db):
                 })
 
         application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
-            'ram'             : '2048',
+            'ram'             : param_ram(2048),
             'in.normals'      : file_db.xyzfile(idx, False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
             'in.xyz'          : file_db.xyzfile(idx, False),
             'out.lia'         : file_db.LIAfile(idx, True),
@@ -513,7 +516,7 @@ def mock_LIA(application_mocker, file_db):
                 })
 
         application_mocker.set_expectations('OrthoRectification', {
-            'opt.ram'         : '2048',
+            'opt.ram'         : param_ram(2048),
             'io.in'           : file_db.LIAfile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
@@ -539,7 +542,7 @@ def mock_LIA(application_mocker, file_db):
                 })
 
         application_mocker.set_expectations('OrthoRectification', {
-            'opt.ram'         : '2048',
+            'opt.ram'         : param_ram(2048),
             'io.in'           : file_db.sinLIAfile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
@@ -567,7 +570,7 @@ def mock_LIA(application_mocker, file_db):
     # endfor on 2 consecutive images
 
     application_mocker.set_expectations('Synthetize', {
-        'ram'      : '2048',
+        'ram'      : param_ram(2048),
         'il'       : [file_db.orthoLIAfile(0, False), file_db.orthoLIAfile(1, False)],
         'out'      : file_db.concatLIAfile_from_two(0, True),
         }, {'out': otb.ImagePixelType_int16},
@@ -581,7 +584,7 @@ def mock_LIA(application_mocker, file_db):
             })
 
     application_mocker.set_expectations('Synthetize', {
-        'ram'      : '2048',
+        'ram'      : param_ram(2048),
         'il'       : [file_db.orthosinLIAfile(0, False), file_db.orthosinLIAfile(1, False)],
         'out'      : file_db.concatsinLIAfile_from_two(0, True),
         }, None,
@@ -777,7 +780,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     mock_masking(application_mocker, file_db, 'normlim', 2)
 
     application_mocker.set_expectations('BandMath', {
-        'ram'      : '2048',
+        'ram'      : param_ram(2048),
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
         'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
@@ -847,7 +850,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
 
     for idx in range(number_dates):
         application_mocker.set_expectations('BandMath', {
-            'ram'      : '2048',
+            'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
             'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),

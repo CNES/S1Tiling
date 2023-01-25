@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -49,7 +49,7 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
         _fetch_input_data, OutputFilenameGenerator,
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
         ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
-        get_task_name, Step)
+        get_task_name, Step, ram)
 from . import Utils
 from ..__meta__ import __version__
 
@@ -147,7 +147,6 @@ class ExtractSentinel1Metadata(StepFactory):
         imd['ORBIT']                 = meta['orbit']
         imd['ORBIT_DIRECTION']       = meta['orbit_direction']
         imd['POLARIZATION']          = meta['polarisation']
-        imd['TIFFTAG_SOFTWARE']      = 'S1 Tiling v'+__version__
         imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
         # Only one input image at this point, we don't introduce any
         # ACQUISITION_DATETIMES or ACQUISITION_DATETIME_1...
@@ -245,12 +244,12 @@ class AnalyseBorders(StepFactory):
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
         tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
-        
+
         # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
         # see Issue #88
         #Temporary correction:
         #     The cut margin (right and left)  is done for any version of IPF
-       
+
         #ipf_version = extract_IPF_version(tifftag_software)
         # if version.parse(ipf_version) >= version.parse('2.90'):
         #    cut_overlap_range = 0
@@ -353,7 +352,7 @@ class Calibrate(OTBStepFactory):
         application <Applications/app_SARCalibration>`.
         """
         params = {
-                'ram'           : str(self.ram_per_process),
+                'ram'           : ram(self.ram_per_process),
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
@@ -413,7 +412,7 @@ class CorrectDenoising(OTBStepFactory):
         <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
@@ -473,7 +472,7 @@ class CutBorders(OTBStepFactory):
         application <Applications/app_ResetMargin>`.
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'threshold.x'      : meta['cut']['threshold.x'],
@@ -585,7 +584,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         spacing = self.__out_spatial_res
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         parameters = {
-                'opt.ram'          : str(self.ram_per_process),
+                'opt.ram'          : ram(self.ram_per_process),
                 self.param_in      : image,
                 # self.param_out     : out_filename,
                 'interpolator'     : self.__interpolation_method,
@@ -712,7 +711,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         application <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 }
@@ -869,7 +868,7 @@ class BuildBorderMask(OTBStepFactory):
         <Applications/app_BandMath>` for computing border mask.
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
@@ -916,7 +915,7 @@ class SmoothBorderMask(OTBStepFactory):
         masks.
         """
         return {
-                'ram'                   : str(self.ram_per_process),
+                'ram'                   : ram(self.ram_per_process),
                 self.param_in           : in_filename(meta),
                 # self.param_out          : out_filename(meta),
                 'structype'             : 'ball',
@@ -1047,7 +1046,7 @@ class SpatialDespeckle(OTBStepFactory):
         """
         assert self.__rad
         params = {
-                'ram'                         : str(self.ram_per_process),
+                'ram'                         : ram(self.ram_per_process),
                 self.param_in                 : in_filename(meta),
                 # self.param_out              : out_filename(meta),
                 'filter'                      : self.__filter,
@@ -1249,7 +1248,7 @@ class SARDEMProjection(OTBStepFactory):
         inputs = meta['inputs']
         indem = _fetch_input_data('indem', inputs).out_filename
         return {
-                'ram'        : str(self.ram_per_process),
+                'ram'        : ram(self.ram_per_process),
                 'insar'      : in_filename(meta),
                 'indem'      : indem,
                 'withxyz'    : True,
@@ -1385,7 +1384,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         indem     = _fetch_input_data('indem', inputs).out_filename
         indemproj = _fetch_input_data('indemproj', inputs).out_filename
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'insar'           : insar,
                 'indem'           : indem,
                 'indemproj'       : indemproj,
@@ -1462,7 +1461,7 @@ class ComputeNormals(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         xyz = in_filename(meta)
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'xyz'             : xyz,
                 'nodata'          : float(nodata),
                 }
@@ -1564,7 +1563,7 @@ class ComputeLIA(OTBStepFactory):
         normals = _fetch_input_data('normals', inputs).out_filename
         nodata  = meta.get('nodata', -32768)
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
                 'nodata'          : float(nodata),
@@ -1943,7 +1942,7 @@ class ApplyLIACalibration(OTBStepFactory):
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params = {
-                'ram'         : str(self.ram_per_process),
+                'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
                 'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
                 }
