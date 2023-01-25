@@ -31,19 +31,11 @@
 This module defines S1Tiling specific exception classes.
 """
 
-from s1tiling.libs import exits
-
-
 class Error(Exception):
     """
     Base class for all S1Tiling specific exceptions.
     """
-    def __init__(self, *args, **kwargs):
-        """
-        Constructor
-        """
-        super().__init__(*args)
-        self.code = kwargs.get('code', exits.UNKNOWN_REASON)
+    pass
 
 
 class ConfigurationError(Error):
@@ -55,19 +47,19 @@ class ConfigurationError(Error):
         Constructor
         """
         super().__init__(f"{message}\nPlease fix the configuration file '{configFile}'.",
-                         code=exits.CONFIG_ERROR, *args, **kwargs)
+                         *args, **kwargs)
 
 
 class CorruptedDataSAFEError(Error):
     """
-    Error that signals invalid data in the data SAFE.
+    An empty data safe has been found and needs to be removed so it can be fetched again.
     """
     def __init__(self, manifest, *args, **kwargs):
         """
         Constructor
         """
         super().__init__(f"Problem with {manifest}.\nPlease remove the raw data for {manifest} SAFE file.",
-                         code=exits.CORRUPTED_DATA_SAFE, *args, **kwargs)
+                         *args, **kwargs)
         self.manifest = manifest
 
     def __reduce__(self):
@@ -85,7 +77,7 @@ class DownloadS1FileError(Error):
         Constructor
         """
         super().__init__(f"Cannot download S1 images associated to {tile_name}.",
-                         code=exits.DOWNLOAD_ERROR, *args, **kwargs)
+                         *args, **kwargs)
         self.tile_name = tile_name
 
     def __reduce__(self):
@@ -103,43 +95,46 @@ class NoS2TileError(Error):
         Constructor
         """
         super().__init__("No existing tiles found, exiting...",
-                         code=exits.NO_S2_TILE, *args, **kwargs)
+                         *args, **kwargs)
 
 
 class NoS1ImageError(Error):
     """
-    Error that signals missing Sentinel-1 images.
+    No Sentinel-1 product has been found that intersects the :ref:`requested
+    Sentinel-2 tiles <DataSource.roi_by_tiles>` within the :ref:`requested
+    time range <DataSource.first_date>`
     """
     def __init__(self, *args, **kwargs):
         """
         Constructor
         """
         super().__init__("No S1 tiles to process, exiting...",
-                         code=exits.NO_S1_IMAGE, *args, **kwargs)
+                         *args, **kwargs)
 
 
 class MissingDEMError(Error):
     """
-    Error that signals missing DEM file(s).
+    Cannot find all the :ref:`DEM products <paths.srtm>` that cover the
+    :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`
     """
     def __init__(self, *args, **kwargs):
         """
         Constructor
         """
         super().__init__("Some DEM tiles are missing, exiting...",
-                         code=exits.MISSING_SRTM, *args, **kwargs)
+                         *args, **kwargs)
 
 
 class MissingGeoidError(Error):
     """
-    Error that signals missing Geoid file.
+    The :ref:`geoid file <paths.geoid_file>` is missing or the specified path is incorrect.
     """
     def __init__(self, geoid_file, *args, **kwargs):
         """
         Constructor
         """
         super().__init__(f"Geoid file does not exists ({geoid_file}), exiting...",
-                         code=exits.MISSING_GEOID, *args, **kwargs)
+                         *args, **kwargs)
         self.geoid_file = geoid_file
 
 
@@ -152,6 +147,23 @@ class InvalidOTBVersionError(Error):
         Constructor
         """
         super().__init__(f"{reason}",
-                         code=exits.CONFIG_ERROR, *args, **kwargs)
+                         *args, **kwargs)
 
 
+class MissingApplication(Error):
+    """
+    Some processing cannot be done because external applications cannot
+    be executed. Likelly OTB and/or NORMLIM related applications aren't
+    correctly installed.
+    """
+    def __init__(self, missing_apps, contexts, *args, **kwargs):
+        """
+        Constructor
+        """
+        self.missing_apps = missing_apps
+        self.contexts     = contexts
+        message = ['Cannot execute S1Tiling because of the following reason(s):']
+        for req, task_keys in missing_apps.items():
+            message.append(f"- {req} for {task_keys}")
+            message.append(f" --> {ctx}")
+        super().__init__("\n".join(message), *args, **kwargs)
