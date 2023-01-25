@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -56,6 +56,7 @@ import otbApplication as otb
 from . import Utils
 from . import exits
 from .outcome import Outcome
+from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling')
 
@@ -731,6 +732,7 @@ class StepFactory(ABC):
             meta['image_metadata'] = {}
         imd = meta['image_metadata']
         imd['TIFFTAG_DATETIME'] = str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))
+        imd['TIFFTAG_SOFTWARE'] = 'S1 Tiling v'+__version__
         if self.image_description:
             imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,

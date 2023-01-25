@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -147,7 +147,6 @@ class ExtractSentinel1Metadata(StepFactory):
         imd['ORBIT']                 = meta['orbit']
         imd['ORBIT_DIRECTION']       = meta['orbit_direction']
         imd['POLARIZATION']          = meta['polarisation']
-        imd['TIFFTAG_SOFTWARE']      = 'S1 Tiling v'+__version__
         imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
         # Only one input image at this point, we don't introduce any
         # ACQUISITION_DATETIMES or ACQUISITION_DATETIME_1...
