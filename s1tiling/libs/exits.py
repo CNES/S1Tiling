@@ -58,7 +58,7 @@ k_exit_table = {
         exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
         exceptions.NoS2TileError         : NO_S2_TILE,
         exceptions.NoS1ImageError        : NO_S1_IMAGE,
-        exceptions.MissingDEMError       : MISSING_DEM,
+        exceptions.MissingDEMError       : MISSING_SRTM,
         exceptions.MissingGeoidError     : MISSING_GEOID,
         exceptions.InvalidOTBVersionError: CONFIG_ERROR,
         exceptions.MissingApplication    : MISSING_APP,
