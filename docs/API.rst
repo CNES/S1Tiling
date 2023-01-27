@@ -27,13 +27,13 @@ Entry points
 ``s1_process``
 --------------
 
-.. autofunction:: s1tiling.S1Processor.s1_process
+.. autofunction:: s1tiling.libs.api.s1_process
 
 
 ``s1_process_lia``
 ------------------
 
-.. autofunction:: s1tiling.S1Processor.s1_process_lia
+.. autofunction:: s1tiling.libs.api.s1_process_lia
 
 
 Configuration object

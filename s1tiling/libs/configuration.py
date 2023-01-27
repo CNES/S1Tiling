@@ -101,7 +101,7 @@ def getboolean_opt(cfg, config_filename, section, name, **kwargs):
 
 
 # Helper functions related to logs
-def init_logger(mode, paths):
+def _init_logger(mode, paths):
     """
     Initializes logging service.
     """
@@ -160,14 +160,10 @@ class Configuration():
 
         # Logs
         #: Logging mode
-        self.Mode = get_opt(config, configFile, 'Processing', 'mode')
-        self.log_config = init_logger(self.Mode, [Path(configFile).parent.absolute()])
-        # self.log_queue = multiprocessing.Queue()
-        # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
-        if "debug" in self.Mode and self.log_config and self.log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
-            # OTB DEBUG logs are displayed iff level is DEBUG and configFile mode
-            # is debug as well.
-            os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
+        self.Mode = get_opt(config, configFile, 'Processing', 'mode', fallback=None)
+        self.__log_config = None
+        if self.Mode is not None:
+            self.init_logger(Path(configFile).parent.absolute())
 
         # Other options
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
@@ -392,6 +388,33 @@ class Configuration():
         logging.debug('File formats')
         for k, fmt in self.fname_fmt.items():
             logging.debug(' - %s --> %s', k, fmt)
+
+    def init_logger(self, config_log_dir, mode=None):
+        """
+        Deported logger initialization function for project that use their own
+        logger, and S1Tiling through its API only.
+
+        :param mode: Option to override logging mode, if not found/expected in
+                     the configuration file.
+        """
+        if not self.__log_config:
+            self.__log_config = _init_logger(self.Mode, [config_log_dir])
+            self.Mode = mode or self.Mode
+            assert self.Mode, "Please set a valid logging mode!"
+            # self.log_queue = multiprocessing.Queue()
+            # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
+            if "debug" in self.Mode and self.__log_config and self.__log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
+                # OTB DEBUG logs are displayed iff level is DEBUG and configFile mode
+                # is debug as well.
+                os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
+
+    @property
+    def log_config(self):
+        """
+        Property log
+        """
+        assert self.__log_config, "Please initialize logger"
+        return self.__log_config
 
     @property
     def dem_db_filepath(self):
