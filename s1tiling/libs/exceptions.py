@@ -165,5 +165,6 @@ class MissingApplication(Error):
         message = ['Cannot execute S1Tiling because of the following reason(s):']
         for req, task_keys in missing_apps.items():
             message.append(f"- {req} for {task_keys}")
+        for ctx in contexts:
             message.append(f" --> {ctx}")
         super().__init__("\n".join(message), *args, **kwargs)
