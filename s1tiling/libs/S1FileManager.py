@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -153,7 +153,7 @@ def does_final_product_need_to_be_generated_for(product, tile_name,
     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
     and the requested polarizations exists.
     """
-    logger.debug('Searching whether %s final product has already been generated in %s', product, s2images)
+    logger.debug('>  Searching whether %s final products have already been generated', product)
     if len(s2images) == 0:
         return True
     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
@@ -174,12 +174,16 @@ def does_final_product_need_to_be_generated_for(product, tile_name,
         # We should use the `Processing.fname_fmt.concatenation` option
         pat          = fname_fmt_concatenation.format(**keys, polarisation=polarisation)
         pat_filtered = fname_fmt_filtered.format(**keys, polarisation=polarisation)
-        # pat          = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????.tif'
-        # pat_filtered = f'{sat.lower()}_{tile_name}_{polarisation}_*_{start}t??????_filtered.tif'
-        found = fnmatch.filter(s2images, pat) or fnmatch.filter(s2images, pat_filtered)
-        logger.debug('searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
+        found_s2 = fnmatch.filter(s2images, pat)
+        found_filt = fnmatch.filter(s2images, pat_filtered)
+        found = found_s2 or found_filt
+        logger.debug('   searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
         if not found:
             return True
+        # FIXME:
+        # - if found_s2 and not found_filt => we have everything that is needed
+        # - if found_filt and not found_s2 => we have prevent the required S1 products from being downloaded
+        #                                     if the S2 product is required
     return False
 
 
@@ -673,7 +677,7 @@ class S1FileManager:
                                            # And let's suppose nobody deletd files
                                            # manually!
         products = [p for p in products
-                if not p.as_dict()['id'] in self._product_list.keys()
+                if p.as_dict()['id'] not in self._product_list.keys()
                 ]
         # logger.debug('Products cache: %s', self._product_list.keys())
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
@@ -686,11 +690,12 @@ class S1FileManager:
         #   generator in order to download what is stricly necessary and nothing more
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
-        logger.debug('Search %s for %s on disk in %s', s2images_pat, polarizations, tile_out_dir)
+        logger.debug('Search %s for %s on disk in %s(/filtered)/%s', s2images_pat, polarizations, tile_out_dir, tile_name)
         def glob1(pat, *paths):
             pathname = glob.escape(os.path.join(*paths))
             return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
-        s2images = glob1(s2images_pat, tile_out_dir) + glob1(s2images_pat, tile_out_dir, "filtered")
+        s2images = glob1(s2images_pat, tile_out_dir, tile_name) + glob1(s2images_pat, tile_out_dir, "filtered", tile_name)
+        logger.debug(' => S2 products found on %s: %s', tile_name, s2images)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
                     p, tile_name, polarizations, self.cfg, s2images)
@@ -772,8 +777,8 @@ class S1FileManager:
                 downloaded_products += self._download(self._dag,
                         lonmin, lonmax, latmin, latmax,
                         self.first_date, self.last_date,
-                        os.path.join(self.cfg.output_preprocess, tiles_list),
-                        tile_name,
+                        tile_out_dir=self.cfg.output_preprocess,
+                        tile_name=tile_name,
                         orbit_direction=self.cfg.orbit_direction,
                         relative_orbit_list=self.cfg.relative_orbit_list,
                         polarization=self.cfg.polarisation,
