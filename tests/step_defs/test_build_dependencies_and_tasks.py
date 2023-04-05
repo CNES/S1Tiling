@@ -119,7 +119,7 @@ def orthofile(idx, polarity):
     return file_db.orthofile(idx, tmp=False, polarity=polarity)
 
 def concattask(polarity):
-    return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='')
+    return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
 
 def concatfile(idx, polarity):
     if idx is None:
