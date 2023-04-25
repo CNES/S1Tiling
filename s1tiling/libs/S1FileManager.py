@@ -256,6 +256,7 @@ def _keep_products_with_enough_coverage(content_info, target_cover, current_tile
     area_polygon = tile_footprint.GetGeometryRef(0)
     points = area_polygon.GetPoints()
     origin = [(point[0], point[1]) for point in points[:-1]]
+    content_info_with_intersection = []
     for ci in content_info:
         # p        = ci['product']
         # safe_dir = ci['safe_dir']
@@ -268,9 +269,14 @@ def _keep_products_with_enough_coverage(content_info, target_cover, current_tile
         intersection = poly.Intersection(tile_footprint)
         ci['coverage']    = intersection.GetArea() / tile_footprint.GetArea() * 100
         ci['tile_origin'] = origin
+        logger.debug('%s -> %s %% (inter %s / tile %s)',
+                     ci['product'].name, ci['coverage'], intersection.GetArea(), tile_footprint.GetArea())
+        if ci['coverage']:
+            # If no intersection at all => we ignore!
+            content_info_with_intersection.append(ci)
 
     return _filter_images_providing_enough_cover_by_pair(
-            content_info, target_cover,
+            content_info_with_intersection, target_cover,
             ident=lambda ci: ci['product'].name,
             get_cover=lambda ci: ci['coverage'],
             get_orbit=lambda ci: ci['relative_orbit'],
