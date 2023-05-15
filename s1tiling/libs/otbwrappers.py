@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2022-2023 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
