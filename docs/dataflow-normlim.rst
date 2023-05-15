@@ -108,12 +108,12 @@ LIA specific processings
          nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
          nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
 
-         raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | cut | ortho"];
-         raw_d1_t2t3 -> o_nwb_d1_t2 [label="β° cal | cut | ortho"];
-         raw_d2_t1t2 -> o_nwb_d2_t1 [label="β° cal | cut | ortho"];
-         raw_d2_t2t3 -> o_nwb_d2_t2 [label="β° cal | cut | ortho"];
-         raw_dn_t1t2 -> o_nwb_dn_t1 [label="β° cal | cut | ortho"];
-         raw_dn_t2t3 -> o_nwb_dn_t2 [label="β° cal | cut | ortho"];
+         raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
+         raw_d1_t2t3 -> o_nwb_d1_t2 [label="β° cal | noise | cut | ortho"];
+         raw_d2_t1t2 -> o_nwb_d2_t1 [label="β° cal | noise | cut | ortho"];
+         raw_d2_t2t3 -> o_nwb_d2_t2 [label="β° cal | noise | cut | ortho"];
+         raw_dn_t1t2 -> o_nwb_dn_t1 [label="β° cal | noise | cut | ortho"];
+         raw_dn_t2t3 -> o_nwb_dn_t2 [label="β° cal | noise | cut | ortho"];
 
          o_nwb_d1_t1 -> nwb_d1_b0 [label="concatenation"];
          o_nwb_d1_t2 -> nwb_d1_b0 [label="concatenation"];
