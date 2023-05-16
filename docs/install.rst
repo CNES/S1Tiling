@@ -45,7 +45,7 @@ version.
 
         .. code-block:: bash
 
-            python3 -m pip numpy
+            python3 -m pip install numpy
             python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)"
 
 
