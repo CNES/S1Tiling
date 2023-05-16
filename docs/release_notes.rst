@@ -54,6 +54,14 @@ v1.0.0 Bug fixed
     - and the exit code :ref:`exits.OFFLINE_DATA (68) <exit_codes>` will be
       used.
 
+v1.0.0 Breaking changes
++++++++++++++++++++++++
+
+- :ref:`[DataSource].eodagConfig <DataSource.eodag_config>` has been renamed
+  ``eodag_config``, to follow ``snake_case``. Old naming scheme is still
+  supported, but deprecated.
+  (`#129 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/129>`_).
+
 
 Version 0.3.2
 -------------

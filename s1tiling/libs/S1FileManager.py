@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -465,8 +465,8 @@ class S1FileManager:
         self.last_date  = cfg.last_date
         self._refresh_s1_product_list()
         if self.cfg.download:
-            logger.debug('Using %s EODAG configuration file', self.cfg.eodagConfig or 'user default')
-            self._dag = EODataAccessGateway(self.cfg.eodagConfig)
+            logger.debug('Using %s EODAG configuration file', self.cfg.eodag_config or 'user default')
+            self._dag = EODataAccessGateway(self.cfg.eodag_config)
             # TODO: update once eodag directly offers "DL directory setting" feature v1.7? +?
             dest_dir = os.path.abspath(self.cfg.raw_directory)
             logger.debug('Override EODAG output directory to %s', dest_dir)

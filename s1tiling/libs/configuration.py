@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -128,7 +128,7 @@ class Configuration():
         if config.has_section('PEPS'):
             logging.critical('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(exits.CONFIG_ERROR)
-        self.eodagConfig               = config.get('DataSource', 'eodagConfig', fallback=None)
+        self.eodag_config              = config.get('DataSource', 'eodag_config', fallback=None) or config.get('DataSource', 'eodagConfig', fallback=None)
         self.download                  = config.getboolean('DataSource', 'download')
         self.ROI_by_tiles              = config.get('DataSource', 'roi_by_tiles')
         self.first_date                = config.get('DataSource', 'first_date')
