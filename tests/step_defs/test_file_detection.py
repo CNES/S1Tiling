@@ -391,7 +391,7 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     paths = manager._download(None,
             extent_33NWB['lonmin'], extent_33NWB['lonmax'], extent_33NWB['latmin'], extent_33NWB['latmax'],
             file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
-            OUTPUT+'/33NWB', '33NWB', None, [], configuration.polarisation, 10, 42, False, None, None)
+            OUTPUT, '33NWB', None, [], configuration.polarisation, 10, 42, False, None, None)
     downloads.extend(paths)
 
 
