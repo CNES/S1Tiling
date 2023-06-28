@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -57,7 +57,7 @@ from . import Utils
 from . import exits
 from .outcome import Outcome
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension

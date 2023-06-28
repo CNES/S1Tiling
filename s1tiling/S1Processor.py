@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -80,8 +80,8 @@ from s1tiling.libs import exits
 # Graphs
 from s1tiling.libs.vis import SimpleComputationGraph
 
-logger = None
-# logger = logging.getLogger('s1tiling')
+# logger = None
+logger = logging.getLogger('s1tiling.processor')
 
 # Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
 EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
@@ -390,8 +390,6 @@ def do_process_with_pipeline(config_opt,
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
     # -> we set $OTB_GEOID_FILE
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
-    global logger
-    logger = logging.getLogger('s1tiling')
     with S1FileManager(config) as s1_file_manager:
         tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
         if len(tiles_to_process) == 0:
