@@ -205,9 +205,9 @@ def setup_worker_logs(config, dask_worker):
     old_handlers = d_logger.handlers[:]
 
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
             cfg['mode']     = 'a'  # Make sure to not reset worker log file
-            cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
+            cfg['filename'] = cfg['filename'].format(kind=f"worker-{dask_worker.name}")
 
     logging.config.dictConfig(config)
     # Restore old dask.distributed handlers, and inject them in root handler as well
