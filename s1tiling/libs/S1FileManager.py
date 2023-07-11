@@ -846,9 +846,10 @@ class S1FileManager:
             parent_dirs = [os.path.dirname(p) for p in new_products]
             content += list(filter(lambda d: d.path in parent_dirs, content0))
 
-            logger.debug('dirs found & filtered: %s', content)
-            logger.debug("products DL'ed: %s", new_products)
-            assert len(content) == len(new_products), f'Not all new products found in {self.cfg.raw_directory}: {new_products}'
+            logger.debug('dirs found & filtered: %s', content)  # List(DirEntry)
+            logger.debug("products DL'ed: %s", new_products)    # List(str)
+            if len(content) != len(new_products):
+                logger.warning(f'Not all new products are found in {self.cfg.raw_directory}: {new_products}. Some products downloaded may be corrupted.')
         else:
             self._product_list = {}
             self._products_info = []
