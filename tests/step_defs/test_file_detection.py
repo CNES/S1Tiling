@@ -72,6 +72,7 @@ class Configuration():
         self.output_preprocess       = outputdir
         self.cache_srtm_by           = 'symlink'
         self.fname_fmt               = {}
+        self.platform_list           = []
         self.orbit_direction         = None
         self.relative_orbit_list     = []
         self.calibration_type        = 'sigma'
@@ -280,16 +281,16 @@ def given_requets_for_beta(configuration):
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
-            extent, first_date, last_date, orbit_direction, relative_orbit_list,
-            polarization, searched_items_per_page,dryrun):
+            extent, first_date, last_date, platform_list, orbit_direction,
+            relative_orbit_list, polarization, searched_items_per_page,dryrun):
         return [MockEOProduct(p) for p in product_ids]
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
             lambda slf, dag, extent_33NWB, first_date, last_date,
-            orbit_direction, relative_orbit_list, polarization,
+            platform_list, orbit_direction, relative_orbit_list, polarization,
             searched_items_per_page,dryrun
             : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
-                orbit_direction, relative_orbit_list, polarization,
+                platform_list, orbit_direction, relative_orbit_list, polarization,
                 searched_items_per_page,dryrun))
 
 @given('All products are available for download')
@@ -389,9 +390,13 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     manager._update_s1_img_list_for('33NWB')
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     paths = manager._download(None,
-            extent_33NWB['lonmin'], extent_33NWB['lonmax'], extent_33NWB['latmin'], extent_33NWB['latmax'],
-            file_db.start_time(0), file_db.start_time(file_db.nb_S1_products-1),
-            OUTPUT, '33NWB', None, [], configuration.polarisation, 10, 42, False, None, None)
+            lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
+            latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
+            first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
+            tile_out_dir=OUTPUT, tile_name='33NWB',
+            platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
+            polarization=configuration.polarisation,
+            cover=10, searched_items_per_page=42, dryrun=False, dl_wait=None, dl_timeout=None)
     downloads.extend(paths)
 
 
