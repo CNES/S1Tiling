@@ -49,6 +49,21 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 SPLIT_PATTERN = re.compile("^\s+|\s*,\s*|\s+$")
 
+def load_log_config(cfgpaths):
+    """
+    Take care of loading a log configuration file expressed in YAML
+    """
+    with open(cfgpaths[0], 'r') as stream:
+        # FullLoader requires yaml 5.1
+        # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+        if hasattr(yaml, 'FullLoader'):
+            config = yaml.load(stream, Loader=yaml.FullLoader)
+        else:
+            print("WARNING - upgrade pyyaml to version 5.1 at least!!")
+            config = yaml.load(stream)
+    return config
+
+
 def init_logger(mode, paths):
     """
     Initializes logging service.
@@ -64,14 +79,7 @@ def init_logger(mode, paths):
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        with open(cfgpaths[0], 'r') as stream:
-            # FullLoader requires yaml 5.1
-            # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-            if hasattr(yaml, 'FullLoader'):
-                config = yaml.load(stream, Loader=yaml.FullLoader)
-            else:
-                print("WARNING - upgrade pyyaml to version 5.1 at least!!")
-                config = yaml.load(stream)
+        config = load_log_config(cfgpaths)
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -83,10 +91,21 @@ def init_logger(mode, paths):
                 config["root"]["handlers"] += ['file']
             if 'important' not in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
+            if verbose:
+                config["handlers"]["file"]["level"] = "DEBUG"
+        # Update all filenames with debug mode info.
+        filename_opts = {
+                "mode": ".debug" if verbose else "",
+                "kind": "{kind}",
+                }
+        for _, cfg in config['handlers'].items():
+            if 'filename' in cfg and '{mode}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format_map(filename_opts)
+        # Update main filename with... "main"
         main_config = copy.deepcopy(config)
         for _, cfg in main_config['handlers'].items():
-            if 'filename' in cfg and '%' in cfg['filename']:
-                cfg['filename'] = cfg['filename'] % ('main',)
+            if 'filename' in cfg and '{kind}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
         return config
     else:

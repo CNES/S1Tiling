@@ -53,7 +53,7 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
 from . import Utils
 from ..__meta__ import __version__
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.wrappers')
 
 def append_to(meta, key, value):
     """
