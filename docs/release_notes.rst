@@ -24,12 +24,14 @@ v1.0.0 Improvements
   list of :samp:`ACQUISITION_DATETIME_{{id}}`
   (`#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/25>`_).
 
-- New filters can be used to select input products: :ref:`orbit_direction
+- New filters can be used to select input products: :ref:`platform_list
+  <DataSource.platform_list>`, :ref:`orbit_direction
   <DataSource.orbit_direction>`, :ref:`relative_orbit_list
   <DataSource.relative_orbit_list>` and :ref:`tile_to_product_overlap_ratio
   <DataSource.tile_to_product_overlap_ratio>`.
   (`#83 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/83>`_,
-  `#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_).
+  `#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_,
+  `#133 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/133>`_.
 
 - Null values obtained after the optional *denoising* done during the
   :ref:`calibration <calibration>` wil be set to a :ref:`minimal signal value
@@ -58,6 +60,13 @@ v1.0.0 Bug fixed
   <Processing.mode>`. Logging code has also been simplified and cleaned.
   (`#132 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/132>`_)
 
+v1.0.0 Breaking changes
++++++++++++++++++++++++
+
+- :ref:`[DataSource].eodagConfig <DataSource.eodag_config>` has been renamed
+  ``eodag_config``, to follow ``snake_case``. Old naming scheme is still
+  supported, but deprecated.
+  (`#129 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/129>`_).
 
 Version 0.3.2
 -------------

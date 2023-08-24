@@ -311,6 +311,12 @@ You can use this :download:`this template
           [DataSource]
           roi_by_tiles : 33NWB
 
+      .. _DataSource.platform_list:
+  * - ``platform_list``
+    - Defines the list of platforms from where come the products to download
+      and process.
+      Valid values are expected in the form of ``S1*``.
+
       .. _DataSource.polarisation:
   * - ``polarisation``
     - Defines the polarisation mode of the products to download and process.
