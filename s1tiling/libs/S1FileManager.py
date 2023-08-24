@@ -55,7 +55,7 @@ except ImportError:
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
+from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, get_platform_from_s1_raster
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 from .outcome import Outcome
@@ -140,8 +140,8 @@ def product_cover(product, geometry):
 #             pass
 
 
-def does_final_product_need_to_be_generated_for(product, tile_name,
-        polarizations, cfg, s2images):
+def does_final_product_need_to_be_generated_for(
+        product, tile_name, polarizations, cfg, s2images):
     """
     Tells whether finals products associated to a tile needs to be generated.
 
@@ -153,7 +153,8 @@ def does_final_product_need_to_be_generated_for(product, tile_name,
     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
     and the requested polarizations exists.
     """
-    logger.debug('>  Searching whether %s final products have already been generated', product)
+    logger.debug('>  Searching whether %s final products have already been generated (in polarizations: %s)',
+                 product, polarizations)
     if len(s2images) == 0:
         return True
     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
@@ -206,8 +207,8 @@ def filter_images_or_ortho(kind, all_images):
     return images
 
 
-def _filter_images_providing_enough_cover_by_pair(products, target_cover,
-        ident, get_cover, get_orbit):
+def _filter_images_providing_enough_cover_by_pair(
+        products, target_cover, ident, get_cover, get_orbit):
     """
     Associate products of the same date and orbit into pairs (at most),
     to compute the total coverage of the target zone.
@@ -317,7 +318,7 @@ def _discard_small_redundant(products, ident=None):
 
 def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_list):
     """
-    Takes care of discarding product that don't match the request orbit
+    Takes care of discarding products that don't match the requested orbit
     specification.
 
     Note: Beware that specifications could be contradictory and end up
@@ -328,8 +329,6 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
     kept_products = []
     for ci in content_info:
         p         = ci['product']
-        # safe_dir  = ci['safe_dir']
-        # manifest  = ci['manifest']
         direction = ci['orbit_direction']
         orbit     = ci['relative_orbit']
         # logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
@@ -343,6 +342,28 @@ def _keep_requested_orbits(content_info, rq_orbit_direction, rq_relative_orbit_l
             if orbit not in rq_relative_orbit_list:
                 logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
                         p.name, orbit, rq_relative_orbit_list)
+                continue
+        kept_products.append(ci)
+    return kept_products
+
+def _keep_requested_platforms(content_info, rq_platform_list):
+    """
+    Takes care of discarding products that don't match the requested platform specification.
+
+    Note: Beware that specifications could be contradictory and end up discarding everything.
+    """
+    if not rq_platform_list:
+        return content_info
+    kept_products = []
+    for ci in content_info:
+        p        = ci['product']
+        platform = ci['platform']
+        logger.debug('CHECK platform: %s / %s', p, platform)
+
+        if rq_platform_list:
+            if platform not in rq_platform_list:
+                logger.debug('Discard %s as its platform (%s) differs from the requested ones %s',
+                        p.name, platform, rq_platform_list)
                 continue
         kept_products.append(ci)
     return kept_products
@@ -590,7 +611,7 @@ class S1FileManager:
 
     def _search_products(self, dag: EODataAccessGateway,
             extent, first_date, last_date,
-            orbit_direction, relative_orbit_list, polarization,
+            platform_list, orbit_direction, relative_orbit_list, polarization,
             searched_items_per_page,dryrun):
         """
         Process with the call to eodag search.
@@ -603,9 +624,10 @@ class S1FileManager:
         assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
         # In case only 'VV' or 'VH' is requested, we still need to
         # request 'VV VH' to the data provider through eodag.
-        dag_polarization_param = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
-        dag_orbit_dir_param    = k_dir_assoc.get(orbit_direction, None)  # None => all
-        dag_orbit_list_param   = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
+        dag_polarization_param  = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
+        dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction, None)  # None => all
+        dag_orbit_list_param    = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
+        dag_platform_list_param = platform_list[0] if len(platform_list) == 1 else None
         while True:
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
@@ -617,6 +639,7 @@ class S1FileManager:
                     sensorMode="IW",
                     orbitDirection=dag_orbit_dir_param,        # None => all
                     relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
+                    platformSerialIdentifier=dag_platform_list_param,
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
             products += page_products
@@ -634,19 +657,32 @@ class S1FileManager:
                 filtered_products.extend(products.filter_property(relativeOrbitNumber=rel_orbit))
             products = filtered_products
 
+        # Filter platform -- if it could not be done earlier in the search() request.
+        if len(platform_list) > 1:
+            filtered_products = []
+            for platform in platform_list:
+                filtered_products.extend(products.filter_property(platformSerialIdentifier=platform))
+            products = filtered_products
+
         # Final log
-        extra_filter_log1 = ''
+        orbit_filter_log1 = ''
         if dag_orbit_dir_param:
-            extra_filter_log1 = f'{dag_orbit_dir_param} '
-        extra_filter_log2 = ''
+            orbit_filter_log1 = f'{dag_orbit_dir_param} '
+        orbit_filter_log2 = ''
         if len(relative_orbit_list) > 0:
             if len(relative_orbit_list) > 1:
-                extra_filter_log2 = 's'
-            extra_filter_log2 += ' ' + ', '.join([str(i) for i in relative_orbit_list])
-        extra_filter_log = ''
-        if extra_filter_log1 or extra_filter_log2:
-            extra_filter_log = f' && {extra_filter_log1}orbit{extra_filter_log2}'
-        logger.info("%s remote S1 product(s) found and filtered (IW && %s%s): %s", len(products), polarization, extra_filter_log, products)
+                orbit_filter_log2 = 's'
+            orbit_filter_log2 += ' ' + ', '.join([str(i) for i in relative_orbit_list])
+        orbit_filter_log = ''
+        if orbit_filter_log1 or orbit_filter_log2:
+            orbit_filter_log = f'{orbit_filter_log1}orbit{orbit_filter_log2}'
+        extra_filters = ['IW', polarization]
+        if platform_list:
+            extra_filters.append('|'.join(platform_list))
+        if orbit_filter_log:
+            extra_filters.append(orbit_filter_log)
+        logger.info("%s remote S1 product(s) found and filtered (%s): %s", len(products),
+                    " && ".join(extra_filters), products)
 
         return products
 
@@ -712,7 +748,7 @@ class S1FileManager:
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
             tile_out_dir, tile_name,
-            orbit_direction, relative_orbit_list, polarization, cover,
+            platform_list, orbit_direction, relative_orbit_list, polarization, cover,
             searched_items_per_page,dryrun, dl_wait, dl_timeout):
         """
         Process with the call to eodag search + filter + download.
@@ -726,7 +762,7 @@ class S1FileManager:
                 'latmax': latmax
                 }
         products = self._search_products(dag, extent,
-                first_date, last_date, orbit_direction, relative_orbit_list,
+                first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
                 polarization, searched_items_per_page,dryrun)
 
         products = self._filter_products(products, extent, tile_out_dir, tile_name, polarization, cover)
@@ -785,6 +821,7 @@ class S1FileManager:
                         self.first_date, self.last_date,
                         tile_out_dir=self.cfg.output_preprocess,
                         tile_name=tile_name,
+                        platform_list=self.cfg.platform_list,
                         orbit_direction=self.cfg.orbit_direction,
                         relative_orbit_list=self.cfg.relative_orbit_list,
                         polarization=self.cfg.polarisation,
@@ -820,6 +857,7 @@ class S1FileManager:
     def _refresh_s1_product_list(self, new_products=None):
         """
         Scan all the available products and filter them according to:
+        - platform requirements
         - orbit requirements
         - date requirements
 
@@ -865,7 +903,7 @@ class S1FileManager:
         # orbit_direction, relative_orbit}
         products_info = [ {
             'product':  p,
-            # EODAG save SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            # EODAG saves SAFEs into {rawdir}/{prod}/{prod}.SAFE
             'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
             } for p in content]
         products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
@@ -875,6 +913,7 @@ class S1FileManager:
             ci['manifest']        = manifest
             ci['orbit_direction'] = get_orbit_direction(manifest)
             ci['relative_orbit']  = get_relative_orbit(manifest)
+            ci['platform']        = ci['product'].name[:3]
 
         # Filter by orbit specification
         if self.cfg.orbit_direction or self.cfg.relative_orbit_list:
@@ -882,9 +921,15 @@ class S1FileManager:
                     self.cfg.orbit_direction, self.cfg.relative_orbit_list)
             logger.debug('%s local products remaining after filtering requested orbits', len(products_info))
 
+        # Filter by platform specification
+        if self.cfg.platform_list:
+            products_info = _keep_requested_platforms(products_info, self.cfg.platform_list)
+            logger.debug('%s local products remaining after filtering requested platforms (%s)',
+                         len(products_info), ", ".join(self.cfg.platform_list))
+
         # Final log + extend "global" products_info with newly analysed ones
         if products_info:
-            logger.debug('Time and orbit compatible products found on disk:')
+            logger.debug('%s time, platform and orbit compatible products found on disk:', len(products_info))
             for ci in products_info:
                 current_content = ci['product']
                 logger.debug('* %s', current_content.name)
