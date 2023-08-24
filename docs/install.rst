@@ -231,7 +231,7 @@ or even directly used with
             srtm : /MNT/SRTM_30_hgt
             ...
             [DataSource]
-            eodagConfig : /eo_config/eodag.yml
+            eodag_config : /eo_config/eodag.yml
             ...
 
 .. _docker.S1LIAMap:
