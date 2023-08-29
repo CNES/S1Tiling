@@ -57,11 +57,12 @@ public_prefix="${s1tiling_version}-otb${otb_ver}"
 env="${public_prefix}-${date}"
 
 # Where it will be installed
-# HAL
-# prefix_root=/softs/projets/s1tiling/rh7
-# TREX
+# -> HAL
+# projets_root="/softs/projets"
+# -> TREX
 projets_root="/work/softs/projets"
-prefix_root="${projets_root}/s1tiling"
+
+prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
 module_root="${projets_root}/modulefiles/s1tiling"
 
 ## Helper functions {{{1
@@ -137,17 +138,23 @@ _execute python -m pip install .                 || _die "Can't install S1Tiling
 _execute S1Processor --version                   || _die "S1Tiling isn't properly installed"
 
 _execute cd "${prefix_root}"
+_execute chmod -R go+rX "${env}"
 _execute ln -s "${env}" "${public_prefix}"
 
 # And create the modulefile!
-_verbose "Create modulefile: ${module_root}/${public_prefix}.lua"
-cat > "${module_root}/${public_prefix}.lua" << EOF
+export module_file="${module_root}/${public_prefix}.lua"
+_verbose "Create modulefile: ${module_file}"
+cat > "${module_file}" << EOF
 -- -*- lua -*-
 -- Aide du module accessible avec la commande module help
 help(
 [[
 Version disponible sous rh${RH_FLAVOR}
 ]])
+
+local function is_empty(s)
+  return s == nil or s == ''
+end
 
 -- Information du modulefile
 local os_disponible = "rh${RH_FLAVOR}"
@@ -164,7 +171,7 @@ whatis("Os      : "..os_disponible)
 whatis("Date d installation : "..installation)
 
 -- Verification du modulefile
-check_os(os_disponible)
+-- check_os(os_disponible) -- on HAL only, not on TREX...
 
 -- Variable du modulefile
 local home=pathJoin("/softs/projets/s1tiling",rhos,version)
@@ -182,6 +189,10 @@ end
 -- Dependances
 depend("otb/${otb_ver}-${python_ml_dep}")
 EOF
+
+# TODO: Use ACL when bug is fixed on TREX!
+_execute chmod u+rw "${module_file}"
+_execute chmod go+r "${module_file}"
 
 # }}}
 # vim: set foldmethod=marker:
