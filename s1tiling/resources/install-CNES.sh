@@ -139,6 +139,7 @@ _execute S1Processor --version                   || _die "S1Tiling isn't properl
 
 _execute cd "${prefix_root}"
 _execute chmod -R go+rX "${env}"
+[ -h "${public_prefix}" ] && _execute rm "${public_prefix}"
 _execute ln -s "${env}" "${public_prefix}"
 
 # And create the modulefile!
