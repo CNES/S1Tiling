@@ -198,7 +198,7 @@ class Configuration():
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
-        self.dem                 = get_opt(config, configFile, 'Paths', 'dem', fallback='') or get_opt(config, configFile, 'Paths', 'srtm')
+        self.dem                 = get_opt(config, configFile, 'Paths', 'dem_dir', fallback='') or get_opt(config, configFile, 'Paths', 'srtm')
         self._DEMShapefile       = get_opt(config, configFile, 'Paths', 'dem_database', fallback='')
         # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
         #: Path to the internal DEM tiles database: automatically set
