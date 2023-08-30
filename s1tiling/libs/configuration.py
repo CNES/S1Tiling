@@ -48,6 +48,22 @@ from .otbpipeline import otb_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
+SPLIT_PATTERN = re.compile("^\s+|\s*,\s*|\s+$")
+
+def load_log_config(cfgpaths):
+    """
+    Take care of loading a log configuration file expressed in YAML
+    """
+    with open(cfgpaths[0], 'r') as stream:
+        # FullLoader requires yaml 5.1
+        # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+        if hasattr(yaml, 'FullLoader'):
+            config = yaml.load(stream, Loader=yaml.FullLoader)
+        else:
+            print("WARNING - upgrade pyyaml to version 5.1 at least!!")
+            config = yaml.load(stream)
+    return config
+
 
 # Helper functions for extracting configuration options
 
@@ -116,14 +132,7 @@ def _init_logger(mode, paths):
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        with open(cfgpaths[0], 'r') as stream:
-            # FullLoader requires yaml 5.1
-            # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-            if hasattr(yaml, 'FullLoader'):
-                config = yaml.load(stream, Loader=yaml.FullLoader)
-            else:
-                print("WARNING - upgrade pyyaml to version 5.1 at least!!")
-                config = yaml.load(stream)
+        config = load_log_config(cfgpaths)
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -135,10 +144,21 @@ def _init_logger(mode, paths):
                 config["root"]["handlers"] += ['file']
             if 'important' not in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
+            if verbose:
+                config["handlers"]["file"]["level"] = "DEBUG"
+        # Update all filenames with debug mode info.
+        filename_opts = {
+                "mode": ".debug" if verbose else "",
+                "kind": "{kind}",
+                }
+        for _, cfg in config['handlers'].items():
+            if 'filename' in cfg and '{mode}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format_map(filename_opts)
+        # Update main filename with... "main"
         main_config = copy.deepcopy(config)
         for _, cfg in main_config['handlers'].items():
-            if 'filename' in cfg and '%' in cfg['filename']:
-                cfg['filename'] = cfg['filename'] % ('main',)
+            if 'filename' in cfg and '{kind}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
         return config
     else:
@@ -203,7 +223,7 @@ class Configuration():
         if config.has_section('PEPS'):
             raise exceptions.ConfigurationError('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
-        self.eodagConfig               = get_opt(config, configFile, 'DataSource', 'eodagConfig', fallback=None)
+        self.eodag_config              = get_opt(config, configFile, 'DataSource', 'eodag_config', fallback=None) or get_opt(config, configFile, 'DataSource', 'eodagConfig', fallback=None)
         #: Boolean flag that enables/disables download of S1 input images: :ref:`[DataSource.download] <DataSource.download>`
         self.download                  = getboolean_opt(config, configFile, 'DataSource', 'download')
         #: Region Of Interest to download: See :ref:`[DataSource.roi_by_tiles] <DataSource.roi_by_tiles>`
@@ -212,6 +232,15 @@ class Configuration():
         self.first_date                = get_opt(config, configFile, 'DataSource', 'first_date')
         #: End date: :ref:`[DataSource.last_date] <DataSource.last_date>`
         self.last_date                 = get_opt(config, configFile, 'DataSource', 'last_date')
+
+        platform_list_str              = get_opt(config, configFile, 'DataSource', 'platform_list', fallback='')
+        platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
+        unsupported_platforms = [p for p in platform_list if p and not p.startswith("S1")]
+        if unsupported_platforms:
+            raise exceptions.ConfigurationError(f"Non supported requested platforms: {', '.join(unsupported_platforms)}", configFile)
+        #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
+        self.platform_list             = platform_list
+
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
         self.orbit_direction           = get_opt(config, configFile, 'DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
@@ -353,6 +382,7 @@ class Configuration():
         logging.debug("- download                       : %s",     self.download)
         logging.debug("- first_date                     : %s",     self.first_date)
         logging.debug("- last_date                      : %s",     self.last_date)
+        logging.debug("- platform_list                  : %s",     self.platform_list)
         logging.debug("- polarisation                   : %s",     self.polarisation)
         logging.debug("- orbit_direction                : %s",     self.orbit_direction)
         logging.debug("- relative_orbit_list            : %s",     self.relative_orbit_list)

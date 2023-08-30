@@ -46,7 +46,7 @@ version.
 
         .. code-block:: bash
 
-            python3 -m pip numpy
+            python3 -m pip install numpy
             python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
 
@@ -150,7 +150,7 @@ Then you can install S1 Tiling thanks to `pip`.
 
     # Then, upgrade pip and setuptools in your virtual environment
     python -m pip install --upgrade pip
-    python -m pip install --upgrade setuptools
+    python -m pip install --upgrade setuptools==57.5.0
 
     # Finally, install S1 Tiling
     #   Note: older versions of pip used to require --use-feature=2020-resolver
@@ -232,7 +232,7 @@ or even directly used with
             dem_dir : /MNT/SRTM_30_hgt
             ...
             [DataSource]
-            eodagConfig : /eo_config/eodag.yml
+            eodag_config : /eo_config/eodag.yml
             ...
 
 .. _docker.S1LIAMap:

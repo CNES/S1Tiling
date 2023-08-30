@@ -58,7 +58,7 @@ from . import exceptions
 from .outcome import Outcome
 from ..__meta__ import __version__
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension

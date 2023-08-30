@@ -57,7 +57,7 @@ from s1tiling.libs.vis import SimpleComputationGraph
 EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.api')
 
 def remove_files(files):
     """
@@ -177,9 +177,9 @@ def setup_worker_logs(config, dask_worker):
     old_handlers = d_logger.handlers[:]
 
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
             cfg['mode']     = 'a'  # Make sure to not reset worker log file
-            cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
+            cfg['filename'] = cfg['filename'].format(kind=f"worker-{dask_worker.name}")
 
     logging.config.dictConfig(config)
     # Restore old dask.distributed handlers, and inject them in root handler as well

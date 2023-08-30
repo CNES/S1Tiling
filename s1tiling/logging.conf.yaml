@@ -16,17 +16,18 @@ handlers:
         stream: ext://sys.stdout
     file:
         class: logging.FileHandler
-        level: DEBUG
+        level: INFO
         formatter: full
-        # %s will be replaced by "main" or "worker-%d"
-        filename: S1Processor-%s.debug.log
+        # {kind} will be replaced with "main" or "worker-%d"
+        # {mode} will be replaced with ".debug" or nothing
+        filename: S1Processor-{kind}{mode}.log
         mode: w # 'w' disable 'a'ppend
     important:
         class: logging.FileHandler
         level: WARNING
         formatter: full
-        # %s will be replaced by "main" or "worker-%d"
-        filename: S1Processor-%s.warning.log
+        # {kind} will be replaced with "main" or "worker-%d"
+        filename: S1Processor-{kind}.warning.log
         mode: w # 'w' disable 'a'ppend
     # email:
     #     class: logging.handlers.SMTPHandler

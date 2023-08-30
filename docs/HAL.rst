@@ -9,10 +9,35 @@ Some specificities about HAL cluster
    :local:
    :depth: 3
 
+Using S1Tiling Lmod module on HAL
+---------------------------------
+
+S1Tiling is already installed on HAL (since June 2023). It's avaiable through
+`Lmod <https://lmod.readthedocs.io/en/latest/?badge=latest>`_; see also HAL
+user guides.
+
+.. code:: bash
+
+    # Use the lastest version
+    ml s1tiling
+
+    # Check versions available
+    ml av version
+
+    # Activate a specific version
+    ml s1tiling/1.0.0rc2-otb7.4
+
+
+.. note::
+
+    For the moment, only S1Tiling 1.0 RC2 is installed with a dependency to OTB
+    7.4, Python 3.8.4 and G++ 8.2.
+
 Installation on HAL
 -------------------
 
-There are mainly two x two ways to install S1Tiling on HAL.
+You may prefer to install S1Tiling yourself. In that case, there are mainly two
+x two ways to install S1Tiling on HAL.
 
 If one wants to install S1Tiling from sources instead of pipy, it could be done
 from the following context. Then, in later steps, use ``"${S1TILING_SRC_DIR}"``
@@ -34,7 +59,7 @@ instead of ``s1tiling`` as ``pip`` parameter.
 
 .. code:: bash
 
-    ml otb/7.4-python3.7.2
+    ml otb/7.4-python3.8.4-gcc8.2
 
     # Create a pip virtual environment
     python -m venv install_with_otb_module
@@ -43,8 +68,8 @@ instead of ``s1tiling`` as ``pip`` parameter.
     source install_with_otb_module/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -58,7 +83,7 @@ To use it
 .. code:: bash
 
     ml purge
-    ml otb/7.4-python3.7.2
+    ml otb/7.4-python3.8.4-gcc8.2
     source install_with_otb_module/bin/activate
 
     S1Processor requestfile.cfg
@@ -71,7 +96,7 @@ To use it
 
 .. code:: bash
 
-    ml otb/7.4-python3.7.2
+    ml otb/7.4-python3.8.4-gcc8.2
 
     # Create a conda environment
     ml conda
@@ -81,8 +106,8 @@ To use it
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -97,7 +122,7 @@ To use it
 
     ml purge
     ml conda
-    ml otb/7.4-python3.7.2
+    ml otb/7.4-python3.8.4-gcc8.2
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
 
     S1Processor requestfile.cfg
@@ -151,8 +176,8 @@ for the chosen version of Python.
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
     # - numpy in order to compile OTB python bindinds for Python 3.7.2
     pip install numpy
     # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
@@ -204,8 +229,8 @@ for the chosen version of Python.
     source install_with_otb_binaries/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
     # - numpy in order to compile OTB python bindinds for Python
     pip install numpy
     # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
