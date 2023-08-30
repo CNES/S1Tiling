@@ -44,6 +44,7 @@ import yaml
 
 from s1tiling.libs import exits
 from .otbpipeline import otb_version
+from ..__meta__ import __version__ as s1tiling_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
@@ -277,7 +278,7 @@ class Configuration():
             self.show_configuration()
 
     def show_configuration(self):
-        logging.debug("Running S1Tiling with:")
+        logging.debug("Running S1Tiling %s with:", s1tiling_version)
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s",     self.GeoidFile)
         logging.debug("- s1_images                      : %s",     self.raw_directory)
