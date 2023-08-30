@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2022-2023 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -245,12 +247,12 @@ class AnalyseBorders(StepFactory):
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
         tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
-        
+
         # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
         # see Issue #88
         #Temporary correction:
         #     The cut margin (right and left)  is done for any version of IPF
-       
+
         #ipf_version = extract_IPF_version(tifftag_software)
         # if version.parse(ipf_version) >= version.parse('2.90'):
         #    cut_overlap_range = 0
@@ -769,6 +771,7 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = None # use gen_tmp_dir
         fname_fmt = cfg.fname_fmt_concatenation
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
+        self.__tname_fmt = cfg.fname_fmt_concatenation.replace('{acquisition_stamp}', '{acquisition_day}')
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=gen_output_dir,
@@ -808,10 +811,9 @@ class Concatenate(_ConcatenatorFactory):
         """
         Make sure the task_name and the basename are updated
         """
-        tname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         meta['task_name']     = os.path.join(
                 self.output_directory(meta),
-                TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
+                TemplateOutputFilenameGenerator(self.__tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename'] = self.update_out_filename
         in_file               = out_filename(meta)
@@ -821,7 +823,7 @@ class Concatenate(_ConcatenatorFactory):
                 filename        = out_filename(meta)
                 exist_task_name = os.path.isfile(task_name)
                 exist_file_name = os.path.isfile(filename)
-                logger.debug('Checking concatenation product:\n- %s => %s\n- %s => %s',
+                logger.debug('Checking concatenation product:\n- %s => %s (task)\n- %s => %s (file)',
                         task_name, '∃' if exist_task_name else '∅',
                         filename,  '∃' if exist_file_name else '∅')
                 return exist_task_name or exist_file_name
