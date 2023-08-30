@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2022-2023 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -62,7 +64,6 @@ import click
 from s1tiling.libs.api import s1_process, s1_process_lia
 from s1tiling.libs.exits import translate_exception_into_exit_code
 
-# logger = None
 logger = logging.getLogger('s1tiling.processor')
 
 # ======================================================================
