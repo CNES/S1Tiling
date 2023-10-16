@@ -57,7 +57,6 @@ Options:
 from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
-from pathlib import Path
 import sys
 
 import click
@@ -77,7 +76,7 @@ def cli_execute(processing, *args, **kwargs):
         # situation = processing(*args, **kwargs)
         # logger.debug('nominal exit: %s', situation.code)
         return situation.code
-    except BaseException as e:
+    except BaseException as e:  # pylint: disable=broad-except
         # Logger object won't always exist at this time (like in configuration
         # errors) hence we may use click report mechanism instead.
         if logger:
@@ -89,7 +88,7 @@ def cli_execute(processing, *args, **kwargs):
 
 
 # ======================================================================
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @click.option(
         "--cache-before-ortho/--no-cache-before-ortho",
@@ -134,9 +133,11 @@ def cli_execute(processing, *args, **kwargs):
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
-         debug_tasks, cache_before_ortho, config_filename,
-         eodag_download_wait, eodag_download_timeout):
+def run(
+    searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
+    debug_tasks, cache_before_ortho, config_filename,
+    eodag_download_wait, eodag_download_timeout
+):  # pylint: disable=too-many-arguments
     """
     This function is used as entry point to create console scripts with setuptools.
     """
@@ -152,7 +153,7 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
                         cache_before_ortho=cache_before_ortho))
 
 # ======================================================================
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @click.option(
         "--searched_items_per_page",
@@ -190,8 +191,10 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
-         debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
+def run_lia(
+    searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
+    debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout
+):  # pylint: disable=too-many-arguments
     """
     This function is used as entry point to create console scripts with setuptools.
     """
@@ -207,4 +210,4 @@ def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    run()
+    run()  # pylint: disable=no-value-for-parameter
