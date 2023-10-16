@@ -33,6 +33,10 @@
 This module defines S1Tiling specific exception classes.
 """
 
+from typing import List, Set, Union
+from pathlib import Path
+
+
 class Error(Exception):
     """
     Base class for all S1Tiling specific exceptions.
@@ -44,7 +48,7 @@ class ConfigurationError(Error):
     """
     Generic error for configuration file errors.
     """
-    def __init__(self, message, configFile="", *args, **kwargs):
+    def __init__(self, message: str, *args, configFile="", **kwargs) -> None:
         """
         Constructor
         """
@@ -56,7 +60,7 @@ class CorruptedDataSAFEError(Error):
     """
     An empty data safe has been found and needs to be removed so it can be fetched again.
     """
-    def __init__(self, manifest, *args, **kwargs):
+    def __init__(self, manifest, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -74,7 +78,7 @@ class DownloadS1FileError(Error):
     """
     Error that signals problems to download images.
     """
-    def __init__(self, tile_name, *args, **kwargs):
+    def __init__(self, tile_name: str, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -92,7 +96,7 @@ class NoS2TileError(Error):
     """
     Error that signals incorrect Sentinel-2 tile names.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -106,7 +110,7 @@ class NoS1ImageError(Error):
     Sentinel-2 tiles <DataSource.roi_by_tiles>` within the :ref:`requested
     time range <DataSource.first_date>`
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -119,7 +123,7 @@ class MissingDEMError(Error):
     Cannot find all the :ref:`DEM products <paths.srtm>` that cover the
     :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -131,7 +135,7 @@ class MissingGeoidError(Error):
     """
     The :ref:`geoid file <paths.geoid_file>` is missing or the specified path is incorrect.
     """
-    def __init__(self, geoid_file, *args, **kwargs):
+    def __init__(self, geoid_file: Union[str, Path], *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -144,7 +148,7 @@ class InvalidOTBVersionError(Error):
     """
     Error that signals OTB version incompatible with S1Tiling needs.
     """
-    def __init__(self, reason, *args, **kwargs):
+    def __init__(self, reason: str, *args, **kwargs) -> None:
         """
         Constructor
         """
@@ -158,7 +162,7 @@ class MissingApplication(Error):
     be executed. Likelly OTB and/or NORMLIM related applications aren't
     correctly installed.
     """
-    def __init__(self, missing_apps, contexts, *args, **kwargs):
+    def __init__(self, missing_apps, contexts: Union[Set[str], List[str]], *args, **kwargs) -> None:
         """
         Constructor
         """
