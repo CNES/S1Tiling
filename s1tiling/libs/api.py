@@ -29,19 +29,26 @@
 #
 # =========================================================================
 
+"""
+Submodule that defines all API related functions and classes.
+"""
+
 import logging
 import os
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
+from s1tiling.libs.vis import SimpleComputationGraph # Graphs
 from .S1FileManager import S1FileManager, WorkspaceKinds
 # from libs import S1FilteringProcessor
 from . import Utils
 from .configuration import Configuration
-from .otbpipeline import FirstStep, PipelineDescriptionSequence
+from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence
 from .otbwrappers import (
+        StepFactory,
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
@@ -51,9 +58,6 @@ from .otbwrappers import (
 from . import exits
 from . import exceptions
 
-# Graphs
-from s1tiling.libs.vis import SimpleComputationGraph
-
 
 # Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
 EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
@@ -61,7 +65,7 @@ EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minute
 
 logger = logging.getLogger('s1tiling.api')
 
-def remove_files(files):
+def remove_files(files: List[Union[str,Path]]) -> None:
     """
     Removes the files from the disk
     """
@@ -71,7 +75,7 @@ def remove_files(files):
             os.remove(file_it)
 
 
-def extract_tiles_to_process(cfg, s1_file_manager):
+def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager) -> List[str]:
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
@@ -105,7 +109,7 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process, s1_file_manager):
+def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
@@ -114,7 +118,6 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
 
     # Analyse DEM coverage for MGRS tiles to be processed
     dem_tiles_check = s1_file_manager.check_dem_coverage(tiles_to_process)
-    all_dem_info = {}
 
     # For each MGRS tile to process
     for tile in tiles_to_process:
@@ -123,7 +126,7 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
         dem_tiles = dem_tiles_check[tile]
         current_coverage = 0
         # Compute global coverage
-        for dem_tile, dem_info in dem_tiles.items():
+        for _, dem_info in dem_tiles.items():
             current_coverage += dem_info['_coverage']
             # needed_dem_tiles[dem_tile] = dem_info
         needed_dem_tiles.update(dem_tiles)
@@ -141,13 +144,13 @@ def check_tiles_to_process(tiles_to_process, s1_file_manager):
     return tiles_to_process_checked, needed_dem_tiles
 
 
-def check_dem_tiles(cfg, dem_tile_infos):
+def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
     """
     Check the DEM tiles exist on disk.
     """
     fmt = cfg.dem_filename_format
     res = True
-    for dem_tile_id, dem_tile_info in dem_tile_infos.items():
+    for _, dem_tile_info in dem_tile_infos.items():
         dem_filename = fmt.format_map(dem_tile_info)
         tile_path_hgt = Path(cfg.dem, dem_filename)
         # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
@@ -157,7 +160,7 @@ def check_dem_tiles(cfg, dem_tile_infos):
     return res
 
 
-def clean_logs(config, nb_workers):
+def clean_logs(config: Dict, nb_workers: int) -> None:
     """
     Clean all the log files.
     Meant to be called once, at startup
@@ -170,7 +173,7 @@ def clean_logs(config, nb_workers):
     remove_files(filenames)
 
 
-def setup_worker_logs(config, dask_worker):
+def setup_worker_logs(config: Dict, dask_worker) -> None:
     """
     Set-up the logger on Dask Worker.
     """
@@ -198,13 +201,13 @@ class DaskContext:
     Custom context manager for :class:`dask.distributed.Client` +
     :class:`dask.distributed.LocalCluster` classes.
     """
-    def __init__(self, config, debug_otb):
-        self.__client    = None
-        self.__cluster   = None
+    def __init__(self, config: Configuration, debug_otb: bool) -> None:
+        self.__client    : Optional[Client]       = None
+        self.__cluster   : Optional[LocalCluster] = None
         self.__config    = config
-        self.__debug_otb = debug_otb
+        self.__debug_otb : bool                   = debug_otb
 
-    def __enter__(self):
+    def __enter__(self) -> "DaskContext":
         if not self.__debug_otb:
             clean_logs(self.__config.log_config, self.__config.nb_procs)
             self.__cluster = LocalCluster(
@@ -221,18 +224,19 @@ class DaskContext:
     def __exit__(self, exception_type, exception_value, exception_traceback):
         if self.__client:
             self.__client.close()
+            assert self.__cluster, "client existence implies cluster existence"
             self.__cluster.close()
         return False
 
     @property
-    def client(self):
+    def client(self) -> Optional[Client]:
         """
         Return a :class:`dask.distributed.Client`
         """
         return self.__client
 
 
-def _execute_tasks_debug(dsk, tile_name):
+def _execute_tasks_debug(dsk: Dict, tile_name: str) -> List:
     """
     Execute the tasks directly, one after the other, without Dask layer.
     The objective is to be able to debug OTB applications.
@@ -254,8 +258,17 @@ def _execute_tasks_debug(dsk, tile_name):
     return results
 
 
-def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, required_products,
-        client, pipelines, do_watch_ram, debug_tasks):
+def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
+    dsk:                   Dict[str, Union[Tuple, "FirstStep"]],
+    tile_name:             str,
+    tile_idx:              int,
+    intersect_raster_list: List[Dict],
+    required_products:     List[str],
+    client:                Client,
+    pipelines:             PipelineDescriptionSequence,
+    do_watch_ram:          bool,
+    debug_tasks:           bool
+) -> List:
     """
     Execute the tasks in parallel through Dask.
     """
@@ -274,7 +287,7 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
         except KilledWorker as e:
             logger.critical('%s', dir(e))
             logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
-                    e.last_worker.name, e.task, tile_name, e, run, nb_tries)
+                    e.last_worker.name, e.task, tile_name, e, run_attemp, nb_tries)
             # TODO: don't overwrite previous logs
             # And we'll need to use the synchronous=False parameter to be able to check
             # successful executions but then, how do we clean up futures and all??
@@ -288,11 +301,22 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
     return []
 
 
-def process_one_tile(
-        tile_name, tile_idx, tiles_nb,
-        s1_file_manager, pipelines, client,
-        required_workspaces, dl_wait, dl_timeout, searched_items_per_page,
-        debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
+def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
+    tile_name:               str,
+    tile_idx:                int,
+    tiles_nb:                int,
+    s1_file_manager:         S1FileManager,
+    pipelines:               PipelineDescriptionSequence,
+    client:                  Optional[Client],
+    required_workspaces:     List[WorkspaceKinds],
+    dl_wait:                 int,
+    dl_timeout:              int,
+    searched_items_per_page: int,
+    debug_otb:               bool=False,
+    dryrun:                  bool=False,
+    do_watch_ram:            bool=False,
+    debug_tasks:             bool=False
+) -> List:
     """
     Process one S2 tile.
 
@@ -306,7 +330,7 @@ def process_one_tile(
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=tile_name,
+            s1_file_manager.download_images(tiles=[tile_name],
                     dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products
@@ -322,18 +346,18 @@ def process_one_tile(
         logger.info("No intersection with tile %s", tile_name)
         return []
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list,
-            do_watch_ram=do_watch_ram)
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram=do_watch_ram)
     logger.debug('######################################################################')
     logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
     if debug_otb:
         return _execute_tasks_debug(dsk, tile_name)
     else:
+        assert client, "Dask client shall exist when not debugging calls to OTB applications"
         return _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list,
                 required_products, client, pipelines, do_watch_ram, debug_tasks)
 
 
-def read_config(config_opt):
+def read_config(config_opt: Union[str,Configuration]) -> Configuration:
     """
     The config_opt can be either the configuration filename or an already initialized configuration
     object
@@ -346,21 +370,23 @@ def read_config(config_opt):
         return config_opt
 
 
-def do_process_with_pipeline(config_opt,
-        pipeline_builder,
-        dl_wait, dl_timeout,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_caches=False,
-        debug_otb=False,
-        watch_ram=False,
-        debug_tasks=False,
-        ):
+def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
+    config_opt:              Union[str,Configuration],
+    pipeline_builder,
+    dl_wait:                 int,
+    dl_timeout:              int,
+    searched_items_per_page: int = 20,
+    dryrun:                  bool = False,
+    debug_caches:            bool = False,
+    debug_otb:               bool = False,
+    watch_ram:               bool = False,
+    debug_tasks:             bool = False,
+) -> exits.Situation:
     """
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
-    config = read_config(config_opt)
+    config: Configuration = read_config(config_opt)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
@@ -397,7 +423,7 @@ def do_process_with_pipeline(config_opt,
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
-        log_level = lambda res: logging.INFO if bool(res) else logging.WARNING
+        log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
         with DaskContext(config, debug_otb) as dask_client:
             for idx, tile_it in enumerate(tiles_to_process_checked):
@@ -415,7 +441,7 @@ def do_process_with_pipeline(config_opt,
         nb_errors_detected = sum(not bool(res) for res in results)
 
         skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
-        results.extend([fp for fp in skipped_for_download_failures])
+        results.extend(skipped_for_download_failures)
 
         logger.debug('#############################################################################')
         if nb_errors_detected + len(skipped_for_download_failures) > 0:
@@ -438,7 +464,7 @@ def do_process_with_pipeline(config_opt,
                 )
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
@@ -465,16 +491,18 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return best_concat_sin
 
 
-def s1_process(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        cache_before_ortho=False):
+def s1_process(  # pylint: disable=too-many-arguments
+    config_opt:              Union[str,Configuration],
+    dl_wait:                 int = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout:              int = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int = 20,
+    dryrun:                  bool = False,
+    debug_otb:               bool = False,
+    debug_caches:            bool = False,
+    watch_ram:               bool = False,
+    debug_tasks:             bool = False,
+    cache_before_ortho:      bool = False
+) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
     :ref:`S1Tiling NORMLIM scenario <scenario.S1ProcessorLIA>` of on demand
@@ -530,7 +558,7 @@ def s1_process(config_opt,
 
     :exception Error: A variety of exceptions. See below (follow the link).
     """
-    def builder(config, dryrun, debug_caches):
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
                 'Cannot purge non filtered products when mask are also produced!'
 
@@ -555,7 +583,7 @@ def s1_process(config_opt,
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
 
         # Concatenation (... + Despeckle)  // not working yet, see issue #118
-        concat_seq = [Concatenate]
+        concat_seq: List[Type[StepFactory]] = [Concatenate]
         if chain_concat_and_despeckle_inmemory:
             concat_seq.append(SpatialDespeckle)
             need_to_keep_non_filtered_products = False
@@ -569,7 +597,7 @@ def s1_process(config_opt,
 
         # LIA Calibration (...+ Despeckle)
         if config.calibration_type == 'normlim':
-            apply_LIA_seq = [ApplyLIACalibration]
+            apply_LIA_seq: List[Type[StepFactory]] = [ApplyLIACalibration]
             if chain_LIA_and_despeckle_inmemory:
                 apply_LIA_seq.append(SpatialDespeckle)
                 need_to_keep_non_filtered_products = False
@@ -609,16 +637,17 @@ def s1_process(config_opt,
             )
 
 
-def s1_process_lia(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        ):
+def s1_process_lia(  # pylint: disable=too-many-arguments
+    config_opt:             Union[str,Configuration],
+   dl_wait:                 int = EODAG_DEFAULT_DOWNLOAD_WAIT,
+   dl_timeout:              int = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+   searched_items_per_page: int = 20,
+   dryrun:                  bool = False,
+   debug_otb:               bool = False,
+   debug_caches:            bool = False,
+   watch_ram:               bool = False,
+   debug_tasks:             bool = False,
+) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
     generates Local Incidence Angle Maps on S2 geometry.
@@ -667,7 +696,7 @@ def s1_process_lia(config_opt,
 
     :exception Error: A variety of exceptions. See below (follow the link).
     """
-    def builder(config, dryrun, debug_caches):
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
@@ -682,4 +711,3 @@ def s1_process_lia(config_opt,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
             )
-
