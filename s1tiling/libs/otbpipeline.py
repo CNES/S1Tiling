@@ -35,7 +35,6 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
-import sys
 import shutil
 import re
 import datetime
@@ -47,6 +46,7 @@ import logging.handlers
 import multiprocessing
 import subprocess
 from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
 # memory leaks
 from distributed import get_worker
@@ -55,8 +55,12 @@ from pympler import tracker # , muppy
 
 from osgeo import gdal
 import otbApplication as otb
+
 from . import Utils
 from . import exceptions
+from .S1DateAcquisition import S1DateAcquisition
+from .configuration import Configuration
+from .otbtools import otb_version
 from .outcome import Outcome
 from ..__meta__ import __version__
 
@@ -65,27 +69,13 @@ logger = logging.getLogger('s1tiling.pipeline')
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
 
-
-def otb_version():
-    """
-    Returns the current version on OTB (through a call to ResetMargin -version)
-    The result is cached
-    """
-    if not hasattr(otb_version, "_version"):
-        try:
-            r = subprocess.run(['otbcli_ResetMargin', '-version'], stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT)
-            version = r.stdout.decode('utf-8').strip('\n')
-            version = re.search(r'\d+(\.\d+)+$', version)[0]
-            logger.info("OTB version detected on the system is %s", version)
-            otb_version._version = version
-        except Exception as ex:  # pylint: disable=broad-except
-            logger.exception(ex)
-            raise RuntimeError("Cannot determine current OTB version")
-    return otb_version._version
+Meta          = Dict
+InputList     = List[Dict[str, "AbstractStep"]]
+OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
+ExeParameters = List[str]
 
 
-def ram(r):
+def ram(r) -> Union[int,str]:
     """
     The expected type for the RAM parameter in OTB application changes between OTB 7.x and OTB 8.0.
     This function provides an abstraction that takes care of the exact type expected.
@@ -97,7 +87,7 @@ def ram(r):
         return str(r)
 
 
-def as_list(param):
+def as_list(param) -> List:
     """
     Make sure ``param`` is either a list or encapsulated in a list.
     """
@@ -116,7 +106,7 @@ class OutputFilenameGenerator(ABC):
     - {template} strings
     - list of any of the other two
     """
-    def generate(self, basename, keys):  # pylint: disable=unused-argument,no-self-use
+    def generate(self, basename: str, keys: Dict) -> Union[str, List[str]]:  # pylint: disable=unused-argument
         """
         Default implementation does nothing.
         """
@@ -128,11 +118,11 @@ class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
     Given a pair ``[text_to_search, text_to_replace_with]``,
     replace the exact matching text with new text in ``basename`` metadata.
     """
-    def __init__(self, before_afters):
+    def __init__(self, before_afters: List) -> None:
         assert isinstance(before_afters, list)
         self.__before_afters = before_afters
 
-    def generate(self, basename, keys):
+    def generate(self, basename, keys: Dict) -> str:
         filename = basename.replace(*self.__before_afters)
         return filename
 
@@ -150,11 +140,11 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     Given a template: ``"text{key1}_{another_key}_.."``,
     inject the metadata instead of the template keys.
     """
-    def __init__(self, template):
+    def __init__(self, template) -> None:
         assert isinstance(template, str)
         self.__template = template
 
-    def generate(self, basename, keys):
+    def generate(self, basename, keys: Dict) -> str:
         try:
             rootname = os.path.splitext(basename)[0]
             filename = self.__template.format(**keys, rootname=rootname)
@@ -170,16 +160,16 @@ class OutputFilenameGeneratorList(OutputFilenameGenerator):
 
     It's constructed from other filename generators.
     """
-    def __init__(self, generators):
+    def __init__(self, generators) -> None:
         assert isinstance(generators, list)
         self.__generators = generators
 
-    def generate(self, basename, keys):
+    def generate(self, basename, keys) -> List[str]:
         filenames = [generator.generate(basename, keys) for generator in self.__generators]
         return filenames
 
 
-def as_app_shell_param(param):
+def as_app_shell_param(param) -> str:
     """
     Internal function used to stringigy value to appear like a a parameter for a program
     launched through shell.
@@ -187,16 +177,19 @@ def as_app_shell_param(param):
     foo     -> 'foo'
     42      -> 42
     [a, 42] -> 'a' 42
+
+    :todo: Deprecate, use f"{param!r}" instead
     """
-    if   isinstance(param, list):
-        return ' '.join(as_app_shell_param(e) for e in param)
-    elif isinstance(param, int):
-        return param
-    else:
-        return f"'{param}'"
+    return f"{param!r}"
+    # if   isinstance(param, list):
+    #     return ' '.join(as_app_shell_param(e) for e in param)
+    # elif isinstance(param, int):
+    #     return param
+    # else:
+    #     return f"'{param}'"
 
 
-def in_filename(meta):
+def in_filename(meta: Meta) -> str:
     """
     Helper accessor to access the input filename of a `Step`.
     """
@@ -204,22 +197,23 @@ def in_filename(meta):
     return meta['in_filename']
 
 
-def out_filename(meta):
+def out_filename(meta: Meta) -> str:
     """
     Helper accessor to access the ouput filename of a `Step`.
     """
-    return meta.get('out_filename')
+    assert 'out_filename' in meta
+    return meta['out_filename']
 
 
-def tmp_filename(meta):
+def tmp_filename(meta: Meta) -> str:
     """
     Helper accessor to access the temporary ouput filename of a `Step`.
     """
     assert 'out_tmp_filename' in meta
-    return meta.get('out_tmp_filename')
+    return meta['out_tmp_filename']
 
 
-def get_task_name(meta):
+def get_task_name(meta: Meta) -> str:
     """
     Helper accessor to the task name related to a `Step`.
 
@@ -235,24 +229,14 @@ def get_task_name(meta):
         return out_filename(meta)
 
 
-def out_extended_filename_complement(meta):
+def out_extended_filename_complement(meta: Meta) -> str:
     """
     Helper accessor to the extended filename to use to produce the image.
     """
     return meta.get('out_extended_filename_complement', '')
 
 
-def _fetch_input_data(key, inputs):
-    """
-    Helper function that extract the meta data associated to a key from a
-    multiple-inputs list of inputs.
-    """
-    keys = set().union(*(input.keys() for input in inputs))
-    assert key in keys, f"Cannot find input '{key}' among {keys}"
-    return [input[key] for input in inputs if key in input.keys()][0]
-
-
-def manifest_to_product_name(manifest):
+def manifest_to_product_name(manifest: str) -> str:
     """
     Helper function that returns the product name (SAFE directory without the
     ``.SAFE`` extension) from the full path to the :file:`manifest.safe` file.
@@ -261,7 +245,7 @@ def manifest_to_product_name(manifest):
     return fullpath.parent.stem
 
 
-def product_exists(meta):
+def product_exists(meta: Meta) -> bool:
     """
     Helper accessor that tells whether the product described by the metadata
     already exists.
@@ -272,7 +256,7 @@ def product_exists(meta):
         return os.path.isfile(out_filename(meta))
 
 
-def _is_compatible(output_meta, input_meta):
+def _is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
     """
     Tells whether ``input_meta`` is a valid input for ``output_meta``
 
@@ -290,7 +274,7 @@ def _is_compatible(output_meta, input_meta):
         return False
 
 
-def files_exist(files):
+def files_exist(files: Union[str,List[str]]) -> bool:
     """
     Checks whether a single file, or all files from a list, exist.
     """
@@ -303,28 +287,28 @@ def files_exist(files):
         return True
 
 
-def is_running_dry(meta):
+def is_running_dry(meta: Meta) -> bool:
     """
     Helper function to test whether metadata has ``dryrun`` property set to True.
     """
     return meta.get('dryrun', False)
 
 
-def is_debugging_caches(meta):
+def is_debugging_caches(meta: Meta) -> bool:
     """
     Helper function to test whether metadata has ``debug_caches`` property set to True.
     """
     return meta.get('debug_caches', False)
 
 
-def execute(params, dryrun):
+def execute(params: List[str], dryrun: bool) -> None:
     """
     Helper function to execute any external command.
 
     And log its execution, measure the time it takes.
     """
-    msg = ' '.join([str(p) for p in params])
-    logging.info('$> '+msg)
+    msg = ' '.join([f"{p!r}" for p in params])
+    logging.info(f'$> {msg}')
     if not dryrun:
         with Utils.ExecutionTimer(msg, True):
             subprocess.run(args=params, check=True)
@@ -347,7 +331,7 @@ class AbstractStep:
     The step will contain information like the current input file, the current
     output file...
     """
-    def __init__(self, *unused_argv, **kwargs):
+    def __init__(self, *unused_argv, **kwargs) -> None:
         """
         constructor
         """
@@ -359,28 +343,28 @@ class AbstractStep:
         self._meta = meta
 
     @property
-    def is_first_step(self):
+    def is_first_step(self) -> bool:
         """
         Tells whether this step is the first of a pipeline.
         """
         return True
 
     @property
-    def meta(self):
+    def meta(self) -> Dict:
         """
         Step meta data property.
         """
         return self._meta
 
     @property
-    def basename(self):
+    def basename(self) -> str:
         """
         Basename property will be used to generate all future output filenames.
         """
         return self._meta['basename']
 
     @property
-    def out_filename(self):
+    def out_filename(self) -> str:
         """
         Property that returns the name of the file produced by the current step.
         """
@@ -388,7 +372,22 @@ class AbstractStep:
         return self._meta['out_filename']
 
     @property
-    def shall_store(self):
+    def tmp_filename(self) -> str:
+        """
+        Property that returns the name of the file produced by the current step while
+        the OTB application, or the executable is running.
+        Eventually, it'll get renamed into `self.out_filename` if the application
+        succeeds.
+
+        .. note::
+
+            - Only available to :class:`StoreStep` and :class:`ExecutableStep`
+        """
+        assert isinstance(self, (StoreStep, ExecutableStep))
+        return tmp_filename(self.meta)
+
+    @property
+    def shall_store(self) -> bool:
         """
         No OTB related step requires its result to be stored on disk and to
         break in_memory connection by default.
@@ -398,13 +397,13 @@ class AbstractStep:
         """
         return False
 
-    def release_app(self):
+    def release_app(self) -> None:
         """
         Makes sure that steps with applications are releasing the application
         """
         pass
 
-    def clean_cache(self):
+    def clean_cache(self) -> None:
         """
         Takes care or removing intermediary files once we know they are no
         longer required like the orthorectified subtiles once the
@@ -425,12 +424,16 @@ class AbstractStep:
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
 
-
-    def _write_image_metadata(self):
+    def _write_image_metadata(self) -> None:
         """
         Update Image metadata (with GDAL API).
         Fetch the new content in ``meta['image_metadata']``
+
+        .. note::
+
+            - Only available to :class:`StoreStep` and :class:`ExecutableStep`
         """
+        assert isinstance(self, (StoreStep, ExecutableStep))
         img_meta = self.meta.get('image_metadata', {})
         # fullpath = out_filename(self.meta)
         fullpath = self.tmp_filename
@@ -440,7 +443,7 @@ class AbstractStep:
         if is_running_dry(self.meta):
             logger.debug("Don't set metadata in %s (dry-run)", fullpath)
             return
-        def do_write(fullpath, img_meta):
+        def do_write(fullpath, img_meta) -> None:
             logger.debug('Set metadata in %s', fullpath)
             dst = gdal.Open(fullpath, gdal.GA_Update)
             assert dst
@@ -465,7 +468,7 @@ class ExecutableStep(AbstractStep):
     """
     Generic step for calling any external application.
     """
-    def __init__(self, exename, *argv, **kwargs):
+    def __init__(self, exename: str, *argv, **kwargs) -> None:
         """
         Constructor.
         """
@@ -473,17 +476,7 @@ class ExecutableStep(AbstractStep):
         self._exename = exename
         # logger.debug('ExecutableStep %s constructed', self._exename)
 
-    @property
-    def tmp_filename(self):
-        """
-        Property that returns the name of the file produced by the current step while
-        the external application is running.
-        Eventually, it'll get renamed into :func:`AbstractStep.out_filename` if
-        the application succeeds.
-        """
-        return tmp_filename(self.meta)
-
-    def execute_and_write_output(self, parameters):  # pylint: disable=no-self-use
+    def execute_and_write_output(self, parameters: List[str]) -> None:
         """
         Actually execute the external program.
         While the program runs, a temporary filename will be used as output.
@@ -513,23 +506,23 @@ class _StepWithOTBApplication(AbstractStep):
     - :class:`Step`  that will own the application
     - and :class:`StoreStep` that will just reference the application from the previous step
     """
-    def __init__(self, app, *argv, **kwargs):
+    def __init__(self, app, *argv, **kwargs) -> None:
         """
         Constructor.
         """
         # logger.debug("Create Step(%s, %s)", app, meta)
         super().__init__(*argv, **kwargs)
         self._app = app
-        self._out = None  # shall be overriden in child classes.
+        self._out : Optional[str] = None  # shall be overriden in child classes.
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
         Makes sure the otb app is released
         """
         if self._app:
             self.release_app()
 
-    def release_app(self):
+    def release_app(self) -> None:
         # Only `Step` will delete, here we just reset the reference
         self._app = None
 
@@ -541,11 +534,11 @@ class _StepWithOTBApplication(AbstractStep):
         return self._app
 
     @property
-    def is_first_step(self):
+    def is_first_step(self) -> bool:
         return self._app is None
 
     @property
-    def param_out(self):
+    def param_out(self) -> Optional[str]:
         """
         Name of the "out" parameter used by the OTB Application.
         Default is likely to be "out", while some applications use "io.out".
@@ -560,7 +553,7 @@ class Step(_StepWithOTBApplication):
     The application binding is expected to be built by a dedicated :class:`StepFactory` and
     passed to the constructor.
     """
-    def __init__(self, app, *argv, **kwargs):
+    def __init__(self, app, *argv, **kwargs) -> None:
         """
         constructor
         """
@@ -568,17 +561,18 @@ class Step(_StepWithOTBApplication):
         super().__init__(app, *argv, **kwargs)
         self._out = kwargs.get('param_out', 'out')
 
-    def release_app(self):
+    def release_app(self) -> None:
         del self._app
         super().release_app()  # resets self._app to None
 
 
-def _check_input_step_type(inputs):
+def _check_input_step_type(inputs: InputList) -> None:
     """
     Internal helper function that checks :func:`StepFactory.create_step()`
     ``inputs`` parameters is of the expected type, i.e.:
     list of dictionaries {'key': :class:`AbstractStep`}
     """
+    assert isinstance(inputs, list)
     assert all(issubclass(type(inp), dict) for inp in inputs), f"Inputs not of expected type: {inputs}"
     assert all(issubclass(type(step), AbstractStep) for inp in inputs for _, step in inp.items()), f"Inputs not of expected type: {inputs}"
 
@@ -596,14 +590,14 @@ class StepFactory(ABC):
 
     See: `Existing processings`_
     """
-    def __init__(self, name, *unused_argv, **kwargs):  # pylint: disable=unused-argument
+    def __init__(self, name: str, *unused_argv, **kwargs) -> None:  # pylint: disable=unused-argument
         assert name
         self._name               = name
         self.__image_description = kwargs.get('image_description', None)
         # logger.debug("new StepFactory(%s)", name)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Step Name property.
         """
@@ -611,13 +605,13 @@ class StepFactory(ABC):
         return self._name
 
     @property
-    def image_description(self):
+    def image_description(self) -> str:
         """
         Property image_description, used to fill ``TIFFTAG_IMAGEDESCRIPTION``
         """
         return self.__image_description
 
-    def check_requirements(self):
+    def check_requirements(self) -> Optional[Tuple[str, str]]:
         """
         Abstract method used to test whether a :class:`StepFactory` has all
         its external requirements fulfilled. For instance,
@@ -630,7 +624,7 @@ class StepFactory(ABC):
         return None
 
     @abstractmethod
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
         Filename of the step output.
 
@@ -639,7 +633,7 @@ class StepFactory(ABC):
         pass
 
     @abstractmethod
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
         Returns a filename to a temporary file to use in output of the current application.
 
@@ -654,7 +648,7 @@ class StepFactory(ABC):
         """
         pass
 
-    def update_filename_meta(self, meta):  # to be overridden
+    def update_filename_meta(self, meta: Meta) -> Dict:  # to be overridden
         """
         Duplicates, completes, and return, the `meta` dictionary with specific
         information for the current factory regarding tasks analysis.
@@ -680,7 +674,7 @@ class StepFactory(ABC):
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
-        def check_product(meta):
+        def check_product(meta) -> bool:
             filename        = out_filename(meta)
             exist_file_name = os.path.isfile(filename)
             logger.debug('Checking %s product: %s => %s',
@@ -699,7 +693,7 @@ class StepFactory(ABC):
         self._update_filename_meta_post_hook(meta)
         return meta
 
-    def _update_filename_meta_pre_hook(self, meta):  # to be overridden  # pylint: disable=no-self-use
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:  # to be overridden
         """
         Hook meant to be overridden to complete product metadata before
         they are used to produce filenames or tasknames.
@@ -708,16 +702,16 @@ class StepFactory(ABC):
         """
         return meta
 
-    def _update_filename_meta_post_hook(self, meta):  # to be overridden  # pylint: disable=no-self-use
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:  # to be overridden  # pylint: disable=unused-argument
         """
         Hook meant to be overridden to fix product metadata by
         overriding their default definition.
 
         Called from :func:`update_filename_meta()`
         """
-        return meta
+        pass
 
-    def complete_meta(self, meta, all_inputs):  # to be overridden  # pylint: disable=unused-argument
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden  # pylint: disable=unused-argument
         """
         Duplicates, completes, and return, the `meta` dictionary with specific
         information for the current factory regarding :class:`Step` instanciation.
@@ -725,7 +719,7 @@ class StepFactory(ABC):
         meta.pop('out_extended_filename_complement', None)
         return self.update_filename_meta(meta)
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:  # pylint: disable=unused-argument
         """
         Root implementation of :func:`update_image_metadata` that shall be
         specialized in every file producing Step Factory.
@@ -740,7 +734,7 @@ class StepFactory(ABC):
                     **meta,
                     flying_unit_code_short=meta['flying_unit_code'][1:].upper())
 
-    def _get_inputs(self, previous_steps):  # pylint: disable=unused-argument,no-self-use
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
         Extract the last inputs to use at the current level from all previous
         products seen in the pipeline.
@@ -757,7 +751,7 @@ class StepFactory(ABC):
         _check_input_step_type(inputs)
         return inputs
 
-    def _get_canonical_input(self, inputs):
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
         By default, if there is only one input, this will be the one returned.
@@ -775,7 +769,7 @@ class StepFactory(ABC):
             keys = set().union(*(input.keys() for input in inputs))
             raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
-    def create_step(self, in_memory: bool, previous_steps):  # pylint: disable=unused-argument
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:  # pylint: disable=unused-argument
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` steps.
@@ -810,20 +804,28 @@ class Pipeline:
     Internal class only meant to be used by :class:`PipelineDescriptionSequence`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(self, do_measure, in_memory, do_watch_ram, name=None, dryrun=False, output=None):
-        self.__pipeline     = []
+    def __init__(
+        self,
+        do_measure:   bool,
+        in_memory:    bool,
+        do_watch_ram: bool,
+        name:         Optional[str]=None,
+        dryrun:       bool=False,
+        output:       Optional[str]=None
+    ) -> None:
+        self.__pipeline     : List[StepFactory] = []
         # self.__do_measure   = do_measure
         self.__in_memory    = in_memory
         self.__do_watch_ram = do_watch_ram
         self.__dryrun       = dryrun
         self.__name         = name
         self.__output       = output
-        self.__inputs       = []
+        self.__inputs       : InputList = []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
-    def set_inputs(self, inputs: list):
+    def set_inputs(self, inputs: Dict) -> None:
         """
         Set the input(s) of the instanciated pipeline.
         The `inputs` is parameter expected to be a list of {'key': [metas...]} that'll
@@ -843,22 +845,22 @@ class Pipeline:
                 self.__inputs.append({key: MergeStep(inputs_associated_to_key)})
 
     @property
-    def _input_filenames(self):
+    def _input_filenames(self) -> List[str]:
         """
         Property _input_filenames
         """
         return [input[k].out_filename for input in self.__inputs for k in input]
 
     @property
-    def appname(self):
+    def appname(self) -> str:
         """
         Name of the pipeline application(s).
         """
-        appname = (self.__name or '|'.join(crt.appname for crt in self.__pipeline))
+        appname = self.__name or '|'.join(crt.appname for crt in self.__pipeline)
         return appname
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name of the pipeline.
         It's either user registered or automatically generated from the
@@ -874,20 +876,20 @@ class Pipeline:
         return self.__output
 
     @property
-    def shall_watch_ram(self):
+    def shall_watch_ram(self) -> bool:
         """
         Tells whether objects in RAM shall be watched for memory leaks.
         """
         return self.__do_watch_ram
 
-    def push(self, otbstep: StepFactory):
+    def push(self, otbstep: StepFactory) -> None:
         """
         Registers a StepFactory into the pipeline.
         """
         assert isinstance(otbstep, StepFactory)
         self.__pipeline.append(otbstep)
 
-    def check_requirements(self):
+    def check_requirements(self) -> Optional[Tuple[str, Set]]:
         """
         Check all the :class:`StepFactory`'s registered in the pipeline can be
         exexuted.
@@ -897,7 +899,7 @@ class Pipeline:
                  context how to fix it.
         """
         sing_plur = {True: 'are', False: 'is'}
-        reqs = list(filter(None, (sf.check_requirements() for sf in self.__pipeline)))
+        reqs : List[Tuple[str, str]] = list(filter(None, (sf.check_requirements() for sf in self.__pipeline)))
         missing_reqs = [rq for rq, _ in reqs]
         contexts = set(ctx for _, ctx in reqs)
         if reqs:
@@ -905,7 +907,7 @@ class Pipeline:
         else:
             return None
 
-    def do_execute(self):
+    def do_execute(self) -> Outcome:
         """
         Execute the pipeline.
 
@@ -933,15 +935,17 @@ class Pipeline:
 
         assert len(steps[-1]) == 1
         res = steps[-1][0]['__last'].out_filename
-        assert res == self.output, \
-                f"Step output {self.output} doesn't match expected output {res}.\nThis is likely happenning because pipeline name generation isn't incremental."
-        steps = None
+        assert res == self.output, (
+            f"Step output {self.output} doesn't match expected output {res}."
+            "\nThis is likely happenning because pipeline name generation isn't incremental."
+        )
+        steps = None  # type: ignore  # force reset local variable, in doubt...
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
         return Outcome(res)
 
 
 # TODO: try to make it static...
-def execute4dask(pipeline, *args, **unused_kwargs):
+def execute4dask(pipeline, *args, **unused_kwargs) -> Outcome:
     """
     Internal worker function used by Dask to execute a pipeline.
 
@@ -972,8 +976,8 @@ def execute4dask(pipeline, *args, **unused_kwargs):
             # summary.print_(sum1)
             w = get_worker()
             if not hasattr(w, 'tracker'):
-                w.tr = tracker.SummaryTracker()
-            w.tr.print_diff()
+                setattr(w, "tr",  tracker.SummaryTracker())
+            getattr(w, "tr").print_diff()
         return res
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
@@ -989,8 +993,15 @@ class PipelineDescription:
     - can tell the expected product name given an input.
     - tells whether its product is required
     """
-    def __init__(self, factory_steps, dryrun, name=None, product_required=False,
-            is_name_incremental=False, inputs=None):
+    def __init__(
+        self,
+        factory_steps:       List[StepFactory],
+        dryrun:              bool,
+        name:                Optional[str]  = None,
+        product_required:    bool           = False,
+        is_name_incremental: bool           = False,
+        inputs:              Optional[Dict] = None
+    ) -> None:
         """
         constructor
         """
@@ -1005,9 +1016,10 @@ class PipelineDescription:
             self.__name = '|'.join([step.name for step in self.__factory_steps])
         assert inputs
         self.__inputs              = inputs
-        # logger.debug("New pipeline: %s; required: %s, incremental: %s", '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
+        # logger.debug("New pipeline: %s; required: %s, incremental: %s",
+        #     '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
 
-    def expected(self, input_meta):
+    def expected(self, input_meta: Meta) -> Optional[Dict]:
         """
         Returns the expected name of the product(s) of this pipeline
         """
@@ -1027,23 +1039,23 @@ class PipelineDescription:
             return None
 
     @property
-    def inputs(self):
+    def inputs(self) -> Dict:
         """
         Property inputs
         """
         return self.__inputs
 
     @property
-    def sources(self):
+    def sources(self) -> List[str]:
         """
         Property sources
         """
         # logger.debug("SOURCES(%s) = %s", self.name, self.__inputs)
-        res = [(val if isinstance(val, str) else val.name) for (key,val) in self.__inputs.items()]
+        res = [(val if isinstance(val, str) else val.name) for (_,val) in self.__inputs.items()]
         return res
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Descriptive name of the pipeline specification.
         """
@@ -1051,13 +1063,13 @@ class PipelineDescription:
         return self.__name
 
     @property
-    def product_is_required(self):
+    def product_is_required(self) -> bool:
         """
         Tells whether the product if this pipeline is required.
         """
         return self.__is_product_required
 
-    def instanciate(self, file, do_measure, in_memory, do_watch_ram):
+    def instanciate(self, file: str, do_measure: bool, in_memory: bool, do_watch_ram: bool) -> Pipeline:
         """
         Instanciates the pipeline specified.
 
@@ -1077,12 +1089,12 @@ class PipelineDescription:
         return pipeline
 
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         res = f'PipelineDescription: {self.name} ## Sources: {self.sources}'
         return res
 
 
-def to_dask_key(pathname):
+def to_dask_key(pathname: str) -> str:
     """
     Generate a simplified graph key name from a full pathname.
     - Strip directory name
@@ -1091,36 +1103,11 @@ def to_dask_key(pathname):
     return pathname.replace('-', '_')
 
 
-def register_task(tasks, key, value):
+def register_task(tasks: Dict, key: str, value) -> None:
     """
     Register a task named `key` in the right format.
     """
     tasks[key] = value
-
-
-def generate_first_steps_from_manifests(raster_list, tile_name, dryrun, debug_caches):
-    """
-    Flatten all rasters from the manifest as a list of :class:`FirstStep`
-    """
-    inputs = []
-    # Log commented and kept for filling in unit tests
-    # logger.debug('Generate first steps from: %s', raster_list)
-    # for raster, tile_origin in raster_list:
-    for raster_info in raster_list:
-        raster = raster_info['raster']  # Actually a S1DateAcquisition object...
-
-        manifest = raster.get_manifest()
-        for image in raster.get_images_list():
-            start = FirstStep(
-                    tile_name=tile_name,
-                    tile_origin=raster_info['tile_origin'],
-                    tile_coverage=raster_info['tile_coverage'],
-                    manifest=manifest,
-                    basename=image,
-                    dryrun=dryrun,
-                    debug_caches=debug_caches)
-            inputs.append(start.meta)
-    return inputs
 
 
 class TaskInputInfo:
@@ -1129,14 +1116,14 @@ class TaskInputInfo:
 
     Used to merge, or to stack, information about inputs.
     """
-    def __init__(self, pipeline):
+    def __init__(self, pipeline: PipelineDescription) -> None:
         """
         constructor
         """
         self.__pipeline     = pipeline
-        self._inputs        = {}  # map<source, meta / meta list>
+        self._inputs        : Dict[str, List[Dict]] = {}  # map<source, meta / meta list>
 
-    def add_input(self, origin, input_meta, destination_meta):
+    def add_input(self, origin: str, input_meta: Meta, destination_meta: Meta) -> bool:
         """
         Register a new input to the current task.
 
@@ -1163,7 +1150,8 @@ class TaskInputInfo:
         logger.debug('add_input[%s # %s]: not empty <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
         logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
         if f'reduce_inputs_{origin}' in destination_meta.keys():
-            # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s', origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
+            # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s',
+            #     origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
             self._inputs[origin] = destination_meta[f'reduce_inputs_{origin}'](
                     self._inputs[origin] + [input_meta])
             return False
@@ -1171,15 +1159,27 @@ class TaskInputInfo:
             self._inputs[origin].append(input_meta)
             return True
 
+    def clear(self) -> None:
+        """
+        Clear the TaskInputInfo and make it ``~False``
+        """
+        self._inputs = {}
+
+    def __bool__(self) -> bool:
+        """
+        Tells whether the object has a definition.
+        """
+        return len(self.inputs) > 0
+
     @property
-    def pipeline(self):
+    def pipeline(self) -> PipelineDescription:
         """
         Property pipeline
         """
         return self.__pipeline
 
     @property
-    def inputs(self):
+    def inputs(self) -> Dict[str, List[Dict]]:
         """
         Inputs associated to the task.
 
@@ -1189,7 +1189,7 @@ class TaskInputInfo:
         return self._inputs
 
     @property
-    def input_task_names(self):
+    def input_task_names(self) -> List[str]:
         """
         List of input tasks the current task depends on.
         """
@@ -1198,14 +1198,14 @@ class TaskInputInfo:
         return tns
 
     @property
-    def input_metas(self):
+    def input_metas(self) -> List[Dict]:
         """
         List of input meta informations the current task depends on.
         """
         metas = [meta for inputs in self.inputs.values() for meta in inputs]
         return metas
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         res = 'TaskInputInfo:\n- inputs:\n'
         for k, inps in self.inputs.items():
             res += f'  - "{k}":\n'
@@ -1215,7 +1215,17 @@ class TaskInputInfo:
         return res
 
 
-def _update_out_filename(updated_meta, with_meta):
+def _fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
+    """
+    Helper function that extract the meta data associated to a key from a
+    multiple-inputs list of inputs.
+    """
+    keys = set().union(*(input.keys() for input in inputs))
+    assert key in keys, f"Cannot find input '{key}' among {keys}"
+    return [input[key] for input in inputs if key in input.keys()][0]
+
+
+def _update_out_filename(updated_meta, with_meta) -> None:
     """
     Helper function to update the `out_filename` from metadata.
     Meant to be used metadata associated to products made of several inputs
@@ -1226,9 +1236,12 @@ def _update_out_filename(updated_meta, with_meta):
 
 
 def _register_new_input_and_update_out_filename(
-        tasks: list,  #: list[TaskInputInfo],  # Require Python 3.7+ ?
-        origin, input_meta, new_task_meta, outputs
-        ):
+    tasks:         Dict[str, TaskInputInfo],
+    origin:        str,
+    input_meta:    Dict,
+    new_task_meta: Meta,
+    outputs:       List[Dict],  # List<Meta>
+) -> None:
     """
     Helper function to register a new input to a :class:`TaskInputInfo` and
     update the current task output filename if required.
@@ -1258,17 +1271,17 @@ class PipelineDescriptionSequence:
 
     Internally, it can be seen as a list of :class:`PipelineDescription` objects.
     """
-    def __init__(self, cfg, dryrun, debug_caches):
+    def __init__(self, cfg: Configuration, dryrun: bool, debug_caches: bool) -> None:
         """
         constructor
         """
         assert cfg
         self.__cfg          = cfg
-        self.__pipelines    = []
+        self.__pipelines    : List[PipelineDescription] = []
         self.__dryrun       = dryrun
         self.__debug_caches = debug_caches
 
-    def register_pipeline(self, factory_steps, *args, **kwargs):
+    def register_pipeline(self, factory_steps: List[Type], *args, **kwargs) -> PipelineDescription:
         """
         Register a pipeline description from:
 
@@ -1291,7 +1304,7 @@ class PipelineDescriptionSequence:
         self.__pipelines.append(pipeline)
         return pipeline
 
-    def _build_dependencies(self, tile_name, raster_list):
+    def _build_dependencies(self, tile_name: str, raster_list: List[Dict]) -> Tuple[Set[str], Dict, Dict]:
         """
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
@@ -1306,7 +1319,7 @@ class PipelineDescriptionSequence:
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
         required = {}  # (first batch) Final products identified as _needed to be produced_
-        previous = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs): Map<TaskInputInfo>
+        previous : Dict[str, TaskInputInfo] = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
         task_names_to_output_files_table = {}
         # +-> TODO: cache previous in order to remember which files already exists or not
         #     the difficult part is to flag as "generation successful" or not
@@ -1324,7 +1337,7 @@ class PipelineDescriptionSequence:
                 logger.debug('* Checking sources from "%s" origin: %s', origin, source_name)
                 # Locate all inputs for the current pipeline
                 # -> Select all inputs for pipeline sources from pipelines_outputs
-                inputs = [output for output in pipelines_outputs[source_name]]
+                inputs = pipelines_outputs[source_name][:]
 
                 logger.debug('  FROM all %s inputs as "%s": %s', len(inputs), origin, [out_filename(i) for i in inputs])
                 dropped = []
@@ -1402,7 +1415,7 @@ class PipelineDescriptionSequence:
             logger.debug("check task_name: %s", name)
             if product_exists(meta):
                 logger.debug("Ignoring %s as the product already exists", name)
-                previous[name] = False  # for the next log
+                previous[name].clear()  # for the next log
             else:
                 required_task_names.add(name)
 
@@ -1414,9 +1427,13 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', task_name)
         return required_task_names, previous, task_names_to_output_files_table
 
-    def _build_tasks_from_dependencies(self,
-            required, previous, task_names_to_output_files_table,
-            do_watch_ram):  # pylint: disable=no-self-use
+    def _build_tasks_from_dependencies(
+        self,
+        required :                        Set[str],
+        previous :                        Dict,
+        task_names_to_output_files_table: Dict,
+        do_watch_ram:                     bool
+    ) -> Dict[str, Union[Tuple,"FirstStep"]]:  # Dict of FirstStep or Tuple parameter for execute4dask
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -1424,7 +1441,7 @@ class PipelineDescriptionSequence:
         - "pipeline": reference to the :class:`PipelineDescription`
         - "inputs": list of the inputs (metadata)
         """
-        tasks = {}
+        tasks : Dict[str, Union[Tuple,FirstStep]] = {}
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
         logger.debug('Building all tasks')
@@ -1435,7 +1452,8 @@ class PipelineDescriptionSequence:
                 base_task_name = to_dask_key(task_name)
                 task_inputs    = previous[task_name].inputs
                 pipeline_descr = previous[task_name].pipeline
-                first = lambda files : files[0] if isinstance(files, list) else  files
+                def first(files: Union[str, List[str]]) -> str:
+                    return files[0] if isinstance(files, list) else  files
                 input_task_keys = [to_dask_key(first(tn))
                         for tn in previous[task_name].input_task_names]
                 assert list(input_task_keys)
@@ -1460,7 +1478,7 @@ class PipelineDescriptionSequence:
             required = new_required
         return tasks
 
-    def _check_static_task_requirements(self, tasks):
+    def _check_static_task_requirements(self, tasks: Dict[str, Union[Tuple,"FirstStep"]]) -> None:
         """
         Check all tasks have their requirement fulfilled for being generated.
         Typically that the related applications are installed and can be
@@ -1472,7 +1490,7 @@ class PipelineDescriptionSequence:
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
         logger.debug('Checking tasks static dependencies')
-        missing_apps = {}
+        missing_apps : Dict[str, List[str]] = {}
         contexts = set()
         for key, task in tasks.items():
             if isinstance(task, tuple):
@@ -1491,8 +1509,9 @@ class PipelineDescriptionSequence:
         else:
             logger.debug('All required applications are correctly available')
 
-
-    def generate_tasks(self, tile_name, raster_list, do_watch_ram=False):
+    def generate_tasks(
+        self, tile_name: str, raster_list: List[Dict], do_watch_ram=False
+    ) -> Tuple[Dict[str, Union[Tuple, "FirstStep"]], List[str]]:
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -1528,7 +1547,7 @@ class FirstStep(AbstractStep):
 
     - no application executed
     """
-    def __init__(self, *argv, **kwargs):
+    def __init__(self, *argv, **kwargs) -> None:
         super().__init__(*argv, **kwargs)
         if 'out_filename' not in self._meta:
             # If not set through the parameters, set it from the basename + out dir
@@ -1537,14 +1556,14 @@ class FirstStep(AbstractStep):
         self._meta['basename'] = basename
         self._meta['pipe'] = [self._meta['out_filename']]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'FirstStep{self._meta}'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'FirstStep{self._meta}'
 
     @property
-    def input_metas(self):
+    def input_metas(self) -> List[Meta]:
         """
         Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
         metas from the inputs as a list.
@@ -1561,21 +1580,21 @@ class MergeStep(AbstractStep):
 
     - no application executed
     """
-    def __init__(self, input_steps_metas, *argv, **kwargs):
+    def __init__(self, input_steps_metas: Dict, *argv, **kwargs) -> None:
         # meta = {**(input_steps_metas[0]._meta), **kwargs}  # kwargs override step0.meta
         meta = {**(input_steps_metas[0]), **kwargs}  # kwargs override step0.meta
         super().__init__(*argv, **meta)
         self.__input_steps_metas = input_steps_metas
         self._meta['out_filename'] = [out_filename(s) for s in input_steps_metas]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'MergeStep{self.__input_steps_metas}'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'MergeStep{self.__input_steps_metas}'
 
     @property
-    def input_metas(self):
+    def input_metas(self) -> Dict:
         """
         Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
         metas from the inputs as a list.
@@ -1588,26 +1607,16 @@ class StoreStep(_StepWithOTBApplication):
     Artificial Step that takes care of executing the last OTB application in the
     pipeline.
     """
-    def __init__(self, previous: Step):
+    def __init__(self, previous: Step) -> None:
         assert not previous.is_first_step
         super().__init__(previous._app, *[], **previous.meta)
         self._out = previous.param_out
 
     @property
-    def tmp_filename(self):
-        """
-        Property that returns the name of the file produced by the current step while
-        the OTB application is running.
-        Eventually, it'll get renamed into `self.out_filename` if the application
-        succeeds.
-        """
-        return tmp_filename(self.meta)
-
-    @property
-    def shall_store(self):
+    def shall_store(self) -> bool:
         return True
 
-    def set_out_parameters(self):
+    def set_out_parameters(self) -> None:
         """
         Takes care of setting all output parameters.
         """
@@ -1619,7 +1628,7 @@ class StoreStep(_StepWithOTBApplication):
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
             self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
 
-    def execute_and_write_output(self):
+    def execute_and_write_output(self) -> None:
         """
         Specializes :func:`execute_and_write_output()` to actually execute the
         OTB pipeline.
@@ -1656,7 +1665,7 @@ class StoreStep(_StepWithOTBApplication):
         self.meta['pipe'] = [self.out_filename]
 
 
-def commit_execution(tmp_fn, out_fn):
+def commit_execution(tmp_fn, out_fn) -> None:
     """
     Concluding step that validates the successful execution of an application,
     whether it's an OTB application or an external executable.
@@ -1689,9 +1698,11 @@ class _FileProducingStepFactory(StepFactory):
 
     :func:`create_step` is kind of *abstract* at this point.
     """
-    def __init__(self, cfg,
-            gen_tmp_dir, gen_output_dir, gen_output_filename,
-            *argv, **kwargs):
+    def __init__(
+        self, cfg: Configuration,
+        gen_tmp_dir: str, gen_output_dir, gen_output_filename,
+        *argv, **kwargs
+    ) -> None:
         """
         Constructor
 
@@ -1712,23 +1723,7 @@ class _FileProducingStepFactory(StepFactory):
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
-    def parameters(self, meta):
-        """
-        Most steps that produce files will expect parameters.
-
-        Warning: In :class:`ExecutableStepFactory`, parameters that designate
-        output filenames are expected to use :func:`tmp_filename` and not
-        :func:`out_filename`. Indeed products are meant to be first produced
-        with temporary names before being renamed with their final names, once
-        the operation producing them has succeeded.
-
-        Note: This method is kind-of abstract --
-        :class:`SelectBestCoverage <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a
-        :class:`_FileProducingStepFactory` but, it doesn't actualy consume parameters.
-        """
-        raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
-
-    def output_directory(self, meta):
+    def output_directory(self, meta: Meta) -> str:
         """
         Accessor to where output files will be stored in case their production
         is required (i.e. not in-memory processing)
@@ -1743,14 +1738,13 @@ class _FileProducingStepFactory(StepFactory):
         """
         return str(self.__gen_output_dir).format(**meta)
 
-    def _get_nominal_output_basename(self, meta):
+    def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
         """
         Returns the pathless basename of the produced file (internal).
         """
-
         return self.__gen_output_filename.generate(meta['basename'], meta)
 
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
         Returns the names of typical result files in case their production
         is required (i.e. not in-memory processing).
@@ -1760,13 +1754,15 @@ class _FileProducingStepFactory(StepFactory):
         policies`_.
         """
         filename = self._get_nominal_output_basename(meta)
-        in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
+        def in_dir(fn: str) -> str:
+            # in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
+            return os.path.join(self.output_directory(meta), fn)
         if isinstance(filename, str):
             return in_dir(filename)
         else:
             return [in_dir(fn) for fn in filename]
 
-    def tmp_directory(self, meta):
+    def tmp_directory(self, meta) -> str:
         """
         Directory used to store temporary files before they are renamed into
         their final version.
@@ -1780,14 +1776,14 @@ class _FileProducingStepFactory(StepFactory):
         """
         return self.__gen_tmp_dir.format(**meta)
 
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
         This specialization of :func:`StepFactory.build_step_output_tmp_filename`
         will automatically insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
-        add_tmp = lambda fn : os.path.join(
-                self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
+        def add_tmp(fn: str) -> str:
+            return os.path.join(self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
         if isinstance(filename, str):
             return add_tmp(filename)
         else:
@@ -1808,10 +1804,13 @@ class OTBStepFactory(_FileProducingStepFactory):
     All step factories that wrap OTB applications are meant to inherit from
     :class:`OTBStepFactory`.
     """
-    def __init__(self, cfg,
-            appname,
-            gen_tmp_dir, gen_output_dir, gen_output_filename,
-            *argv, **kwargs):
+    def __init__(
+        self,
+        cfg: Configuration,
+        appname: str,
+        gen_tmp_dir, gen_output_dir, gen_output_filename,
+        *argv, **kwargs
+    ) -> None:
         """
         Constructor.
 
@@ -1842,6 +1841,23 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         return self._appname
 
+    @abstractmethod
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Most steps that produce files will expect parameters.
+
+        Warning: In :class:`ExecutableStepFactory`, parameters that designate
+        output filenames are expected to use :func:`tmp_filename` and not
+        :func:`out_filename`. Indeed products are meant to be first produced
+        with temporary names before being renamed with their final names, once
+        the operation producing them has succeeded.
+
+        Note: This method is kind-of abstract --
+        :class:`SelectBestCoverage <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a
+        :class:`_FileProducingStepFactory` but, it doesn't actualy consume parameters.
+        """
+        raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
+
     @property
     def param_in(self):
         """
@@ -1859,7 +1875,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         return self._out
 
-    def set_output_pixel_type(self, app, meta):
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Permits to have steps force the output pixel data.
         Does nothing by default.
@@ -1867,7 +1883,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         pass
 
-    def create_step(self, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1904,7 +1920,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         if is_running_dry(meta):
             logger.warning('DRY RUN mode: ignore step and OTB Application creation')
             lg_from = inp.out_filename if inp.is_first_step else 'app'
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in self.parameters(meta).items()))
+            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in self.parameters(meta).items()))
             meta['param_out'] = self.param_out
             return Step('FAKEAPP', **meta)
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
@@ -1916,10 +1932,11 @@ class OTBStepFactory(_FileProducingStepFactory):
             if inp.is_first_step:
                 if not files_exist(inp.out_filename):
                     logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, inp.out_filename)
-                    raise RuntimeError(f"Cannot create OTB pipeline starting with {self.appname} as some input files don't exist ({inp.out_filename})")
+                    raise RuntimeError(f"Cannot create OTB pipeline starting with {self.appname}: some input files don't exist ({inp.out_filename})")
                 # parameters[self.param_in] = inp.out_filename
                 lg_from = inp.out_filename
             else:
+                assert isinstance(inp, _StepWithOTBApplication)
                 assert isinstance(self.param_in, str), f"String expected for {self.param_in}"
                 assert isinstance(inp.param_out, str), f"String expected for {self.param_out}"
                 app.ConnectImage(self.param_in, inp.app, inp.param_out)
@@ -1935,18 +1952,18 @@ class OTBStepFactory(_FileProducingStepFactory):
             self.set_output_pixel_type(app, meta)
             logger.debug('Register app: %s (from %s) %s -%s %s',
                     self.appname, lg_from,
-                    ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()),
+                    ' '.join(f'-{k} {v!r}' for k, v in parameters.items()),
                     self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
             try:
                 app.SetParameters(parameters)
             except Exception:
-                logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join('-%s %s' % (k, as_app_shell_param(v)) for k, v in parameters.items()))
+                logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
                 raise
 
         meta['param_out'] = self.param_out
         return Step(app, **meta)
 
-    def check_requirements(self):
+    def check_requirements(self) -> Optional[Tuple[str, str]]:
         """
         This specialization of :func:`check_requirements` checks whether the
         related OTB application can correctly be executed from S1Tiling.
@@ -1962,7 +1979,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             app = None
             return None
 
-    def requirement_context(self):
+    def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
         By default, OTB applications requires... OTB!
@@ -1977,10 +1994,15 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     All step factories that wrap OTB applications are meant to inherit from
     :class:`ExecutableStepFactory`.
     """
-    def __init__(self, cfg,
-            exename,
-            gen_tmp_dir, gen_output_dir, gen_output_filename,
-            *argv, **kwargs):
+    def __init__(
+        self,
+        cfg:                 Configuration,
+        exename:             str,
+        gen_tmp_dir:         str,
+        gen_output_dir:      Optional[str],
+        gen_output_filename: OutputFilenameGenerator,
+        *argv, **kwargs
+    ) -> None:
         """
         Constructor
 
@@ -1991,7 +2013,24 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         self._exename              = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
-    def create_step(self, in_memory: bool, previous_steps):
+    @abstractmethod
+    def parameters(self, meta: Meta) -> ExeParameters:
+        """
+        Most steps that produce files will expect parameters.
+
+        Warning: In :class:`ExecutableStepFactory`, parameters that designate
+        output filenames are expected to use :func:`tmp_filename` and not
+        :func:`out_filename`. Indeed products are meant to be first produced
+        with temporary names before being renamed with their final names, once
+        the operation producing them has succeeded.
+
+        Note: This method is kind-of abstract --
+        :class:`SelectBestCoverage <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a
+        :class:`_FileProducingStepFactory` but, it doesn't actualy consume parameters.
+        """
+        raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
+
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> ExecutableStep:
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
@@ -2015,26 +2054,27 @@ class Store(StepFactory):
     While it could be used manually, it's meant to be automatically appended
     at the end of a pipeline if any step is actually related to OTB.
     """
-    def __init__(self, appname, *argv, **kwargs):  # pylint: disable=unused-argument
+    def __init__(self, appname: str, *argv, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
         # logger.debug('Creating Store Factory: %s', appname)
 
-    def create_step(self, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> Union[AbstractStep, StoreStep]:
         """
         Specializes :func:`StepFactory.create_step` to trigger
         :func:`StoreStep.execute_and_write_output` on the last step that
         relates to an OTB Application.
         """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        if inp.is_first_step:
+        inputs     = self._get_inputs(previous_steps)
+        input_step = self._get_canonical_input(inputs)
+        if input_step.is_first_step:
             # assert False  # Should no longer happen, yet it does w/ ConcatLIA...
             # Special case of by-passed inputs
-            meta = inp.meta.copy()
+            meta = input_step.meta.copy()
             return AbstractStep(**meta)
 
-        # logger.debug('Creating StoreStep from %s', inp)
-        res = StoreStep(inp)
+        # logger.debug('Creating StoreStep from %s', input_step)
+        assert isinstance(input_step, Step)
+        res = StoreStep(input_step)
         try:
             res.execute_and_write_output()
         finally:
@@ -2049,11 +2089,39 @@ class Store(StepFactory):
 
     # abstract methods...
 
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta):
         raise TypeError("No way to ask for the output filename of a Store Factory")
 
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta):
         raise TypeError("No way to ask for the output temporary filename of a Store Factory")
+
+
+def generate_first_steps_from_manifests(
+    raster_list:  List[Dict],
+    tile_name:    str,
+    dryrun:       bool,
+    debug_caches: bool
+) -> List[Dict]:  # List[meta(FirstStep)]
+    """
+    Flatten all rasters from the manifest as a list of :class:`FirstStep`
+    """
+    inputs = []
+    # Log commented and kept for filling in unit tests
+    # logger.debug('Generate first steps from: %s', raster_list)
+    for raster_info in raster_list:
+        raster: S1DateAcquisition = raster_info['raster']
+
+        manifest = raster.get_manifest()
+        for image in raster.get_images_list():
+            start = FirstStep(tile_name=tile_name,
+                              tile_origin=raster_info['tile_origin'],
+                              tile_coverage=raster_info['tile_coverage'],
+                              manifest=manifest,
+                              basename=image,
+                              dryrun=dryrun,
+                              debug_caches=debug_caches)
+            inputs.append(start.meta)
+    return inputs
 
 
 # ======================================================================
@@ -2091,7 +2159,7 @@ class PoolOfOTBExecutions:
             do_measure,
             nb_procs, nb_threads,
             log_queue, log_queue_listener,
-            debug_otb):
+            debug_otb) -> None:
         """
         constructor
         """
@@ -2145,7 +2213,7 @@ class Processing:
     2. The pipeline is registered with a list of :class`StepFactory` s
     3. The processing is done on a list of :class:`FirstStep` s
     """
-    def __init__(self, cfg, debug_otb):
+    def __init__(self, cfg, debug_otb) -> None:
         self.__log_queue          = cfg.log_queue
         self.__log_queue_listener = cfg.log_queue_listener
         self.__cfg                = cfg
