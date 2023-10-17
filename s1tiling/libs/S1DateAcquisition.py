@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -28,25 +28,27 @@
 
 """ This module contains the S1DateAcquisition class"""
 
+from pathlib import Path
+from typing import Any, Dict, List
 
 class S1DateAcquisition:
     """This class handles the list of images for one S1 product"""
-    def __init__(self, manifest, image_filenames_list, product_info):
+    def __init__(self, manifest: Path, image_filenames_list: List[str], product_info: Dict[str,Any]) -> None:
         self.manifest             = manifest
         self.image_filenames_list = image_filenames_list
         self.product_info         = product_info
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"S1DateAcquisition('{self.manifest}', {self.image_filenames_list})"
 
-    def get_manifest(self):
+    def get_manifest(self) -> Path:
         """ Get the manifest file """
         return self.manifest
 
-    def add_image(self, image_list):
+    def add_image(self, image: str) -> None:
         """ Add an image to the image list """
-        self.image_filenames_list.append(image_list)
+        self.image_filenames_list.append(image)
 
-    def get_images_list(self):
+    def get_images_list(self) -> List[str]:
         """ Get the image list"""
         return self.image_filenames_list
