@@ -101,6 +101,7 @@ setup(
             # "twine",
             "wheel",
             "flake8",
+            "mypy",
             "pre-commit",
             "pytest-bdd < 6",  # Using "example table" feature, removed from v6
             #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x

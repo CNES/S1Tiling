@@ -29,12 +29,23 @@ suggestion-mode=yes
 # --disable=W".
 disable=
         invalid-name,
+        logging-fstring-interpolation,
+        unnecessary-lambda-assignment,
         unnecessary-pass,
         no-else-break,
+        no-else-continue,
         no-else-return,
+        no-else-raise,
         too-few-public-methods
 
 [FORMAT]
 
-ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.|register_pipeline|help=
+# Regexp for a line that is allowed to be longer than the limit.
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$|^\s*logging\.|^\s*logger\.|register_pipeline|help=|^\s*#:
+
+# Maximum number of characters on a single line.
+max-line-length=150
+
+# Maximum number of lines in a module.
+max-module-lines=1500
 
