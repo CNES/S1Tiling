@@ -741,7 +741,7 @@ You can use this :download:`this template
       .. _Filtering.filter:
   * - ``filter``
     - If ``none`` or empty, then no filtering is done. Otherwise the following
-      spatial speckling filter methods from :std:doc:`OTB Despeckle application
+      spatial speckling filter methods from :external:doc:`OTB Despeckle application
       <Applications/app_Despeckle>` are supported: ``Lee``, ``Frost``,
       ``Gammamap``, ``Kuan``.
 

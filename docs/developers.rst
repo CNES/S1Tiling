@@ -126,9 +126,9 @@ Dask: tasks
 -----------
 
 Given :ref:`pipeline descriptions <dev_pipeline>`, a requested S2 tile and its
-intersecting S1 images, S1 Tiling builds a set of dependant :std:doc:`Dask tasks
-<graphs>`. Each task corresponds to an actual pipeline which will transform a
-given image into another named image product.
+intersecting S1 images, S1 Tiling builds a set of dependant
+:external:doc:`Dask tasks <graphs>`. Each task corresponds to an actual
+pipeline which will transform a given image into another named image product.
 
 .. _dev_processings:
 

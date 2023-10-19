@@ -192,7 +192,7 @@ Agglomerate DEM files in a VRT
 
 :Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem-vrt-files>`
-:Program:     :std:doc:`programs/gdalbuildvrt`
+:Program:     :external:std:doc:`programs/gdalbuildvrt`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEM`
 
 All DEM files that intersect an original :ref:`input S1 image
@@ -208,7 +208,7 @@ Project SAR coordinates onto DEM
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
                  - The associated :ref:`VRT file <dem-vrt-files>`
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
-:OTBApplication: :std:doc:`DiapOTB SARDEMProjection <Applications/app_SARDEMProjection>`
+:OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection <Applications/app_SARDEMProjection>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjection`
 
 This step projects the coordinates of original :ref:`input S1 image
@@ -225,8 +225,8 @@ Project XYZ coordinates onto SAR
                  - The associated :ref:`VRT file <dem-vrt-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
-:OTBApplication: :std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
-                 <Applications/app_SARCartesianMeanEstimation2>`
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
+                 <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
 This step estimates the XYZ Cartesian coordinates on the ground in the geometry
@@ -294,7 +294,7 @@ Orthorectification of LIA maps
               LIA map <lia-s1-files>` in the original S1 image geometry
 :Output:      The associated :ref:`LIA map file(s) <lia-s2-half-files>`
               orthorectified on the target S2 tile.
-:OTBApplication: :std:doc:`Orthorectification
+:OTBApplication: :external:std:doc:`Orthorectification
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyLIA`
 
@@ -319,7 +319,7 @@ Concatenation of LIA maps
 :Inputs:         A pair of :ref:`LIA map files <lia-s2-half-files>` (sines or
                  degrees) orthorectified on the target S2 tile.
 :Output:         The :ref:`LIA map file(s) <lia-files>` associated to the S2 grid
-:OTBApplication: :std:doc:`Synthetize <Applications/app_Synthetize>`
+:OTBApplication: :external:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatLIA`
 
 This step merges all the images of the orthorectified S1 LIA maps on a given S2
@@ -338,7 +338,7 @@ Application of LIA maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
                  calibrated
-:OTBApplication: :std:doc:`Synthetize <Applications/app_BandMath>`
+:OTBApplication: :external:std:doc:`Synthetize <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
 This final step multiplies the sine LIA map (in S2 grid geometry) with β0

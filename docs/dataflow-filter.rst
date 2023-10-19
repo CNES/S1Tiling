@@ -26,9 +26,9 @@ Spatial Despeckle filter
 
 :Inputs:         Any :ref:`final S2 tiles <full-S2-tiles>`
 :Output:         A :ref:`filtered file <filtered-files>`
-:OTBApplication: :std:doc:`Despeckle <Applications/app_Despeckle>`
+:OTBApplication: :external:std:doc:`Despeckle <Applications/app_Despeckle>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SpatialDespeckle`
 
 This step applies any of the 3 spatial despeckling filters supported by
-:std:doc:`OTB Despeckle <Applications/app_Despeckle>`. See the documentation of
-this OTB application for more precise information.
+:external:std:doc:`OTB Despeckle <Applications/app_Despeckle>`. See the
+documentation of this OTB application for more precise information.

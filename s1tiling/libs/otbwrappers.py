@@ -304,7 +304,7 @@ k_calib_convert = {'normlim' : 'beta'}
 class Calibrate(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
+    :external:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
     Calibration` documentation.
 
     Requires the following information from the configuration object:
@@ -360,7 +360,7 @@ class Calibrate(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`SARCalibration OTB
+        Returns the parameters to use with :external:doc:`SARCalibration OTB
         application <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
@@ -380,7 +380,7 @@ class Calibrate(OTBStepFactory):
 class CorrectDenoising(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
+    :external:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
     documentation.
 
     Requires the following information from the configuration object:
@@ -420,7 +420,7 @@ class CorrectDenoising(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
         """
         params : OTBParameters = {
@@ -435,7 +435,7 @@ class CorrectDenoising(OTBStepFactory):
 class CutBorders(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
+    :external:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
 
     Requires the following information from the configuration object:
 
@@ -480,7 +480,7 @@ class CutBorders(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`ResetMargin OTB
+        Returns the parameters to use with :external:doc:`ResetMargin OTB
         application <Applications/app_ResetMargin>`.
         """
         params = {
@@ -499,7 +499,7 @@ class CutBorders(OTBStepFactory):
 class _OrthoRectifierFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` as described in
+    :external:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     This factory will be specialized for calibrated S1 images
@@ -571,7 +571,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`OrthoRectification OTB
+        Returns the parameters to use with :external:doc:`OrthoRectification OTB
         application <Applications/app_OrthoRectification>`.
         """
         image                   = self._get_input_image(meta)
@@ -619,7 +619,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
 class OrthoRectify(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` as described in
+    :external:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     Requires the following information from the configuration object:
@@ -657,7 +657,7 @@ class OrthoRectify(_OrthoRectifierFactory):
 class _ConcatenatorFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` as described in
+    :external:doc:`Applications/app_Synthetize` as described in
     :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
@@ -682,7 +682,7 @@ class _ConcatenatorFactory(OTBStepFactory):
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Precompute output basename from the input file(s).
-        Makes sure the :std:doc:`Synthetize OTB application
+        Makes sure the :external:doc:`Synthetize OTB application
         <Applications/app_Synthetize>` would compress its result file,
         through extended filename.
 
@@ -725,7 +725,7 @@ class _ConcatenatorFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`Synthetize OTB
+        Returns the parameters to use with :external:doc:`Synthetize OTB
         application <Applications/app_Synthetize>`.
         """
         return {
@@ -763,7 +763,7 @@ class _ConcatenatorFactory(OTBStepFactory):
 class Concatenate(_ConcatenatorFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` as described in
+    :external:doc:`Applications/app_Synthetize` as described in
     :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
@@ -883,7 +883,7 @@ class BuildBorderMask(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for computing border mask.
         """
         params : OTBParameters = {
@@ -929,7 +929,7 @@ class SmoothBorderMask(OTBStepFactory):
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`BinaryMorphologicalOperation OTB application
+        :external:doc:`BinaryMorphologicalOperation OTB application
         <Applications/app_BinaryMorphologicalOperation>` to smooth border
         masks.
         """
@@ -1060,7 +1060,7 @@ class SpatialDespeckle(OTBStepFactory):
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`Despeckle OTB application
+        :external:doc:`Despeckle OTB application
         <Applications/app_Despeckle>` to perform speckle noise reduction.
         """
         assert self.__rad
@@ -1151,10 +1151,10 @@ class AgglomerateDEM(ExecutableStepFactory):
 
 class SARDEMProjection(OTBStepFactory):
     """
-    Factory that prepares steps that run :std:doc:`Applications/app_SARDEMProjection`
+    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
     as described in :ref:`Normals computation` documentation.
 
-    :std:doc:`Applications/app_SARDEMProjection` application puts a DEM file
+    :external:doc:`Applications/app_SARDEMProjection` application puts a DEM file
     into SAR geometry and estimates two additional coordinates.
     For each point of the DEM input four components are calculated:
     C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
@@ -1171,7 +1171,7 @@ class SARDEMProjection(OTBStepFactory):
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
     DEM information already registered in dask worker (through
-    :std:doc:`Applications/app_OrthoRectification` for instance) and only use
+    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
     the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
@@ -1262,7 +1262,7 @@ class SARDEMProjection(OTBStepFactory):
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`SARDEMProjection OTB application
+        :external:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
         nodata = meta.get('nodata', -32768)
@@ -1289,11 +1289,11 @@ class SARDEMProjection(OTBStepFactory):
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_SARCartesianMeanEstimation` as described in
+    :external:doc:`Applications/app_SARCartesianMeanEstimation` as described in
     :ref:`Normals computation` documentation.
 
 
-    :std:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
+    :external:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
     cartesian mean image thanks to a DEM file.
 
     Requires the following information from the configuration object:
@@ -1397,7 +1397,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`SARCartesianMeanEstimation OTB application
+        :external:doc:`SARCartesianMeanEstimation OTB application
         <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
         coordinates of each point of the origin S1 image.
         """
@@ -1428,11 +1428,11 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 class ComputeNormals(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     as described in :ref:`Normals computation` documentation.
 
 
-    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     computes surface normals.
 
     Requires the following information from the configuration object:
@@ -1478,7 +1478,7 @@ class ComputeNormals(OTBStepFactory):
     def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`ExtractNormalVector OTB application
+        :external:doc:`ExtractNormalVector OTB application
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
@@ -1501,11 +1501,11 @@ class ComputeNormals(OTBStepFactory):
 class ComputeLIA(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     as described in :ref:`Normals computation` documentation.
 
 
-    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
 
     Requires the following information from the configuration object:
@@ -1578,7 +1578,7 @@ class ComputeLIA(OTBStepFactory):
     def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`SARComputeLocalIncidenceAngle OTB application
+        :external:doc:`SARComputeLocalIncidenceAngle OTB application
         <Applications/app_SARComputeLocalIncidenceAngle>`.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
@@ -1659,7 +1659,7 @@ def filter_LIA(LIA_kind: str) -> Type[_FilterStepFactory]:
 class OrthoRectifyLIA(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` on LIA maps.
+    :external:doc:`Applications/app_OrthoRectification` on LIA maps.
 
     Requires the following information from the configuration object:
 
@@ -1726,7 +1726,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
 class ConcatenateLIA(_ConcatenatorFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` on LIA images.
+    :external:doc:`Applications/app_Synthetize` on LIA images.
 
     Requires the following information from the configuration object:
 
@@ -1959,7 +1959,7 @@ class ApplyLIACalibration(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
         image orthorectified to S2 tile.
         """

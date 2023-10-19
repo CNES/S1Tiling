@@ -20,7 +20,7 @@ import os
 import re
 import sys
 import subprocess
-import sphinx_rtd_theme
+# import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('..'))
 
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(os.path.realpath(__file__))))
@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
+    "sphinx_rtd_theme",
     'm2r2'
 ]
 
@@ -118,7 +119,7 @@ ultimate_replacements = {
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -143,7 +144,8 @@ todo_include_todos = True
 # html_theme = 'bizstyle'
 html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()+"/sphinx_rtd_theme/static/"]
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -161,13 +163,12 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-    ],
-}
+# Override tables width from RTD theme, and other options
+html_css_files = [
+    'theme_overrides.css'
+]
 
-
+#   
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
