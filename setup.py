@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -36,13 +36,13 @@ from setuptools import setup, find_packages
 # Import the library to make sure there is no side effect
 import s1tiling
 
-def request_gdal_version():
+def request_gdal_version() -> str:
     try:
         r = subprocess.run(['gdal-config', '--version'], stdout=subprocess.PIPE )
         version = r.stdout.decode('utf-8').strip('\n')
-        print("GDAL %s detected on the system, using 'gdal=%s'" % (version, version))
+        print("GDAL %s detected on the system, using 'gdal==%s'" % (version, version))
         return version
-    except Exception as ex:  # pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         return '3.1.0'
 
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
