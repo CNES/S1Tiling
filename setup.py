@@ -36,13 +36,13 @@ from setuptools import setup, find_packages
 # Import the library to make sure there is no side effect
 import s1tiling
 
-def request_gdal_version():
+def request_gdal_version() -> str:
     try:
         r = subprocess.run(['gdal-config', '--version'], stdout=subprocess.PIPE )
         version = r.stdout.decode('utf-8').strip('\n')
-        print("GDAL %s detected on the system, using 'gdal=%s'" % (version, version))
+        print("GDAL %s detected on the system, using 'gdal==%s'" % (version, version))
         return version
-    except Exception as ex:  # pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         return '3.1.0'
 
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -116,7 +116,7 @@ setup(
             "natsort",
             "nbsphinx==0.9.3",
             "nbsphinx-link==1.3.0",
-            "sphinx~=7",
+            "sphinx~=7.1",
             "sphinx_rtd_theme",
             ],
         },
