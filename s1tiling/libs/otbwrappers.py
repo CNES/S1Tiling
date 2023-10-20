@@ -35,9 +35,7 @@ import logging
 import os
 import shutil
 import re
-# import datetime
 from abc import abstractmethod
-from packaging import version
 
 import numpy as np
 from osgeo import gdal
@@ -96,7 +94,7 @@ class ExtractSentinel1Metadata(StepFactory):
     sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
     def __init__(self, cfg):
-        super().__init__(cfg, 'ExtractSentinel1Metadata')
+        super().__init__('ExtractSentinel1Metadata')
 
     def build_step_output_filename(self, meta):
         """

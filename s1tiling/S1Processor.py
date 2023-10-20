@@ -332,7 +332,7 @@ def process_one_tile(
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=tile_name,
+            s1_file_manager.download_images(tiles=[tile_name],
                     dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products

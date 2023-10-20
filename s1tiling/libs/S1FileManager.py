@@ -607,7 +607,7 @@ class S1FileManager:
                 logger.debug("Remove old SAFE: %s", os.path.basename(safe))
                 shutil.rmtree(safe, ignore_errors=True)
             self._refresh_s1_product_list()  # TODO: decremental update
-            self._update_s1_img_list(tile_name)
+            self._update_s1_img_list_for(tile_name)
 
     def _search_products(self, dag: EODataAccessGateway,
             extent, first_date, last_date,
@@ -799,18 +799,18 @@ class S1FileManager:
             return
 
         if tiles:
-            tiles_list = tiles
+            tile_list = tiles
         elif "ALL" in self.roi_by_tiles:
-            tiles_list = self.cfg.tiles_list
+            tile_list = self.cfg.tile_list
         else:
-            tiles_list = self.roi_by_tiles
-        logger.debug("Tiles requested to download: %s", tiles_list)
+            tile_list = re.split(r'\s*,\s*', self.roi_by_tiles)
+        logger.debug("Tiles requested to download: %s", tile_list)
 
         downloaded_products = []
         layer = Layer(self.cfg.output_grid)
         for current_tile in layer:
             tile_name = current_tile.GetField('NAME')
-            if tile_name in tiles_list:
+            if tile_name in tile_list:
                 tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
                 latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
                 latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
