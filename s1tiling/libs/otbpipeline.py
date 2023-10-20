@@ -1736,7 +1736,6 @@ class _FileProducingStepFactory(StepFactory):
         """
         Returns the pathless basename of the produced file (internal).
         """
-
         return self.__gen_output_filename.generate(meta['basename'], meta)
 
     def build_step_output_filename(self, meta):
