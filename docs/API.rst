@@ -3,7 +3,7 @@
 
    <br />
 
-.. _developers:
+.. _api:
 
 .. index:: Developer documentation
 

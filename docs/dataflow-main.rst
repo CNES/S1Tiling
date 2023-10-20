@@ -33,8 +33,6 @@ For each S2 tile,
    3. It :ref:`builds masks <mask-generation>`, :ref:`if required <Mask.generate_border_mask>`
 
 
-.. _parallelization:
-
 .. index:: parallelization
 
 Parallelization
@@ -226,7 +224,6 @@ these products in memory can be disabled by passing ``--cache-before-ortho`` to
 program:`S1Processor`.
 
 
-.. _orthorectification:
 .. index:: Orthorectification
 
 Orthorectification
@@ -252,7 +249,6 @@ It uses the following parameters from the request configuration file:
 - :ref:`[Paths].geoid_file <paths.geoid_file>`
 
 
-.. _concatenation:
 .. index:: Concatenation
 
 Concatenation
