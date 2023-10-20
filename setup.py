@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -116,7 +116,7 @@ setup(
             "natsort",
             "nbsphinx==0.9.3",
             "nbsphinx-link==1.3.0",
-            "sphinx==7.2",
+            "sphinx~=7.2",
             "sphinx_rtd_theme",
             ],
         },
