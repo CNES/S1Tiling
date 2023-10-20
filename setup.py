@@ -118,7 +118,7 @@ setup(
             "nbsphinx==0.9.3",
             "nbsphinx-link==1.3.0",
             "sphinx~=7.1",
-            "sphinx_rtd_theme",
+            "sphinx_rtd_theme~=1.3.0",
             ],
         },
 
