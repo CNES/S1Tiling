@@ -111,6 +111,7 @@ setup(
             "pylint",
             ],
         "docs": [
+            "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
             "jinja2",
             "m2r2",
             "natsort",
