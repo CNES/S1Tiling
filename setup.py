@@ -116,7 +116,7 @@ setup(
             "natsort",
             "nbsphinx==0.9.3",
             "nbsphinx-link==1.3.0",
-            "sphinx~=7.2",
+            "sphinx~=7",
             "sphinx_rtd_theme",
             ],
         },
