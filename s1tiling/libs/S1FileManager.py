@@ -806,6 +806,7 @@ class S1FileManager:
             tile_list = re.split(r'\s*,\s*', self.roi_by_tiles)
         logger.debug("Tiles requested to download: %s", tile_list)
 
+        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
         downloaded_products = []
         layer = Layer(self.cfg.output_grid)
         for current_tile in layer:
@@ -840,7 +841,6 @@ class S1FileManager:
         Record the download failures and mark S2 products that cannot be generated.
         """
         logger.warning('Some products could not be downloaded. Analysing donwload failures...')
-        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
         for fp in failed_products:
             logger.warning('* %s', fp.error())
             prod  = fp.related_filenames()[0]  # expect only 1
