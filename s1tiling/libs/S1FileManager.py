@@ -787,7 +787,7 @@ class S1FileManager:
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
                 tile_name, dl_wait, dl_timeout)
-        logger.info("Remote S1 products saved into %s", [p.value for p in paths if p.has_value()])
+        logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         return paths
 
     def download_images(self, searched_items_per_page,
