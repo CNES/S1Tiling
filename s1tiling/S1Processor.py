@@ -76,6 +76,7 @@ from s1tiling.libs.otbwrappers import (
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
         ApplyLIACalibration, SpatialDespeckle)
 from s1tiling.libs import exits
+from s1tiling.libs.outcome import Outcome
 
 # Graphs
 from s1tiling.libs.vis import SimpleComputationGraph
@@ -336,6 +337,10 @@ def process_one_tile(
                     dl_wait=dl_wait, dl_timeout=dl_timeout,
                     searched_items_per_page=searched_items_per_page, dryrun=dryrun)
             # download_images will have updated the list of know products
+    except RuntimeError as e:
+        logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
+        return [Outcome(e)]
+
     except BaseException:  # pylint: disable=broad-except
         logger.exception('Cannot download S1 images associated to %s', tile_name)
         sys.exit(exits.DOWNLOAD_ERROR)
@@ -446,8 +451,9 @@ def do_process_with_pipeline(config_opt,
             results.extend([fp for fp in skipped_for_download_failures])
 
             logger.debug('#############################################################################')
-            if nb_errors_detected + len(skipped_for_download_failures) > 0:
-                logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
+            nb_issues = nb_errors_detected + len(skipped_for_download_failures)
+            if nb_issues > 0:
+                logger.warning('Execution report: %s errors detected', nb_issues)
             else:
                 logger.info('Execution report: no error detected')
 
@@ -457,10 +463,12 @@ def do_process_with_pipeline(config_opt,
             else:
                 logger.info(' -> Nothing has been executed')
 
+            search_failures   = s1_file_manager.get_search_failures()
             download_failures = s1_file_manager.get_download_failures()
             download_timeouts = s1_file_manager.get_download_timeouts()
             return exits.Situation(
-                    nb_computation_errors=nb_errors_detected,
+                    nb_computation_errors=nb_errors_detected - search_failures,
+                    nb_search_failures=search_failures,
                     nb_download_failures=len(download_failures),
                     nb_download_timeouts=len(download_timeouts)
                     )

@@ -45,6 +45,7 @@ import tempfile
 from typing import List
 
 from eodag.api.core         import EODataAccessGateway
+from eodag.api.search_result import SearchResult
 from eodag.utils.logging    import setup_logging
 from eodag.utils.exceptions import NotAvailableError
 from eodag.utils            import get_geometry_from_various
@@ -59,7 +60,7 @@ from s1tiling.libs import exits
 from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, get_platform_from_s1_raster
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
-from .outcome import DownloadOutcome
+from .outcome import DownloadOutcome, Outcome
 
 setup_logging(verbose=1)
 
@@ -117,9 +118,7 @@ def product_cover(product, geometry):
         try:
             intersection = search_geom.intersection(product_geometry)
         except TopologicalError:
-            logger.debug(
-                    "Product geometry still invalid. Force its acceptance"
-                    )
+            logger.debug("Product geometry still invalid. Force its acceptance")
         return 100
 
     ipos = (intersection.area / search_geom.area) * 100
@@ -380,6 +379,7 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
     logging.info("Starting download of %s...", product)
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
+    path: DownloadOutcome
     try:
         path = DownloadOutcome(
                 dag.download(
@@ -473,6 +473,7 @@ class S1FileManager:
         self.nb_images        = 0
 
         # Failures related to download (e.g. missing products)
+        self.__search_failures                = 0
         self.__download_failures              = []
         self.__failed_S1_downloads_by_S2_uid  = {}  # by S2 unique id: date + rel_orbit
         self.__skipped_S2_products            = []
@@ -528,6 +529,10 @@ class S1FileManager:
         download failure of a S1 product.
         """
         return self.__skipped_S2_products
+
+    def get_search_failures(self) -> int:
+        """Returns the number of times querying matching products failed"""
+        return self.__search_failures
 
     def get_download_failures(self):
         return self.__download_failures
@@ -618,7 +623,7 @@ class S1FileManager:
         Process with the call to eodag search.
         """
         product_type = 'S1_SAR_GRD'
-        products = []
+        products = SearchResult(None)
         page = 1
         k_dir_assoc = { 'ASC': 'ascending', 'DES': 'descending' }
         assert (not orbit_direction) or (orbit_direction in ['ASC', 'DES'])
@@ -633,6 +638,7 @@ class S1FileManager:
             page_products, _ = dag.search(
                     page=page, items_per_page=searched_items_per_page,
                     productType=product_type,
+                    raise_errors=True,
                     start=first_date, end=last_date,
                     box=extent,
                     # If we have eodag v1.6, we try to filter product during the search request
@@ -643,7 +649,7 @@ class S1FileManager:
                     platformSerialIdentifier=dag_platform_list_param,
                     )
             logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
-            products += page_products
+            products.extend(page_products)
             page += 1
             if len(page_products) < searched_items_per_page:
                 break
@@ -653,14 +659,14 @@ class S1FileManager:
 
         # Filter relative_orbits -- if it could not be done earlier in the search() request.
         if len(relative_orbit_list) > 1:
-            filtered_products = []
+            filtered_products = SearchResult(None)
             for rel_orbit in relative_orbit_list:
                 filtered_products.extend(products.filter_property(relativeOrbitNumber=rel_orbit))
             products = filtered_products
 
         # Filter platform -- if it could not be done earlier in the search() request.
         if len(platform_list) > 1:
-            filtered_products = []
+            filtered_products = SearchResult(None)
             for platform in platform_list:
                 filtered_products.extend(products.filter_property(platformSerialIdentifier=platform))
             products = filtered_products
@@ -750,11 +756,12 @@ class S1FileManager:
             first_date, last_date,
             tile_out_dir, tile_name,
             platform_list, orbit_direction, relative_orbit_list, polarization, cover,
-            searched_items_per_page,dryrun, dl_wait, dl_timeout):
+            searched_items_per_page,dryrun, dl_wait, dl_timeout) -> List[DownloadOutcome]:
         """
         Process with the call to eodag search + filter + download.
 
-        Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
+        :rtype: :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
+        :raises RuntimeError: If the search fails
         """
         extent = {
                 'lonmin': lonmin,
@@ -762,9 +769,14 @@ class S1FileManager:
                 'latmin': latmin,
                 'latmax': latmax
                 }
-        products = self._search_products(dag, extent,
-                first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
-                polarization, searched_items_per_page,dryrun)
+        try:
+            products = self._search_products(
+                    dag, extent,
+                    first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
+                    polarization, searched_items_per_page,dryrun)
+        except Exception as e:
+            self.__search_failures += 1
+            raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
 
         products = self._filter_products(products, extent, tile_out_dir, tile_name, polarization, cover)
 
@@ -793,7 +805,7 @@ class S1FileManager:
 
     def download_images(self, searched_items_per_page,
             dl_wait, dl_timeout,
-            dryrun=False, tiles=None):
+            dryrun=False, tiles=None) -> None:
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -837,7 +849,7 @@ class S1FileManager:
             success_products = list((p.value() for p in filter(lambda p: p.has_value(), downloaded_products)))
             self._refresh_s1_product_list(success_products)  # incremental update
 
-    def _analyse_download_failures(self, failed_products):
+    def _analyse_download_failures(self, failed_products) -> None:
         """
         Record the download failures and mark S2 products that cannot be generated.
         """
