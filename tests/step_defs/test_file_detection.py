@@ -3,19 +3,18 @@
 import fnmatch
 import logging
 import os
-from pathlib import Path
+# from pathlib import Path
 
 import shapely
 
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from tests.mock_otb  import isfile, isdir, glob, dirname
+from tests.mock_otb  import isdir, glob, dirname
 from tests.mock_data import FileDB
-import s1tiling.libs.Utils
+# import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager     import S1FileManager
-from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
-from s1tiling.libs.outcome           import Outcome
+from s1tiling.libs.outcome           import DownloadOutcome
 
 from eodag.utils.exceptions import (
     # AuthenticationError,
@@ -367,7 +366,7 @@ def when_searching_VH(configuration, image_list, mocker):
 
 def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
     logging.debug('mock: download1 -> %s', product)
-    return Outcome(product)
+    return DownloadOutcome(product, product)
 
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, image_list, mocker, downloads):
@@ -467,9 +466,10 @@ def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_di
 def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx):
     logging.debug('Given: S1 product #%s download timed-out', idx)
     missing_product = MockEOProduct(int(idx))
-    failed = Outcome(NotAvailableError(
-        f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"))
-    failed.add_related_filename(missing_product)
+    failed = DownloadOutcome(
+            NotAvailableError(
+                f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"),
+            missing_product)
     dl_failures.append(failed)
 
 

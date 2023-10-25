@@ -42,6 +42,7 @@ import re
 import shutil
 import sys
 import tempfile
+from typing import List
 
 from eodag.api.core         import EODataAccessGateway
 from eodag.utils.logging    import setup_logging
@@ -58,7 +59,7 @@ from s1tiling.libs import exits
 from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, get_platform_from_s1_raster
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
-from .outcome import Outcome
+from .outcome import DownloadOutcome
 
 setup_logging(verbose=1)
 
@@ -369,7 +370,7 @@ def _keep_requested_platforms(content_info, rq_platform_list):
     return kept_products
 
 
-def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
+def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> DownloadOutcome:
     """
     Takes care of downloading exactly one remote product and unzipping it,
     if required.
@@ -380,12 +381,14 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
     try:
-        path = Outcome(dag.download(
-            product,           # EODAG will clear this variable
-            extract=True,      # Let's eodag do the job
-            wait=dl_wait,      # Wait time in minutes between two download tries
-            timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
-            ))
+        path = DownloadOutcome(
+                dag.download(
+                    product,           # EODAG will clear this variable
+                    extract=True,      # Let's eodag do the job
+                    wait=dl_wait,      # Wait time in minutes between two download tries
+                    timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
+                ),
+                product)
         logging.debug(ok_msg)
         if os.path.exists(file) :
             try:
@@ -412,19 +415,19 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
         ##     raise NotAvailableError(
         ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E is not available (OFFLINE) and could not be downloaded, timeout reached
 
-        path = Outcome(e)
-        path.add_related_filename(product)
+        path = DownloadOutcome(e, product)
 
     return path
 
 
 def _parallel_download_and_extraction_of_products(
-        dag, raw_directory, products, nb_procs, tile_name, dl_wait, dl_timeout):
+        dag, raw_directory, products, nb_procs, tile_name, dl_wait, dl_timeout
+) -> List[DownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
 
-    Returns :class:`Outcome` of :class:`EOProduct` or Exception.
+    Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
     """
     paths = []
     log_queue = multiprocessing.Queue()
@@ -434,16 +437,14 @@ def _parallel_download_and_extraction_of_products(
         log_queue_listener.start()
         try:
             for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                paths.append(result)
                 # logger.debug('DL -> %s', result)
                 if result:
                     logger.info("%s correctly downloaded", result.value())
                     logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                    paths.append(result)
                 else:
-                    logger.warning("Cannot download %s", result.related_filenames())
-                    # TODO: make it possible to detect missing products in the
-                    # analysis
-                    paths.append(result)
+                    logger.warning("Cannot download %s", result.related_product())
+                    # TODO: make it possible to detect missing products in the analysis
         finally:
             pool.close()
             pool.join()
@@ -753,7 +754,7 @@ class S1FileManager:
         """
         Process with the call to eodag search + filter + download.
 
-        Returns :class:`Outcome` of :class:`EOProduct` or Exception.
+        Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
         """
         extent = {
                 'lonmin': lonmin,
@@ -843,7 +844,7 @@ class S1FileManager:
         logger.warning('Some products could not be downloaded. Analysing donwload failures...')
         for fp in failed_products:
             logger.warning('* %s', fp.error())
-            prod  = fp.related_filenames()[0]  # expect only 1
+            prod  = fp.related_product()
             day   = '{YYYY}{MM}{DD}'.format_map(extract_product_start_time(prod.as_dict()['id']))
             orbit = product_property(prod, 'relativeOrbitNumber')
             key = f'{day}#{orbit}'
@@ -957,7 +958,7 @@ class S1FileManager:
         for failure, missing in self.__failed_S1_downloads_by_S2_uid.items():
             # Reference missing product for the orbit + date
             # (we suppose there won't be a mix of S1A + S1B for the same pair)
-            ref_missing_S1_product = missing[0].related_filenames()[0]
+            ref_missing_S1_product = missing[0].related_product()
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
             eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
             eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)

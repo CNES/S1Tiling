@@ -31,10 +31,12 @@ Module relate to :class:`Outcome` monad.
 
 from typing import Generic, List, Optional, TypeVar, Union
 
-Value = TypeVar("Value")
-File  = TypeVar('File')
+Value   = TypeVar("Value")
+File    = TypeVar('File')
+Product = TypeVar('Product')
 
-class Outcome(Generic[Value, File]):
+
+class Outcome(Generic[Value]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome``.
 
@@ -48,8 +50,6 @@ class Outcome(Generic[Value, File]):
         """
         self.__value_or_error    = value_or_error
         self.__is_error          = issubclass(type(value_or_error), BaseException)
-        self.__related_filenames : List[File] = []
-        self.__pipeline_name     : Optional[str] = None
 
     def has_value(self) -> bool:
         """
@@ -82,6 +82,32 @@ class Outcome(Generic[Value, File]):
         assert self.__is_error
         assert isinstance(self.__value_or_error, BaseException)
         return self.__value_or_error
+
+    def __repr__(self) -> str:
+        if self.__is_error:
+            return f'Error: {self.error()}'
+        else:
+            return f'Success: {self.__value_or_error}'
+
+
+class PipelineOutcome(Outcome[Value], Generic[Value, File]):
+    """
+    Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
+    generated products for better error messages.
+
+    It stores tasks results which could be:
+    - either the path to the downloaded product,
+    - or the error message that leads to the task failure.
+
+    Plus information about the related input files.
+    """
+    def __init__(self, value_or_error : Union[Value, BaseException]) -> None:
+        """
+        constructor
+        """
+        super().__init__(value_or_error)
+        self.__related_filenames : List[File] = []
+        self.__pipeline_name     : Optional[str] = None
 
     def related_filenames(self) -> List[File]:
         """
@@ -124,3 +150,38 @@ class Outcome(Generic[Value, File]):
             return msg
         else:
             return f'Success: {self.__value_or_error}'
+
+
+class DownloadOutcome(Outcome[Value], Generic[Value, Product]):
+    """
+    Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
+    downloaded products for better error messages.
+
+    It stores tasks results which could be:
+    - either the path to the downloaded product,
+    - or the error message that leads to the task failure.
+
+    Plus information about the related eodag product.
+    """
+    def __init__(
+            self,
+            value_or_error : Union[Value, BaseException],
+            product: Product
+    ) -> None:
+        """
+        constructor
+        """
+        super().__init__(value_or_error)
+        self.__related_product = product
+
+    def related_product(self) -> Product:
+        """
+        Property related_product
+        """
+        return self.__related_product
+
+    def __repr__(self) -> str:
+        if self.has_value():
+            return f'{self.value()} has been successfully downloaded'
+        else:
+            return f'Failed to download {self.__related_product}: {self.error()}'

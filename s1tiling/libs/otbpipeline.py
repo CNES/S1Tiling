@@ -55,7 +55,7 @@ from osgeo import gdal
 import otbApplication as otb
 from . import Utils
 from . import exits
-from .outcome import Outcome
+from .outcome import PipelineOutcome
 
 logger = logging.getLogger('s1tiling.pipeline')
 
@@ -906,7 +906,7 @@ class Pipeline:
         if len(missing_inputs) > 0 and not self.__dryrun:
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
-            return Outcome(RuntimeError(msg))
+            return PipelineOutcome(RuntimeError(msg))
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
@@ -921,7 +921,7 @@ class Pipeline:
                 f"Step output {self.output} doesn't match expected output {res}.\nThis is likely happenning because pipeline name generation isn't incremental."
         steps = None
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
-        return Outcome(res)
+        return PipelineOutcome(res)
 
 
 # TODO: try to make it static...
@@ -939,7 +939,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
         assert len(args) == 1
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
-            if isinstance(arg, Outcome) and not arg:
+            if isinstance(arg, PipelineOutcome) and not arg:
                 logger.warning('Cancel execution of %s because an error has occured upstream on a dependent input file: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
@@ -963,7 +963,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
-        return Outcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
+        return PipelineOutcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
 
 
 class PipelineDescription:
