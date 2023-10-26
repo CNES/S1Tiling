@@ -57,8 +57,14 @@ version.
 
         .. code-block:: bash
 
-            # Example, on HAL:
-            module load otb/7.4-Python3.7.2
+            # Example, on TREX:
+            module load otb/7.4.2-Python3.8.4
+
+        .. note::
+
+            The installation script which is used on CNES clusters would be a
+            good starting point. See: :download:`install-CNES.sh
+            <../s1tiling/resources/install-CNES.sh>`
 
 .. note::
    We haven't tested yet with packages distributed for Linux OSes. It's likely
@@ -78,9 +84,9 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
 
 .. code-block:: bash
 
-    cd OTB-7.4.1-Linux64
+    cd OTB-7.4.2-Linux64
     source otbenv.profile
-    # Load module on HAL
+    # Load module on TREX
     module load gcc
     ctest3 -S share/otb/swig/build_wrapping.cmake -VV
 
@@ -186,7 +192,7 @@ provided as Ubuntu 18.04 dockers.
 You can browse the full list of available dockers in `S1Tiling registry
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
 Their naming scheme is
-:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.1`,
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.2`,
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
@@ -195,7 +201,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2
 
 or even directly used with
 
@@ -206,7 +212,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
         /data/MyS1ToS2.cfg
 
 .. note::
@@ -251,7 +257,7 @@ In other word, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
         --lia                             \
         /data/MyS1ToS2.cfg
 
