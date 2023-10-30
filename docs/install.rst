@@ -31,7 +31,7 @@ version.
     :download:`gdal-config <../s1tiling/resources/gdal-config>` into the
     ``bin/`` directory where you've extracted OTB. This will permit :samp:`pip
     install gdal=={vernum}` to work correctly.
-  - You'll also have to **patch** ``otbenv.profile`` to **insert** OTB ``lib/``
+  - You'll also have to **patch** :file:`otbenv.profile` to **insert** OTB ``lib/``
     directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will permit
     ``python3 -c 'from osgeo import gdal'`` to work correctly.
 
@@ -172,6 +172,73 @@ Then you can install S1 Tiling thanks to `pip`.
 
     The :file:`requirements*.txt` files already force rasterio wheel to be
     ignored.
+
+Installation scripts
+++++++++++++++++++++
+
+A couple of installation scripts used internally are provided.
+
+CNES clusters installation script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:download:`install-CNES.sh <../s1tiling/resources/install-CNES.sh>` takes care
+of installating S1Tiling on CNES HPC clusters.
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 0
+
+  * - Requirements
+    - It...
+
+  * -
+        - OTB installed from sources as a `Lmod
+          <https://lmod.readthedocs.io/en/latest/?badge=latest>`_ module.
+    -
+        - Installs S1Tiling in a dedicated space on the clusters,
+        - Defines a Python virtual environment where S1Tiling will reside,
+        - Automatically generates a S1Tiling module file.
+
+Linux machines installation script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:download:`install-rcbin.sh <../s1tiling/resources/install-rcbin.sh>` takes
+care of installating S1Tiling on Linux machines
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 0
+
+  * - Requirements
+    - It...
+
+  * -
+        - An un-extracted OTB binary release,
+        - Python 3.8+,
+        - A directory where S1Tiling has been cloned,
+        - Conda.
+
+    -
+        - Creates a conda environment for the selected python version (3.8 by
+          default),
+        - Extracts the OTB binary release in the directory where the
+          ``OTB-M.m.p-Linux64.run`` file is,
+        - Patches ``UseOTB.cmake`` if need be (in case of C++ ABI mismatch in
+          7.4.2 OTB release),
+        - Patches :file:`otbenv.profile`,
+        - Regenerates Python bindings for OTB,
+        - Installs GDAL python bindings from sources (to match GDAL version
+          shipped by OTB binaries),
+        - Install S1Tiling from its source directory,
+        - And automatically generates a S1Tiling module file named:
+          ``s1tiling/otb{Mmp}-py{Mm}`` (Major/minor/patch).
+
+          .. note::
+            You can source :file:`otbenv.profile` and activate the conda
+            environement manually if you don't use `Lmod
+            <https://lmod.readthedocs.io/en/latest/?badge=latest>`_.
 
 Extra packages
 ++++++++++++++
