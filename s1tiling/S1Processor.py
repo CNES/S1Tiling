@@ -657,12 +657,12 @@ def s1_process_lia(config_opt,
         )
 @click.option(
         "--eodag_download_timeout",
-        default=20,
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         help="If download fails, maximum time in mins before stop retrying to download (default: 20 mins)"
         )
 @click.option(
         "--eodag_download_wait",
-        default=2,
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
         help="If download fails, wait time in minutes between two download tries (default: 2 mins)"
         )
 @click.option(
@@ -715,12 +715,12 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         )
 @click.option(
         "--eodag_download_timeout",
-        default=20,
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         help="If download fails, maximum time in mins before stop retrying to download"
         )
 @click.option(
         "--eodag_download_wait",
-        default=2,
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
         help="If download fails, wait time in minutes between two download tries"
         )
 @click.option(
