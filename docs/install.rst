@@ -31,7 +31,7 @@ version.
     :download:`gdal-config <../s1tiling/resources/gdal-config>` into the
     ``bin/`` directory where you've extracted OTB. This will permit :samp:`pip
     install gdal=={vernum}` to work correctly.
-  - You'll also have to **patch** ``otbenv.profile`` to **insert** OTB ``lib/``
+  - You'll also have to **patch** :file:`otbenv.profile` to **insert** OTB ``lib/``
     directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will permit
     ``python3 -c 'from osgeo import gdal'`` to work correctly.
 
@@ -57,8 +57,14 @@ version.
 
         .. code-block:: bash
 
-            # Example, on HAL:
-            module load otb/7.4-Python3.7.2
+            # Example, on TREX:
+            module load otb/7.4.2-Python3.8.4
+
+        .. note::
+
+            The installation script which is used on CNES clusters would be a
+            good starting point. See: :download:`install-CNES.sh
+            <../s1tiling/resources/install-CNES.sh>`
 
 .. note::
    We haven't tested yet with packages distributed for Linux OSes. It's likely
@@ -78,9 +84,9 @@ https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bind
 
 .. code-block:: bash
 
-    cd OTB-7.4.1-Linux64
+    cd OTB-7.4.2-Linux64
     source otbenv.profile
-    # Load module on HAL
+    # Load module on TREX
     module load gcc
     ctest3 -S share/otb/swig/build_wrapping.cmake -VV
 
@@ -167,6 +173,73 @@ Then you can install S1 Tiling thanks to `pip`.
     The :file:`requirements*.txt` files already force rasterio wheel to be
     ignored.
 
+Installation scripts
+++++++++++++++++++++
+
+A couple of installation scripts used internally are provided.
+
+CNES clusters installation script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:download:`install-CNES.sh <../s1tiling/resources/install-CNES.sh>` takes care
+of installating S1Tiling on CNES HPC clusters.
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 0
+
+  * - Requirements
+    - It...
+
+  * -
+        - OTB installed from sources as a `Lmod
+          <https://lmod.readthedocs.io/en/latest/?badge=latest>`_ module.
+    -
+        - Installs S1Tiling in a dedicated space on the clusters,
+        - Defines a Python virtual environment where S1Tiling will reside,
+        - Automatically generates a S1Tiling module file.
+
+Linux machines installation script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:download:`install-rcbin.sh <../s1tiling/resources/install-rcbin.sh>` takes
+care of installating S1Tiling on Linux machines
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 0
+
+  * - Requirements
+    - It...
+
+  * -
+        - An un-extracted OTB binary release,
+        - Python 3.8+,
+        - A directory where S1Tiling has been cloned,
+        - Conda.
+
+    -
+        - Creates a conda environment for the selected python version (3.8 by
+          default),
+        - Extracts the OTB binary release in the directory where the
+          ``OTB-M.m.p-Linux64.run`` file is,
+        - Patches ``UseOTB.cmake`` if need be (in case of C++ ABI mismatch in
+          7.4.2 OTB release),
+        - Patches :file:`otbenv.profile`,
+        - Regenerates Python bindings for OTB,
+        - Installs GDAL python bindings from sources (to match GDAL version
+          shipped by OTB binaries),
+        - Install S1Tiling from its source directory,
+        - And automatically generates a S1Tiling module file named:
+          ``s1tiling/otb{Mmp}-py{Mm}`` (Major/minor/patch).
+
+          .. note::
+            You can source :file:`otbenv.profile` and activate the conda
+            environement manually if you don't use `Lmod
+            <https://lmod.readthedocs.io/en/latest/?badge=latest>`_.
+
 Extra packages
 ++++++++++++++
 
@@ -186,7 +259,7 @@ provided as Ubuntu 18.04 dockers.
 You can browse the full list of available dockers in `S1Tiling registry
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
 Their naming scheme is
-:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.1`,
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.2`,
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
@@ -195,7 +268,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2
 
 or even directly used with
 
@@ -206,7 +279,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
         /data/MyS1ToS2.cfg
 
 .. note::
@@ -251,7 +324,7 @@ In other word, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
         --lia                             \
         /data/MyS1ToS2.cfg
 
