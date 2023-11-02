@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -226,7 +226,7 @@ def get_orbit_direction(manifest):
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise Exception("Orbit Directiction not found in " + str(manifest))
+        raise Exception("Orbit Direction not found in " + str(manifest))
 
 
 def convert_coord(tuple_list, in_epsg, out_epsg):
