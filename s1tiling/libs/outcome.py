@@ -69,7 +69,7 @@ class Outcome(Generic[Value]):
 
         Requires ``has_value()`` to be ``True``
         """
-        assert not self.__is_error
+        assert self.has_value()
         assert not isinstance(self.__value_or_error, BaseException)
         return self.__value_or_error
 
@@ -79,15 +79,15 @@ class Outcome(Generic[Value]):
 
         Requires ``has_value()`` to be ``False``
         """
-        assert self.__is_error
+        assert not self.has_value()
         assert isinstance(self.__value_or_error, BaseException)
         return self.__value_or_error
 
     def __repr__(self) -> str:
-        if self.__is_error:
-            return f'Error: {self.error()}'
-        else:
+        if self.has_value():
             return f'Success: {self.__value_or_error}'
+        else:
+            return f'Error: {self.error()}'
 
 
 class PipelineOutcome(Outcome[Value], Generic[Value, File]):
@@ -136,7 +136,9 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
         return self
 
     def __repr__(self) -> str:
-        if self.__is_error:
+        if self.has_value():
+            return f'Success: {self.value()}'
+        else:
             msg = f'Failed to produce {self.__related_filenames[-1]}'
             if self.__pipeline_name:
                 msg += f' because {self.__pipeline_name} failed.'
@@ -146,10 +148,8 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
                 msg += f' {errored_files} could not be produced: '
             else:
                 msg += ': '
-            msg +=  f'{self.__value_or_error}'
+            msg +=  f'{self.error()}'
             return msg
-        else:
-            return f'Success: {self.__value_or_error}'
 
 
 class DownloadOutcome(Outcome[Value], Generic[Value, Product]):

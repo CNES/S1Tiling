@@ -58,10 +58,10 @@ except ImportError:
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, get_platform_from_s1_raster
+from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
-from .outcome import DownloadOutcome, Outcome
+from .outcome import DownloadOutcome
 
 setup_logging(verbose=1)
 
