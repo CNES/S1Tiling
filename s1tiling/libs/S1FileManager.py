@@ -44,6 +44,7 @@ import sys
 import tempfile
 from typing import List
 
+from requests.exceptions import ReadTimeout
 from eodag.api.core         import EODataAccessGateway
 from eodag.api.search_result import SearchResult
 from eodag.utils.logging    import setup_logging
@@ -429,6 +430,7 @@ def _parallel_download_and_extraction_of_products(
 
     Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
     """
+    nb_products = len(products)
     paths = []
     log_queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
@@ -436,15 +438,34 @@ def _parallel_download_and_extraction_of_products(
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
-            for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
-                paths.append(result)
-                # logger.debug('DL -> %s', result)
-                if result:
-                    logger.info("%s correctly downloaded", result.value())
-                    logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                else:
-                    logger.warning("Cannot download %s", result.related_product())
-                    # TODO: make it possible to detect missing products in the analysis
+            # In case timeout happens, we try again if and only if we have been able to 
+            # download other products after the timeout.
+            # -> IOW, downloading instability justifies trying again.
+            # /> On the contrary, on a complete network failure, we should not try again and again...
+            while len(products) > 0:
+                products_in_timeout = []
+                nb_successes_since_timeout = 0
+                for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                    # logger.debug('DL -> %s', result)
+                    if result:
+                        logger.info("%s correctly downloaded", result.value())
+                        logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / nb_products)
+                        paths.append(result)
+                        if len(products_in_timeout) > 0:
+                            nb_successes_since_timeout += 1
+                    else:
+                        logger.warning("Cannot download %s: %s", result.related_product(), result.error())
+                        # TODO: make it possible to detect missing products in the analysis
+                        if isinstance(result.error(), ReadTimeout):
+                            products_in_timeout.append(result.related_product())
+                        else:
+                            paths.append(result)
+                products = []
+                if nb_successes_since_timeout > nb_procs:
+                    products = products_in_timeout
+                    logger.info("Attempting again to download %s products on timeout...", len(products))
+                elif len(products_in_timeout) > 0:
+                    paths.extend(products_in_timeout)
         finally:
             pool.close()
             pool.join()
@@ -920,6 +941,7 @@ class S1FileManager:
             'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
             } for p in content]
         products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
+        # TODO: filter corrupted products (e.g. .zip files that couldn't be correctly unzipped (because of a previous disk saturation for instance)
 
         for ci in products_info:
             manifest = os.path.join(ci['safe_dir'], self.manifest_pattern)
