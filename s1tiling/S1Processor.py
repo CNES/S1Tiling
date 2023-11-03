@@ -58,6 +58,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+from typing import Union, Tuple
 
 import click
 from distributed.scheduler import KilledWorker
@@ -69,6 +70,7 @@ from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
 from s1tiling.libs.otbpipeline import FirstStep, PipelineDescriptionSequence
 from s1tiling.libs.otbwrappers import (
+        AbstractStep,
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
@@ -259,6 +261,16 @@ class DaskContext:
         return self.__client
 
 
+def _how2str(how: Union[Tuple,AbstractStep]) -> str:
+    """
+    Make task definition from logger friendly
+    """
+    if isinstance(how, AbstractStep):
+        return str(how)
+    else:
+        return f"Task(pipeline: {how[1]}; keys: {how[2]})"
+
+
 def _execute_tasks_debug(dsk, tile_name):
     """
     Execute the tasks directly, one after the other, without Dask layer.
@@ -270,12 +282,12 @@ def _execute_tasks_debug(dsk, tile_name):
     logger.debug('%s tasks', len(tasks))
     for product in reversed(tasks):
         how = dsk[product]
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
     logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
     results = []
     for product in reversed(tasks):
         how = dsk[product]
-        logger.info('- execute: %s <-- %s', product, how)
+        logger.info('- execute: %s <-- %s', product, _how2str(how))
         if not issubclass(type(how), FirstStep):
             results += [how[0](*list(how)[1:])]
     return results
@@ -287,7 +299,7 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
     Execute the tasks in parallel through Dask.
     """
     for product, how in dsk.items():
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
 
     if debug_tasks:
         SimpleComputationGraph().simple_graph(

@@ -1271,7 +1271,7 @@ class PipelineDescriptionSequence:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
-        logger.debug('Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
+        logger.debug('--> Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
 
