@@ -256,14 +256,14 @@ class OTBApplicationsMockContext:
     Mocking context where OTB/S1Tiling expected application calls are cached.
     """
 
-    def __init__(self, cfg, mocker, tmp_to_out_map):
+    def __init__(self, cfg, mocker, tmp_to_out_map, dem_files):
         """
         constructor
         """
         self.__applications           = []
         self.__expectations           = []
         self.__configuration          = cfg
-        self.__known_files            = []
+        self.__known_files            = dem_files[:]
         self.__tmp_to_out_map         = tmp_to_out_map
         self.__last_expected_metadata = {}
 
