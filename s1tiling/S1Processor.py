@@ -88,11 +88,11 @@ EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes b
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
 
 
-def remove_files(files):
+def remove_files(files, what: str) -> None:
     """
     Removes the files from the disk
     """
-    logger.debug("Remove %s", files)
+    logger.debug("Remove %s: %s", what, files)
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
@@ -183,20 +183,19 @@ def check_srtm_tiles(cfg, srtm_tiles_id, srtm_suffix='.hgt'):
     return res
 
 
-def clean_logs(config, nb_workers):
+def clean_logs(config, nb_workers) -> None:
     """
     Clean all the log files.
     Meant to be called once, at startup
     """
     filenames = []
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
-            pattern = cfg['filename'] % ('worker-%s',)
-            filenames += [pattern%(w,) for w in range(nb_workers)]
-    remove_files(filenames)
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
+            filenames += [cfg['filename'].format(kind=f"worker-{w}") for w in range(nb_workers)]
+    remove_files(filenames, "logs")
 
 
-def setup_worker_logs(config, dask_worker):
+def setup_worker_logs(config, dask_worker) -> None:
     """
     Set-up the logger on Dask Worker.
     """
