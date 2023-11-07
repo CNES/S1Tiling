@@ -1114,6 +1114,10 @@ class AgglomerateDEM(ExecutableStepFactory):
         meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
             in_filename(meta), self.__srtm_db_filepath))
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        dem_files = map(lambda s: os.path.join(self.__srtm_dir, f'{s}.hgt'), meta['srtms'])
+        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
+        if len(missing_dems) > 0:
+            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta):

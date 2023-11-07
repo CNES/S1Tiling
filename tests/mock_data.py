@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from typing import List
 
 def tmp_suffix(tmp):
     return '.tmp' if tmp else ''
@@ -222,6 +223,17 @@ class FileDB:
         Property srtmdir
         """
         return self.__srtm_dir
+
+    @property
+    def dem_files(self) -> List:
+        """
+        Return list of all DEM files.
+        """
+        dem_tiles = []
+        for idx in range(len(self.FILES)):
+            dem_tiles.extend(self.dem_coverage(idx))
+        # TODO: adapt it to any DEM support
+        return [f"{self.__srtm_dir}/{tile}.hgt" for tile in set(dem_tiles)]
 
     @property
     def GeoidFile(self):
