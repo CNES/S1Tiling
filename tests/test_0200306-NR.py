@@ -25,7 +25,7 @@ from s1tiling.libs.otbpipeline import _fetch_input_data, out_filename
 # Full processing versions
 # ======================================================================
 
-def remove_dirs(dir_list):
+def remove_dirs(dir_list) -> None:
     for dir in dir_list:
         if os.path.isdir(dir):
             logging.info("rm -r '%s'", dir)
@@ -619,7 +619,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -666,7 +666,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv-20200108t044150-20200108t044215'], file_db, application_mocker)
@@ -716,7 +716,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, srtmdir
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -755,7 +755,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, srtmdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -824,7 +824,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
 
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
