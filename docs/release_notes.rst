@@ -42,6 +42,12 @@ v1.0.0 Improvements
 - Spatial Speckle Filtering is supported
   (`#116 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/116>`_).
 
+- Improve the reporting of search or download failures. Also give another
+  chance to download products after download timeouts (in case other products
+  have successfully been downloaded afterward the last timeout)
+  (`!89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/89>`_
+  | `#139 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/139>`_)
+
 v1.0.0 Bug fixed
 ++++++++++++++++
 
@@ -55,6 +61,9 @@ v1.0.0 Bug fixed
     - the final report will list the S1 products that could not be retrieved,
     - and the exit code :ref:`exits.OFFLINE_DATA (68) <exit_codes>` will be
       used.
+
+- Discard download failure errors from previous tiles
+  (`#139 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/139>`_)
 
 - Logging will be done in ``DEBUG`` mode only if :ref:`required
   <Processing.mode>`. Logging code has also been simplified and cleaned.
