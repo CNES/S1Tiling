@@ -64,7 +64,9 @@ import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
-from s1tiling.libs.S1FileManager import S1FileManager, WorkspaceKinds
+from s1tiling.libs.S1FileManager import (
+        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT
+)
 # from libs import S1FilteringProcessor
 from s1tiling.libs import Utils
 from s1tiling.libs.configuration import Configuration
@@ -85,11 +87,6 @@ from s1tiling.libs.vis import SimpleComputationGraph
 
 # logger = None
 logger = logging.getLogger('s1tiling.processor')
-
-# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
-EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
-EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
-
 
 def remove_files(files, what: str) -> None:
     """
@@ -328,8 +325,8 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
-        s1_file_manager, pipelines, client,
-        required_workspaces, dl_wait, dl_timeout, searched_items_per_page,
+        s1_file_manager: S1FileManager, pipelines, client,
+        required_workspaces,
         debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
     """
     Process one S2 tile.
@@ -344,9 +341,7 @@ def process_one_tile(
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=[tile_name],
-                    dl_wait=dl_wait, dl_timeout=dl_timeout,
-                    searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+            s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
             # download_images will have updated the list of know products
     except RuntimeError as e:
         logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
@@ -386,7 +381,8 @@ def read_config(config_opt):
         return config_opt
 
 
-def do_process_with_pipeline(config_opt,
+def do_process_with_pipeline(
+        config_opt,
         pipeline_builder,
         dl_wait, dl_timeout,
         searched_items_per_page=20,
@@ -395,12 +391,15 @@ def do_process_with_pipeline(config_opt,
         debug_otb=False,
         watch_ram=False,
         debug_tasks=False,
-        ):
+) -> exits.Situation:
     """
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
     config = read_config(config_opt)
+    config.dl_wait                 = dl_wait
+    config.dl_timeout              = dl_timeout
+    config.searched_items_per_page = searched_items_per_page
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
@@ -450,8 +449,6 @@ def do_process_with_pipeline(config_opt,
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, dask_client.client,
                             required_workspaces,
-                            dl_wait=dl_wait, dl_timeout=dl_timeout,
-                            searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
                     results += res

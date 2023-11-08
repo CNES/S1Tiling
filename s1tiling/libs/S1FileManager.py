@@ -42,7 +42,7 @@ import re
 import shutil
 import sys
 import tempfile
-from typing import List
+from typing import List, Optional
 
 from requests.exceptions import ReadTimeout
 from eodag.api.core         import EODataAccessGateway
@@ -66,6 +66,11 @@ from .outcome import DownloadOutcome
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling.filemanager')
+
+
+# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
+EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
+EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
 
 
 class WorkspaceKinds(Enum):
@@ -422,7 +427,7 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
 
 
 def _parallel_download_and_extraction_of_products(
-        dag, raw_directory, products, nb_procs, tile_name, dl_wait, dl_timeout
+        dag, raw_directory, products, nb_procs: int, tile_name: str, dl_wait: int, dl_timeout: int
 ) -> List[DownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
@@ -438,7 +443,7 @@ def _parallel_download_and_extraction_of_products(
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
-            # In case timeout happens, we try again if and only if we have been able to 
+            # In case timeout happens, we try again if and only if we have been able to
             # download other products after the timeout.
             # -> IOW, downloading instability justifies trying again.
             # /> On the contrary, on a complete network failure, we should not try again and again...
@@ -488,8 +493,14 @@ class S1FileManager:
     Eventually, the S1 products are scanned for the raster images of
     polarisation compatible with the requested one(s).
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg) -> None:
+        # Configuration
         self.cfg              = cfg
+        self.__nb_max_search_retries   = getattr(cfg, 'nb_max_search_retries', 20)
+        self.__dl_wait                 = getattr(cfg, 'dl_wait',    EODAG_DEFAULT_DOWNLOAD_WAIT)
+        self.__dl_timeout              = getattr(cfg, 'dl_timeout', EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
+        self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', 20)
+
         self.raw_raster_list  = []
         self.nb_images        = 0
 
@@ -636,10 +647,12 @@ class S1FileManager:
             self._refresh_s1_product_list()  # TODO: decremental update
             self._update_s1_img_list_for(tile_name)
 
-    def _search_products(self, dag: EODataAccessGateway,
+    def _search_products(
+            self, dag: EODataAccessGateway,
             extent, first_date, last_date,
             platform_list, orbit_direction, relative_orbit_list, polarization,
-            searched_items_per_page,dryrun):
+            dryrun
+    ) -> SearchResult:
         """
         Process with the call to eodag search.
         """
@@ -655,24 +668,35 @@ class S1FileManager:
         dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction, None)  # None => all
         dag_orbit_list_param    = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
         dag_platform_list_param = platform_list[0] if len(platform_list) == 1 else None
-        while True:
-            page_products, _ = dag.search(
-                    page=page, items_per_page=searched_items_per_page,
-                    productType=product_type,
-                    raise_errors=True,
-                    start=first_date, end=last_date,
-                    box=extent,
-                    # If we have eodag v1.6, we try to filter product during the search request
-                    polarizationMode=dag_polarization_param,
-                    sensorMode="IW",
-                    orbitDirection=dag_orbit_dir_param,        # None => all
-                    relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
-                    platformSerialIdentifier=dag_platform_list_param,
-                    )
-            logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
-            products.extend(page_products)
-            page += 1
-            if len(page_products) < searched_items_per_page:
+        while True:  # While we haven't analysed all search result pages
+            timeout : Optional[ReadTimeout] = None
+            for _ in range(self.__nb_max_search_retries):
+                # Manual workaround https://github.com/CS-SI/eodag/issues/908
+                try:
+                    page_products, _ = dag.search(
+                            page=page, items_per_page=self.__searched_items_per_page,
+                            productType=product_type,
+                            raise_errors=True,
+                            start=first_date, end=last_date,
+                            box=extent,
+                            # If we have eodag v1.6+, we try to filter product during the search request
+                            polarizationMode=dag_polarization_param,
+                            sensorMode="IW",
+                            orbitDirection=dag_orbit_dir_param,        # None => all
+                            relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
+                            platformSerialIdentifier=dag_platform_list_param,
+                            )
+                    logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
+                    products.extend(page_products)
+                    page += 1
+                    break  # no need to try again
+                except ReadTimeout as e:
+                    timeout = e
+            else:
+                assert isinstance(timeout, ReadTimeout)
+                raise RuntimeError(f"Product search has timeout'd {self.__nb_max_search_retries} times") from timeout
+
+            if len(page_products) < self.__searched_items_per_page:
                 break
         logger.debug("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
@@ -772,12 +796,14 @@ class S1FileManager:
                 ]
         return products
 
-    def _download(self, dag: EODataAccessGateway,
+    def _download(
+            self, dag: EODataAccessGateway,
             lonmin, lonmax, latmin, latmax,
             first_date, last_date,
-            tile_out_dir, tile_name,
+            tile_out_dir, tile_name: str,
             platform_list, orbit_direction, relative_orbit_list, polarization, cover,
-            searched_items_per_page,dryrun, dl_wait, dl_timeout) -> List[DownloadOutcome]:
+            dryrun
+    ) -> List[DownloadOutcome]:
         """
         Process with the call to eodag search + filter + download.
 
@@ -794,7 +820,7 @@ class S1FileManager:
             products = self._search_products(
                     dag, extent,
                     first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
-                    polarization, searched_items_per_page,dryrun)
+                    polarization, dryrun)
         except Exception as e:
             self.__search_failures += 1
             raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
@@ -820,13 +846,12 @@ class S1FileManager:
 
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
-                tile_name, dl_wait, dl_timeout)
+                tile_name,
+                self.__dl_wait, self.__dl_timeout)
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         return paths
 
-    def download_images(self, searched_items_per_page,
-            dl_wait, dl_timeout,
-            dryrun=False, tiles=None) -> None:
+    def download_images(self, dryrun=False, tiles=None) -> None:
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
             logger.info("Using images already downloaded, as per configuration request")
@@ -861,8 +886,7 @@ class S1FileManager:
                         relative_orbit_list=self.cfg.relative_orbit_list,
                         polarization=self.cfg.polarisation,
                         cover=self.cfg.tile_to_product_overlap_ratio,
-                        searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun, dl_wait=dl_wait, dl_timeout=dl_timeout)
+                        dryrun=dryrun)
         if downloaded_products:
             failed_products = list(filter(lambda p: not p, downloaded_products))
             if failed_products:

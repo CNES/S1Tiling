@@ -308,16 +308,16 @@ def given_requets_for_beta(configuration):
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
             extent, first_date, last_date, platform_list, orbit_direction,
-            relative_orbit_list, polarization, searched_items_per_page,dryrun):
+            relative_orbit_list, polarization, dryrun):
         return [MockEOProduct(p) for p in product_ids]
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
             lambda slf, dag, extent_33NWB, first_date, last_date,
             platform_list, orbit_direction, relative_orbit_list, polarization,
-            searched_items_per_page,dryrun
+            dryrun
             : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
                 platform_list, orbit_direction, relative_orbit_list, polarization,
-                searched_items_per_page,dryrun))
+                dryrun))
 
 @given('All products are available for download')
 def given_all_products_are_available_for_download(mocker, configuration):
@@ -422,7 +422,7 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
             tile_out_dir=OUTPUT, tile_name='33NWB',
             platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
             polarization=configuration.polarisation,
-            cover=10, searched_items_per_page=42, dryrun=False, dl_wait=None, dl_timeout=None)
+            cover=10, dryrun=False)
     downloads.extend(paths)
 
 
