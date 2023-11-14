@@ -58,14 +58,15 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import Union, Tuple
+from typing import Dict, Union, Tuple
 
 import click
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
 from s1tiling.libs.S1FileManager import (
-        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT
+        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
 )
 # from libs import S1FilteringProcessor
 from s1tiling.libs import Utils
@@ -381,25 +382,43 @@ def read_config(config_opt):
         return config_opt
 
 
+def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
+    """
+    Adds attributes to configuration object.
+
+    .. todo:: Configuration object shall be closer to a dictionary to avoid these workarounds...
+    """
+    for k in extra_opts:
+        if overwrite or not hasattr(config, k):
+            setattr(config, k, extra_opts[k])
+    return config
+
+
 def do_process_with_pipeline(
         config_opt,
         pipeline_builder,
-        dl_wait, dl_timeout,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_caches=False,
-        debug_otb=False,
-        watch_ram=False,
-        debug_tasks=False,
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_caches           : bool = False,
+        debug_otb              : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
     config = read_config(config_opt)
-    config.dl_wait                 = dl_wait
-    config.dl_timeout              = dl_timeout
-    config.searched_items_per_page = searched_items_per_page
+    extra_opts = {
+            "dl_wait"                : dl_wait,
+            "dl_timeout"             : dl_timeout,
+            "searched_items_per_page": searched_items_per_page,
+            "nb_max_search_retries"  : nb_max_search_retries,
+    }
+    _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
@@ -509,16 +528,19 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return best_concat_sin
 
 
-def s1_process(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        cache_before_ortho=False):
+def s1_process(
+        config_opt,
+        dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries   : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                  : bool = False,
+        debug_otb               : bool = False,
+        debug_caches            : bool = False,
+        watch_ram               : bool = False,
+        debug_tasks             : bool = False,
+        cache_before_ortho      : bool = False
+) -> exits.Situation:
     """
       On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
@@ -599,9 +621,11 @@ def s1_process(config_opt,
 
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
-            searched_items_per_page=searched_items_per_page,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_otb=debug_otb,
             debug_caches=debug_caches,
@@ -610,16 +634,18 @@ def s1_process(config_opt,
             )
 
 
-def s1_process_lia(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        ):
+def s1_process_lia(
+        config_opt,
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
     """
       Generate Local Incidence Angle Maps on S2 geometry.
 
@@ -638,9 +664,11 @@ def s1_process_lia(config_opt,
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
@@ -660,8 +688,13 @@ def s1_process_lia(config_opt,
         BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
 @click.option(
         "--searched_items_per_page",
-        default=20,
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
         help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
         )
 @click.option(
         "--eodag_download_timeout",
@@ -694,7 +727,7 @@ def s1_process_lia(config_opt,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
+def run( searched_items_per_page, nb_max_search_retries, dryrun, debug_caches, debug_otb, watch_ram,
          debug_tasks, cache_before_ortho, config_filename,
          eodag_download_wait, eodag_download_timeout):
     """
@@ -702,15 +735,17 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
 
     Returns the number of tasks that could not be processed.
     """
-    situation = s1_process( config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks,
-                cache_before_ortho=cache_before_ortho)
+    situation = s1_process(
+            config_filename,
+            dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_otb=debug_otb,
+            debug_caches=debug_caches,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+            cache_before_ortho=cache_before_ortho)
     sys.exit(situation.code)
 
 # ======================================================================
@@ -718,8 +753,13 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
 @click.version_option()
 @click.option(
         "--searched_items_per_page",
-        default=20,
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
         help="Number of products simultaneously requested by eodag"
+        )
+@click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
         )
 @click.option(
         "--eodag_download_timeout",
@@ -752,21 +792,23 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
+def run_lia( searched_items_per_page, nb_max_search_retries, dryrun, debug_otb, debug_caches, watch_ram,
          debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
 
     Returns the number of tasks that could not be processed.
     """
-    situation = s1_process_lia( config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks)
+    situation = s1_process_lia(
+            config_filename,
+            dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_otb=debug_otb,
+            debug_caches=debug_caches,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks)
     sys.exit(situation.code)
 
 # ======================================================================

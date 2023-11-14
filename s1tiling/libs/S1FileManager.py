@@ -69,9 +69,10 @@ logger = logging.getLogger('s1tiling.filemanager')
 
 
 # Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
-EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
-EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
-
+EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
+EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
+EODAG_DEFAULT_SEARCH_MAX_RETRIES    =  5  #: If search fails on timeout, number of retries attempted 
+EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
 
 class WorkspaceKinds(Enum):
     """
@@ -496,10 +497,10 @@ class S1FileManager:
     def __init__(self, cfg) -> None:
         # Configuration
         self.cfg              = cfg
-        self.__nb_max_search_retries   = getattr(cfg, 'nb_max_search_retries', 20)
-        self.__dl_wait                 = getattr(cfg, 'dl_wait',    EODAG_DEFAULT_DOWNLOAD_WAIT)
-        self.__dl_timeout              = getattr(cfg, 'dl_timeout', EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
-        self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', 20)
+        self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE)
+        self.__nb_max_search_retries   = getattr(cfg, 'nb_max_search_retries',   EODAG_DEFAULT_SEARCH_MAX_RETRIES)
+        self.__dl_wait                 = getattr(cfg, 'dl_wait',                 EODAG_DEFAULT_DOWNLOAD_WAIT)
+        self.__dl_timeout              = getattr(cfg, 'dl_timeout',              EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
 
         self.raw_raster_list  = []
         self.nb_images        = 0
