@@ -48,6 +48,11 @@ v1.0.0 Improvements
   (`!89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/89>`_
   | `#139 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/139>`_)
 
+- On search timeout, S1Tiling will insist a few times (5 by default, can be
+  overridden through CLI option). This is meant as a workaround of `EODAG issue
+  #908 <https://github.com/CS-SI/eodag/issues/908>`_.
+  (`#140 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/140>`_).
+
 v1.0.0 Bug fixed
 ++++++++++++++++
 
