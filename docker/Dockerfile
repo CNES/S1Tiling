@@ -24,16 +24,29 @@
 #          Luc HERMITTE     (CS Group France)
 #
 # =========================================================================
-ARG OTB_VERSION=7.4.1
 ARG REPOSITORY=registry.orfeo-toolbox.org/s1-tiling/s1tiling-dockers
-FROM ${REPOSITORY}/s1tiling-base:ubuntu-otb${OTB_VERSION}
+ARG BASE_FULL_VERSION
+FROM ${REPOSITORY}/s1tiling-base:${BASE_FULL_VERSION}
+
 # This ARG needs to be after the FROM in order to not be cleared
+ARG CI_COMMIT_SHA
 ARG CI_PROJECT_DIR
+ARG CREATION_DATE
 ARG S1TILING_VERSION
-LABEL maintainer="CS GROUP France"
+
+LABEL org.opencontainers.image.authors="CS Group France, CNES"
+LABEL org.opencontainers.image.base.name="${REPOSITORY}/s1tiling:${S1TILING_VERSION}"
+LABEL org.opencontainers.image.created="${CREATION_DATE}"
+LABEL org.opencontainers.image.description="This docker allow to run S1Tiling processing chain."
+LABEL org.opencontainers.image.licences="Apache-2.0"
+LABEL org.opencontainers.image.revision="$CI_COMMIT_SHA"
+LABEL org.opencontainers.image.source="https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
+LABEL org.opencontainers.image.title="S1Tiling public docker"
+LABEL org.opencontainers.image.url="https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/blob/master/docker/Dockerfile"
+LABEL org.opencontainers.image.vendor="CNES"
+LABEL org.opencontainers.image.version="${S1TILING_VERSION}"
+
 # TODO: automatically propagate S1Tiling version into the LABEL
-LABEL version="${S1TILING_VERSION}"
-LABEL description="This docker allow to run S1Tiling processing chain."
 
 WORKDIR /tmp
 COPY "./" /tmp/clone
