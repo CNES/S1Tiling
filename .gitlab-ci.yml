@@ -59,8 +59,10 @@ variables:
     - apt-get -y update
     - apt-get -y upgrade
     - python3 --version
-    - . /tmp/${S1TILING_VENV}/bin/activate && echo "virtualenv /tmp/${S1TILING_VENV} loaded"
-    - . "${OTB_INSTALL_DIRNAME}/otbenv.profile" && echo "OTB loaded from ${OTB_INSTALL_DIRNAME}"
+    - . ${S1TILING_VENV}/bin/activate && echo "virtualenv ${S1TILING_VENV} loaded"
+    # - . "${OTB_INSTALL_DIRNAME}/otbenv.profile" && echo "OTB loaded from ${OTB_INSTALL_DIRNAME}"
+    - echo "Check OTB_APPLICATION_PATH: ${OTB_APPLICATION_PATH}"
+    - which otbcli_ResetMargin
     - gdal-config --version
     - python3 -m pip install --upgrade pip
     - echo $LD_LIBRARY_PATH
