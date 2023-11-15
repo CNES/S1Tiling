@@ -42,7 +42,7 @@ variables:
 # Tests and documentation
 #
 .common:
-    image: ${BUILD_IMAGE_REGISTRY}/s1tiling-dockers/s1tiling-dev:${FULL_VERSION}
+    image: ${BUILD_IMAGE_REGISTRY}/s1tiling-dockers/s1tiling-dev:${BASE_FULL_VERSION}
     variables:
     # cache:
     #     key: packages
