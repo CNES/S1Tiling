@@ -70,7 +70,6 @@ variables:
     - ldd /tmp/${S1TILING_VENV}/lib/python*/site-packages/osgeo/_gdal.cpython-38-x86_64-linux-gnu.so
     - python -c "from osgeo import gdal ; print(gdal.__version__)"
     - ls "${OTB_INSTALL_DIRNAME}"
-    # - set
     - echo "installing .[${INSTALL_TYPE}]"
     - python3 -m pip install .[${INSTALL_TYPE}]
 
