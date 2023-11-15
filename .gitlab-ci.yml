@@ -60,7 +60,8 @@ variables:
     - apt-get -y upgrade
     - python3 --version
     - . ${S1TILING_VENV}/bin/activate && echo "virtualenv ${S1TILING_VENV} loaded"
-    - echo "Check OTB_APPLICATION_PATH: ${OTB_APPLICATION_PATH}"
+    # - . "${OTB_INSTALL_DIRNAME}/otbenv.profile" && echo "OTB loaded from ${OTB_INSTALL_DIRNAME}"
+    - echo "Check OTB_APPLICATION_PATH= ${OTB_APPLICATION_PATH}"
     - which otbcli_ResetMargin
     - gdal-config --version
     - python3 -m pip install --upgrade pip
@@ -69,6 +70,7 @@ variables:
     - ldd /tmp/${S1TILING_VENV}/lib/python*/site-packages/osgeo/_gdal.cpython-38-x86_64-linux-gnu.so
     - python -c "from osgeo import gdal ; print(gdal.__version__)"
     - ls "${OTB_INSTALL_DIRNAME}"
+    # - set
     - echo "installing .[${INSTALL_TYPE}]"
     - python3 -m pip install .[${INSTALL_TYPE}]
 
