@@ -54,6 +54,7 @@ COPY ./docker/entrypoint.sh /opt
 
 RUN \
         chmod +x /opt/entrypoint.sh \
+        && . ${S1TILING_VENV}/bin/activate \
         && python3 -m pip --no-cache-dir install -r /tmp/clone/docker/s1tiling-requirements.txt \
         && python3 -m pip --no-cache-dir install "/tmp/clone" --no-deps \
         && rm -rf /tmp/clone
