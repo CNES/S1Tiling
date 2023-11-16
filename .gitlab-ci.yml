@@ -32,7 +32,7 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
-    S1TD_VERSION: "1.3.1"  # S1Tiling Dockers version
+    S1TD_VERSION: "1.3.3"  # S1Tiling Dockers version
     OS: "ubuntu"
     OS_VERSION: "20.04"
     OTB_VERSION: "7.4.1"
@@ -59,8 +59,9 @@ variables:
     - apt-get -y update
     - apt-get -y upgrade
     - python3 --version
-    # * activate could be removed with manual activation
-    - . ${S1TILING_VENV}/bin/activate && echo "virtualenv ${S1TILING_VENV} loaded"
+    # * Check Python virtenv is correctly set even without explicit activation
+    - echo "Check VIRTUAL_ENV=${VIRTUAL_ENV}"
+    - python -c "import eodag ; print(eodag.__version__)"
     # * Check OTB variables are correctly set even without the ". otbenv.profile"
     - echo "Check OTB_APPLICATION_PATH= ${OTB_APPLICATION_PATH}"
     - which otbcli_ResetMargin
@@ -192,22 +193,23 @@ pages:
   image:
     name: gcr.io/kaniko-project/executor:v1.6.0-debug
     entrypoint: [""]
+  variables:
+      FULL_VERSION: "$(sh $CI_PROJECT_DIR/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
   before_script:
     - *prepare-docker-config
   script:
     - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
     - sh $CI_PROJECT_DIR/docker/version_name.sh
-    - echo "> docker pull ${CI_REGISTRY_IMAGE}/${OS}-otb${OTB_VERSION}:$(sh $CI_PROJECT_DIR/docker/version_name.sh)"
+    - echo "> docker build ${CI_REGISTRY_IMAGE}:${FULL_VERSION}"
     - /kaniko/executor --cleanup
                        --verbosity info
-                       --context $CI_PROJECT_DIR/
-                       --dockerfile $CI_PROJECT_DIR/docker/Dockerfile
-                       --destination $CI_REGISTRY_IMAGE:$(sh $CI_PROJECT_DIR/docker/version_name.sh)-${OS}-otb${OTB_VERSION}
+                       --context "${CI_PROJECT_DIR}/"
+                       --dockerfile "${CI_PROJECT_DIR}/docker/Dockerfile"
+                       --destination "${CI_REGISTRY_IMAGE}:${FULL_VERSION}"
                        --build-arg BASE_FULL_VERSION
                        --build-arg CI_COMMIT_SHA
-                       --build-arg CI_PROJECT_DIR
-                       --build-arg S1TILING_VERSION=$(sh $CI_PROJECT_DIR/docker/version_name.sh)
                        --build-arg CREATION_DATE="$(date -u '+%Y-%m-%dT%T%z')"
+                       --build-arg S1TILING_VERSION=$(sh $CI_PROJECT_DIR/docker/version_name.sh)
 
 # Effective stages
 

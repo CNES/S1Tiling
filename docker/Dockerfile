@@ -1,6 +1,6 @@
 # =========================================================================
 #
-#   Copyright 2022 (c) CS Group France. All rights reserved.
+#   Copyright 2022-2023 (c) CS Group France. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -24,20 +24,22 @@
 #          Luc HERMITTE     (CS Group France)
 #
 # =========================================================================
+
 ARG REPOSITORY=registry.orfeo-toolbox.org/s1-tiling/s1tiling-dockers
 ARG BASE_FULL_VERSION
 FROM ${REPOSITORY}/s1tiling-base:${BASE_FULL_VERSION}
 
-# This ARG needs to be after the FROM in order to not be cleared
+# FROM clears the previous ARG's
+ARG REPOSITORY=registry.orfeo-toolbox.org/s1-tiling/s1tiling-dockers
+ARG BASE_FULL_VERSION
 ARG CI_COMMIT_SHA
-ARG CI_PROJECT_DIR
 ARG CREATION_DATE
 ARG S1TILING_VERSION
 
 LABEL org.opencontainers.image.authors="CS Group France, CNES"
-LABEL org.opencontainers.image.base.name="${REPOSITORY}/s1tiling:${S1TILING_VERSION}"
+LABEL org.opencontainers.image.base.name="${REPOSITORY}/s1tiling-base:${BASE_FULL_VERSION}"
 LABEL org.opencontainers.image.created="${CREATION_DATE}"
-LABEL org.opencontainers.image.description="This docker allow to run S1Tiling processing chain."
+LABEL org.opencontainers.image.description="This docker allows to run S1Tiling processing chain."
 LABEL org.opencontainers.image.licences="Apache-2.0"
 LABEL org.opencontainers.image.revision="$CI_COMMIT_SHA"
 LABEL org.opencontainers.image.source="https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
@@ -46,7 +48,6 @@ LABEL org.opencontainers.image.url="https://gitlab.orfeo-toolbox.org/s1-tiling/s
 LABEL org.opencontainers.image.vendor="CNES"
 LABEL org.opencontainers.image.version="${S1TILING_VERSION}"
 
-# TODO: automatically propagate S1Tiling version into the LABEL
 
 WORKDIR /tmp
 COPY "./" /tmp/clone
@@ -54,7 +55,6 @@ COPY ./docker/entrypoint.sh /opt
 
 RUN \
         chmod +x /opt/entrypoint.sh \
-        && . ${S1TILING_VENV}/bin/activate \
         && python3 -m pip --no-cache-dir install -r /tmp/clone/docker/s1tiling-requirements.txt \
         && python3 -m pip --no-cache-dir install "/tmp/clone" --no-deps \
         && rm -rf /tmp/clone
@@ -66,6 +66,9 @@ RUN \
         # The problem being that S1Tiling wheel depends on a hard coded
         # version of GDAL while the docker may depend on another version
         # of GDAL through OTB.
+
+# Override virtual env prompt
+ENV VIRTUAL_ENV_PROMPT="(Docker S1Tiling ${S1TILING_VERSION}) "
 
 ENTRYPOINT [ "/opt/entrypoint.sh" ]
 CMD [ "-h" ]
