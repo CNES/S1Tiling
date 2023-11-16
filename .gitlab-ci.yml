@@ -36,7 +36,7 @@ variables:
     OS: "ubuntu"
     OS_VERSION: "20.04"
     OTB_VERSION: "7.4.1"
-    BASE_FULL_VERSION: "${S1TD_VERSION}-${OS}${OS_VERSION}-otb${OTB_VERSION}"
+    BASE_FULL_VERSION: ${S1TD_VERSION}-${OS}${OS_VERSION}-otb${OTB_VERSION}
 
 #
 # Tests and documentation
@@ -194,18 +194,19 @@ pages:
     name: gcr.io/kaniko-project/executor:v1.6.0-debug
     entrypoint: [""]
   variables:
-      FULL_VERSION: "$(sh $CI_PROJECT_DIR/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
+    # Cannot work because of $(sh ...
+    FULL_VERSION: $(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}
   before_script:
     - *prepare-docker-config
   script:
     - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
     - sh $CI_PROJECT_DIR/docker/version_name.sh
-    - echo "> docker build ${CI_REGISTRY_IMAGE}:${FULL_VERSION}"
+    - echo "> docker build ${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
     - /kaniko/executor --cleanup
                        --verbosity info
                        --context "${CI_PROJECT_DIR}/"
                        --dockerfile "${CI_PROJECT_DIR}/docker/Dockerfile"
-                       --destination "${CI_REGISTRY_IMAGE}:${FULL_VERSION}"
+                       --destination "${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
                        --build-arg BASE_FULL_VERSION
                        --build-arg CI_COMMIT_SHA
                        --build-arg CREATION_DATE="$(date -u '+%Y-%m-%dT%T%z')"
