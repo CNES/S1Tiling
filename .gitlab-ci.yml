@@ -61,7 +61,7 @@ variables:
     - python3 --version
     # * Check Python virtenv is correctly set even without explicit activation
     - echo "Check VIRTUAL_ENV=${VIRTUAL_ENV}"
-    - python -c "import eodag ; print(eodag.__version__)"
+    - python -c "import numpy ; print(numpy.__version__)"
     # * Check OTB variables are correctly set even without the ". otbenv.profile"
     - echo "Check OTB_APPLICATION_PATH= ${OTB_APPLICATION_PATH}"
     - which otbcli_ResetMargin
