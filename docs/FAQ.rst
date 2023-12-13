@@ -59,6 +59,21 @@ In other words,
 This Q/A is tracked in `S1Tiling issue #70
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/70>`_.
 
+Q: How can I overcome timeouts when searching for online products?
+------------------------------------------------------------------
+
+Some data providers like PEPS may fail to obtain in time the list of products
+matching our criteria.
+
+Since `EODAG <https://github.com/CS-SI/eodag>`_ v2.11.0, we can override the
+default timeout value thanks to:
+
+- the :envvar:`$EODAG__{PROVIDER}__SEARCH__TIMEOUT` environment variable,
+- or the configuration option :samp:`{{provider}}.search.timeout`.
+
+In case you have to cope with an earlier version of EODAG, you can still run
+:program:`S1Processor` with :option:`--nb_max_search_retries`.
+
 Q: How can I ask another question?
 ----------------------------------
 
