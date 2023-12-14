@@ -31,7 +31,7 @@
 
 ## ======[ Globals {{{1
 # ==[ Constant parameters {{{2
-# s1tiling_version=1.0.0rc2
+# s1tiling_version=1.0.0rc3
 # otb_ver=7.4.2
 # git_node=develop
 s1tiling_version=1.1.0beta
@@ -119,6 +119,9 @@ _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'
 _execute cd "${prefix_root}"
 _verbose ml "otb/${otb_ver}-${python_ml_dep}"
 ml "otb/${otb_ver}-${python_ml_dep}" || _die "Can't load module otb/${otb_ver}-${python_ml_dep}"
+# Override  libcrypto override by OTB
+LD_LIBRARY_PATH="/usr/lib:/usr/lib64:${LD_LIBRARY_PATH}"
+cmake --version || _die "Can't execute CMake..."
 
 [ -f "${env}/bin/activate" ] || _execute python -m venv --copies "${env}" || _die "Can't create virtual environment '${env}'"
 
@@ -163,7 +166,7 @@ _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'
 [ -d normlim_sigma0 ]         || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 _execute cd "normlim_sigma0"  || _die "Can't cd to the normlim_sigma0 directory"
 # Use temporary branch for applications compatible with OTB 8
-[[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
+# [[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
 _execute mkdir -p "_builddir" || _die "Can't create the build directory"
 _execute cd       "_builddir" || _die "Can't cd to the build directory"
 # _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
@@ -214,6 +217,9 @@ whatis("Date d installation : "..installation)
 -- Variable du modulefile
 local home=pathJoin("/softs/projets/s1tiling",rhos,version)
 
+-- Dependances
+depend("otb/${otb_ver}-${python_ml_dep}")
+
 -- Action du modulefile
 setenv("S1TILING_HOME",home)
 prepend_path("LD_LIBRARY_PATH", pathJoin(home, "lib"))
@@ -225,9 +231,6 @@ prepend_path("PATH", pathJoin(home, "bin"))
 if is_empty(os.getenv("VIRTUAL_ENV_DISABLE_PROMPT")) and not is_empty(os.getenv("PS1")) then
     pushenv("PS1", "(s1tiling "..version..") ".. os.getenv("PS1"))
 end
-
--- Dependances
-depend("otb/${otb_ver}-${python_ml_dep}")
 EOF
 
 # TODO: Use ACL when bug is fixed on TREX!
