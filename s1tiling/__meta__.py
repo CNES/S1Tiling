@@ -33,7 +33,7 @@ from __future__ import unicode_literals
 
 __title__ = "S1Tiling"
 __description__ = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
-__version__ = "1.0.0rc3"
+__version__ = "1.0.0"
 __author__ = "Thierry KOLECK"
 __author_email__ = "Thierry.Koleck@cnes.fr"
 __url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
