@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2022-2023 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -336,7 +338,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
         orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
         assert '_'+raw_calibration in orthofile
 
-	# Workaround defect on skipping cut margins
+    # Workaround defect on skipping cut margins
         # out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
         # in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
         out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
