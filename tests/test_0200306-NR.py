@@ -306,7 +306,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         # assert 'srtms' in indem.meta, f"Metadata don't contain 'srtms', only: {indem.meta.keys()}"
         assert 'srtms' in mt, f"Metadata don't contain 'srtms', only: {mt.keys()}"
         return mt
-    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection2.add_image_metadata', mock_add_image_metadata)
 
     def mock_direction_to_scan(slf, meta):
         logging.debug('Mocking direction to scan')
@@ -483,7 +483,7 @@ def mock_LIA(application_mocker, file_db):
 
         application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_srtm_files, None, None)
 
-        application_mocker.set_expectations('SARDEMProjection', {
+        application_mocker.set_expectations('SARDEMProjection2', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
             'indem'      : exp_out_vrt,
