@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2022 (c) CNES. All rights reserved.
+#   Copyright 2017-2023 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -44,8 +44,25 @@ import yaml
 
 from s1tiling.libs import exits
 from .otbpipeline import otb_version
+from ..__meta__ import __version__ as s1tiling_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
+
+SPLIT_PATTERN = re.compile("^\s+|\s*,\s*|\s+$")
+
+def load_log_config(cfgpaths):
+    """
+    Take care of loading a log configuration file expressed in YAML
+    """
+    with open(cfgpaths[0], 'r') as stream:
+        # FullLoader requires yaml 5.1
+        # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+        if hasattr(yaml, 'FullLoader'):
+            config = yaml.load(stream, Loader=yaml.FullLoader)
+        else:
+            print("WARNING - upgrade pyyaml to version 5.1 at least!!")
+            config = yaml.load(stream)
+    return config
 
 
 def init_logger(mode, paths):
@@ -63,14 +80,7 @@ def init_logger(mode, paths):
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        with open(cfgpaths[0], 'r') as stream:
-            # FullLoader requires yaml 5.1
-            # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-            if hasattr(yaml, 'FullLoader'):
-                config = yaml.load(stream, Loader=yaml.FullLoader)
-            else:
-                print("WARNING - upgrade pyyaml to version 5.1 at least!!")
-                config = yaml.load(stream)
+        config = load_log_config(cfgpaths)
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -82,10 +92,21 @@ def init_logger(mode, paths):
                 config["root"]["handlers"] += ['file']
             if 'important' not in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
+            if verbose:
+                config["handlers"]["file"]["level"] = "DEBUG"
+        # Update all filenames with debug mode info.
+        filename_opts = {
+                "mode": ".debug" if verbose else "",
+                "kind": "{kind}",
+                }
+        for _, cfg in config['handlers'].items():
+            if 'filename' in cfg and '{mode}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format_map(filename_opts)
+        # Update main filename with... "main"
         main_config = copy.deepcopy(config)
         for _, cfg in main_config['handlers'].items():
-            if 'filename' in cfg and '%' in cfg['filename']:
-                cfg['filename'] = cfg['filename'] % ('main',)
+            if 'filename' in cfg and '{kind}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
         return config
     else:
@@ -128,11 +149,21 @@ class Configuration():
         if config.has_section('PEPS'):
             logging.critical('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
             sys.exit(exits.CONFIG_ERROR)
-        self.eodagConfig               = config.get('DataSource', 'eodagConfig', fallback=None)
+        self.eodag_config              = config.get('DataSource', 'eodag_config', fallback=None) or config.get('DataSource', 'eodagConfig', fallback=None)
         self.download                  = config.getboolean('DataSource', 'download')
         self.ROI_by_tiles              = config.get('DataSource', 'roi_by_tiles')
         self.first_date                = config.get('DataSource', 'first_date')
         self.last_date                 = config.get('DataSource', 'last_date')
+
+        platform_list_str              = config.get('DataSource', 'platform_list', fallback='')
+        platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
+        unsupported_platforms = [p for p in platform_list if p and not p.startswith("S1")]
+        if unsupported_platforms:
+            logging.critical("Non supported requested platforms: %s", ", ".join(unsupported_platforms))
+            logging.critical("Please correct the config file")
+            sys.exit(exits.CONFIG_ERROR)
+        self.platform_list             = platform_list
+
         self.orbit_direction           = config.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
             logging.critical("Parameter [orbit_direction] must be either unset or DES, or ASC")
@@ -247,7 +278,7 @@ class Configuration():
             self.show_configuration()
 
     def show_configuration(self):
-        logging.debug("Running S1Tiling with:")
+        logging.debug("Running S1Tiling %s with:", s1tiling_version)
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s",     self.GeoidFile)
         logging.debug("- s1_images                      : %s",     self.raw_directory)
@@ -259,6 +290,7 @@ class Configuration():
         logging.debug("- download                       : %s",     self.download)
         logging.debug("- first_date                     : %s",     self.first_date)
         logging.debug("- last_date                      : %s",     self.last_date)
+        logging.debug("- platform_list                  : %s",     self.platform_list)
         logging.debug("- polarisation                   : %s",     self.polarisation)
         logging.debug("- orbit_direction                : %s",     self.orbit_direction)
         logging.debug("- relative_orbit_list            : %s",     self.relative_orbit_list)

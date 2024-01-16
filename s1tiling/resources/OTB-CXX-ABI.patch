@@ -1,0 +1,14 @@
+--- OTB-7.4.1-Linux64-py38/lib/cmake/OTB-7.4/UseOTB.cmake	2023-10-30 04:20:10.707139085 +0100
++++ OTB-7.4.2-Linux64-py38/lib/cmake/OTB-7.4/UseOTB.cmake	2023-10-30 03:52:43.959892770 +0100
+@@ -55,11 +55,3 @@
+     set(ENV{PYTHONPATH} "${OTB_PYTHONPATH};$ENV{PYTHONPATH}")
+   endif()
+ endif()
+-
+-
+-# ABI compatibility 
+-if ( CMAKE_CXX_COMPILER_ID STREQUAL "GNU") 
+-  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.0 ) 
+-    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0) 
+-  endif() 
+-endif()

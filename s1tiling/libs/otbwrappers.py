@@ -35,9 +35,7 @@ import logging
 import os
 import shutil
 import re
-# import datetime
 from abc import abstractmethod
-from packaging import version
 
 import numpy as np
 from osgeo import gdal
@@ -53,7 +51,7 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
 from . import Utils
 from ..__meta__ import __version__
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.wrappers')
 
 def append_to(meta, key, value):
     """
@@ -96,7 +94,7 @@ class ExtractSentinel1Metadata(StepFactory):
     sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
     def __init__(self, cfg):
-        super().__init__(cfg, 'ExtractSentinel1Metadata')
+        super().__init__('ExtractSentinel1Metadata')
 
     def build_step_output_filename(self, meta):
         """
@@ -768,6 +766,7 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = None # use gen_tmp_dir
         fname_fmt = cfg.fname_fmt_concatenation
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
+        self.__tname_fmt = cfg.fname_fmt_concatenation.replace('{acquisition_stamp}', '{acquisition_day}')
         super().__init__(cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=gen_output_dir,
@@ -807,10 +806,9 @@ class Concatenate(_ConcatenatorFactory):
         """
         Make sure the task_name and the basename are updated
         """
-        tname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         meta['task_name']     = os.path.join(
                 self.output_directory(meta),
-                TemplateOutputFilenameGenerator(tname_fmt).generate(meta['basename'], meta))
+                TemplateOutputFilenameGenerator(self.__tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename'] = self.update_out_filename
         in_file               = out_filename(meta)
@@ -820,7 +818,7 @@ class Concatenate(_ConcatenatorFactory):
                 filename        = out_filename(meta)
                 exist_task_name = os.path.isfile(task_name)
                 exist_file_name = os.path.isfile(filename)
-                logger.debug('Checking concatenation product:\n- %s => %s\n- %s => %s',
+                logger.debug('Checking concatenation product:\n- %s => %s (task)\n- %s => %s (file)',
                         task_name, '∃' if exist_task_name else '∅',
                         filename,  '∃' if exist_file_name else '∅')
                 return exist_task_name or exist_file_name
@@ -1115,6 +1113,10 @@ class AgglomerateDEM(ExecutableStepFactory):
         meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
             in_filename(meta), self.__srtm_db_filepath))
         logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        dem_files = map(lambda s: os.path.join(self.__srtm_dir, f'{s}.hgt'), meta['srtms'])
+        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
+        if len(missing_dems) > 0:
+            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta):
