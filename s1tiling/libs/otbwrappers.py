@@ -1156,7 +1156,7 @@ class SARDEMProjection(OTBStepFactory):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
         super().__init__(cfg,
-                appname='SARDEMProjection', name='SARDEMProjection',
+                appname='SARDEMProjection2', name='SARDEMProjection',
                 param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
