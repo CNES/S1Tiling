@@ -261,7 +261,7 @@ class FileDB:
         for idx in range(len(self.FILES)):
             dem_tiles.extend(self.dem_coverage(idx))
         # TODO: adapt it to any DEM support
-        return [f"{self.__srtm_dir}/{tile}.hgt" for tile in set(dem_tiles)]
+        return [f"{self.__dem_dir}/{tile}.hgt" for tile in set(dem_tiles)]
 
     @property
     def GeoidFile(self):
