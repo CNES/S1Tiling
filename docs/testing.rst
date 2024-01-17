@@ -88,9 +88,10 @@ In particular they depend on the following options:
        Don't forget to clean it eventually.
 
 
-.. option:: --srtmdir=SRTMDIR
+.. option:: --demdir=SRTMDIR
 
-   Directory where SRTM files are -- default value: :envvar:`$SRTM_DIR`
+   Directory where DEM (like SRTM) files are -- default value:
+   :envvar:`$SRTM_DIR`.
 
 .. option:: --download
 

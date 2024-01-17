@@ -3,6 +3,16 @@
 Release notes
 =============
 
+Version 1.1.0
+-------------
+
+v1.0.0 Improvements
++++++++++++++++++++
+
+- Support any other type of DEM files
+  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+
+
 Version 1.0.0
 -------------
 

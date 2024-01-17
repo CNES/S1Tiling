@@ -111,7 +111,7 @@ pytest:
     - ls baseline
     # - find baseline/expected -type f -exec md5sum {} \;
     - (cd baseline && find . -type f -exec md5sum {} \;)
-    - python3 -m pytest --baselinedir=$(readlink -f baseline) --srtmdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml
+    - python3 -m pytest --baselinedir=$(readlink -f baseline) --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml
     artifacts:
         when: always
         reports:

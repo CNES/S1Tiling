@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -219,12 +221,15 @@ class Configuration():
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
-        self.tmp_srtm_dir                      = 'UNUSED HERE'
+        self.tmp_dem_dir                       = 'UNUSED HERE'
         self.tmpdir                            = tmpdir
-        self.srtm                              = 'UNUSED HERE'
-        self.srtm_db_filepath                  = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
-        self.cache_srtm_by                     = 'symlink'
-        assert self.srtm_db_filepath.is_file()
+        self.dem                               = 'UNUSED HERE'
+        self.dem_filename_format               = 'UNUSED HERE'
+        self.dem_field_ids                     = ['UNUSED HERE']
+        self.dem_main_field_id                 = 'UNUSED HERE'
+        self.dem_db_filepath                   = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        self.cache_dem_by                      = 'symlink'
+        assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'

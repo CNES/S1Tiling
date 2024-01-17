@@ -76,7 +76,9 @@ https://docs.dask.org/en/latest/setup/single-distributed.html
 
 # Copyright
 
->   Copyright (c) CNES. All rights reserved.
+>   All rights reserved.
+>   Copyright 2017-2023 (c) CNES.
+>   Copyright 2022-2023 (c) CS GROUP France.
 >
 >   Licensed under the Apache License, Version 2.0 (the "License");
 >   you may not use this file except in compliance with the License.

@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -96,7 +98,7 @@ class Configuration():
         self.raw_directory           = inputdir
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
-        self.cache_srtm_by           = 'symlink'
+        self.cache_dem_by            = 'symlink'
         self.fname_fmt               = {}
         self.platform_list           = []
         self.orbit_direction         = None

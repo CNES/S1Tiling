@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -43,7 +45,7 @@ CORRUPTED_DATA_SAFE = 71
 CONFIG_ERROR        = 72
 NO_S2_TILE          = 73
 NO_S1_IMAGE         = 74
-MISSING_SRTM        = 75
+MISSING_DEM         = 75
 MISSING_GEOID       = 76
 MISSING_APP         = 77
 

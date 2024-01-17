@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -160,15 +162,15 @@ class FileDB:
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
 
-    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, srtmdir, geoid_file):
-        self.__input_dir      = inputdir
-        self.__tmp_dir        = tmpdir
-        self.__output_dir     = outputdir
-        self.__lia_dir        = liadir
-        self.__tmp_dir        = tmpdir
-        self.__tile           = tile
-        self.__srtm_dir       = srtmdir
-        self.__GeoidFile      = geoid_file
+    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, demdir, geoid_file):
+        self.__input_dir  = inputdir
+        self.__tmp_dir    = tmpdir
+        self.__output_dir = outputdir
+        self.__lia_dir    = liadir
+        self.__tmp_dir    = tmpdir
+        self.__tile       = tile
+        self.__dem_dir    = demdir
+        self.__GeoidFile  = geoid_file
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
@@ -244,11 +246,11 @@ class FileDB:
         return self.__output_dir
 
     @property
-    def srtmdir(self):
+    def demdir(self):
         """
-        Property srtmdir
+        Property demdir
         """
-        return self.__srtm_dir
+        return self.__dem_dir
 
     @property
     def dem_files(self) -> List:
@@ -259,7 +261,7 @@ class FileDB:
         for idx in range(len(self.FILES)):
             dem_tiles.extend(self.dem_coverage(idx))
         # TODO: adapt it to any DEM support
-        return [f"{self.__srtm_dir}/{tile}.hgt" for tile in set(dem_tiles)]
+        return [f"{self.__dem_dir}/{tile}.hgt" for tile in set(dem_tiles)]
 
     @property
     def GeoidFile(self):

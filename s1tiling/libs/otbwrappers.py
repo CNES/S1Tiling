@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -499,7 +499,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 
@@ -527,7 +527,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__GeoidFile            = cfg.GeoidFile
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
-        self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
+        self.__tmp_dem_dir          = cfg.tmp_dem_dir
         # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
         # (and locally override calibration type in case of normlim calibration)
@@ -598,7 +598,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'map.utm.northhem' : out_utm_northern,
                 'outputs.ulx'      : x_coord,
                 'outputs.uly'      : y_coord,
-                'elev.dem'         : self.__tmp_srtm_dir,
+                'elev.dem'         : self.__tmp_dem_dir,
                 'elev.geoid'       : self.__GeoidFile
                 }
         return parameters
@@ -616,7 +616,7 @@ class OrthoRectify(_OrthoRectifierFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 
@@ -1091,8 +1091,11 @@ class AgglomerateDEM(ExecutableStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 name="AgglomerateDEM", exename='gdalbuildvrt',
                 *args, **kwargs)
-        self.__srtm_db_filepath = cfg.srtm_db_filepath
-        self.__srtm_dir         = cfg.srtm
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_dir             = cfg.dem
+        self.__dem_filename_format = cfg.dem_filename_format
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -1112,10 +1115,13 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
-            in_filename(meta), self.__srtm_db_filepath))
-        logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
-        dem_files = map(lambda s: os.path.join(self.__srtm_dir, f'{s}.hgt'), meta['srtms'])
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+        logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
+        dem_files = map(
+                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+                meta['dem_infos'])
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
             raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
@@ -1124,7 +1130,8 @@ class AgglomerateDEM(ExecutableStepFactory):
     def parameters(self, meta):
         # While it won't make much a difference here, we are still using
         # tmp_filename.
-        return [tmp_filename(meta)] + [os.path.join(self.__srtm_dir, s+'.hgt') for s in meta['srtms']]
+        return [tmp_filename(meta)] \
+                + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
 
 
 class SARDEMProjection(OTBStepFactory):
@@ -1163,7 +1170,9 @@ class SARDEMProjection(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="SARDEM projection onto DEM list",
                 )
-        self.__srtm_db_filepath = cfg.srtm_db_filepath
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -1191,9 +1200,11 @@ class SARDEMProjection(OTBStepFactory):
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
-            in_filename(meta), self.__srtm_db_filepath))
-        logger.debug("SARDEMProjection: SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+
+        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(meta), meta['dems'])
         _, inbasename = os.path.split(in_filename(meta))
         meta['inbasename'] = inbasename
         return meta
@@ -1206,7 +1217,7 @@ class SARDEMProjection(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['DEM_LIST']     = ', '.join(meta['srtms'])
+        imd['DEM_LIST']     = ', '.join(meta['dems'])
 
     def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
         """
@@ -1636,7 +1647,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 

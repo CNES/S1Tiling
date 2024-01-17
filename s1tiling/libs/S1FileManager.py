@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -58,7 +60,7 @@ except ImportError:
 import numpy as np
 
 from s1tiling.libs import exits
-from .Utils import get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit
+from .Utils import (get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly)
 from .S1DateAcquisition import S1DateAcquisition
 from .otbpipeline import mp_worker_config
 from .outcome import DownloadOutcome
@@ -71,7 +73,7 @@ logger = logging.getLogger('s1tiling.filemanager')
 # Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
 EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
-EODAG_DEFAULT_SEARCH_MAX_RETRIES    =  5  #: If search fails on timeout, number of retries attempted 
+EODAG_DEFAULT_SEARCH_MAX_RETRIES    =  5  #: If search fails on timeout, number of retries attempted
 EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
 
 class WorkspaceKinds(Enum):
@@ -511,8 +513,8 @@ class S1FileManager:
         self.__failed_S1_downloads_by_S2_uid  = {}  # by S2 unique id: date + rel_orbit
         self.__skipped_S2_products            = []
 
-        self.__tmpsrtmdir     = None
-        self.__caching_option = cfg.cache_srtm_by
+        self.__tmpdemdir      = None
+        self.__caching_option = cfg.cache_dem_by
         assert self.__caching_option in ['copy', 'symlink']
 
         self.tiff_pattern     = "measurement/*.tiff"
@@ -550,10 +552,10 @@ class S1FileManager:
         """
         Turn the S1FileManager into a context manager, cleanup function
         """
-        if self.__tmpsrtmdir:
-            logger.debug('Cleaning temporary SRTM diretory (%s)', self.__tmpsrtmdir)
-            self.__tmpsrtmdir.cleanup()
-            self.__tmpsrtmdir = None
+        if self.__tmpdemdir:
+            logger.debug('Cleaning temporary DEM diretory (%s)', self.__tmpdemdir)
+            self.__tmpdemdir.cleanup()
+            self.__tmpdemdir = None
         return False
 
     def get_skipped_S2_products(self):
@@ -609,29 +611,30 @@ class S1FileManager:
             lia_directory = self.cfg.lia_directory
             os.makedirs(lia_directory, exist_ok=True)
 
-    def tmpsrtmdir(self, srtm_tiles_id, srtm_suffix='.hgt'):
+    def tmpdemdir(self, dem_tile_infos, dem_filename_format):
         """
-        Generate the temporary directory for SRTM tiles on the fly,
-        and either populate it with symbolic links to the actual SRTM
-        tiles, or copies of the actual SRTM tiles.
+        Generate the temporary directory for DEM tiles on the fly,
+        and either populate it with symbolic links to the actual DEM
+        tiles, or copies of the actual DEM tiles.
         """
         assert self.__caching_option in ['copy', 'symlink']
-        if not self.__tmpsrtmdir:
-            # copy all needed SRTM file in a temp directory for orthorectification processing
-            self.__tmpsrtmdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary SRTM diretory (%s) for needed tiles %s', self.__tmpsrtmdir.name, srtm_tiles_id)
-            assert Path(self.__tmpsrtmdir.name).is_dir()
-            for srtm_tile in srtm_tiles_id:
-                srtm_tile_filepath=Path(self.cfg.srtm, srtm_tile + srtm_suffix)
-                srtm_tile_filelink=Path(self.__tmpsrtmdir.name, srtm_tile + srtm_suffix)
+        if not self.__tmpdemdir:
+            # copy all needed DEM file in a temp directory for orthorectification processing
+            self.__tmpdemdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
+            logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
+            assert Path(self.__tmpdemdir.name).is_dir()
+            for dem_tile, dem_tile_info in dem_tile_infos.items():
+                dem_file = dem_filename_format.format_map(dem_tile_info)
+                dem_tile_filepath=Path(self.cfg.dem, dem_file)
+                dem_tile_filelink=Path(self.__tmpdemdir.name, dem_file)
                 if self.__caching_option == 'symlink':
-                    logger.debug('- ln -s %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
-                    srtm_tile_filelink.symlink_to(srtm_tile_filepath)
+                    logger.debug('- ln -s %s <-- %s', dem_tile_filepath, dem_tile_filelink)
+                    dem_tile_filelink.symlink_to(dem_tile_filepath)
                 else:
-                    logger.debug('- cp %s <-- %s', srtm_tile_filepath, srtm_tile_filelink)
-                    shutil.copy2(srtm_tile_filepath, srtm_tile_filelink)
+                    logger.debug('- cp %s <-- %s', dem_tile_filepath, dem_tile_filelink)
+                    shutil.copy2(dem_tile_filepath, dem_tile_filelink)
 
-        return self.__tmpsrtmdir.name
+        return self.__tmpdemdir.name
 
     def keep_X_latest_S1_files(self, threshold, tile_name):
         """
@@ -1251,38 +1254,30 @@ class S1FileManager:
                 return mgrs_tile.GetGeometryRef().Clone()
         raise ValueError("MGRS tile does not exist", mgrs_tile_name)
 
-    def check_srtm_coverage(self, tiles_to_process):
+    def check_dem_coverage(self, tiles_to_process):
         """
         Given a set of MGRS tiles to process, this method
-        returns the needed SRTM tiles and the corresponding coverage.
+        returns the needed DEM tiles and the corresponding coverage.
 
         Args:
           tile_to_process: The list of MGRS tiles identifiers to process
 
         Return:
-          A list of tuples (SRTM tile id, coverage of MGRS tiles).
+          A list of tuples (DEM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        srtm_layer = Layer(self.cfg.srtm_db_filepath, driver_name='GPKG')
+        dem_layer = Layer(self.cfg.dem_db_filepath, driver_name='GPKG')
 
-        needed_srtm_tiles = {}
+        needed_dem_tiles = {}
 
         for tile in tiles_to_process:
-            logger.debug("Check SRTM tile for %s", tile)
-
-            srtm_tiles = []
+            logger.debug("Check DEM tile for %s", tile)
             mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
-            area = mgrs_footprint.GetArea()
-            srtm_layer.reset_reading()
-            for srtm_tile in srtm_layer:
-                srtm_footprint = srtm_tile.GetGeometryRef()
-                intersection = mgrs_footprint.Intersection(srtm_footprint)
-                if intersection.GetArea() > 0:
-                    coverage = intersection.GetArea() / area
-                    srtm_tiles.append((srtm_tile.GetField('id'), coverage))
-            needed_srtm_tiles[tile] = srtm_tiles
-        logger.info("SRTM ok")
-        return needed_srtm_tiles
+            dem_tiles = find_dem_intersecting_poly(
+                    mgrs_footprint, dem_layer, self.cfg.dem_field_ids, self.cfg.dem_main_field_id)
+            needed_dem_tiles[tile] = dem_tiles
+        logger.info("DEM ok")
+        return needed_dem_tiles
 
     def record_processed_filenames(self):
         """ Record the list of processed filenames (DEPRECATED)"""

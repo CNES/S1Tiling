@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -293,7 +295,7 @@ class OTBApplicationsMockContext:
         self.__tmp_to_out_map         = tmp_to_out_map
         self.__last_expected_metadata = {}
 
-        self.__known_files.append(cfg.srtm_db_filepath)
+        self.__known_files.append(cfg.dem_db_filepath)
         mocker.patch('s1tiling.libs.otbpipeline.otb.Registry.CreateApplication', lambda a : self.create_application(a))
         mocker.patch('s1tiling.libs.otbpipeline.execute', lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
 
@@ -400,7 +402,7 @@ class OTBApplicationsMockContext:
             assert exp['cmdline'].is_dict()
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
-                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_srtm_dir
+                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
             exp['cmdline'].assert_have_same_keys(params)
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:

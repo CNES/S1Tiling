@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -136,48 +138,50 @@ def extract_tiles_to_process(cfg, s1_file_manager):
 
 def check_tiles_to_process(tiles_to_process, s1_file_manager):
     """
-    Search the SRTM tiles required to process the tiles to process.
+    Search the DEM tiles required to process the tiles to process.
     """
-    needed_srtm_tiles = []
+    needed_dem_tiles = {}
     tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
 
-    # Analyse SRTM coverage for MGRS tiles to be processed
-    srtm_tiles_check = s1_file_manager.check_srtm_coverage(tiles_to_process)
+    # Analyse DEM coverage for MGRS tiles to be processed
+    dem_tiles_check = s1_file_manager.check_dem_coverage(tiles_to_process)
+    all_dem_info = {}
 
     # For each MGRS tile to process
     for tile in tiles_to_process:
-        logger.info("Check SRTM coverage for %s", tile)
-        # Get SRTM tiles coverage statistics
-        srtm_tiles = srtm_tiles_check[tile]
+        logger.info("Check DEM coverage for %s", tile)
+        # Get DEM tiles coverage statistics
+        dem_tiles = dem_tiles_check[tile]
         current_coverage = 0
-        current_needed_srtm_tiles = []
         # Compute global coverage
-        for (srtm_tile, coverage) in srtm_tiles:
-            current_needed_srtm_tiles.append(srtm_tile)
-            current_coverage += coverage
-        # If SRTM coverage of MGRS tile is enough, process it
-        needed_srtm_tiles += current_needed_srtm_tiles
+        for dem_tile, dem_info in dem_tiles.items():
+            current_coverage += dem_info['_coverage']
+            # needed_dem_tiles[dem_tile] = dem_info
+        needed_dem_tiles.update(dem_tiles)
+        # If DEM coverage of MGRS tile is enough, process it
         tiles_to_process_checked.append(tile)
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
-            logger.warning("Tile %s has insuficient SRTM coverage (%s%%)",
+            logger.warning("Tile %s has insuficient DEM coverage (%s%%)",
                     tile, 100 * current_coverage)
         else:
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
-    needed_srtm_tiles = list(set(needed_srtm_tiles))
-    return tiles_to_process_checked, needed_srtm_tiles
+    return tiles_to_process_checked, needed_dem_tiles
 
 
-def check_srtm_tiles(cfg, srtm_tiles_id, srtm_suffix='.hgt'):
+def check_dem_tiles(cfg, dem_tile_infos):
     """
-    Check the SRTM tiles exist on disk.
+    Check the DEM tiles exist on disk.
     """
+    fmt = cfg.dem_filename_format
     res = True
-    for srtm_tile in srtm_tiles_id:
-        tile_path_hgt = Path(cfg.srtm, srtm_tile + srtm_suffix)
+    for dem_tile_id, dem_tile_info in dem_tile_infos.items():
+        dem_filename = fmt.format_map(dem_tile_info)
+        tile_path_hgt = Path(cfg.dem, dem_filename)
+        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
         if not tile_path_hgt.exists():
             res = False
             logger.critical("%s is missing!", tile_path_hgt)
@@ -430,7 +434,7 @@ def do_process_with_pipeline(
             logger.critical("No existing tiles found, exiting ...")
             sys.exit(exits.NO_S2_TILE)
 
-        tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(
+        tiles_to_process_checked, needed_dem_tiles = check_tiles_to_process(
                 tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
@@ -440,11 +444,11 @@ def do_process_with_pipeline(
             logger.critical("No tiles to process, exiting ...")
             sys.exit(exits.NO_S1_IMAGE)
 
-        logger.info("Required SRTM tiles: %s", needed_srtm_tiles)
+        logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
 
-        if not check_srtm_tiles(config, needed_srtm_tiles):
-            logger.critical("Some SRTM tiles are missing, exiting ...")
-            sys.exit(exits.MISSING_SRTM)
+        if not check_dem_tiles(config, needed_dem_tiles):
+            logger.critical("Some DEM tiles are missing, exiting ...")
+            sys.exit(exits.MISSING_DEM)
 
         if not os.path.exists(config.GeoidFile):
             logger.critical("Geoid file does not exists (%s), exiting ...", config.GeoidFile)
@@ -455,7 +459,7 @@ def do_process_with_pipeline(
         S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
         os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
+        config.tmp_dem_dir = s1_file_manager.tmpdemdir(needed_dem_tiles, config.dem_filename_format)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 

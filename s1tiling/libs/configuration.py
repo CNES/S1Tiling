@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -33,6 +35,7 @@ Sub-module that manages decoding of S1Processor options.
 
 import configparser
 import copy
+from string import Formatter
 import logging
 import logging.handlers
 # import multiprocessing
@@ -136,10 +139,23 @@ class Configuration():
             os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
         # Other options
-        self.output_preprocess = config.get('Paths', 'output')
-        self.lia_directory     = config.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
-        self.raw_directory     = config.get('Paths', 's1_images')
-        self.srtm              = config.get('Paths', 'srtm')
+        self.output_preprocess   = config.get('Paths', 'output')
+        self.lia_directory       = config.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.raw_directory       = config.get('Paths', 's1_images')
+        # "dem_dir" or Fallback to old deprecated key: "srtm"
+        self.dem                 = config.get('Paths', 'dem_dir', fallback='') or config.get('Paths', 'srtm')
+        self._DEMShapefile       = config.get('Paths', 'dem_database', fallback='')
+        # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
+        self._DEMShapefile       = self._DEMShapefile or resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        self.dem_filename_format = config.get('Paths', 'dem_format', fallback='{id}.hgt')
+        # List of keys/ids to extract from DEM database ; deduced from the keys
+        # used in the filename format; see https://stackoverflow.com/a/22830468/15934
+        self.dem_field_ids       = [fn for _, fn, _, _ in Formatter().parse(self.dem_filename_format) if fn is not None]
+        # extract the ID that will be use as the reference for names
+        main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, self.dem_field_ids))
+        self.dem_main_field_id   = (main_ids or self.dem_field_ids)[0]
+        # logger.debug('Using %s as DEM tile main id for name', main_id)
+
         self.tmpdir            = config.get('Paths', 'tmp')
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
@@ -193,9 +209,9 @@ class Configuration():
 
         self.type_image         = "GRD"
         self.mask_cond          = config.getboolean('Mask', 'generate_border_mask')
-        self.cache_srtm_by      = config.get('Processing', 'cache_srtm_by', fallback='symlink')
-        if self.cache_srtm_by not in ['symlink', 'copy']:
-            logging.critical("Unexpected value for Processing.cache_srtm_by option: '%s' is neither 'copy' no 'symlink'", self.cache_srtm_by)
+        self.cache_dem_by       = config.get('Processing', 'cache_dem_by', fallback='symlink')
+        if self.cache_dem_by not in ['symlink', 'copy']:
+            logging.critical("Unexpected value for Processing.cache_dem_by option: '%s' is neither 'copy' no 'symlink'", self.cache_dem_by)
             sys.exit(exits.CONFIG_ERROR)
 
         self.calibration_type   = config.get('Processing', 'calibration')
@@ -215,8 +231,6 @@ class Configuration():
         if not os.path.isfile(self.output_grid):
             logging.critical("ERROR: output_grid=%s is not a valid path", self.output_grid)
             sys.exit(exits.CONFIG_ERROR)
-
-        self._SRTMShapefile       = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
 
         self.grid_spacing         = config.getfloat('Processing', 'orthorectification_gridspacing')
         self.interpolation_method = config.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
@@ -284,7 +298,10 @@ class Configuration():
         logging.debug("- s1_images                      : %s",     self.raw_directory)
         logging.debug("- output                         : %s",     self.output_preprocess)
         logging.debug("- LIA                            : %s",     self.lia_directory)
-        logging.debug("- srtm                           : %s",     self.srtm)
+        logging.debug("- dem directory                  : %s",     self.dem)
+        logging.debug("- dem filename format            : %s",     self.dem_filename_format)
+        logging.debug("- dem field ids (from shapefile) : %s",     self.dem_field_ids)
+        logging.debug("- main ID for DEM names deduced  : %s",     self.dem_main_field_id)
         logging.debug("- tmp                            : %s",     self.tmpdir)
         logging.debug("[DataSource]")
         logging.debug("- download                       : %s",     self.download)
@@ -307,7 +324,7 @@ class Configuration():
         logging.debug("- output_spatial_resolution      : %s",     self.out_spatial_res)
         logging.debug("- ram_per_process                : %s",     self.ram_per_process)
         logging.debug("- remove_thermal_noise           : %s",     self.removethermalnoise)
-        logging.debug("- srtm_shapefile                 : %s",     self._SRTMShapefile)
+        logging.debug("- dem_shapefile                  : %s",     self._DEMShapefile)
         logging.debug("- tiles                          : %s",     self.tile_list)
         logging.debug("- tiles_shapefile                : %s",     self.output_grid)
         logging.debug("- produce LIA° map               : %s",     self.produce_lia_map)
@@ -328,11 +345,11 @@ class Configuration():
             logging.debug(' - %s --> %s', k, fmt)
 
     @property
-    def srtm_db_filepath(self):
+    def dem_db_filepath(self):
         """
-        Get the SRTMShapefile databe filepath
+        Get the DEMShapefile databe filepath
         """
-        return str(self._SRTMShapefile)
+        return str(self._DEMShapefile)
 
     @property
     def fname_fmt_concatenation(self):
