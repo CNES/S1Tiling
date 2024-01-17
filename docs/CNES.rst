@@ -1,18 +1,44 @@
-.. _HAL:
+.. _CNES:
 
 .. index:: HAL
+.. index:: TREX
 
-Some specificities about HAL cluster
-====================================
+Some specificities about CNES clusters
+======================================
 
 .. contents:: Contents:
    :local:
    :depth: 3
 
-Installation on HAL
--------------------
+Using S1Tiling Lmod module on HAL/TREX
+--------------------------------------
 
-There are mainly two x two ways to install S1Tiling on HAL.
+S1Tiling is already installed on HAL and TREX (since June 2023). It's available
+through `Lmod <https://lmod.readthedocs.io/en/latest/?badge=latest>`_; see also
+HAL/TREX user guides.
+
+.. code:: bash
+
+    # Use the lastest version
+    ml s1tiling
+
+    # Check versions available
+    ml av version
+
+    # Activate a specific version
+    ml s1tiling/1.0.0rc2-otb7.4.2
+
+
+.. note::
+
+    For the moment, only S1Tiling 1.0 RC2 is installed with a dependency to OTB
+    7.4.2, Python 3.8.4 and G++ 8.2.
+
+Installation on HAL/TREX
+------------------------
+
+You may prefer to install S1Tiling yourself. In that case, there are mainly two
+X two ways to install S1Tiling on CNES clusters.
 
 If one wants to install S1Tiling from sources instead of pipy, it could be done
 from the following context. Then, in later steps, use ``"${S1TILING_SRC_DIR}"``
@@ -34,7 +60,7 @@ instead of ``s1tiling`` as ``pip`` parameter.
 
 .. code:: bash
 
-    ml otb/7.4-python3.7.2
+    ml otb/7.4.2-python3.8.4-gcc8.2
 
     # Create a pip virtual environment
     python -m venv install_with_otb_module
@@ -43,8 +69,8 @@ instead of ``s1tiling`` as ``pip`` parameter.
     source install_with_otb_module/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -58,7 +84,7 @@ To use it
 .. code:: bash
 
     ml purge
-    ml otb/7.4-python3.7.2
+    ml otb/7.4.2-python3.8.4-gcc8.2
     source install_with_otb_module/bin/activate
 
     S1Processor requestfile.cfg
@@ -66,23 +92,39 @@ To use it
     deactivate
     ml purge
 
+
+.. note::
+
+    This is the approach that has been chosen by the installation script we use
+    internally. See: :download:`install-CNES.sh
+    <../s1tiling/resources/install-CNES.sh>`
+
+    Prefer the later approach based on conda if you wish to use a different
+    version of Python.
+
 ...from available OTB module (and w/ conda)
 +++++++++++++++++++++++++++++++++++++++++++
 
+.. note::
+   This approach permits to select a different version of Python, but it will
+   be a bit more complex to correctly adjust the desired version of gdal python
+   bindings to be exactly the same as the one used to generate OTB module. This
+   isn't demonstrated here.
+
 .. code:: bash
 
-    ml otb/7.4-python3.7.2
+    ml otb/7.4.2-python3.8.4-gcc8.2
 
     # Create a conda environment
     ml conda
-    conda create --prefix ./conda_install_with_otb_distrib python==3.7.2
+    conda create --prefix ./conda_install_with_otb_distrib python==3.8.4
 
     # Configure the environment with:
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -97,7 +139,7 @@ To use it
 
     ml purge
     ml conda
-    ml otb/7.4-python3.7.2
+    ml otb/7.4.2-python3.8.4-gcc8.2
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
 
     S1Processor requestfile.cfg
@@ -121,13 +163,13 @@ project) environment.
     ml purge
     cd "${TST_DIR}"
     # Install OTB binaries
-    wget https://www.orfeo-toolbox.org/packages/OTB-7.4.1-Linux64.run
-    bash OTB-7.4.1-Linux64.run
+    wget https://www.orfeo-toolbox.org/packages/OTB-7.4.2-Linux64.run
+    bash OTB-7.4.2-Linux64.run
 
     # Patches gdal-config
-    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-7.4.1-Linux64/bin/
+    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-7.4.2-Linux64/bin/
     # Patches LD_LIBRARY_PATH
-    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.4.1-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.4.1-Linux64/otbenv.profile
+    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.4.2-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.4.2-Linux64/otbenv.profile
 
 .. note::
 
@@ -145,23 +187,25 @@ for the chosen version of Python.
 
     # Create a conda environment
     ml conda
-    conda create --prefix ./conda_install_with_otb_distrib python==3.7.2
+    conda create --prefix ./conda_install_with_otb_distrib python==3.8.4
 
     # Configure the environment with:
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
-    # - numpy in order to compile OTB python bindinds for Python 3.7.2
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
+    # - numpy in order to compile OTB python bindinds for Python 3.8.4
     pip install numpy
+    # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
+    pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
-    source OTB-7.4.1-Linux64/otbenv.profile
+    source OTB-7.4.2-Linux64/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.1-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-7.4.2-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -179,7 +223,7 @@ To use it
     ml purge
     ml conda
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
-    source "${TST_DIR}/OTB-7.4.1-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-7.4.2-Linux64/otbenv.profile"
 
     S1Processor requestfile.cfg
 
@@ -202,17 +246,19 @@ for the chosen version of Python.
     source install_with_otb_binaries/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools
-    python -m pip install --upgrade setuptools
+    # - an up-to-date setuptools==57.5.0
+    python -m pip install --upgrade setuptools==57.5.0
     # - numpy in order to compile OTB python bindinds for Python
     pip install numpy
+    # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
+    pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
-    source OTB-7.4.1-Linux64/otbenv.profile
+    source OTB-7.4.2-Linux64/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.1-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-7.4.2-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -228,7 +274,7 @@ To use it
 
     ml purge
     source install_with_otb_binaries/bin/activate
-    source "${TST_DIR}/OTB-7.4.1-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-7.4.2-Linux64/otbenv.profile"
 
     S1Processor requestfile.cfg
 
@@ -242,7 +288,7 @@ The theory
 ++++++++++
 
 A few options deserve our attention when running S1 Tiling as a job on a
-cluster like HAL.
+cluster like HAL or TREX.
 
 .. list-table::
   :widths: auto
@@ -333,8 +379,47 @@ cluster like HAL.
 TL;DR: here is an example
 +++++++++++++++++++++++++
 
-PBS job file
-~~~~~~~~~~~~
+SLRUM job file (TREX)
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+    #!/bin/bash
+    #SBATCH --account=...
+    #SBATCH --partition=cpu2022   # jobs < 72h
+    #SBATCH --qos=...
+    #SBATCH -N 1                  # number of nodes (or --nodes=1)
+    #SBATCH -n 1                  # number of tasks (or --ntasks=1)
+    #SBATCH --cpus-per-task=20    # number of cpus par task
+    #SBATCH --mem=160G            # memory per core
+    #SBATCH --time=00:59:00       # Wall Time 59mn
+    #SBATCH -J job-s1tiling
+
+    # The number of allocated CPUs
+    NCPUS=${SLURM_CPUS_PER_TASK}
+    # Let's use 2 threads in each OTB application pipeline
+    export NB_OTB_THREADS=2
+    # Let's deduce the number of OTB application pipelines to run in parallel
+    export NB_OTB_PIPELINES=$(($NCPUS / $NB_OTB_THREADS))
+    # These two variables have been exported to be automatically used from the
+    # S1tiling request file.
+
+    # Let's use an existing S1Tiling module
+    s1tiling/1.0.0rc2-otb7.4.2
+
+    # Expecting S1Processor.cfg in ${SLURM_SUBMIT_DIR}, the logs will be
+    # produced in a subdirectory named after the the JOB ID.
+    WORK_DIR="${SLURM_SUBMIT_DIR}/${SLURM_JOB_ID}"
+    mkdir -p "${WORK_DIR}"
+    cd "${WORK_DIR}"
+    S1Processor --cache-before-ortho ../S1Processor.cfg || {
+        code=$?
+        echo "Echec de l'exécution de programme" >&2
+        exit ${code}
+    }
+
+PBS job file (HAL)
+~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -353,15 +438,17 @@ PBS job file
     # Let's deduce the number of OTB application pipelines to run in parallel
     export NB_OTB_PIPELINES=$(($NCPUS / $NB_OTB_THREADS))
     # These two variables have been exported to be automatically used from the
-    # S1 tiling request file.
+    # S1tiling request file.
 
-    # Let's suppose we have a S1Tiling module -- which will be the case
-    # eventually. See the previous sections in the meantime.
-    ml s1tiling
+    # Let's use an existing S1Tiling module
+    s1tiling/1.0.0rc2-otb7.4.2
 
-    mkdir -p "${PBS_O_WORKDIR}/${PBS_JOBID}"
-    cd "${PBS_O_WORKDIR}/${PBS_JOBID}"
-    S1Processor S1Processor.cfg || {
+    # Expecting S1Processor.cfg in ${PBS_O_WORKDIR}, the logs will be
+    # produced in a subdirectory named after the the JOB ID.
+    WORK_DIR="${PBS_O_WORKDIR}/${PBS_JOBID}"
+    mkdir -p "${WORK_DIR}"
+    cd "${WORK_DIR}"
+    S1Processor --cache-before-ortho ../S1Processor.cfg || {
         code=$?
         echo "Echec de l'exécution de programme" >&2
         exit ${code}

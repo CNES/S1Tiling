@@ -226,7 +226,7 @@ Project XYZ coordinates onto SAR
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
 :OTBApplication: :std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
-                 <Applications/app_SARCartesianMeanEstimation2>`
+                 <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
 This step estimates the XYZ Cartesian coordinates on the ground in the geometry
@@ -338,7 +338,7 @@ Application of LIA maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
                  calibrated
-:OTBApplication: :std:doc:`Synthetize <Applications/app_BandMath>`
+:OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
 This final step multiplies the sine LIA map (in S2 grid geometry) with β0

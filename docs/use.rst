@@ -18,6 +18,8 @@ Usage
 Scenarios
 ---------
 
+.. _scenario.S1Processor:
+
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -372,6 +374,12 @@ You can use this :download:`this template
           [DataSource]
           roi_by_tiles : 33NWB
 
+      .. _DataSource.platform_list:
+  * - ``platform_list``
+    - Defines the list of platforms from where come the products to download
+      and process.
+      Valid values are expected in the form of ``S1*``.
+
       .. _DataSource.polarisation:
   * - ``polarisation``
     - Defines the polarisation mode of the products to download and process.
@@ -572,8 +580,7 @@ You can use this :download:`this template
         For optimal performances, ``nb_parallel_processes*nb_otb_threads``
         should be <= to the number of cores on the machine.
 
-      .. _Processing.override_azimuth_cut_threshold_to:
-
+      .. _Processing.produce_lia_map:
   * - ``produce_lia_map``
     - When :ref:`LIA sine map <lia-files>` is produced, we may also desire the
       angle values in degrees (x100).
@@ -589,6 +596,7 @@ You can use this :download:`this template
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
+      .. _Processing.override_azimuth_cut_threshold_to:
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be
       forced to 0 in :ref:`cutting step <cutting>`. |br|
@@ -828,9 +836,9 @@ Working on clusters
   use different directories for:
 
   - logs -- running S1Tiling in different directories, like :file:`$TMPDIR/`
-    on HAL, should be enough
+    on TREX, should be enough
   - storing :ref:`input files <paths.s1_images>`, like for instance
-    :file:`$TMPDIR/data_raw/` on HAL for instance.
+    :file:`$TMPDIR/data_raw/` on HAL/TREX for instance.
 
 .. _exit_codes:
 

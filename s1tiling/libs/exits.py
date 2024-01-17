@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -49,21 +49,21 @@ MISSING_DEM         = 75
 MISSING_GEOID       = 76
 MISSING_APP         = 77
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.exists')
 
 class Situation:
     """
     Class to help determine the exit value from processing function
     """
-    def __init__(self, nb_computation_errors, nb_download_failures, nb_download_timeouts):
+    def __init__(self, nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts) -> None:
         """
         constructor
         """
-        logger.debug('Situation: %s computations errors. %s download failures. %s download timeouts',
-                nb_computation_errors, nb_download_failures, nb_download_timeouts)
+        logger.debug('Situation: %s computations errors. %s search failures. %s download failures. %s download timeouts',
+                nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts)
         if nb_computation_errors > 0:
             self.code = TASK_FAILED
-        elif nb_download_failures > nb_download_timeouts:
+        elif (nb_download_failures > nb_download_timeouts) or (nb_search_failures > 0):
             # So far, timeouts are counted as failures as well
             self.code = DOWNLOAD_ERROR
         elif nb_download_timeouts > 0:
