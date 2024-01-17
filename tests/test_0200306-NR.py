@@ -306,7 +306,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         # assert 'srtms' in indem.meta, f"Metadata don't contain 'srtms', only: {indem.meta.keys()}"
         assert 'srtms' in mt, f"Metadata don't contain 'srtms', only: {mt.keys()}"
         return mt
-    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection2.add_image_metadata', mock_add_image_metadata)
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
 
     def mock_direction_to_scan(slf, meta):
         logging.debug('Mocking direction to scan')
