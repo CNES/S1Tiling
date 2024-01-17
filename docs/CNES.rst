@@ -317,7 +317,7 @@ cluster like HAL or TREX.
 
   * - :ref:`[PATHS].dem_dir <paths.dem_dir>`
     - Original DEM files are stored in
-      :file:`/work/datalake/static_aux/MNT/DEM_30_hgt`.
+      :file:`/work/datalake/static_aux/MNT/SRTM_30_hgt`.
 
       .. code:: ini
 
