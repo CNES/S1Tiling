@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -32,40 +32,42 @@
 import logging
 import os
 from pathlib import Path
+from typing import Dict, List, Tuple, Type, Union
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
-from .S1FileManager import S1FileManager, WorkspaceKinds
-# from libs import S1FilteringProcessor
+from .S1FileManager import (
+        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+)
+from . import exits
+from . import exceptions
 from . import Utils
 from .configuration import Configuration
-from .otbpipeline import FirstStep, PipelineDescriptionSequence
+from .otbpipeline import FirstStep, PipelineDescriptionSequence, StepFactory
 from .otbwrappers import (
+        AbstractStep,
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
         ApplyLIACalibration, SpatialDespeckle)
-from . import exits
-from . import exceptions
+from .outcome import Outcome
 
 # Graphs
 from s1tiling.libs.vis import SimpleComputationGraph
 
 
-# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
-EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
-EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
+logger = logging.getLogger('s1tiling.api')
 
-logger = logging.getLogger('s1tiling')
 
-def remove_files(files):
+def remove_files(files, what: str) -> None:
     """
     Removes the files from the disk
     """
-    logger.debug("Remove %s", files)
+    logger.debug("Remove %s: %s", what, files)
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
@@ -75,7 +77,6 @@ def extract_tiles_to_process(cfg, s1_file_manager):
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
-
     logger.info('Requested tiles: %s', cfg.tile_list)
 
     all_requested = False
@@ -107,68 +108,69 @@ def extract_tiles_to_process(cfg, s1_file_manager):
 
 def check_tiles_to_process(tiles_to_process, s1_file_manager):
     """
-    Search the SRTM tiles required to process the tiles to process.
+    Search the DEM tiles required to process the tiles to process.
     """
-    needed_srtm_tiles = []
+    needed_dem_tiles = {}
     tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
 
-    # Analyse SRTM coverage for MGRS tiles to be processed
-    srtm_tiles_check = s1_file_manager.check_srtm_coverage(tiles_to_process)
+    # Analyse DEM coverage for MGRS tiles to be processed
+    dem_tiles_check = s1_file_manager.check_dem_coverage(tiles_to_process)
+    # all_dem_info = {}
 
     # For each MGRS tile to process
     for tile in tiles_to_process:
-        logger.info("Check SRTM coverage for %s", tile)
-        # Get SRTM tiles coverage statistics
-        srtm_tiles = srtm_tiles_check[tile]
+        logger.info("Check DEM coverage for %s", tile)
+        # Get DEM tiles coverage statistics
+        dem_tiles = dem_tiles_check[tile]
         current_coverage = 0
-        current_needed_srtm_tiles = []
         # Compute global coverage
-        for (srtm_tile, coverage) in srtm_tiles:
-            current_needed_srtm_tiles.append(srtm_tile)
-            current_coverage += coverage
-        # If SRTM coverage of MGRS tile is enough, process it
-        needed_srtm_tiles += current_needed_srtm_tiles
+        for dem_tile, dem_info in dem_tiles.items():
+            current_coverage += dem_info['_coverage']
+            # needed_dem_tiles[dem_tile] = dem_info
+        needed_dem_tiles.update(dem_tiles)
+        # If DEM coverage of MGRS tile is enough, process it
         tiles_to_process_checked.append(tile)
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
-            logger.warning("Tile %s has insufficient SRTM coverage (%s%%)",
+            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
                     tile, 100 * current_coverage)
         else:
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
-    needed_srtm_tiles = list(set(needed_srtm_tiles))
-    return tiles_to_process_checked, needed_srtm_tiles
+    return tiles_to_process_checked, needed_dem_tiles
 
 
-def check_srtm_tiles(cfg, srtm_tiles_id, srtm_suffix='.hgt'):
+def check_dem_tiles(cfg, dem_tile_infos) -> bool:
     """
-    Check the SRTM tiles exist on disk.
+    Check the DEM tiles exist on disk.
     """
+    fmt = cfg.dem_filename_format
     res = True
-    for srtm_tile in srtm_tiles_id:
-        tile_path_hgt = Path(cfg.srtm, srtm_tile + srtm_suffix)
+    for dem_tile_id, dem_tile_info in dem_tile_infos.items():
+        dem_filename = fmt.format_map(dem_tile_info)
+        tile_path_hgt = Path(cfg.dem, dem_filename)
+        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
         if not tile_path_hgt.exists():
             res = False
             logger.critical("%s is missing!", tile_path_hgt)
     return res
 
 
-def clean_logs(config, nb_workers):
+def clean_logs(config, nb_workers) -> None:
     """
     Clean all the log files.
     Meant to be called once, at startup
     """
     filenames = []
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
-            pattern = cfg['filename'] % ('worker-%s',)
-            filenames += [pattern%(w,) for w in range(nb_workers)]
-    remove_files(filenames)
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
+            filenames += [cfg['filename'].format(kind=f"worker-{w}") for w in range(nb_workers)]
+    remove_files(filenames, "logs")
 
 
-def setup_worker_logs(config, dask_worker):
+def setup_worker_logs(config, dask_worker) -> None:
     """
     Set-up the logger on Dask Worker.
     """
@@ -177,9 +179,9 @@ def setup_worker_logs(config, dask_worker):
     old_handlers = d_logger.handlers[:]
 
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
             cfg['mode']     = 'a'  # Make sure to not reset worker log file
-            cfg['filename'] = cfg['filename'] % ('worker-' + str(dask_worker.name),)
+            cfg['filename'] = cfg['filename'].format(kind=f"worker-{dask_worker.name}")
 
     logging.config.dictConfig(config)
     # Restore old dask.distributed handlers, and inject them in root handler as well
@@ -196,7 +198,7 @@ class DaskContext:
     Custom context manager for :class:`dask.distributed.Client` +
     :class:`dask.distributed.LocalCluster` classes.
     """
-    def __init__(self, config, debug_otb):
+    def __init__(self, config, debug_otb) -> None:
         self.__client    = None
         self.__cluster   = None
         self.__config    = config
@@ -230,6 +232,16 @@ class DaskContext:
         return self.__client
 
 
+def _how2str(how: Union[Tuple,AbstractStep]) -> str:
+    """
+    Make task definition from logger friendly
+    """
+    if isinstance(how, AbstractStep):
+        return str(how)
+    else:
+        return f"Task(pipeline: {how[1]}; keys: {how[2]})"
+
+
 def _execute_tasks_debug(dsk, tile_name):
     """
     Execute the tasks directly, one after the other, without Dask layer.
@@ -241,12 +253,12 @@ def _execute_tasks_debug(dsk, tile_name):
     logger.debug('%s tasks', len(tasks))
     for product in reversed(tasks):
         how = dsk[product]
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
     logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
     results = []
     for product in reversed(tasks):
         how = dsk[product]
-        logger.info('- execute: %s <-- %s', product, how)
+        logger.info('- execute: %s <-- %s', product, _how2str(how))
         if not issubclass(type(how), FirstStep):
             results += [how[0](*list(how)[1:])]
     return results
@@ -258,7 +270,7 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
     Execute the tasks in parallel through Dask.
     """
     for product, how in dsk.items():
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
 
     if debug_tasks:
         SimpleComputationGraph().simple_graph(
@@ -272,7 +284,7 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
         except KilledWorker as e:
             logger.critical('%s', dir(e))
             logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
-                    e.last_worker.name, e.task, tile_name, e, run, nb_tries)
+                    e.last_worker.name, e.task, tile_name, e, run_attemp, nb_tries)
             # TODO: don't overwrite previous logs
             # And we'll need to use the synchronous=False parameter to be able to check
             # successful executions but then, how do we clean up futures and all??
@@ -288,9 +300,10 @@ def _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list, re
 
 def process_one_tile(
         tile_name, tile_idx, tiles_nb,
-        s1_file_manager, pipelines, client,
-        required_workspaces, dl_wait, dl_timeout, searched_items_per_page,
-        debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False):
+        s1_file_manager: S1FileManager, pipelines, client,
+        required_workspaces,
+        debug_otb=False, dryrun=False, do_watch_ram=False, debug_tasks=False
+):
     """
     Process one S2 tile.
 
@@ -304,10 +317,12 @@ def process_one_tile(
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=tile_name,
-                    dl_wait=dl_wait, dl_timeout=dl_timeout,
-                    searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+            s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
             # download_images will have updated the list of know products
+    except RuntimeError as e:
+        logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
+        return [Outcome(e)]
+
     except BaseException as e:  # pylint: disable=broad-except
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name)
@@ -337,28 +352,48 @@ def read_config(config_opt):
     object
     """
     if isinstance(config_opt, str):
-        config = Configuration(config_opt)
-        # config.init_logger()
-        return config
+        return Configuration(config_opt)
     else:
         return config_opt
 
 
-def do_process_with_pipeline(config_opt,
+def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
+    """
+    Adds attributes to configuration object.
+
+    .. todo:: Configuration object shall be closer to a dictionary to avoid these workarounds...
+    """
+    for k in extra_opts:
+        if overwrite or not hasattr(config, k):
+            setattr(config, k, extra_opts[k])
+    return config
+
+
+def do_process_with_pipeline(
+        config_opt,
         pipeline_builder,
-        dl_wait, dl_timeout,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_caches=False,
-        debug_otb=False,
-        watch_ram=False,
-        debug_tasks=False,
-        ):
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_caches           : bool = False,
+        debug_otb              : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
     """
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
     config = read_config(config_opt)
+    extra_opts = {
+            "dl_wait"                : dl_wait,
+            "dl_timeout"             : dl_timeout,
+            "searched_items_per_page": searched_items_per_page,
+            "nb_max_search_retries"  : nb_max_search_retries,
+    }
+    _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
@@ -369,7 +404,7 @@ def do_process_with_pipeline(config_opt,
         if len(tiles_to_process) == 0:
             raise exceptions.NoS2TileError()
 
-        tiles_to_process_checked, needed_srtm_tiles = check_tiles_to_process(
+        tiles_to_process_checked, needed_dem_tiles = check_tiles_to_process(
                 tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
@@ -378,9 +413,9 @@ def do_process_with_pipeline(config_opt,
         if len(tiles_to_process_checked) == 0:
             raise exceptions.NoS1ImageError()
 
-        logger.info("Required SRTM tiles: %s", needed_srtm_tiles)
+        logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
 
-        if not check_srtm_tiles(config, needed_srtm_tiles):
+        if not check_dem_tiles(config, needed_dem_tiles):
             raise exceptions.MissingDEMError()
 
         if not os.path.exists(config.GeoidFile):
@@ -391,7 +426,7 @@ def do_process_with_pipeline(config_opt,
         S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
         os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        config.tmp_srtm_dir = s1_file_manager.tmpsrtmdir(needed_srtm_tiles)
+        config.tmp_dem_dir = s1_file_manager.tmpdemdir(needed_dem_tiles, config.dem_filename_format)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
@@ -404,8 +439,6 @@ def do_process_with_pipeline(config_opt,
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, dask_client.client,
                             required_workspaces,
-                            dl_wait=dl_wait, dl_timeout=dl_timeout,
-                            searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
                     results += res
@@ -416,8 +449,9 @@ def do_process_with_pipeline(config_opt,
         results.extend([fp for fp in skipped_for_download_failures])
 
         logger.debug('#############################################################################')
-        if nb_errors_detected + len(skipped_for_download_failures) > 0:
-            logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
+        nb_issues = nb_errors_detected + len(skipped_for_download_failures)
+        if nb_issues > 0:
+            logger.warning('Execution report: %s errors detected', nb_issues)
         else:
             logger.info('Execution report: no error detected')
 
@@ -427,13 +461,15 @@ def do_process_with_pipeline(config_opt,
         else:
             logger.info(' -> Nothing has been executed')
 
+        search_failures   = s1_file_manager.get_search_failures()
         download_failures = s1_file_manager.get_download_failures()
         download_timeouts = s1_file_manager.get_download_timeouts()
         return exits.Situation(
-                nb_computation_errors=nb_errors_detected,
+                nb_computation_errors=nb_errors_detected - search_failures,
+                nb_search_failures=search_failures,
                 nb_download_failures=len(download_failures),
                 nb_download_timeouts=len(download_timeouts)
-                )
+        )
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool):
@@ -463,16 +499,19 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return best_concat_sin
 
 
-def s1_process(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        cache_before_ortho=False):
+def s1_process(
+        config_opt,
+        dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries   : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                  : bool = False,
+        debug_otb               : bool = False,
+        debug_caches            : bool = False,
+        watch_ram               : bool = False,
+        debug_tasks             : bool = False,
+        cache_before_ortho      : bool = False
+) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
     :ref:`S1Tiling NORMLIM scenario <scenario.S1ProcessorLIA>` of on demand
@@ -553,7 +592,7 @@ def s1_process(config_opt,
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
 
         # Concatenation (... + Despeckle)  // not working yet, see issue #118
-        concat_seq = [Concatenate]
+        concat_seq : List[Type[StepFactory]] = [Concatenate]
         if chain_concat_and_despeckle_inmemory:
             concat_seq.append(SpatialDespeckle)
             need_to_keep_non_filtered_products = False
@@ -567,7 +606,7 @@ def s1_process(config_opt,
 
         # LIA Calibration (...+ Despeckle)
         if config.calibration_type == 'normlim':
-            apply_LIA_seq = [ApplyLIACalibration]
+            apply_LIA_seq : List[Type[StepFactory]] = [ApplyLIACalibration]
             if chain_LIA_and_despeckle_inmemory:
                 apply_LIA_seq.append(SpatialDespeckle)
                 need_to_keep_non_filtered_products = False
@@ -596,27 +635,31 @@ def s1_process(config_opt,
 
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
-            searched_items_per_page=searched_items_per_page,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_otb=debug_otb,
             debug_caches=debug_caches,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
-            )
+    )
 
 
-def s1_process_lia(config_opt,
-        dl_wait=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page=20,
-        dryrun=False,
-        debug_otb=False,
-        debug_caches=False,
-        watch_ram=False,
-        debug_tasks=False,
-        ):
+def s1_process_lia(
+        config_opt,
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
     generates Local Incidence Angle Maps on S2 geometry.
@@ -671,13 +714,15 @@ def s1_process_lia(config_opt,
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
-            )
+    )
 

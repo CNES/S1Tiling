@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -35,19 +35,36 @@ Sub-module that manages decoding of S1Processor options.
 
 import configparser
 import copy
+from string import Formatter
 import logging
 import logging.handlers
 # import multiprocessing
 import os
 from pathlib import Path
 import re
-import sys
 import yaml
 
 from s1tiling.libs import exceptions
 from .otbpipeline import otb_version
+from ..__meta__ import __version__ as s1tiling_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
+
+SPLIT_PATTERN = re.compile("^\s+|\s*,\s*|\s+$")
+
+def load_log_config(cfgpaths):
+    """
+    Take care of loading a log configuration file expressed in YAML
+    """
+    with open(cfgpaths[0], 'r') as stream:
+        # FullLoader requires yaml 5.1
+        # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+        if hasattr(yaml, 'FullLoader'):
+            config = yaml.load(stream, Loader=yaml.FullLoader)
+        else:
+            print("WARNING - upgrade pyyaml to version 5.1 at least!!")
+            config = yaml.load(stream)
+    return config
 
 
 # Helper functions for extracting configuration options
@@ -117,14 +134,7 @@ def _init_logger(mode, paths):
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        with open(cfgpaths[0], 'r') as stream:
-            # FullLoader requires yaml 5.1
-            # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-            if hasattr(yaml, 'FullLoader'):
-                config = yaml.load(stream, Loader=yaml.FullLoader)
-            else:
-                print("WARNING - upgrade pyyaml to version 5.1 at least!!")
-                config = yaml.load(stream)
+        config = load_log_config(cfgpaths)
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -136,10 +146,21 @@ def _init_logger(mode, paths):
                 config["root"]["handlers"] += ['file']
             if 'important' not in config["root"]["handlers"]:
                 config["root"]["handlers"] += ['important']
+            if verbose:
+                config["handlers"]["file"]["level"] = "DEBUG"
+        # Update all filenames with debug mode info.
+        filename_opts = {
+                "mode": ".debug" if verbose else "",
+                "kind": "{kind}",
+                }
+        for _, cfg in config['handlers'].items():
+            if 'filename' in cfg and '{mode}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format_map(filename_opts)
+        # Update main filename with... "main"
         main_config = copy.deepcopy(config)
         for _, cfg in main_config['handlers'].items():
-            if 'filename' in cfg and '%' in cfg['filename']:
-                cfg['filename'] = cfg['filename'] % ('main',)
+            if 'filename' in cfg and '{kind}' in cfg['filename']:
+                cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
         return config
     else:
@@ -168,13 +189,31 @@ class Configuration():
 
         # Other options
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
-        self.output_preprocess = get_opt(config, configFile, 'Paths', 'output')
+        self.output_preprocess   = get_opt(config, configFile, 'Paths', 'output')
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory     = get_opt(config, configFile, 'Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.lia_directory       = get_opt(config, configFile, 'Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
-        self.raw_directory     = get_opt(config, configFile, 'Paths', 's1_images')
-        #: Where DEM files are expected to be found: See :ref:`[PATHS.dem] <paths.dem>`!
-        self.srtm              = get_opt(config, configFile, 'Paths', 'srtm')
+        self.raw_directory       = get_opt(config, configFile, 'Paths', 's1_images')
+
+        # "dem_dir" or Fallback to old deprecated key: "srtm"
+        #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
+        self.dem                 = get_opt(config, configFile, 'Paths', 'dem_dir', fallback='') or get_opt(config, configFile, 'Paths', 'srtm')
+        self._DEMShapefile       = get_opt(config, configFile, 'Paths', 'dem_database', fallback='')
+        # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
+        #: Path to the internal DEM tiles database: automatically set
+        self._DEMShapefile       = self._DEMShapefile or resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
+        #: Filename format string to locate the DEM file associated to an *identifier*: See :ref:`[PATHS.dem_format] <paths.dem_format>`
+        self.dem_filename_format = get_opt(config, configFile, 'Paths', 'dem_format', fallback='{id}.hgt')
+        # List of keys/ids to extract from DEM database ; deduced from the keys
+        # used in the filename format; see https://stackoverflow.com/a/22830468/15934
+        #: List of keys/ids to extract from DEM DB
+        self.dem_field_ids       = [fn for _, fn, _, _ in Formatter().parse(self.dem_filename_format) if fn is not None]
+        # extract the ID that will be use as the reference for names
+        main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, self.dem_field_ids))
+        #: Main DEM field id.
+        self.dem_main_field_id   = (main_ids or self.dem_field_ids)[0]
+        # logger.debug('Using %s as DEM tile main id for name', main_id)
+
         #: Where tmp files are produced: See :ref:`[PATHS.tmp] <paths.tmp>`
         self.tmpdir            = get_opt(config, configFile, 'Paths', 'tmp')
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
@@ -182,10 +221,11 @@ class Configuration():
             raise exceptions.ConfigurationError(f"tmpdir={self.tmpdir} is not a valid path", configFile)
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
         self.GeoidFile         = get_opt(config, configFile, 'Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
+
         if config.has_section('PEPS'):
             raise exceptions.ConfigurationError('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
-        self.eodagConfig               = get_opt(config, configFile, 'DataSource', 'eodagConfig', fallback=None)
+        self.eodag_config               = get_opt(config, configFile, 'DataSource', 'eodag_config', fallback=None) or get_opt(config, configFile, 'DataSource', 'eodagConfig', fallback=None)
         #: Boolean flag that enables/disables download of S1 input images: :ref:`[DataSource.download] <DataSource.download>`
         self.download                  = getboolean_opt(config, configFile, 'DataSource', 'download')
         #: Region Of Interest to download: See :ref:`[DataSource.roi_by_tiles] <DataSource.roi_by_tiles>`
@@ -194,6 +234,15 @@ class Configuration():
         self.first_date                = get_opt(config, configFile, 'DataSource', 'first_date')
         #: End date: :ref:`[DataSource.last_date] <DataSource.last_date>`
         self.last_date                 = get_opt(config, configFile, 'DataSource', 'last_date')
+
+        platform_list_str              = get_opt(config, configFile, 'DataSource', 'platform_list', fallback='')
+        platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
+        unsupported_platforms = [p for p in platform_list if p and not p.startswith("S1")]
+        if unsupported_platforms:
+            raise exceptions.ConfigurationError(f"Non supported requested platforms: {', '.join(unsupported_platforms)}", configFile)
+        #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
+        self.platform_list             = platform_list
+
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
         self.orbit_direction           = get_opt(config, configFile, 'DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
@@ -225,10 +274,10 @@ class Configuration():
         #: Shall we generate mask products? :ref:`[Mask.generate_border_mask] <Mask.generate_border_mask>`
         self.mask_cond          = getboolean_opt(config, configFile, 'Mask', 'generate_border_mask')
 
-        #:Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_srtm_by] <Processing.cache_srtm_by>`
-        self.cache_srtm_by      = get_opt(config, configFile, 'Processing', 'cache_srtm_by', fallback='symlink')
-        if self.cache_srtm_by not in ['symlink', 'copy']:
-            raise exceptions.ConfigurationError(f"Unexpected value for Processing.cache_srtm_by option: '{self.cache_srtm_by}' is neither 'copy' nor 'symlink'", configFile)
+        #:Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
+        self.cache_dem_by      = get_opt(config, configFile, 'Processing', 'cache_dem_by', fallback='symlink')
+        if self.cache_dem_by not in ['symlink', 'copy']:
+            raise exceptions.ConfigurationError(f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'", configFile)
 
         #: SAR Calibration applied: See :ref:`[Processing.calibration] <Processing.calibration>`
         self.calibration_type   = get_opt(config, configFile, 'Processing', 'calibration')
@@ -250,9 +299,6 @@ class Configuration():
         self.output_grid        = get_opt(config, configFile, 'Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             raise exceptions.ConfigurationError(f"output_grid={self.output_grid} is not a valid path", configFile)
-
-        #: Path to the internal DEM tiles database: automatically set
-        self._SRTMShapefile       = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
 
         #: Grid spacing (in meters) for the interpolator in the orthorectification: See :ref:`[Processing.orthorectification_gridspacing] <Processing.orthorectification_gridspacing>`
         self.grid_spacing         = getfloat_opt(config, configFile, 'Processing', 'orthorectification_gridspacing')
@@ -324,18 +370,22 @@ class Configuration():
             self.show_configuration()
 
     def show_configuration(self):
-        logging.debug("Running S1Tiling with:")
+        logging.debug("Running S1Tiling %s with:", s1tiling_version)
         logging.debug("[Paths]")
         logging.debug("- geoid_file                     : %s",     self.GeoidFile)
         logging.debug("- s1_images                      : %s",     self.raw_directory)
         logging.debug("- output                         : %s",     self.output_preprocess)
         logging.debug("- LIA                            : %s",     self.lia_directory)
-        logging.debug("- srtm                           : %s",     self.srtm)
+        logging.debug("- dem directory                  : %s",     self.dem)
+        logging.debug("- dem filename format            : %s",     self.dem_filename_format)
+        logging.debug("- dem field ids (from shapefile) : %s",     self.dem_field_ids)
+        logging.debug("- main ID for DEM names deduced  : %s",     self.dem_main_field_id)
         logging.debug("- tmp                            : %s",     self.tmpdir)
         logging.debug("[DataSource]")
         logging.debug("- download                       : %s",     self.download)
         logging.debug("- first_date                     : %s",     self.first_date)
         logging.debug("- last_date                      : %s",     self.last_date)
+        logging.debug("- platform_list                  : %s",     self.platform_list)
         logging.debug("- polarisation                   : %s",     self.polarisation)
         logging.debug("- orbit_direction                : %s",     self.orbit_direction)
         logging.debug("- relative_orbit_list            : %s",     self.relative_orbit_list)
@@ -352,7 +402,7 @@ class Configuration():
         logging.debug("- output_spatial_resolution      : %s",     self.out_spatial_res)
         logging.debug("- ram_per_process                : %s",     self.ram_per_process)
         logging.debug("- remove_thermal_noise           : %s",     self.removethermalnoise)
-        logging.debug("- srtm_shapefile                 : %s",     self._SRTMShapefile)
+        logging.debug("- dem_shapefile                  : %s",     self._DEMShapefile)
         logging.debug("- tiles                          : %s",     self.tile_list)
         logging.debug("- tiles_shapefile                : %s",     self.output_grid)
         logging.debug("- produce LIA° map               : %s",     self.produce_lia_map)
@@ -400,11 +450,11 @@ class Configuration():
         return self.__log_config
 
     @property
-    def srtm_db_filepath(self):
+    def dem_db_filepath(self):
         """
-        Get the SRTMShapefile databe filepath
+        Get the DEMShapefile databe filepath
         """
-        return str(self._SRTMShapefile)
+        return str(self._DEMShapefile)
 
     @property
     def fname_fmt_concatenation(self):

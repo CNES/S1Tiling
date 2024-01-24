@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -61,11 +61,15 @@ from pathlib import Path
 import sys
 
 import click
+
 from s1tiling.libs.api import s1_process, s1_process_lia
 from s1tiling.libs.exits import translate_exception_into_exit_code
 
-logger = None
-# logger = logging.getLogger('s1tiling')
+from s1tiling.libs.S1FileManager import (
+        EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+)
+logger = logging.getLogger('s1tiling.processor')
 
 # ======================================================================
 def cli_execute(processing, *args, **kwargs):
@@ -73,9 +77,9 @@ def cli_execute(processing, *args, **kwargs):
     Factorize code common to all S1Tiling CLI entry points (exception
     translation into exit codes...)
     """
-    situation = processing(*args, **kwargs)
+    # situation = processing(*args, **kwargs)
     try:
-        # situation = processing(*args, **kwargs)
+        situation = processing(*args, **kwargs)
         # logger.debug('nominal exit: %s', situation.code)
         return situation.code
     except BaseException as e:
@@ -101,17 +105,22 @@ def cli_execute(processing, *args, **kwargs):
         BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
 @click.option(
         "--searched_items_per_page",
-        default=20,
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
         help="Number of products simultaneously requested by eodag"
         )
 @click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
+        )
+@click.option(
         "--eodag_download_timeout",
-        default=20,
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         help="If download fails, maximum time in mins before stop retrying to download (default: 20 mins)"
         )
 @click.option(
         "--eodag_download_wait",
-        default=2,
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
         help="If download fails, wait time in minutes between two download tries (default: 2 mins)"
         )
 @click.option(
@@ -135,41 +144,49 @@ def cli_execute(processing, *args, **kwargs):
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
+def run( searched_items_per_page, nb_max_search_retries, dryrun, debug_caches, debug_otb, watch_ram,
          debug_tasks, cache_before_ortho, config_filename,
          eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
     """
     sys.exit(
-            cli_execute(s1_process, config_filename,
-                        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                        searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun,
-                        debug_otb=debug_otb,
-                        debug_caches=debug_caches,
-                        watch_ram=watch_ram,
-                        debug_tasks=debug_tasks,
-                        cache_before_ortho=cache_before_ortho))
+            cli_execute(
+                s1_process,
+                config_filename,
+                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+                searched_items_per_page=searched_items_per_page,
+                nb_max_search_retries=nb_max_search_retries,
+                dryrun=dryrun,
+                debug_otb=debug_otb,
+                debug_caches=debug_caches,
+                watch_ram=watch_ram,
+                debug_tasks=debug_tasks,
+                cache_before_ortho=cache_before_ortho))
 
 # ======================================================================
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.version_option()
 @click.option(
         "--searched_items_per_page",
-        default=20,
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
         help="Number of products simultaneously requested by eodag"
-        )
+)
+@click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
+)
 @click.option(
         "--eodag_download_timeout",
-        default=20,
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         help="If download fails, maximum time in mins before stop retrying to download"
-        )
+)
 @click.option(
         "--eodag_download_wait",
-        default=2,
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
         help="If download fails, wait time in minutes between two download tries"
-        )
+)
 @click.option(
         "--dryrun",
         is_flag=True,
@@ -191,20 +208,23 @@ def run( searched_items_per_page, dryrun, debug_caches, debug_otb, watch_ram,
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia( searched_items_per_page, dryrun, debug_otb, debug_caches, watch_ram,
-         debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
+def run_lia( searched_items_per_page, nb_max_search_retries, dryrun, debug_otb, debug_caches, watch_ram,
+            debug_tasks, config_filename, eodag_download_wait, eodag_download_timeout):
     """
     This function is used as entry point to create console scripts with setuptools.
     """
     sys.exit(
-            cli_execute(s1_process_lia, config_filename,
-                        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                        searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun,
-                        debug_otb=debug_otb,
-                        debug_caches=debug_caches,
-                        watch_ram=watch_ram,
-                        debug_tasks=debug_tasks))
+            cli_execute(
+                s1_process_lia,
+                config_filename,
+                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+                searched_items_per_page=searched_items_per_page,
+                nb_max_search_retries=nb_max_search_retries,
+                dryrun=dryrun,
+                debug_otb=debug_otb,
+                debug_caches=debug_caches,
+                watch_ram=watch_ram,
+                debug_tasks=debug_tasks))
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422

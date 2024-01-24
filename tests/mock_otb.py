@@ -1,5 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# =========================================================================
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
+#
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# =========================================================================
+#
+# Authors: Thierry KOLECK (CNES)
+#          Luc HERMITTE (CS Group)
+#
+# =========================================================================
 
 import fnmatch
 import logging
@@ -256,18 +284,18 @@ class OTBApplicationsMockContext:
     Mocking context where OTB/S1Tiling expected application calls are cached.
     """
 
-    def __init__(self, cfg, mocker, tmp_to_out_map):
+    def __init__(self, cfg, mocker, tmp_to_out_map, dem_files):
         """
         constructor
         """
         self.__applications           = []
         self.__expectations           = []
         self.__configuration          = cfg
-        self.__known_files            = []
+        self.__known_files            = dem_files[:]
         self.__tmp_to_out_map         = tmp_to_out_map
         self.__last_expected_metadata = {}
 
-        self.__known_files.append(cfg.srtm_db_filepath)
+        self.__known_files.append(cfg.dem_db_filepath)
         mocker.patch('s1tiling.libs.otbpipeline.otb.Registry.CreateApplication', lambda a : self.create_application(a))
         mocker.patch('s1tiling.libs.otbpipeline.execute', lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
 
@@ -374,7 +402,7 @@ class OTBApplicationsMockContext:
             assert exp['cmdline'].is_dict()
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
-                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_srtm_dir
+                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
             exp['cmdline'].assert_have_same_keys(params)
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:

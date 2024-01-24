@@ -3,7 +3,9 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -35,9 +37,7 @@ import logging
 import os
 import shutil
 import re
-# import datetime
 from abc import abstractmethod
-from packaging import version
 
 import numpy as np
 from osgeo import gdal
@@ -49,11 +49,11 @@ from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory
         _fetch_input_data, OutputFilenameGenerator,
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
         ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
-        get_task_name, Step)
+        get_task_name, Step, ram)
 from . import Utils
 from ..__meta__ import __version__
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.wrappers')
 
 def append_to(meta, key, value):
     """
@@ -96,7 +96,7 @@ class ExtractSentinel1Metadata(StepFactory):
     sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
     def __init__(self, cfg):
-        super().__init__(cfg, 'ExtractSentinel1Metadata')
+        super().__init__('ExtractSentinel1Metadata')
 
     def build_step_output_filename(self, meta):
         """
@@ -147,7 +147,6 @@ class ExtractSentinel1Metadata(StepFactory):
         imd['ORBIT']                 = meta['orbit']
         imd['ORBIT_DIRECTION']       = meta['orbit_direction']
         imd['POLARIZATION']          = meta['polarisation']
-        imd['TIFFTAG_SOFTWARE']      = 'S1 Tiling v'+__version__
         imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
         # Only one input image at this point, we don't introduce any
         # ACQUISITION_DATETIMES or ACQUISITION_DATETIME_1...
@@ -243,7 +242,7 @@ class AnalyseBorders(StepFactory):
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
+        # tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
 
         # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
@@ -353,7 +352,7 @@ class Calibrate(OTBStepFactory):
         application <Applications/app_SARCalibration>`.
         """
         params = {
-                'ram'           : str(self.ram_per_process),
+                'ram'           : ram(self.ram_per_process),
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
@@ -413,7 +412,7 @@ class CorrectDenoising(OTBStepFactory):
         <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
@@ -473,7 +472,7 @@ class CutBorders(OTBStepFactory):
         application <Applications/app_ResetMargin>`.
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'threshold.x'      : meta['cut']['threshold.x'],
@@ -500,7 +499,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 
@@ -528,7 +527,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__GeoidFile            = cfg.GeoidFile
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
-        self.__tmp_srtm_dir         = cfg.tmp_srtm_dir
+        self.__tmp_dem_dir          = cfg.tmp_dem_dir
         # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
         # (and locally override calibration type in case of normlim calibration)
@@ -585,7 +584,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         spacing = self.__out_spatial_res
         logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         parameters = {
-                'opt.ram'          : str(self.ram_per_process),
+                'opt.ram'          : ram(self.ram_per_process),
                 self.param_in      : image,
                 # self.param_out     : out_filename,
                 'interpolator'     : self.__interpolation_method,
@@ -599,7 +598,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'map.utm.northhem' : out_utm_northern,
                 'outputs.ulx'      : x_coord,
                 'outputs.uly'      : y_coord,
-                'elev.dem'         : self.__tmp_srtm_dir,
+                'elev.dem'         : self.__tmp_dem_dir,
                 'elev.geoid'       : self.__GeoidFile
                 }
         return parameters
@@ -617,7 +616,7 @@ class OrthoRectify(_OrthoRectifierFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 
@@ -712,7 +711,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         application <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 }
@@ -869,7 +868,7 @@ class BuildBorderMask(OTBStepFactory):
         <Applications/app_BandMath>` for computing border mask.
         """
         params = {
-                'ram'              : str(self.ram_per_process),
+                'ram'              : ram(self.ram_per_process),
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
@@ -916,7 +915,7 @@ class SmoothBorderMask(OTBStepFactory):
         masks.
         """
         return {
-                'ram'                   : str(self.ram_per_process),
+                'ram'                   : ram(self.ram_per_process),
                 self.param_in           : in_filename(meta),
                 # self.param_out          : out_filename(meta),
                 'structype'             : 'ball',
@@ -1047,7 +1046,7 @@ class SpatialDespeckle(OTBStepFactory):
         """
         assert self.__rad
         params = {
-                'ram'                         : str(self.ram_per_process),
+                'ram'                         : ram(self.ram_per_process),
                 self.param_in                 : in_filename(meta),
                 # self.param_out              : out_filename(meta),
                 'filter'                      : self.__filter,
@@ -1092,8 +1091,11 @@ class AgglomerateDEM(ExecutableStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 name="AgglomerateDEM", exename='gdalbuildvrt',
                 *args, **kwargs)
-        self.__srtm_db_filepath = cfg.srtm_db_filepath
-        self.__srtm_dir         = cfg.srtm
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_dir             = cfg.dem
+        self.__dem_filename_format = cfg.dem_filename_format
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -1113,15 +1115,23 @@ class AgglomerateDEM(ExecutableStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
-            in_filename(meta), self.__srtm_db_filepath))
-        logger.debug("SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+        logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
+        dem_files = map(
+                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+                meta['dem_infos'])
+        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
+        if len(missing_dems) > 0:
+            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta):
         # While it won't make much a difference here, we are still using
         # tmp_filename.
-        return [tmp_filename(meta)] + [os.path.join(self.__srtm_dir, s+'.hgt') for s in meta['srtms']]
+        return [tmp_filename(meta)] \
+                + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
 
 
 class SARDEMProjection(OTBStepFactory):
@@ -1153,14 +1163,16 @@ class SARDEMProjection(OTBStepFactory):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
         super().__init__(cfg,
-                appname='SARDEMProjection', name='SARDEMProjection',
+                appname='SARDEMProjection2', name='SARDEMProjection',
                 param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="SARDEM projection onto DEM list",
                 )
-        self.__srtm_db_filepath = cfg.srtm_db_filepath
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
 
     def _update_filename_meta_pre_hook(self, meta):
         """
@@ -1188,9 +1200,11 @@ class SARDEMProjection(OTBStepFactory):
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
         # find DEMs that intersect the input image
-        meta['srtms'] = sorted(Utils.find_srtm_intersecting_raster(
-            in_filename(meta), self.__srtm_db_filepath))
-        logger.debug("SARDEMProjection: SRTM found for %s: %s", in_filename(meta), meta['srtms'])
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+
+        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(meta), meta['dems'])
         _, inbasename = os.path.split(in_filename(meta))
         meta['inbasename'] = inbasename
         return meta
@@ -1203,7 +1217,7 @@ class SARDEMProjection(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['DEM_LIST']     = ', '.join(meta['srtms'])
+        imd['DEM_LIST']     = ', '.join(meta['dems'])
 
     def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
         """
@@ -1240,7 +1254,7 @@ class SARDEMProjection(OTBStepFactory):
         inputs = meta['inputs']
         indem = _fetch_input_data('indem', inputs).out_filename
         return {
-                'ram'        : str(self.ram_per_process),
+                'ram'        : ram(self.ram_per_process),
                 'insar'      : in_filename(meta),
                 'indem'      : indem,
                 'withxyz'    : True,
@@ -1376,7 +1390,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         indem     = _fetch_input_data('indem', inputs).out_filename
         indemproj = _fetch_input_data('indemproj', inputs).out_filename
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'insar'           : insar,
                 'indem'           : indem,
                 'indemproj'       : indemproj,
@@ -1453,7 +1467,7 @@ class ComputeNormals(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         xyz = in_filename(meta)
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'xyz'             : xyz,
                 'nodata'          : float(nodata),
                 }
@@ -1555,7 +1569,7 @@ class ComputeLIA(OTBStepFactory):
         normals = _fetch_input_data('normals', inputs).out_filename
         nodata  = meta.get('nodata', -32768)
         return {
-                'ram'             : str(self.ram_per_process),
+                'ram'             : ram(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
                 'nodata'          : float(nodata),
@@ -1633,7 +1647,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
     - `out_spatial_res`
     - `GeoidFile`
     - `grid_spacing`
-    - `tmp_srtm_dir`
+    - `tmp_dem_dir`
 
     Requires the following information from the metadata dictionary
 
@@ -1934,7 +1948,7 @@ class ApplyLIACalibration(OTBStepFactory):
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params = {
-                'ram'         : str(self.ram_per_process),
+                'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
                 'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
                 }

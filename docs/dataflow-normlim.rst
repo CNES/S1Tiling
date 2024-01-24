@@ -37,7 +37,7 @@ For each S2 tile,
       intersect the S2 tile,
    1. For each :ref:`input S1 image <paths.s1_images>`
 
-       1. It :ref:`prepares a VRT <prepare-VRT>` of the SRTM files that cover
+       1. It :ref:`prepares a VRT <prepare-VRT>` of the DEM files that cover
           the image,
        2. It :ref:`projects <sardemproject>` the coordinates of the input S1
           image onto the geometry of the VRT,
@@ -185,17 +185,17 @@ LIA specific processings
 
 
 .. _prepare-VRT:
-.. index:: Agglomerate SRTM
+.. index:: Agglomerate DEM
 
-Agglomerate SRTM files in a VRT
-+++++++++++++++++++++++++++++++
+Agglomerate DEM files in a VRT
+++++++++++++++++++++++++++++++
 
-:Inputs:      All SRTM files that intersect an original :ref:`input S1 image <paths.s1_images>`
+:Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem-vrt-files>`
 :Program:     :std:doc:`programs/gdalbuildvrt`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEM`
 
-All SRTM files that intersect an original :ref:`input S1 image
+All DEM files that intersect an original :ref:`input S1 image
 <paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
 
 
@@ -212,7 +212,7 @@ Project SAR coordinates onto DEM
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjection`
 
 This step projects the coordinates of original :ref:`input S1 image
-<paths.s1_images>` in the geometry of the SRTM VRT file.
+<paths.s1_images>` in the geometry of the DEM VRT file.
 
 
 .. _sarcartesianmeanestimation:
@@ -226,7 +226,7 @@ Project XYZ coordinates onto SAR
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
 :OTBApplication: :std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
-                 <Applications/app_SARCartesianMeanEstimation2>`
+                 <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
 This step estimates the XYZ Cartesian coordinates on the ground in the geometry
@@ -306,7 +306,7 @@ It uses the following parameters from the request configuration file:
   <Processing.orthorectification_gridspacing>`
 - :ref:`[Processing].orthorectification_interpolation_method
   <Processing.orthorectification_interpolation_method>`
-- :ref:`[Paths].srtm <paths.srtm>`
+- :ref:`[Paths].dem_dir <paths.dem_dir>`
 - :ref:`[Paths].geoid_file <paths.geoid_file>`
 
 
@@ -338,7 +338,7 @@ Application of LIA maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
                  calibrated
-:OTBApplication: :std:doc:`Synthetize <Applications/app_BandMath>`
+:OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
 This final step multiplies the sine LIA map (in S2 grid geometry) with β0

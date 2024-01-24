@@ -3,6 +3,16 @@
 Release notes
 =============
 
+Version 1.1.0
+-------------
+
+v1.0.0 Improvements
++++++++++++++++++++
+
+- Support any other type of DEM files
+  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+
+
 Version 1.0.0
 -------------
 
@@ -24,12 +34,14 @@ v1.0.0 Improvements
   list of :samp:`ACQUISITION_DATETIME_{{id}}`
   (`#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/25>`_).
 
-- New filters can be used to select input products: :ref:`orbit_direction
+- New filters can be used to select input products: :ref:`platform_list
+  <DataSource.platform_list>`, :ref:`orbit_direction
   <DataSource.orbit_direction>`, :ref:`relative_orbit_list
   <DataSource.relative_orbit_list>` and :ref:`tile_to_product_overlap_ratio
   <DataSource.tile_to_product_overlap_ratio>`.
   (`#83 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/83>`_,
-  `#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_).
+  `#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_,
+  `#133 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/133>`_.
 
 - Null values obtained after the optional *denoising* done during the
   :ref:`calibration <calibration>` wil be set to a :ref:`minimal signal value
@@ -39,6 +51,17 @@ v1.0.0 Improvements
 
 - Spatial Speckle Filtering is supported
   (`#116 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/116>`_).
+
+- Improve the reporting of search or download failures. Also give another
+  chance to download products after download timeouts (in case other products
+  have successfully been downloaded afterward the last timeout)
+  (`!89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/merge_requests/89>`_
+  | `#139 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/139>`_)
+
+- On search timeout, S1Tiling will insist a few times (5 by default, can be
+  overridden through CLI option). This is meant as a workaround of `EODAG issue
+  #908 <https://github.com/CS-SI/eodag/issues/908>`_.
+  (`#140 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/140>`_).
 
 v1.0.0 Bug fixed
 ++++++++++++++++
@@ -54,6 +77,20 @@ v1.0.0 Bug fixed
     - and the exit code :ref:`exits.OFFLINE_DATA (68) <exit_codes>` will be
       used.
 
+- Discard download failure errors from previous tiles
+  (`#139 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/139>`_)
+
+- Logging will be done in ``DEBUG`` mode only if :ref:`required
+  <Processing.mode>`. Logging code has also been simplified and cleaned.
+  (`#132 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/132>`_)
+
+v1.0.0 Breaking changes
++++++++++++++++++++++++
+
+- :ref:`[DataSource].eodagConfig <DataSource.eodag_config>` has been renamed
+  ``eodag_config``, to follow ``snake_case``. Old naming scheme is still
+  supported, but deprecated.
+  (`#129 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/129>`_).
 
 Version 0.3.2
 -------------

@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -35,7 +35,6 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
-import sys
 import shutil
 import re
 import datetime
@@ -57,9 +56,10 @@ from osgeo import gdal
 import otbApplication as otb
 from . import Utils
 from . import exceptions
-from .outcome import Outcome
+from .outcome import PipelineOutcome
+from ..__meta__ import __version__
 
-logger = logging.getLogger('s1tiling')
+logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
@@ -82,6 +82,18 @@ def otb_version():
             logger.exception(ex)
             raise RuntimeError("Cannot determine current OTB version")
     return otb_version._version
+
+
+def ram(r):
+    """
+    The expected type for the RAM parameter in OTB application changes between OTB 7.x and OTB 8.0.
+    This function provides an abstraction that takes care of the exact type expected.
+    """
+    if otb_version() >= '8.0.0':
+        assert isinstance(r, int)
+        return r
+    else:
+        return str(r)
 
 
 def as_list(param):
@@ -721,6 +733,7 @@ class StepFactory(ABC):
             meta['image_metadata'] = {}
         imd = meta['image_metadata']
         imd['TIFFTAG_DATETIME'] = str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))
+        imd['TIFFTAG_SOFTWARE'] = 'S1 Tiling v'+__version__
         if self.image_description:
             imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,
@@ -908,7 +921,7 @@ class Pipeline:
         if len(missing_inputs) > 0 and not self.__dryrun:
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
-            return Outcome(RuntimeError(msg))
+            return PipelineOutcome(RuntimeError(msg))
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
@@ -923,7 +936,7 @@ class Pipeline:
                 f"Step output {self.output} doesn't match expected output {res}.\nThis is likely happenning because pipeline name generation isn't incremental."
         steps = None
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
-        return Outcome(res)
+        return PipelineOutcome(res)
 
 
 # TODO: try to make it static...
@@ -941,7 +954,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
         assert len(args) == 1
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
-            if isinstance(arg, Outcome) and not arg:
+            if isinstance(arg, PipelineOutcome) and not arg:
                 logger.warning('Cancel execution of %s because an error has occured upstream on a dependent input file: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
@@ -965,7 +978,7 @@ def execute4dask(pipeline, *args, **unused_kwargs):
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
-        return Outcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
+        return PipelineOutcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
 
 
 class PipelineDescription:
@@ -1273,7 +1286,7 @@ class PipelineDescriptionSequence:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
-        logger.debug('Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
+        logger.debug('--> Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
 
@@ -1733,7 +1746,6 @@ class _FileProducingStepFactory(StepFactory):
         """
         Returns the pathless basename of the produced file (internal).
         """
-
         return self.__gen_output_filename.generate(meta['basename'], meta)
 
     def build_step_output_filename(self, meta):
