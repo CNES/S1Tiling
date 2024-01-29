@@ -137,21 +137,21 @@ Processing Classes
 
 Again the processing classes are split in two families:
 
-- the factories: :class:`StepFactory <s1tiling.libs.otbpipeline.StepFactory>`
-- the instances: :class:`Step <s1tiling.libs.otbpipeline.Step>`
+- the factories: :class:`StepFactory <s1tiling.libs.steps.StepFactory>`
+- the instances: :class:`Step <s1tiling.libs.steps.Step>`
 
 Step Factories
 ++++++++++++++
 
-.. inheritance-diagram:: s1tiling.libs.otbpipeline.OTBStepFactory s1tiling.libs.otbpipeline.ExecutableStepFactory s1tiling.libs.otbpipeline._FileProducingStepFactory s1tiling.libs.otbpipeline.Store
+.. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
    :parts: 1
-   :top-classes: s1tiling.libs.otbpipeline.StepFactory
+   :top-classes: s1tiling.libs.steps.StepFactory
    :private-bases:
 
 ``StepFactory``
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.StepFactory
+.. autoclass:: s1tiling.libs.steps.StepFactory
    :members:
    :show-inheritance:
    :undoc-members:
@@ -162,7 +162,7 @@ Step Factories
 ``_FileProducingStepFactory``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline._FileProducingStepFactory
+.. autoclass:: s1tiling.libs.steps._FileProducingStepFactory
    :members:
    :show-inheritance:
    :undoc-members:
@@ -172,7 +172,7 @@ Step Factories
 ``OTBStepFactory``
 ~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.OTBStepFactory
+.. autoclass:: s1tiling.libs.steps.OTBStepFactory
    :members:
    :show-inheritance:
    :undoc-members:
@@ -182,7 +182,7 @@ Step Factories
 ``ExecutableStepFactory``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.ExecutableStepFactory
+.. autoclass:: s1tiling.libs.steps.ExecutableStepFactory
    :members:
    :show-inheritance:
    :undoc-members:
@@ -190,7 +190,7 @@ Step Factories
 ``Store``
 ~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.Store
+.. autoclass:: s1tiling.libs.steps.Store
    :members:
    :show-inheritance:
    :undoc-members:
@@ -199,70 +199,70 @@ Step Factories
 Steps
 +++++
 
-.. inheritance-diagram:: s1tiling.libs.otbpipeline.Step s1tiling.libs.otbpipeline.FirstStep s1tiling.libs.otbpipeline.ExecutableStep s1tiling.libs.otbpipeline.MergeStep s1tiling.libs.otbpipeline.StoreStep s1tiling.libs.otbpipeline._StepWithOTBApplication
+.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._StepWithOTBApplication
    :parts: 1
-   :top-classes: s1tiling.libs.otbpipeline.AbstractStep
+   :top-classes: s1tiling.libs.steps.AbstractStep
    :private-bases:
 
 Step types are usually instantiated automatically.
 
-- :class:`FirstStep <s1tiling.libs.otbpipeline.FirstStep>` is instantiated
+- :class:`FirstStep <s1tiling.libs.steps.FirstStep>` is instantiated
   automatically by the program from existing files (downloaded, or produced by
   a pipeline earlier in the sequence of pipelines)
-- :class:`MergeStep <s1tiling.libs.otbpipeline.MergeStep>` is also instantiated
+- :class:`MergeStep <s1tiling.libs.steps.MergeStep>` is also instantiated
   automatically as an alternative to :class:`FirstStep
-  <s1tiling.libs.otbpipeline.FirstStep>` in the case of steps that expect
+  <s1tiling.libs.steps.FirstStep>` in the case of steps that expect
   several input files of the same type. This is for instance the case of
   :class:`Concatenate <s1tiling.libs.otbwrappers.Concatenate>` inputs. A step
   is recognized to await several inputs when the dependency analysis phase
   found several possible inputs that lead to a product.
-- :class:`Step <s1tiling.libs.otbpipeline.Step>` is the main class for steps
+- :class:`Step <s1tiling.libs.steps.Step>` is the main class for steps
   that execute an OTB application.
-- :class:`ExecutableStep <s1tiling.libs.otbpipeline.ExecutableStep>` is the
+- :class:`ExecutableStep <s1tiling.libs.steps.ExecutableStep>` is the
   main class for steps that execute an external application.
-- :class:`AbstractStep <s1tiling.libs.otbpipeline.AbstractStep>` is the root
+- :class:`AbstractStep <s1tiling.libs.steps.AbstractStep>` is the root
   class of steps hierarchy. It still get instantiated automatically for steps
   not related to any kind of application.
 
 ``AbstractStep``
 ~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.AbstractStep
+.. autoclass:: s1tiling.libs.steps.AbstractStep
    :members:
    :show-inheritance:
 
 ``FirstStep``
 ~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.FirstStep
+.. autoclass:: s1tiling.libs.steps.FirstStep
    :members:
    :show-inheritance:
 
 ``_StepWithOTBApplication``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline._StepWithOTBApplication
+.. autoclass:: s1tiling.libs.steps._StepWithOTBApplication
    :members:
    :show-inheritance:
 
 ``Step``
 ~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.Step
+.. autoclass:: s1tiling.libs.steps.Step
    :members:
    :show-inheritance:
 
 ``MergeStep``
 ~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.MergeStep
+.. autoclass:: s1tiling.libs.steps.MergeStep
    :members:
    :show-inheritance:
 
 ``ExecutableStep``
 ~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.otbpipeline.ExecutableStep
+.. autoclass:: s1tiling.libs.steps.ExecutableStep
    :members:
    :show-inheritance:
 
@@ -423,20 +423,20 @@ Filename generation
 +++++++++++++++++++
 
 At each step, product filenames are automatically generated by
-:func:`StepFactory.update_filename_meta <s1tiling.libs.otbpipeline.StepFactory.update_filename_meta>` function.
+:func:`StepFactory.update_filename_meta <s1tiling.libs.steps.StepFactory.update_filename_meta>` function.
 This function is first used to generate the task execution graph. (It's still
 used a second time, live, but
 this should change eventually)
 
 The exact filename generation is handled by
-:func:`StepFactory.build_step_output_filename <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>` and
-:func:`StepFactory.build_step_output_tmp_filename <s1tiling.libs.otbpipeline.StepFactory.build_step_output_tmp_filename>`
+:func:`StepFactory.build_step_output_filename <s1tiling.libs.steps.StepFactory.build_step_output_filename>` and
+:func:`StepFactory.build_step_output_tmp_filename <s1tiling.libs.steps.StepFactory.build_step_output_tmp_filename>`
 functions to define the final filename and the working filename (used when the
 associated product is being computed).
 
 In some very specific cases, where no product is generated, these functions
 need to be overridden. Otherwise, a default behaviour is proposed in
-:class:`_FileProducingStepFactory <s1tiling.libs.otbpipeline._FileProducingStepFactory>` constructor.
+:class:`_FileProducingStepFactory <s1tiling.libs.steps._FileProducingStepFactory>` constructor.
 It is done through the parameters:
 
 - ``gen_tmp_dir``: that defines where temporary files are produced.
@@ -459,15 +459,15 @@ It is done through the parameters:
     can be used several times as input in different Steps, or where a Step has
     several inputs of same or different kinds, or where several products are
     concurrent and only one would be selected, please check all
-    :class:`StepFactories <s1tiling.libs.otbpipeline.StepFactory>` related to
+    :class:`StepFactories <s1tiling.libs.steps.StepFactory>` related to
     :ref:`LIA dataflow <dataflow-lia>`.
 
 Available naming policies
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. inheritance-diagram:: s1tiling.libs.otbpipeline.ReplaceOutputFilenameGenerator s1tiling.libs.otbpipeline.TemplateOutputFilenameGenerator s1tiling.libs.otbpipeline.OutputFilenameGeneratorList
+.. inheritance-diagram:: s1tiling.libs.file_naming.ReplaceOutputFilenameGenerator s1tiling.libs.file_naming.TemplateOutputFilenameGenerator s1tiling.libs.file_naming.OutputFilenameGeneratorList
    :parts: 1
-   :top-classes: s1tiling.libs.otbpipeline.OutputFilenameGenerator
+   :top-classes: s1tiling.libs.file_naming.OutputFilenameGenerator
    :private-bases:
 
 Three filename generators are available by default. They apply a transformation
@@ -476,12 +476,12 @@ on the ``basename`` meta information.
 ``ReplaceOutputFilenameGenerator``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: s1tiling.libs.otbpipeline.ReplaceOutputFilenameGenerator
+.. autoclass:: s1tiling.libs.file_naming.ReplaceOutputFilenameGenerator
 
 ``TemplateOutputFilenameGenerator``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: s1tiling.libs.otbpipeline.TemplateOutputFilenameGenerator
+.. autoclass:: s1tiling.libs.file_naming.TemplateOutputFilenameGenerator
 
 Most filename format templates can be fine tuned to end-user ideal filenames.
 While the filenames used for intermediary products may be changed, it's not
@@ -492,27 +492,27 @@ of filenames meants to be adapted.
 ``OutputFilenameGeneratorList``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: s1tiling.libs.otbpipeline.OutputFilenameGeneratorList
+.. autoclass:: s1tiling.libs.file_naming.OutputFilenameGeneratorList
 
 Hooks
 ~~~~~
 
-:func:`StepFactory._update_filename_meta_pre_hook <s1tiling.libs.otbpipeline.StepFactory._update_filename_meta_pre_hook>`
+:func:`StepFactory._update_filename_meta_pre_hook <s1tiling.libs.steps.StepFactory._update_filename_meta_pre_hook>`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes it's necessary to analyse the input files, and/or their names before
 being able to build the output filename(s). This is meant to be done by
 overriding
-:func:`StepFactory._update_filename_meta_pre_hook <s1tiling.libs.otbpipeline.StepFactory._update_filename_meta_pre_hook>`
+:func:`StepFactory._update_filename_meta_pre_hook <s1tiling.libs.steps.StepFactory._update_filename_meta_pre_hook>`
 method.  Lightweight analysing is meant to be done here, and its result can
 then be stored into ``meta`` dictionary, and returned.
 
 It's typically used alongside
-:class:`TemplateOutputFilenameGenerator <s1tiling.libs.otbpipeline.TemplateOutputFilenameGenerator>`.
+:class:`TemplateOutputFilenameGenerator <s1tiling.libs.steps.TemplateOutputFilenameGenerator>`.
 
-:func:`StepFactory._update_filename_meta_post_hook <s1tiling.libs.otbpipeline.StepFactory._update_filename_meta_post_hook>`
+:func:`StepFactory._update_filename_meta_post_hook <s1tiling.libs.steps.StepFactory._update_filename_meta_post_hook>`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:func:`StepFactory.update_filename_meta <s1tiling.libs.otbpipeline.StepFactory.update_filename_meta>`
+:func:`StepFactory.update_filename_meta <s1tiling.libs.steps.StepFactory.update_filename_meta>`
 provides various values to metadata. This hooks permits to override the values
 associated to task names, product existence tests, and so on.
