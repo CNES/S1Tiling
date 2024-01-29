@@ -45,15 +45,23 @@ import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
+from .file_naming   import (
+        OutputFilenameGeneratorList, ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
+)
+from .meta import (
+        get_task_name, in_filename, out_filename, tmp_filename, is_running_dry,
+)
+from .steps import (
+        _check_input_step_type,
+        AbstractStep, StepFactory,
+        _FileProducingStepFactory, ExecutableStepFactory, OTBStepFactory,
+        FirstStep, MergeStep,
+        commit_execution, manifest_to_product_name,
+        ram,
+)
 from .otbpipeline import (
-    StepFactory, _FileProducingStepFactory, OTBStepFactory,
-    ExecutableStepFactory, in_filename, out_filename, tmp_filename,
-    manifest_to_product_name, AbstractStep, _check_input_step_type,
     _fetch_input_data, TaskInputInfo,
-    FirstStep, MergeStep,
-    OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
-    ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
-    get_task_name, ram)
+)
 from .otbtools import otb_version
 from . import Utils
 from .configuration import Configuration
@@ -718,7 +726,7 @@ class _ConcatenatorFactory(OTBStepFactory):
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
             imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
             acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
-            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
+            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
             for idx, pn in enumerate(product_names, start=1):
                 acq_time = Utils.extract_product_start_time(os.path.basename(pn))
                 imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'

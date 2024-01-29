@@ -34,7 +34,8 @@ from pathlib import Path
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, MergeStep, FirstStep, to_dask_key
+from s1tiling.libs.steps import MergeStep, FirstStep
+from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
