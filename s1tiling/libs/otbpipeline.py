@@ -35,7 +35,6 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 """
 
 import os
-import sys
 import shutil
 import re
 import datetime
@@ -56,7 +55,7 @@ from pympler import tracker # , muppy
 from osgeo import gdal
 import otbApplication as otb
 from . import Utils
-from . import exits
+from . import exceptions
 from .outcome import PipelineOutcome
 from ..__meta__ import __version__
 
@@ -901,7 +900,7 @@ class Pipeline:
         missing_reqs = [rq for rq, _ in reqs]
         contexts = set(ctx for _, ctx in reqs)
         if reqs:
-            return f"{' and '.join(missing_reqs)} {sing_plur[len(missing_reqs) > 1]} required.", contexts
+            return f"{' and '.join(missing_reqs)} {sing_plur[len(missing_reqs) > 1]} required", contexts
         else:
             return None
 
@@ -1487,12 +1486,7 @@ class PipelineDescriptionSequence:
             else:
                 assert isinstance(task, FirstStep)
         if missing_apps:
-            logger.error('Cannot execute S1Tiling because of the following reason(s):')
-            for req, task_keys in missing_apps.items():
-                logger.error("- %s for %s", req, task_keys)
-            for ctx in contexts:
-                logger.error(" -> %s", ctx)
-            sys.exit(exits.MISSING_APP)
+            raise exceptions.MissingApplication(missing_apps, contexts)
         else:
             logger.debug('All required applications are correctly available')
 

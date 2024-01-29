@@ -42,16 +42,15 @@ import os
 from pathlib import Path
 import re
 import shutil
-import sys
 import tempfile
 from typing import List, Optional
 
-from requests.exceptions import ReadTimeout
-from eodag.api.core         import EODataAccessGateway
+from requests.exceptions     import ReadTimeout
+from eodag.api.core          import EODataAccessGateway
 from eodag.api.search_result import SearchResult
-from eodag.utils.logging    import setup_logging
-from eodag.utils.exceptions import NotAvailableError
-from eodag.utils            import get_geometry_from_various
+from eodag.utils.logging     import setup_logging
+from eodag.utils.exceptions  import NotAvailableError, DownloadError
+from eodag.utils             import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
 except ImportError:
@@ -59,11 +58,11 @@ except ImportError:
 
 import numpy as np
 
-from s1tiling.libs import exits
-from .Utils import (get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly)
+from s1tiling.libs      import exceptions
+from .Utils             import (get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly)
 from .S1DateAcquisition import S1DateAcquisition
-from .otbpipeline import mp_worker_config
-from .outcome import DownloadOutcome
+from .otbpipeline       import mp_worker_config
+from .outcome           import DownloadOutcome
 
 setup_logging(verbose=1)
 
@@ -387,7 +386,8 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
     """
     logging.info("Starting download of %s...", product)
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
-    file = os.path.join(raw_directory, product.as_dict()['id']) + '.zip'
+    prod_id = product.as_dict()['id']
+    zip_file = os.path.join(raw_directory, prod_id) + '.zip'
     path: DownloadOutcome
     try:
         path = DownloadOutcome(
@@ -399,12 +399,19 @@ def _download_and_extract_one_product(dag, raw_directory, dl_wait, dl_timeout, p
                 ),
                 product)
         logging.debug(ok_msg)
-        if os.path.exists(file) :
+        if os.path.exists(zip_file) :
             try:
-                logger.debug('Removing downloaded ZIP: %s', file)
-                os.remove(file)
+                logger.debug('Removing downloaded ZIP: %s', zip_file)
+                os.remove(zip_file)
             except OSError:
                 pass
+        # eodag may say the product is correctly downloaded while it failed to do so
+        # => let's do a quick sanity check
+        manifest = os.path.join(raw_directory, prod_id, prod_id+'.SAFE', 'manifest.safe')
+        if not os.path.exists(manifest):
+            logger.error('Actually download of %s failed, the expected manifest could not be found (%s)', prod_id, manifest)
+            e = exceptions.CorruptedDataSAFEError(manifest)
+            path = DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -932,7 +939,7 @@ class S1FileManager:
         if new_products:
             logger.debug('new products:')
             for np in new_products:
-                logger.debug('%s -> %s', np.__class__.__name__, np)
+                logger.debug('-> %s', np)
             # content is DirEntry
             # NEW is str!! Always
             # logger.debug('content[0]: %s -> %s', type(content[0]), content[0])
@@ -1116,9 +1123,7 @@ class S1FileManager:
             if l_vv + l_vh + l_hv + l_hh == 0:
                 # There is not a single file that would have been compatible
                 # with what is expected
-                logger.critical("Problem with %s", manifest)
-                logger.critical("Please remove the raw data for %s SAFE file", manifest)
-                sys.exit(exits.CORRUPTED_DATA_SAFE)
+                raise exceptions.CorruptedDataSAFEError(manifest)
 
             self.raw_raster_list.append(acquisition)
 

@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2024 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -115,7 +115,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
         """
         return self.__related_filenames
 
-    def add_related_filename(self, filename: File) -> "Outcome":
+    def add_related_filename(self, filename: File) -> "PipelineOutcome":
         """
         Register a filename(s) related to the result.
         """
@@ -128,7 +128,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
             self.__related_filenames.append(filename)
         return self
 
-    def set_pipeline_name(self, pipeline_name: str) -> "Outcome":
+    def set_pipeline_name(self, pipeline_name: str) -> "PipelineOutcome":
         """
         Record the name of the pipeline in error
         """

@@ -242,7 +242,7 @@ class AnalyseBorders(StepFactory):
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
+        # tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
         # Ex: Sentinel-1 IPF 003.10
 
         # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
