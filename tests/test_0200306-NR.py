@@ -1,5 +1,34 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# =========================================================================
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
+#
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# =========================================================================
+#
+# Authors: Thierry KOLECK (CNES)
+#          Luc HERMITTE (CS Group)
+#
+# =========================================================================
+
 import fnmatch
 import logging
 import os
@@ -27,7 +56,7 @@ from s1tiling.libs.otbpipeline import _fetch_input_data, out_filename
 # Full processing versions
 # ======================================================================
 
-def remove_dirs(dir_list):
+def remove_dirs(dir_list) -> None:
     for dir in dir_list:
         if os.path.isdir(dir):
             logging.info("rm -r '%s'", dir)
@@ -308,7 +337,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
         orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
         assert '_'+raw_calibration in orthofile
 
-	# Workaround defect on skipping cut margins
+    # Workaround defect on skipping cut margins
         # out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
         # in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
         out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
@@ -453,7 +482,7 @@ def mock_LIA(application_mocker, file_db):
 
         application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
 
-        application_mocker.set_expectations('SARDEMProjection', {
+        application_mocker.set_expectations('SARDEMProjection2', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
             'indem'      : exp_out_vrt,
@@ -621,7 +650,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -668,7 +697,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv-20200108t044150-20200108t044215'], file_db, application_mocker)
@@ -718,7 +747,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -757,7 +786,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
@@ -826,7 +855,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
 
     mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
 
-    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map)
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)

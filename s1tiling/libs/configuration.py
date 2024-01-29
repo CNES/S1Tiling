@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -225,14 +225,14 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
         self.GeoidFile           = get_opt(config, configFile, 'Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         #: Path to directory of temp DEMs
-        self.tmp_dem_dir: str = ""
+        self.tmp_dem_dir: str    = ""
 
         if config.has_section('PEPS'):
             raise exceptions.ConfigurationError(
-                'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
+                    'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
-        self.eodag_config              = get_opt(config, configFile, 'DataSource', 'eodag_config', fallback=None) or \
-                                         get_opt(config, configFile, 'DataSource', 'eodagConfig',  fallback=None)
+        self.eodag_config               = get_opt(config, configFile, 'DataSource', 'eodag_config', fallback=None) or \
+                                          get_opt(config, configFile, 'DataSource', 'eodagConfig',  fallback=None)
         #: Boolean flag that enables/disables download of S1 input images: :ref:`[DataSource.download] <DataSource.download>`
         self.download                  = getboolean_opt(config, configFile, 'DataSource', 'download')
         #: Region Of Interest to download: See :ref:`[DataSource.roi_by_tiles] <DataSource.roi_by_tiles>`
@@ -244,7 +244,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         platform_list_str              = get_opt(config, configFile, 'DataSource', 'platform_list', fallback='')
         platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
-        unsupported_platforms = [p for p in platform_list if p and not p.startswith("S1")]
+        unsupported_platforms          = [p for p in platform_list if p and not p.startswith("S1")]
         if unsupported_platforms:
             raise exceptions.ConfigurationError(f"Non supported requested platforms: {', '.join(unsupported_platforms)}", configFile)
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
@@ -280,11 +280,12 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.type_image         = "GRD"
         #: Shall we generate mask products? :ref:`[Mask.generate_border_mask] <Mask.generate_border_mask>`
         self.mask_cond          = getboolean_opt(config, configFile, 'Mask', 'generate_border_mask')
+
         #:Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
         self.cache_dem_by       = get_opt(config, configFile, 'Processing', 'cache_dem_by', fallback='symlink')
         if self.cache_dem_by not in ['symlink', 'copy']:
             raise exceptions.ConfigurationError(
-                f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'", configFile)
+                    f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'", configFile)
 
         #: SAR Calibration applied: See :ref:`[Processing.calibration] <Processing.calibration>`
         self.calibration_type   = get_opt(config, configFile, 'Processing', 'calibration')
@@ -348,7 +349,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 self.keep_non_filtered_products = True
 
             #: Dictionary of filter options: {'rad': :ref:`[Filtering.window_radius] <Filtering.window_radius>`, 'deramp': :ref:`[Filtering.deramp] <Filtering.deramp>`, 'nblooks': :ref:`[Filtering.nblooks] <Filtering.nblooks>`}
-            self.filter_options : Dict = {'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')}
+            self.filter_options : Dict = {
+                    'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')
+            }
             if self.filter == 'frost':
                 self.filter_options['deramp']  = getfloat_opt(config, configFile, 'Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:

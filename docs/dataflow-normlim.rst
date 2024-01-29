@@ -338,7 +338,7 @@ Application of LIA maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
                  calibrated
-:OTBApplication: :external:std:doc:`Synthetize <Applications/app_BandMath>`
+:OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
 This final step multiplies the sine LIA map (in S2 grid geometry) with β0

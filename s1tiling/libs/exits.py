@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -56,17 +56,16 @@ logger = logging.getLogger('s1tiling.exists')
 
 
 k_exit_table : Dict[Type[BaseException], int] = {
-    exceptions.ConfigurationError    : CONFIG_ERROR,
-    exceptions.CorruptedDataSAFEError: CORRUPTED_DATA_SAFE,
-    exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
-    exceptions.NoS2TileError         : NO_S2_TILE,
-    exceptions.NoS1ImageError        : NO_S1_IMAGE,
-    exceptions.MissingDEMError       : MISSING_DEM,
-    exceptions.MissingGeoidError     : MISSING_GEOID,
-    exceptions.InvalidOTBVersionError: CONFIG_ERROR,
-    exceptions.MissingApplication    : MISSING_APP,
-}
-
+        exceptions.ConfigurationError    : CONFIG_ERROR,
+        exceptions.CorruptedDataSAFEError: CORRUPTED_DATA_SAFE,
+        exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
+        exceptions.NoS2TileError         : NO_S2_TILE,
+        exceptions.NoS1ImageError        : NO_S1_IMAGE,
+        exceptions.MissingDEMError       : MISSING_DEM,
+        exceptions.MissingGeoidError     : MISSING_GEOID,
+        exceptions.InvalidOTBVersionError: CONFIG_ERROR,
+        exceptions.MissingApplication    : MISSING_APP,
+        }
 
 def translate_exception_into_exit_code(exception: BaseException) -> int:
     """
@@ -87,15 +86,20 @@ class Situation:
       in time because they were off-line.
     - ``exits.OK`` if no issue has been observed
     """
-    def __init__(self, nb_computation_errors: int, nb_download_failures: int, nb_download_timeouts: int) -> None:
+    def __init__(
+            self,
+            nb_computation_errors: int,
+            nb_search_failures   : int,
+            nb_download_failures : int,
+            nb_download_timeouts : int) -> None:
         """
         constructor
         """
-        logger.debug('Situation: %s computations errors. %s download failures. %s download timeouts',
-                nb_computation_errors, nb_download_failures, nb_download_timeouts)
+        logger.debug('Situation: %s computations errors. %s search failures. %s download failures. %s download timeouts',
+                     nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts)
         if nb_computation_errors > 0:
             self.code = TASK_FAILED
-        elif nb_download_failures > nb_download_timeouts:
+        elif (nb_download_failures > nb_download_timeouts) or (nb_search_failures > 0):
             # So far, timeouts are counted as failures as well
             self.code = DOWNLOAD_ERROR
         elif nb_download_timeouts > 0:

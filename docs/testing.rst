@@ -43,7 +43,7 @@ There are two ways to obtain the baseline:
          mc cp --recursive minio-otb/s1-tiling/baseline /some/local/path
 
   Instead of ``mc``, you can also use ``rclone`` -- which is for instance
-  already installed on HAL.
+  already installed on CNES clusters.
 
 - Or you'll need to first establish the baseline from a version of S1Tiliing
   known to work correctly, before introducing any change.

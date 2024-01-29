@@ -836,9 +836,9 @@ Working on clusters
   use different directories for:
 
   - logs -- running S1Tiling in different directories, like :file:`$TMPDIR/`
-    on HAL, should be enough
+    on TREX, should be enough
   - storing :ref:`input files <paths.s1_images>`, like for instance
-    :file:`$TMPDIR/data_raw/` on HAL for instance.
+    :file:`$TMPDIR/data_raw/` on HAL/TREX for instance.
 
 .. _exit_codes:
 

@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -1140,6 +1140,12 @@ class AgglomerateDEM(ExecutableStepFactory):
             in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
         meta['dems'] = sorted(meta['dem_infos'].keys())
         logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
+        dem_files = map(
+                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+                meta['dem_infos'])
+        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
+        if len(missing_dems) > 0:
+            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta: Meta) -> ExeParameters:
@@ -1178,7 +1184,7 @@ class SARDEMProjection(OTBStepFactory):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
         super().__init__(cfg,
-                appname='SARDEMProjection', name='SARDEMProjection',
+                appname='SARDEMProjection2', name='SARDEMProjection',
                 param_in=None, param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir

@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -46,11 +46,12 @@ import shutil
 import tempfile
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
-from eodag.api.search_result import SearchResult
 from eodag.api.product       import EOProduct
-from eodag.utils.logging     import setup_logging
+from eodag.api.search_result import SearchResult
 from eodag.utils.exceptions  import NotAvailableError
+from eodag.utils.logging     import setup_logging
 from eodag.utils             import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
@@ -59,19 +60,25 @@ except ImportError:
 
 import numpy as np
 
-from s1tiling.libs import exceptions
-from .Utils import (
+from s1tiling.libs      import exceptions
+from .Utils             import (
     get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly,
 )
 from .S1DateAcquisition import S1DateAcquisition
-from .configuration import Configuration
-from .otbpipeline import mp_worker_config
-from .outcome import Outcome
+from .configuration     import Configuration
+from .otbpipeline       import mp_worker_config
+from .outcome           import DownloadOutcome
 
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling.filemanager')
 
+
+# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
+EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
+EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
+EODAG_DEFAULT_SEARCH_MAX_RETRIES    =  5  #: If search fails on timeout, number of retries attempted
+EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
 
 class WorkspaceKinds(Enum):
     """
@@ -415,7 +422,7 @@ def _download_and_extract_one_product(
     dl_wait:       int,
     dl_timeout:    int,
     product:       EOProduct
-) -> Outcome[str, EOProduct]:
+) -> DownloadOutcome[str, EOProduct]:
     """
     Takes care of downloading exactly one remote product and unzipping it,
     if required.
@@ -426,13 +433,16 @@ def _download_and_extract_one_product(
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
     zip_file = os.path.join(raw_directory, prod_id) + '.zip'
+    path: DownloadOutcome[str, EOProduct]
     try:
-        path : Outcome[str, EOProduct] = Outcome(dag.download(
-            product,           # EODAG will clear this variable
-            extract=True,      # Let's eodag do the job
-            wait=dl_wait,      # Wait time in minutes between two download tries
-            timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
-            ))
+        path = DownloadOutcome(
+                dag.download(
+                    product,           # EODAG will clear this variable
+                    extract=True,      # Let's eodag do the job
+                    wait=dl_wait,      # Wait time in minutes between two download tries
+                    timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
+                ),
+                product)
         logging.debug(ok_msg)
         if os.path.exists(zip_file) :
             try:
@@ -446,8 +456,7 @@ def _download_and_extract_one_product(
         if not os.path.exists(manifest):
             logger.error('Actually download of %s failed, the expected manifest could not be found (%s)', prod_id, manifest)
             e = exceptions.CorruptedDataSAFEError(manifest)
-            path = Outcome(e)
-            path.add_related_filename(product)
+            path = DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -458,7 +467,7 @@ def _download_and_extract_one_product(
         # logger.exception(e)
         ## Traceback (most recent call last):
         ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
-        ##     path = Outcome(dag.download(
+        ##     path = DownloadOutcome(dag.download(
         ##   File "site-packages/eodag/api/core.py", line 1487, in download
         ##     path = product.download(
         ##   File "site-packages/eodag/api/product/_product.py", line 288, in download
@@ -468,8 +477,7 @@ def _download_and_extract_one_product(
         ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E
         ##                                           is not available (OFFLINE) and could not be downloaded, timeout reached
 
-        path = Outcome(e)
-        path.add_related_filename(product)
+        path = DownloadOutcome(e, product)
 
     return path
 
@@ -482,13 +490,14 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
     tile_name:     str,
     dl_wait:       int,
     dl_timeout:    int,
-) -> List[Outcome]:
+) -> List[DownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
 
-    Returns :class:`Outcome` of :class:`EOProduct` or Exception.
+    Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
     """
+    nb_products = len(products)
     paths = []
     log_queue : multiprocessing.Queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
@@ -496,16 +505,34 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
-            for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
-                # logger.debug('DL -> %s', result)
-                if result:
-                    logger.info("%s correctly downloaded", result.value())
-                    logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / len(products))
-                    paths.append(result)
-                else:
-                    logger.warning("Cannot download %s", result.related_filenames())
-                    # TODO: make it possible to detect missing products in the analysis
-                    paths.append(result)
+            # In case timeout happens, we try again if and only if we have been able to
+            # download other products after the timeout.
+            # -> IOW, downloading instability justifies trying again.
+            # /> On the contrary, on a complete network failure, we should not try again and again...
+            while len(products) > 0:
+                products_in_timeout : List[EOProduct] = []
+                nb_successes_since_timeout = 0
+                for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
+                    # logger.debug('DL -> %s', result)
+                    if result:
+                        logger.info("%s correctly downloaded", result.value())
+                        logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / nb_products)
+                        paths.append(result)
+                        if len(products_in_timeout) > 0:
+                            nb_successes_since_timeout += 1
+                    else:
+                        logger.warning("Cannot download %s: %s", result.related_product(), result.error())
+                        # TODO: make it possible to detect missing products in the analysis
+                        if isinstance(result.error(), ReadTimeout):
+                            products_in_timeout.append(result.related_product())
+                        else:
+                            paths.append(result)
+                products = []
+                if nb_successes_since_timeout > nb_procs:
+                    products = products_in_timeout
+                    logger.info("Attempting again to download %s products on timeout...", len(products))
+                elif len(products_in_timeout) > 0:
+                    paths.extend(products_in_timeout)
         finally:
             pool.close()
             pool.join()
@@ -529,14 +556,21 @@ class S1FileManager:
     polarisation compatible with the requested one(s).
     """
     def __init__(self, cfg: Configuration) -> None:
+        # Configuration
         self.cfg              = cfg
+        self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE)
+        self.__nb_max_search_retries   = getattr(cfg, 'nb_max_search_retries',   EODAG_DEFAULT_SEARCH_MAX_RETRIES)
+        self.__dl_wait                 = getattr(cfg, 'dl_wait',                 EODAG_DEFAULT_DOWNLOAD_WAIT)
+        self.__dl_timeout              = getattr(cfg, 'dl_timeout',              EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
+
         self.raw_raster_list  : List[S1DateAcquisition] = []
         self.nb_images        = 0
 
         # Failures related to download (e.g. missing products)
-        self.__download_failures              : List[Outcome]            = []
-        self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[Outcome]] = {}  # by S2 unique id: date + rel_orbit
-        self.__skipped_S2_products            : List[str]                = []
+        self.__search_failures                = 0
+        self.__download_failures              : List[DownloadOutcome]            = []
+        self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[DownloadOutcome]] = {}  # by S2 unique id: date + rel_orbit
+        self.__skipped_S2_products            : List[str]                        = []
 
         self.__tmpdemdir      : Optional[tempfile.TemporaryDirectory] = None
         self.__caching_option = cfg.cache_dem_by
@@ -590,15 +624,19 @@ class S1FileManager:
         """
         return self.__skipped_S2_products
 
-    def get_download_failures(self) -> List[Outcome]:
+    def get_search_failures(self) -> int:
+        """Returns the number of times querying matching products failed"""
+        return self.__search_failures
+
+    def get_download_failures(self) -> List[DownloadOutcome]:
         """
-        Returns the list of download failures as a list of :class:Outcome`
+        Returns the list of download failures as a list of :class:DownloadOutcome`
         """
         return self.__download_failures
 
-    def get_download_timeouts(self) -> List[Outcome]:
+    def get_download_timeouts(self) -> List[DownloadOutcome]:
         """
-        Returns the list of download timeours as a list of :class:Outcome`
+        Returns the list of download timeours as a list of :class:DownloadOutcome`
         """
         return list(filter(lambda f: isinstance(f.error(), NotAvailableError), self.__download_failures))
 
@@ -684,10 +722,11 @@ class S1FileManager:
         extent:                         Dict[str, int],
         first_date:                     str,
         last_date:                      str,
-        platform_list, orbit_direction: str,
+        platform_list:                  List[str],
+        orbit_direction:                str,
         relative_orbit_list:            List[int],
         polarization:                   str,
-        searched_items_per_page:        int
+        dryrun: bool,
     ) -> SearchResult:
         """
         Process with the call to eodag search.
@@ -704,23 +743,35 @@ class S1FileManager:
         dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction, None)  # None => all
         dag_orbit_list_param    = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
         dag_platform_list_param = platform_list[0] if len(platform_list) == 1 else None
-        while True:
-            page_products, _ = dag.search(
-                    page=page, items_per_page=searched_items_per_page,
-                    productType=product_type,
-                    start=first_date, end=last_date,
-                    box=extent,
-                    # If we have eodag v1.6, we try to filter product during the search request
-                    polarizationMode=dag_polarization_param,
-                    sensorMode="IW",
-                    orbitDirection=dag_orbit_dir_param,        # None => all
-                    relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
-                    platformSerialIdentifier=dag_platform_list_param,
-                    )
-            logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
-            products.extend(page_products)
-            page += 1
-            if len(page_products) < searched_items_per_page:
+        while True:  # While we haven't analysed all search result pages
+            timeout : Optional[ReadTimeout] = None
+            for _ in range(self.__nb_max_search_retries):
+                # Manual workaround https://github.com/CS-SI/eodag/issues/908
+                try:
+                    page_products, _ = dag.search(
+                            page=page, items_per_page=self.__searched_items_per_page,
+                            productType=product_type,
+                            raise_errors=True,
+                            start=first_date, end=last_date,
+                            box=extent,
+                            # If we have eodag v1.6+, we try to filter product during the search request
+                            polarizationMode=dag_polarization_param,
+                            sensorMode="IW",
+                            orbitDirection=dag_orbit_dir_param,        # None => all
+                            relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
+                            platformSerialIdentifier=dag_platform_list_param,
+                            )
+                    logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
+                    products.extend(page_products)
+                    page += 1
+                    break  # no need to try again
+                except ReadTimeout as e:
+                    timeout = e
+            else:
+                assert isinstance(timeout, ReadTimeout)
+                raise RuntimeError(f"Product search has timeout'd {self.__nb_max_search_retries} times") from timeout
+
+            if len(page_products) < self.__searched_items_per_page:
                 break
         logger.debug("%s remote S1 products found: %s", len(products), products)
         ##for p in products:
@@ -805,7 +856,7 @@ class S1FileManager:
         # self._refresh_s1_product_list()  # No need: as it has been done at startup, and after download
                                            # And let's suppose nobody deletd files
                                            # manually!
-        products = list(filter(lambda p: ident(p) not in self._product_list, products)) 
+        products = list(filter(lambda p: ident(p) not in self._product_list, products))
         # products = [p for p in products if ident(p) not in self._product_list ]
         # logger.debug('Products cache: %s', self._product_list.keys())
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
@@ -846,27 +897,30 @@ class S1FileManager:
         relative_orbit_list:     List[int],
         polarization:            str,
         cover:                   float,
-        searched_items_per_page: int,
         dryrun:                  bool,
-        dl_wait:                 int,
-        dl_timeout:              int
-    ) -> List[Outcome]:
+    ) -> List[DownloadOutcome]:
         """
         Process with the call to eodag search + filter + download.
 
-        Returns :class:`Outcome` of :class:`EOProduct` or Exception.
+        :rtype: :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
+        :raises RuntimeError: If the search fails
         """
         extent = {
                 'lonmin': lonmin,
                 'lonmax': lonmax,
                 'latmin': latmin,
                 'latmax': latmax
-        }
-        products = self._search_products(dag, extent,
-                first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
-                polarization, searched_items_per_page)
+                }
+        try:
+            sproducts = self._search_products(
+                    dag, extent,
+                    first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
+                    polarization, dryrun)
+        except Exception as e:
+            self.__search_failures += 1
+            raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
 
-        products = self._filter_products(list(products), extent, tile_out_dir, tile_name, polarization, cover)
+        products = self._filter_products(list(sproducts), extent, tile_out_dir, tile_name, polarization, cover)
 
         # And finally download all!
         # TODO: register downloading into Dask
@@ -887,17 +941,15 @@ class S1FileManager:
 
         paths = _parallel_download_and_extraction_of_products(
                 dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
-                tile_name, dl_wait, dl_timeout)
-        logger.info("Remote S1 products saved into %s", [p.value for p in paths if p.has_value()])
+                tile_name,
+                self.__dl_wait, self.__dl_timeout)
+        logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         return paths
 
-    def download_images(  # pylint: disable=too-many-arguments
+    def download_images(
         self,
-        searched_items_per_page: int,
-        dl_wait:                 int,
-        dl_timeout:              int,
-        dryrun:                  bool=False,
-        tiles:                   Optional[List[str]]=None
+        dryrun: bool=False,
+        tiles:  Optional[List[str]]=None
     ) -> None:
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
@@ -914,7 +966,8 @@ class S1FileManager:
             tile_list = re.split(r'\s*,\s*', self.roi_by_tiles)
         logger.debug("Tiles requested to download: %s", tile_list)
 
-        downloaded_products: List[Outcome] = []
+        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
+        downloaded_products: List[DownloadOutcome] = []
         layer = Layer(self.cfg.output_grid)  # TODO: This could be cached
         for current_tile in layer:
             tile_name : str = current_tile.GetField('NAME')
@@ -934,24 +987,22 @@ class S1FileManager:
                         relative_orbit_list=self.cfg.relative_orbit_list,
                         polarization=self.cfg.polarisation,
                         cover=self.cfg.tile_to_product_overlap_ratio,
-                        searched_items_per_page=searched_items_per_page,
-                        dryrun=dryrun, dl_wait=dl_wait, dl_timeout=dl_timeout)
+                        dryrun=dryrun)
         if downloaded_products:
-            failed_products: List[Outcome] = list(filter(lambda p: not p, downloaded_products))
+            failed_products: List[DownloadOutcome] = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
                 self._analyse_download_failures(failed_products)
             success_products = [p.value() for p in filter(lambda p: p.has_value(), downloaded_products)]
             self._refresh_s1_product_list(success_products)  # incremental update
 
-    def _analyse_download_failures(self, failed_products: List[Outcome]) -> None:
+    def _analyse_download_failures(self, failed_products: List[DownloadOutcome]) -> None:
         """
         Record the download failures and mark S2 products that cannot be generated.
         """
         logger.warning('Some products could not be downloaded. Analysing donwload failures...')
-        self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
         for fp in failed_products:
             logger.warning('* %s', fp.error())
-            prod: EOProduct = fp.related_filenames()[0]  # expect only 1
+            prod: EOProduct = fp.related_product()
             start_time = extract_product_start_time(prod.as_dict()['id'])
             day   = '{YYYY}{MM}{DD}'.format_map(start_time) if start_time else "????????"
             orbit = product_property(prod, 'relativeOrbitNumber')
@@ -1021,6 +1072,7 @@ class S1FileManager:
             'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
             } for p in content]
         products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
+        # TODO: filter corrupted products (e.g. .zip files that couldn't be correctly unzipped (because of a previous disk saturation for instance)
 
         for ci in products_info:
             manifest = os.path.join(ci['safe_dir'], self.manifest_pattern)
@@ -1071,7 +1123,7 @@ class S1FileManager:
         for failure, missing in self.__failed_S1_downloads_by_S2_uid.items():
             # Reference missing product for the orbit + date
             # (we suppose there won't be a mix of S1A + S1B for the same pair)
-            ref_missing_S1_product = missing[0].related_filenames()[0]
+            ref_missing_S1_product = missing[0].related_product()
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
             eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
             eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)

@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -61,7 +61,7 @@ from . import exceptions
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration import Configuration
 from .otbtools import otb_version
-from .outcome import Outcome
+from .outcome import PipelineOutcome
 from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling.pipeline')
@@ -907,7 +907,7 @@ class Pipeline:
         else:
             return None
 
-    def do_execute(self) -> Outcome:
+    def do_execute(self) -> PipelineOutcome:
         """
         Execute the pipeline.
 
@@ -924,7 +924,7 @@ class Pipeline:
         if len(missing_inputs) > 0 and not self.__dryrun:
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
-            return Outcome(RuntimeError(msg))
+            return PipelineOutcome(RuntimeError(msg))
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
@@ -941,11 +941,11 @@ class Pipeline:
         )
         steps = None  # type: ignore  # force reset local variable, in doubt...
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
-        return Outcome(res)
+        return PipelineOutcome(res)
 
 
 # TODO: try to make it static...
-def execute4dask(pipeline, *args, **unused_kwargs) -> Outcome:
+def execute4dask(pipeline, *args, **unused_kwargs) -> PipelineOutcome:
     """
     Internal worker function used by Dask to execute a pipeline.
 
@@ -959,7 +959,7 @@ def execute4dask(pipeline, *args, **unused_kwargs) -> Outcome:
         assert len(args) == 1
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
-            if isinstance(arg, Outcome) and not arg:
+            if isinstance(arg, PipelineOutcome) and not arg:
                 logger.warning('Cancel execution of %s because an error has occured upstream on a dependent input file: %s', pipeline, arg)
                 return copy.deepcopy(arg).add_related_filename(pipeline.output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
@@ -983,7 +983,7 @@ def execute4dask(pipeline, *args, **unused_kwargs) -> Outcome:
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
-        return Outcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
+        return PipelineOutcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
 
 
 class PipelineDescription:
@@ -1300,7 +1300,7 @@ class PipelineDescriptionSequence:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
         pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
-        logger.debug('Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
+        logger.debug('--> Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
 

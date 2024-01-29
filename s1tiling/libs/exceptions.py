@@ -5,7 +5,7 @@
 #
 #   All rights reserved.
 #   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -48,7 +48,7 @@ class ConfigurationError(Error):
     """
     Generic error for configuration file errors.
     """
-    def __init__(self, message: str, *args, configFile="", **kwargs) -> None:
+    def __init__(self, message: str, *args, configFile: Union[str,Path]="", **kwargs) -> None:
         """
         Constructor
         """

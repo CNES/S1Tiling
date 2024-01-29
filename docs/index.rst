@@ -41,7 +41,7 @@ On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
    use
    dataflow
    files
-   HAL
+   CNES
    FAQ
    release_notes
 

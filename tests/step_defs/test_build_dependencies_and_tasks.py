@@ -1,5 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# =========================================================================
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
+#
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# =========================================================================
+#
+# Authors: Thierry KOLECK (CNES)
+#          Luc HERMITTE (CS Group)
+#
+# =========================================================================
+
 import logging
 from pathlib import Path
 import pytest
@@ -291,7 +320,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids):
         pipeline_ids['mask'] = pipeline
 
 @given('A pipeline that computes LIA')
-def given_pipeline_ortho(pipelines):
+def given_pipeline_that_computes_LIA(pipelines):
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
@@ -368,7 +397,7 @@ def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, 
     return raster_list
 
 @given('a series of S1 VV images')
-def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
+def given_a_series_of_VV_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
     for i in range(6):
         known_files.append(input_file(i, 'vv'))
         raster_list.append(raster_vv(i))
@@ -797,7 +826,7 @@ def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies):
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('no S2 LIA image is required')
-def then_S2_LIA_image_is_required(dependencies):
+def then_no_S2_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]

@@ -4,8 +4,8 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
-#   Copyright 2022-2023 (c) CS GROUP France.
+#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -42,34 +42,32 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
 from s1tiling.libs.vis import SimpleComputationGraph # Graphs
-from .S1FileManager import S1FileManager, WorkspaceKinds
-# from libs import S1FilteringProcessor
+from .S1FileManager import (
+        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+)
+from . import exits
+from . import exceptions
 from . import Utils
 from .configuration import Configuration
-from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence
+from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence, StepFactory, AbstractStep
 from .otbwrappers import (
-        StepFactory,
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
         ApplyLIACalibration, SpatialDespeckle)
-from . import exits
-from . import exceptions
+from .outcome import Outcome
 
-
-# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
-EODAG_DEFAULT_DOWNLOAD_WAIT    = 2   # If download fails, wait time in minutes between two download tries
-EODAG_DEFAULT_DOWNLOAD_TIMEOUT = 20  # If download fails, maximum time in minutes before stop retrying to download
 
 logger = logging.getLogger('s1tiling.api')
 
-def remove_files(files: List[Union[str,Path]]) -> None:
+def remove_files(files: List[Union[str,Path]], what: str) -> None:
     """
     Removes the files from the disk
     """
-    logger.debug("Remove %s", files)
+    logger.debug("Remove %s: %s", what, files)
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
@@ -79,7 +77,6 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
-
     logger.info('Requested tiles: %s', cfg.tile_list)
 
     all_requested = False
@@ -128,7 +125,6 @@ def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileM
         # Compute global coverage
         for _, dem_info in dem_tiles.items():
             current_coverage += dem_info['_coverage']
-            # needed_dem_tiles[dem_tile] = dem_info
         needed_dem_tiles.update(dem_tiles)
         # If DEM coverage of MGRS tile is enough, process it
         tiles_to_process_checked.append(tile)
@@ -167,10 +163,9 @@ def clean_logs(config: Dict, nb_workers: int) -> None:
     """
     filenames = []
     for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '%' in cfg['filename']:
-            pattern = cfg['filename'] % ('worker-%s',)
-            filenames += [pattern%(w,) for w in range(nb_workers)]
-    remove_files(filenames)
+        if 'filename' in cfg and '{kind}' in cfg['filename']:
+            filenames += [cfg['filename'].format(kind=f"worker-{w}") for w in range(nb_workers)]
+    remove_files(filenames, "logs")
 
 
 def setup_worker_logs(config: Dict, dask_worker) -> None:
@@ -204,7 +199,7 @@ class DaskContext:
     def __init__(self, config: Configuration, debug_otb: bool) -> None:
         self.__client    : Optional[Client]       = None
         self.__cluster   : Optional[LocalCluster] = None
-        self.__config    = config
+        self.__config    : Configuration          = config
         self.__debug_otb : bool                   = debug_otb
 
     def __enter__(self) -> "DaskContext":
@@ -236,6 +231,16 @@ class DaskContext:
         return self.__client
 
 
+def _how2str(how: Union[Tuple,AbstractStep]) -> str:
+    """
+    Make task definition from logger friendly
+    """
+    if isinstance(how, AbstractStep):
+        return str(how)
+    else:
+        return f"Task(pipeline: {how[1]}; keys: {how[2]})"
+
+
 def _execute_tasks_debug(dsk: Dict, tile_name: str) -> List:
     """
     Execute the tasks directly, one after the other, without Dask layer.
@@ -247,12 +252,12 @@ def _execute_tasks_debug(dsk: Dict, tile_name: str) -> List:
     logger.debug('%s tasks', len(tasks))
     for product in reversed(tasks):
         how = dsk[product]
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
     logger.info('Executing tasks one after the other for %s (debugging OTB)', tile_name)
     results = []
     for product in reversed(tasks):
         how = dsk[product]
-        logger.info('- execute: %s <-- %s', product, how)
+        logger.info('- execute: %s <-- %s', product, _how2str(how))
         if not issubclass(type(how), FirstStep):
             results += [how[0](*list(how)[1:])]
     return results
@@ -273,7 +278,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     Execute the tasks in parallel through Dask.
     """
     for product, how in dsk.items():
-        logger.debug('- task: %s <-- %s', product, how)
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
 
     if debug_tasks:
         SimpleComputationGraph().simple_graph(
@@ -309,9 +314,6 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     pipelines:               PipelineDescriptionSequence,
     client:                  Optional[Client],
     required_workspaces:     List[WorkspaceKinds],
-    dl_wait:                 int,
-    dl_timeout:              int,
-    searched_items_per_page: int,
     debug_otb:               bool=False,
     dryrun:                  bool=False,
     do_watch_ram:            bool=False,
@@ -330,10 +332,12 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     try:
         with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=[tile_name],
-                    dl_wait=dl_wait, dl_timeout=dl_timeout,
-                    searched_items_per_page=searched_items_per_page, dryrun=dryrun)
+            s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
             # download_images will have updated the list of know products
+    except RuntimeError as e:
+        logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
+        return [Outcome(e)]
+
     except BaseException as e:  # pylint: disable=broad-except
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name)
@@ -363,30 +367,48 @@ def read_config(config_opt: Union[str,Configuration]) -> Configuration:
     object
     """
     if isinstance(config_opt, str):
-        config = Configuration(config_opt)
-        # config.init_logger()
-        return config
+        return Configuration(config_opt)
     else:
         return config_opt
 
 
-def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
-    config_opt:              Union[str,Configuration],
+def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
+    """
+    Adds attributes to configuration object.
+
+    .. todo:: Configuration object shall be closer to a dictionary to avoid these workarounds...
+    """
+    for k in extra_opts:
+        if overwrite or not hasattr(config, k):
+            setattr(config, k, extra_opts[k])
+    return config
+
+
+def do_process_with_pipeline(
+    config_opt             : Union[str,Configuration],
     pipeline_builder,
-    dl_wait:                 int,
-    dl_timeout:              int,
-    searched_items_per_page: int = 20,
-    dryrun:                  bool = False,
-    debug_caches:            bool = False,
-    debug_otb:               bool = False,
-    watch_ram:               bool = False,
-    debug_tasks:             bool = False,
+    dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                 : bool = False,
+    debug_caches           : bool = False,
+    debug_otb              : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
-    config: Configuration = read_config(config_opt)
+    config: Configuration  = read_config(config_opt)
+    extra_opts = {
+            "dl_wait"                : dl_wait,
+            "dl_timeout"             : dl_timeout,
+            "searched_items_per_page": searched_items_per_page,
+            "nb_max_search_retries"  : nb_max_search_retries,
+    }
+    _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
@@ -432,8 +454,6 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                             tile_it, idx, len(tiles_to_process_checked),
                             s1_file_manager, pipelines, dask_client.client,
                             required_workspaces,
-                            dl_wait=dl_wait, dl_timeout=dl_timeout,
-                            searched_items_per_page=searched_items_per_page,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
                     results += res
@@ -444,8 +464,9 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         results.extend(skipped_for_download_failures)
 
         logger.debug('#############################################################################')
-        if nb_errors_detected + len(skipped_for_download_failures) > 0:
-            logger.warning('Execution report: %s errors detected', nb_errors_detected + len(skipped_for_download_failures))
+        nb_issues = nb_errors_detected + len(skipped_for_download_failures)
+        if nb_issues > 0:
+            logger.warning('Execution report: %s errors detected', nb_issues)
         else:
             logger.info('Execution report: no error detected')
 
@@ -455,13 +476,15 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         else:
             logger.info(' -> Nothing has been executed')
 
+        search_failures   = s1_file_manager.get_search_failures()
         download_failures = s1_file_manager.get_download_failures()
         download_timeouts = s1_file_manager.get_download_timeouts()
         return exits.Situation(
-                nb_computation_errors=nb_errors_detected,
+                nb_computation_errors=nb_errors_detected - search_failures,
+                nb_search_failures=search_failures,
                 nb_download_failures=len(download_failures),
                 nb_download_timeouts=len(download_timeouts)
-                )
+        )
 
 
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
@@ -491,17 +514,18 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return best_concat_sin
 
 
-def s1_process(  # pylint: disable=too-many-arguments
-    config_opt:              Union[str,Configuration],
-    dl_wait:                 int = EODAG_DEFAULT_DOWNLOAD_WAIT,
-    dl_timeout:              int = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-    searched_items_per_page: int = 20,
-    dryrun:                  bool = False,
-    debug_otb:               bool = False,
-    debug_caches:            bool = False,
-    watch_ram:               bool = False,
-    debug_tasks:             bool = False,
-    cache_before_ortho:      bool = False
+def s1_process(
+        config_opt              : Union[str,Configuration],
+        dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries   : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                  : bool = False,
+        debug_otb               : bool = False,
+        debug_caches            : bool = False,
+        watch_ram               : bool = False,
+        debug_tasks             : bool = False,
+        cache_before_ortho      : bool = False
 ) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
@@ -583,7 +607,7 @@ def s1_process(  # pylint: disable=too-many-arguments
         calibration_is_done_in_S1 = config.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
 
         # Concatenation (... + Despeckle)  // not working yet, see issue #118
-        concat_seq: List[Type[StepFactory]] = [Concatenate]
+        concat_seq : List[Type[StepFactory]] = [Concatenate]
         if chain_concat_and_despeckle_inmemory:
             concat_seq.append(SpatialDespeckle)
             need_to_keep_non_filtered_products = False
@@ -597,7 +621,7 @@ def s1_process(  # pylint: disable=too-many-arguments
 
         # LIA Calibration (...+ Despeckle)
         if config.calibration_type == 'normlim':
-            apply_LIA_seq: List[Type[StepFactory]] = [ApplyLIACalibration]
+            apply_LIA_seq : List[Type[StepFactory]] = [ApplyLIACalibration]
             if chain_LIA_and_despeckle_inmemory:
                 apply_LIA_seq.append(SpatialDespeckle)
                 need_to_keep_non_filtered_products = False
@@ -626,27 +650,30 @@ def s1_process(  # pylint: disable=too-many-arguments
 
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
-            searched_items_per_page=searched_items_per_page,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_otb=debug_otb,
             debug_caches=debug_caches,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
-            )
+    )
 
 
-def s1_process_lia(  # pylint: disable=too-many-arguments
-    config_opt:             Union[str,Configuration],
-   dl_wait:                 int = EODAG_DEFAULT_DOWNLOAD_WAIT,
-   dl_timeout:              int = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-   searched_items_per_page: int = 20,
-   dryrun:                  bool = False,
-   debug_otb:               bool = False,
-   debug_caches:            bool = False,
-   watch_ram:               bool = False,
-   debug_tasks:             bool = False,
+def s1_process_lia(
+        config_opt             : Union[str,Configuration],
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
@@ -702,12 +729,14 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
-    return do_process_with_pipeline(config_opt, builder,
+    return do_process_with_pipeline(
+            config_opt, builder,
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
-            )
+    )
