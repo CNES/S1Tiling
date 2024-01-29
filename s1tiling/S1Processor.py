@@ -144,7 +144,7 @@ def cli_execute(processing, *args, **kwargs):
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run(
+def run(  # pylint: disable=too-many-arguments
         searched_items_per_page,
         nb_max_search_retries,
         dryrun,
@@ -156,7 +156,7 @@ def run(
         config_filename,
         eodag_download_wait,
         eodag_download_timeout
-) -> NoReturn:  # pylint: disable=too-many-arguments
+) -> NoReturn:
     """
     This function is used as entry point to create console scripts with setuptools.
     """
@@ -218,7 +218,7 @@ def run(
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia(
+def run_lia(  # pylint: disable=too-many-arguments
         searched_items_per_page,
         nb_max_search_retries,
         dryrun,
@@ -229,7 +229,7 @@ def run_lia(
         config_filename,
         eodag_download_wait,
         eodag_download_timeout
-) -> NoReturn:  # pylint: disable=too-many-arguments
+) -> NoReturn:
     """
     This function is used as entry point to create console scripts with setuptools.
     """

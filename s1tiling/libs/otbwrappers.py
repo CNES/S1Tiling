@@ -233,7 +233,9 @@ class AnalyseBorders(StepFactory):
         """
         return self.build_step_output_filename(meta)
 
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+    def complete_meta(  # pylint: disable=too-many-locals
+            self, meta: Meta, all_inputs: InputList
+    ) -> Meta:
         """
         Complete meta information with Cutting thresholds.
         """
@@ -875,7 +877,7 @@ class BuildBorderMask(OTBStepFactory):
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
                 )
 
-    def set_output_pixel_type(self, app, meta: Meta) -> None:  # pylint: disable=unused-argument
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force the output pixel type to ``UINT8``.
         """
@@ -920,7 +922,7 @@ class SmoothBorderMask(OTBStepFactory):
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
                 )
 
-    def set_output_pixel_type(self, app, meta: Meta) -> None:  # pylint: disable=unused-argument
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force the output pixel type to ``UINT8``.
         """
@@ -1145,7 +1147,8 @@ class AgglomerateDEM(ExecutableStepFactory):
                 meta['dem_infos'])
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
-            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
+            raise RuntimeError(
+                    f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta: Meta) -> ExeParameters:
@@ -1370,7 +1373,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         return meta
 
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set SARCartesianMeanEstimation related information that'll get carried around.
         """
@@ -1705,7 +1708,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         assert isinstance(inp, str), f"A single string inp was expected, got {inp}"
         return inp   # meta['in_filename']
 
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set LIA kind related information that'll get carried around.
         """
@@ -1763,7 +1766,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
 
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Update concatenated LIA related information that'll get carried around.
         """
@@ -1851,7 +1854,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
         meta['reduce_inputs_in'] = reduce_LIAs
         return meta
 
-    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:  # pylint: disable=unused-argument
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
         inp = self._get_canonical_input(inputs)

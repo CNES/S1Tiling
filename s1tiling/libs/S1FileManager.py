@@ -154,7 +154,7 @@ def product_cover(product: EOProduct, geometry: Dict[str, int]) -> float:
 #             pass
 
 
-def does_final_product_need_to_be_generated_for(
+def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-locals
     product:       EOProduct,
     tile_name:     str,
     polarizations: List[str],
@@ -230,7 +230,7 @@ def filter_images_or_ortho(kind, all_images: List[str]) -> List[str]:
     return images
 
 
-def _filter_images_providing_enough_cover_by_pair(
+def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-locals
     products:     Union[List[EOProduct], List[Dict]],  # EOProduct or content_info
     target_cover: float,
     ident:        Callable[[Union[EOProduct,Dict]], str],
@@ -482,7 +482,7 @@ def _download_and_extract_one_product(
     return path
 
 
-def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-arguments
+def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-arguments, too-many-locals
     dag:           EODataAccessGateway,
     raw_directory: str,
     products:      List[EOProduct],
@@ -716,7 +716,7 @@ class S1FileManager:
             self._refresh_s1_product_list()  # TODO: decremental update
             self._update_s1_img_list_for(tile_name)
 
-    def _search_products(  # pylint: disable=too-many-arguments
+    def _search_products(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dag:                            EODataAccessGateway,
         extent:                         Dict[str, int],
@@ -881,7 +881,7 @@ class S1FileManager:
                 ]
         return products
 
-    def _download(  # pylint: disable=too-many-arguments
+    def _download(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dag:                     EODataAccessGateway,
         lonmin:                  int,
@@ -1104,7 +1104,9 @@ class S1FileManager:
         else:
             logger.warning('No time and orbit compatible products found on disk!')
 
-    def _filter_complete_dowloads_by_pair(self, tile_name: str, s1_products_info: List[Dict]) -> List[Dict]:
+    def _filter_complete_dowloads_by_pair(  # pylint: disable=too-many-locals
+            self, tile_name: str, s1_products_info: List[Dict]
+    ) -> List[Dict]:
         keys = {
             'tile_name'         : tile_name,
             'calibration_type'  : self.cfg.calibration_type,
@@ -1177,7 +1179,9 @@ class S1FileManager:
         products_info = _keep_products_with_enough_coverage(products_info, self.cfg.tile_to_product_overlap_ratio, current_tile)
         return products_info
 
-    def _update_s1_img_list_for(self, tile_name: str) -> None:
+    def _update_s1_img_list_for(  # pylint: disable=too-many-locals
+            self, tile_name: str
+    ) -> None:
         """
         This method updates the list of S1 images available
         (from analysis of raw_directory), and it keeps only the images (/pairs

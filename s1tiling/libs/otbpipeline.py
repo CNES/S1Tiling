@@ -804,7 +804,7 @@ class Pipeline:
     Internal class only meant to be used by :class:`PipelineDescriptionSequence`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         do_measure:   bool,
         in_memory:    bool,
@@ -993,7 +993,7 @@ class PipelineDescription:
     - can tell the expected product name given an input.
     - tells whether its product is required
     """
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         factory_steps:       List[StepFactory],
         dryrun:              bool,
@@ -1304,7 +1304,9 @@ class PipelineDescriptionSequence:
         self.__pipelines.append(pipeline)
         return pipeline
 
-    def _build_dependencies(self, tile_name: str, raster_list: List[Dict]) -> Tuple[Set[str], Dict, Dict]:
+    def _build_dependencies(  # pylint: disable=too-many-locals
+            self, tile_name: str, raster_list: List[Dict]
+    ) -> Tuple[Set[str], Dict, Dict]:
         """
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
@@ -1341,17 +1343,17 @@ class PipelineDescriptionSequence:
 
                 logger.debug('  FROM all %s inputs as "%s": %s', len(inputs), origin, [out_filename(i) for i in inputs])
                 dropped = []
-                for input in inputs:  # inputs are meta
+                for inp in inputs:  # inputs are meta
                     logger.debug('  ----------------------------------------------------------------------')
-                    logger.debug('  - GIVEN "%s" "%s": %s', origin, out_filename(input), input)
-                    expected = pipeline.expected(input)
+                    logger.debug('  - GIVEN "%s" "%s": %s', origin, out_filename(inp), inp)
+                    expected = pipeline.expected(inp)
                     if not expected:
                         logger.debug("    No '%s' product can be generated from '%s' input '%s' ==> Ignore for now",
-                                pipeline.name, origin, out_filename(input))
-                        dropped.append(input)  # remember that source/input will be used differently
+                                pipeline.name, origin, out_filename(inp))
+                        dropped.append(inp)  # remember that source/input will be used differently
                         continue
                     expected_taskname = get_task_name(expected)
-                    logger.debug('    %s <-- from input: %s', expected_taskname, out_filename(input))
+                    logger.debug('    %s <-- from input: %s', expected_taskname, out_filename(inp))
                     logger.debug('    --> "%s": %s', out_filename(expected), expected)
                     # TODO: Correctly handle the case where a task produce
                     # several filenames. In that case we shall have only one
@@ -1371,20 +1373,20 @@ class PipelineDescriptionSequence:
                     if expected_taskname not in previous:
                         outputs.append(expected)
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
-                        previous[expected_taskname].add_input(origin, input, expected)
+                        previous[expected_taskname].add_input(origin, inp, expected)
                         logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
-                    elif get_task_name(input) not in previous[expected_taskname].input_task_names:
+                    elif get_task_name(inp) not in previous[expected_taskname].input_task_names:
                         _register_new_input_and_update_out_filename(
                                 tasks=previous,
                                 origin=origin,
-                                input_meta=input,
+                                input_meta=inp,
                                 new_task_meta=expected,
                                 outputs=outputs)
                     if pipeline.product_is_required:
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
                     task_names_to_output_files_table[expected_taskname] = out_filename(expected)
-                # endfor input in inputs:  # inputs are meta
+                # endfor inp in inputs:  # inputs are meta
                 if dropped:
                     dropped_inputs[origin] = dropped
             # endfor origin, sources in pipeline.inputs.items():
@@ -1393,14 +1395,14 @@ class PipelineDescriptionSequence:
             logger.debug('* Checking dropped inputs: %s', dropped_inputs.keys())
             for output in outputs:
                 for origin, inputs in dropped_inputs.items():
-                    for input in inputs:
-                        logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(input), origin, out_filename(output))
-                        if _is_compatible(output, input):
+                    for inp in inputs:
+                        logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(inp), origin, out_filename(output))
+                        if _is_compatible(output, inp):
                             logger.debug('    => YES')
                             _register_new_input_and_update_out_filename(
                                     tasks=previous,
                                     origin=origin,
-                                    input_meta=input,
+                                    input_meta=inp,
                                     new_task_meta=output,
                                     outputs=outputs)
                         else:
@@ -1427,7 +1429,7 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', task_name)
         return required_task_names, previous, task_names_to_output_files_table
 
-    def _build_tasks_from_dependencies(
+    def _build_tasks_from_dependencies(  # pylint: disable=too-many-locals
         self,
         required :                        Set[str],
         previous :                        Dict,
@@ -1804,7 +1806,7 @@ class OTBStepFactory(_FileProducingStepFactory):
     All step factories that wrap OTB applications are meant to inherit from
     :class:`OTBStepFactory`.
     """
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg: Configuration,
         appname: str,
@@ -1994,7 +1996,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     All step factories that wrap OTB applications are meant to inherit from
     :class:`ExecutableStepFactory`.
     """
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 Configuration,
         exename:             str,

@@ -53,8 +53,8 @@ def otb_version() -> str:
                 raise RuntimeError(f"Cannot extract OTB version from {version}")
             version = match_v[0]
             logger.info("OTB version detected on the system is %s", version)
-            setattr(otb_version, "_version", version)  # pylint: disable=protected-access
-        except Exception as ex:  # pylint: disable=broad-except
+            setattr(otb_version, "_version", version)
+        except Exception as ex:
             logger.exception(ex)
             raise RuntimeError("Cannot determine current OTB version") from ex
-    return getattr(otb_version, "_version")  # pylint: disable=protected-access
+    return getattr(otb_version, "_version")

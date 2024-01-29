@@ -179,7 +179,9 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
 # The configuration decoding specific to S1Tiling application
 class Configuration():  # pylint: disable=too-many-instance-attributes
     """This class handles the parameters from the cfg file"""
-    def __init__(self, configFile, do_show_configuration=True) -> None:
+    def __init__(  # pylint: disable=too-many-locals
+            self, configFile, do_show_configuration=True
+    ) -> None:
         config = configparser.ConfigParser(os.environ)
         config.read(configFile)
 
@@ -361,7 +363,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                     f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan", configFile)
 
         try:
-            self.override_azimuth_cut_threshold_to : Optional[bool] = getboolean_opt(config, configFile, 'Processing', 'override_azimuth_cut_threshold_to')
+            self.override_azimuth_cut_threshold_to : Optional[bool] = getboolean_opt(
+                    config, configFile, 'Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`

@@ -306,7 +306,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     return []
 
 
-def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
+def process_one_tile(  # pylint: disable=too-many-arguments
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,
@@ -338,7 +338,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
         logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
         return [Outcome(e)]
 
-    except BaseException as e:  # pylint: disable=broad-except
+    except BaseException as e:
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name)
 
@@ -384,7 +384,7 @@ def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
     return config
 
 
-def do_process_with_pipeline(
+def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
     config_opt             : Union[str,Configuration],
     pipeline_builder,
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
@@ -514,7 +514,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return best_concat_sin
 
 
-def s1_process(
+def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str,Configuration],
         dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
@@ -663,7 +663,7 @@ def s1_process(
     )
 
 
-def s1_process_lia(
+def s1_process_lia(  # pylint: disable=too-many-arguments
         config_opt             : Union[str,Configuration],
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
