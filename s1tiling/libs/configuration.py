@@ -237,7 +237,7 @@ class Configuration():
 
         platform_list_str              = get_opt(config, configFile, 'DataSource', 'platform_list', fallback='')
         platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
-        unsupported_platforms = [p for p in platform_list if p and not p.startswith("S1")]
+        unsupported_platforms          = [p for p in platform_list if p and not p.startswith("S1")]
         if unsupported_platforms:
             raise exceptions.ConfigurationError(f"Non supported requested platforms: {', '.join(unsupported_platforms)}", configFile)
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
@@ -338,7 +338,9 @@ class Configuration():
                 self.keep_non_filtered_products = True
 
             #: Dictionary of filter options: {'rad': :ref:`[Filtering.window_radius] <Filtering.window_radius>`, 'deramp': :ref:`[Filtering.deramp] <Filtering.deramp>`, 'nblooks': :ref:`[Filtering.nblooks] <Filtering.nblooks>`}
-            self.filter_options = {'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')}
+            self.filter_options = {
+                    'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')
+            }
             if self.filter == 'frost':
                 self.filter_options['deramp']  = getfloat_opt(config, configFile, 'Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:
