@@ -49,9 +49,10 @@ from .file_naming   import (
         OutputFilenameGeneratorList, ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
 )
 from .meta import (
-        get_task_name, in_filename, out_filename, tmp_filename, is_running_dry,
+        Meta, get_task_name, in_filename, out_filename, tmp_filename, is_running_dry,
 )
 from .steps import (
+        InputList, OTBParameters, ExeParameters,
         _check_input_step_type,
         AbstractStep, StepFactory,
         _FileProducingStepFactory, ExecutableStepFactory, OTBStepFactory,
@@ -70,10 +71,9 @@ from ..__meta__ import __version__
 logger = logging.getLogger('s1tiling.wrappers')
 
 
-Meta          = Dict
-InputList     = List[Dict[str, AbstractStep]]
-OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
-ExeParameters = List[str]
+# InputList     = List[Dict[str, AbstractStep]]
+# OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
+# ExeParameters = List[str]
 
 
 def append_to(meta: Meta, key: str, value) -> Dict:

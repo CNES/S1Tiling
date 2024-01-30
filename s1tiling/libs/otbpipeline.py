@@ -57,7 +57,8 @@ from .meta              import (
 )
 from .outcome           import PipelineOutcome
 from .steps             import (
-        AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store
+        AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
+        files_exist,
 )
 from ..__meta__         import __version__
 
@@ -65,39 +66,6 @@ logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
-
-
-def as_app_shell_param(param) -> str:
-    """
-    Internal function used to stringigy value to appear like a a parameter for a program
-    launched through shell.
-
-    foo     -> 'foo'
-    42      -> 42
-    [a, 42] -> 'a' 42
-
-    :todo: Deprecate, use f"{param!r}" instead
-    """
-    return f"{param!r}"
-    # if   isinstance(param, list):
-    #     return ' '.join(as_app_shell_param(e) for e in param)
-    # elif isinstance(param, int):
-    #     return param
-    # else:
-    #     return f"'{param}'"
-
-
-def files_exist(files: Union[str,List[str]]) -> bool:
-    """
-    Checks whether a single file, or all files from a list, exist.
-    """
-    if isinstance(files, str):
-        return os.path.isfile(files)
-    else:
-        for file in files:
-            if not os.path.isfile(file):
-                return False
-        return True
 
 
 class Pipeline:

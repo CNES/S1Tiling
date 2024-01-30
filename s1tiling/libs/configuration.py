@@ -145,10 +145,9 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             # Control the local console verbosity level
             config["handlers"]["console"]["level"] = "DEBUG"
         if log2files:
-            if 'file' not in config["root"]["handlers"]:
-                config["root"]["handlers"] += ['file']
-            if 'important' not in config["root"]["handlers"]:
-                config["root"]["handlers"] += ['important']
+            for handler in ["file", "important"]:
+                if handler not in config["root"]["handlers"]:
+                    config["root"]["handlers"] += [handler]
             if verbose:
                 config["handlers"]["file"]["level"] = "DEBUG"
         # Update all filenames with debug mode info.

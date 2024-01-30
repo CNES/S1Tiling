@@ -555,6 +555,10 @@ class S1FileManager:
     Eventually, the S1 products are scanned for the raster images of
     polarisation compatible with the requested one(s).
     """
+
+    tiff_pattern     = "measurement/*.tiff"
+    manifest_pattern = "manifest.safe"
+
     def __init__(self, cfg: Configuration) -> None:
         # Configuration
         self.cfg              = cfg
@@ -575,9 +579,6 @@ class S1FileManager:
         self.__tmpdemdir      : Optional[tempfile.TemporaryDirectory] = None
         self.__caching_option = cfg.cache_dem_by
         assert self.__caching_option in ['copy', 'symlink']
-
-        self.tiff_pattern     = "measurement/*.tiff"
-        self.manifest_pattern = "manifest.safe"
 
         self._ensure_workspaces_exist()
         self.processed_filenames = self.get_processed_filenames()
