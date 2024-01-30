@@ -36,7 +36,7 @@ Submodule that defines all API related functions and classes.
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
@@ -191,6 +191,9 @@ def setup_worker_logs(config: Dict, dask_worker) -> None:
     Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
 
 
+the_config : Configuration
+
+
 class DaskContext:
     """
     Custom context manager for :class:`dask.distributed.Client` +
@@ -216,7 +219,7 @@ class DaskContext:
                     lambda dask_worker: setup_worker_logs(the_config.log_config, dask_worker))
         return self
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         if self.__client:
             self.__client.close()
             assert self.__cluster, "client existence implies cluster existence"
