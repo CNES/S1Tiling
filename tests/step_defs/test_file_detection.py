@@ -33,6 +33,7 @@ import fnmatch
 import logging
 import os
 # from pathlib import Path
+from eodag.api.search_result import SearchResult
 
 import shapely
 
@@ -301,7 +302,7 @@ def given_requets_for_beta(configuration):
     configuration.calibration_type = 'beta'
 
 @given('Request with default fname_fmt_concatenation')
-def given_requets_for_beta(configuration):
+def given_requets_for_beta_with_default_fname_fmt_concatenation(configuration):
     logging.debug('Request with default fname_fmt_concatenation')
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
     configuration.fname_fmt_concatenation = configuration.fname_fmt['concatenation']
@@ -310,8 +311,8 @@ def given_requets_for_beta(configuration):
 def _declare_known_products_for_download(mocker, product_ids):
     def mock_search_products(slf, dag,
             extent, first_date, last_date, platform_list, orbit_direction,
-            relative_orbit_list, polarization, dryrun):
-        return [MockEOProduct(p) for p in product_ids]
+            relative_orbit_list, polarization, dryrun) -> SearchResult:
+        return SearchResult([MockEOProduct(p) for p in product_ids])
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
             lambda slf, dag, extent_33NWB, first_date, last_date,
@@ -345,12 +346,12 @@ def given_all_S2_files_are_known(mocker, known_files, known_dirs):
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
 
 @given('All S2 VV files are known')
-def given_all_S2_files_are_known(mocker, known_files, known_dirs):
+def given_all_S2_VV_files_are_known(mocker, known_files, known_dirs):
     logging.debug('Given: All S2 VV files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv'])
 
 @given('All S2 VH files are known')
-def given_all_S2_files_are_known(mocker, known_files, known_dirs):
+def given_all_S2_VH_files_are_known(mocker, known_files, known_dirs):
     logging.debug('Given: All S2 VH files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vh'])
 
@@ -403,7 +404,7 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
     # mocker.patch('s1tiling.libs.S1FileManager._search_products',
     #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
     #         orbit_direction, relative_orbit_list, polarization,
-    #         searched_items_per_page,dryrun
+    #         searched_items_per_page
     #         : downloads)
     mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
             mock_download_one_product)

@@ -34,6 +34,7 @@ This module lists EXIT codes
 """
 
 import logging
+from typing import Dict, Type
 from s1tiling.libs import exceptions
 
 OK                  = 0
@@ -54,7 +55,7 @@ UNKNOWN_REASON      = 78
 logger = logging.getLogger('s1tiling.exists')
 
 
-k_exit_table = {
+k_exit_table : Dict[Type[BaseException], int] = {
         exceptions.ConfigurationError    : CONFIG_ERROR,
         exceptions.CorruptedDataSAFEError: CORRUPTED_DATA_SAFE,
         exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
@@ -66,7 +67,7 @@ k_exit_table = {
         exceptions.MissingApplication    : MISSING_APP,
         }
 
-def translate_exception_into_exit_code(exception):
+def translate_exception_into_exit_code(exception: BaseException) -> int:
     """
     This function re-couple S1Tiling internal exception into excepted exit code.
     """
@@ -85,12 +86,17 @@ class Situation:
       in time because they were off-line.
     - ``exits.OK`` if no issue has been observed
     """
-    def __init__(self, nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts) -> None:
+    def __init__(
+            self,
+            nb_computation_errors: int,
+            nb_search_failures   : int,
+            nb_download_failures : int,
+            nb_download_timeouts : int) -> None:
         """
         constructor
         """
         logger.debug('Situation: %s computations errors. %s search failures. %s download failures. %s download timeouts',
-                nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts)
+                     nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts)
         if nb_computation_errors > 0:
             self.code = TASK_FAILED
         elif (nb_download_failures > nb_download_timeouts) or (nb_search_failures > 0):
@@ -100,4 +106,3 @@ class Situation:
             self.code = OFFLINE_DATA
         else:
             self.code = OK
-

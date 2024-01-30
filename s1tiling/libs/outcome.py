@@ -36,7 +36,7 @@ File    = TypeVar('File')
 Product = TypeVar('Product')
 
 
-class Outcome(Generic[Value]):
+class Outcome(Generic[Value, File]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome``.
 
@@ -90,7 +90,7 @@ class Outcome(Generic[Value]):
             return f'Error: {self.error()}'
 
 
-class PipelineOutcome(Outcome[Value], Generic[Value, File]):
+class PipelineOutcome(Outcome[Value, File], Generic[Value, File]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
     generated products for better error messages.
@@ -152,7 +152,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
             return msg
 
 
-class DownloadOutcome(Outcome[Value], Generic[Value, Product]):
+class DownloadOutcome(Outcome[Value, Product], Generic[Value, Product]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
     downloaded products for better error messages.

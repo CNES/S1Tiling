@@ -39,10 +39,15 @@ from pathlib import Path
 import re
 import sys
 from timeit import default_timer as timer
+from typing import Any, Callable, Dict, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
 from osgeo import ogr
 import osgeo  # To test __version__
 from osgeo import osr
+
+from .S1DateAcquisition import S1DateAcquisition
+
+logger = logging.getLogger('s1tiling.utils')
 
 
 def flatten_stringlist(itr):
@@ -64,42 +69,50 @@ class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid, driver_name="ESRI Shapefile"):
+    def __init__(self, grid, driver_name="ESRI Shapefile") -> None:
+        logger.debug("Open Layer(%s, %s)", grid, driver_name)
         self.__grid        = grid
         self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
+        if self.__data_source is None:
+            raise RuntimeError(f"Impossible to open layer {driver_name} layer {grid!r}")
         self.__layer       = self.__data_source.GetLayer()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ogr.Feature]:
         return self.__layer.__iter__()
 
-    def reset_reading(self):
+    def reset_reading(self) -> None:
         """
         Reset feature reading to start on the first feature.
 
         This affects iteration.
         """
-        return self.__layer.ResetReading()
+        self.__layer.ResetReading()
 
-    def find_tile_named(self, tile_name_field):
+    def find_tile_named(self, tile_name_field: str) -> ogr.Feature:
         """
         Search for a tile that maches the name.
         """
-        for tile in self.__layer:
+        for tile in self.__layer:  # tile is a Feature
             if tile.GetField('NAME') in tile_name_field:
                 return tile
         return None
 
 
-def get_relative_orbit(manifest):
+def get_relative_orbit(manifest) -> int:
     """
     Returns the relative orbit number of the product.
     """
     root = ET.parse(manifest)
-    return int(root.find("metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}orbitReference/{http://www.esa.int/safe/sentinel-1.0}relativeOrbitNumber").text)
+    url = "{http://www.esa.int/safe/sentinel-1.0}"
+    key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
+    ron = root.find(key)
+    if ron is None or ron.text is None:
+        raise RuntimeError(f"No relativeOrbitNumber key found in {manifest}")
+    return int(ron.text)
 
 
-def get_origin(manifest):
+def get_origin(manifest)-> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]]:
     """Parse the coordinate of the origin in the manifest file to return its footprint.
 
     Args:
@@ -108,7 +121,7 @@ def get_origin(manifest):
     Returns:
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
-    with open(manifest, "r") as save_file:
+    with open(manifest, "r", encoding="utf-8") as save_file:
         for line in save_file:
             if "<gml:coordinates>" in line:
                 coor = line.replace("                <gml:coordinates>", "")\
@@ -117,10 +130,12 @@ def get_origin(manifest):
                           float(val.replace("\n", "").split(",")[1]))
                           for val in coor]
                 return coord[0], coord[1], coord[2], coord[3]
-        raise Exception("Coordinates not found in " + str(manifest))
+        raise RuntimeError(f"Coordinates not found in {manifest!r}")
 
 
-def get_shape_from_polygon(polygon):
+def get_shape_from_polygon(
+    polygon: Union[Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]], List[Tuple[float,float]]]
+) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
     """
@@ -137,14 +152,14 @@ def get_shape_from_polygon(polygon):
     return poly
 
 
-def get_shape(manifest):
+def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
     """
     nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
     return get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
 
-def get_s1image_poly(s1image):
+def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     """
     Return shape of the ``s1image`` as a polygon
     """
@@ -159,7 +174,7 @@ def get_s1image_poly(s1image):
     return poly
 
 
-def get_tile_origin_intersect_by_s1(grid_path, image):
+def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
 
@@ -187,7 +202,12 @@ def get_tile_origin_intersect_by_s1(grid_path, image):
     return intersect_tile
 
 
-def find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id):
+def find_dem_intersecting_poly(
+    poly:          ogr.Geometry,
+    dem_layer:     Layer,
+    dem_field_ids: List[str],
+    main_id:       str
+) -> Dict[str,Any]:
     """
     Searches the DEM tiles that intersect the specifid polygon
     """
@@ -213,7 +233,12 @@ def find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id):
     return dem_tiles
 
 
-def find_dem_intersecting_raster(s1image, dem_db_filepath, dem_field_ids, main_id):
+def find_dem_intersecting_raster(
+    s1image:         str,
+    dem_db_filepath: str,
+    dem_field_ids:   List[str],
+    main_id:         str
+) -> Dict[str, Any]:
     """
     Searches the DEM tiles that intersect the S1 Image.
     """
@@ -226,7 +251,7 @@ def find_dem_intersecting_raster(s1image, dem_db_filepath, dem_field_ids, main_i
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
 
 
-def get_orbit_direction(manifest):
+def get_orbit_direction(manifest: str) -> Literal['DES', 'ASC']:
     """This function returns the orbit direction from a S1 manifest file.
 
     Args:
@@ -237,17 +262,21 @@ def get_orbit_direction(manifest):
       orbits. Throws an exception if manifest can not be parsed.
 
     """
-    with open(manifest, "r") as save_file:
+    with open(manifest, "r", encoding="utf-8") as save_file:
         for line in save_file:
             if "<s1:pass>" in line:
                 if "DESCENDING" in line:
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise Exception("Orbit Direction not found in " + str(manifest))
+        raise RuntimeError(f"Orbit Directiction not found in {manifest!r}")
 
 
-def convert_coord(tuple_list, in_epsg, out_epsg):
+def convert_coord(
+    tuple_list: List[Tuple[float, float]],
+    in_epsg:    int,
+    out_epsg:   int,
+) -> List[Tuple[float, ...]]:
     """
     Convert a list of coordinates from one epsg code to another
 
@@ -259,20 +288,22 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
     Returns:
       a list of tuples representing the converted coordinates
     """
+    if not tuple_list:
+        return []
+
     tuple_out = []
 
-    if tuple_list:
-        in_spatial_ref = osr.SpatialReference()
-        in_spatial_ref.ImportFromEPSG(in_epsg)
-        out_spatial_ref = osr.SpatialReference()
-        out_spatial_ref.ImportFromEPSG(out_epsg)
-        if int(osgeo.__version__[0]) >= 3:
-            # GDAL 2.0 and GDAL 3.0 don't take the CoordinateTransformation() parameters
-            # in the same order: https://github.com/OSGeo/gdal/issues/1546
-            #
-            # GDAL 3 changes axis order: https://github.com/OSGeo/gdal/issues/1546
-            in_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            # out_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    in_spatial_ref = osr.SpatialReference()
+    in_spatial_ref.ImportFromEPSG(in_epsg)
+    out_spatial_ref = osr.SpatialReference()
+    out_spatial_ref.ImportFromEPSG(out_epsg)
+    if int(osgeo.__version__[0]) >= 3:
+        # GDAL 2.0 and GDAL 3.0 don't take the CoordinateTransformation() parameters
+        # in the same order: https://github.com/OSGeo/gdal/issues/1546
+        #
+        # GDAL 3 changes axis order: https://github.com/OSGeo/gdal/issues/1546
+        in_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        # out_spatial_ref.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
     for in_coord in tuple_list:
         lon = in_coord[0]
@@ -287,7 +318,7 @@ def convert_coord(tuple_list, in_epsg, out_epsg):
 
 _k_prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*')
 
-def extract_product_start_time(product_name : str):
+def extract_product_start_time(product_name : str) -> Optional[Dict[str, str]]:
     """
     Extracts product start time from its name.
 
@@ -302,7 +333,7 @@ def extract_product_start_time(product_name : str):
     return {'YYYY': YYYY, 'MM': MM, 'DD': DD, 'hh': hh, 'mm': mm, 'ss': ss}
 
 
-def get_date_from_s1_raster(path_to_raster):
+def get_date_from_s1_raster(path_to_raster: str) -> str:
     """
     Small utilty function that parses a s1 raster file name to extract date.
 
@@ -315,7 +346,7 @@ def get_date_from_s1_raster(path_to_raster):
     return path_to_raster.split("/")[-1].split("-")[4]
 
 
-def get_polar_from_s1_raster(path_to_raster):
+def get_polar_from_s1_raster(path_to_raster: str) -> str:
     """
     Small utilty function that parses a s1 raster file name to
     extract polarization.
@@ -329,7 +360,7 @@ def get_polar_from_s1_raster(path_to_raster):
     return path_to_raster.split("/")[-1].split("-")[3]
 
 
-def get_platform_from_s1_raster(path_to_raster):
+def get_platform_from_s1_raster(path_to_raster: str) -> str:
     """
     Small utilty function that parses a s1 raster file name to extract platform
 
@@ -349,12 +380,12 @@ class ExecutionTimer:
     with ExecutionTimer("the code", True) as t:
         Code_to_measure()
     """
-    def __init__(self, text, do_measure):
+    def __init__(self, text, do_measure) -> None:
         self._text       = text
         self._do_measure = do_measure
 
-    def __enter__(self):
-        self._start = timer()
+    def __enter__(self) -> "ExecutionTimer":
+        self._start = timer()  # pylint: disable=attribute-defined-outside-init
         return self
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
@@ -364,7 +395,7 @@ class ExecutionTimer:
         return False
 
 
-def list_files(directory, pattern=None):
+def list_files(directory: str, pattern=None) -> List[os.DirEntry]:
     """
     Efficient listing of files in requested directory.
 
@@ -379,11 +410,12 @@ def list_files(directory, pattern=None):
         filt = lambda path: path.is_file()
 
     with os.scandir(directory) as nodes:
-        res = [entry for entry in nodes if filt(entry)]
+        res = list(filter(filt, nodes))
+        # res = [entry for entry in nodes if filt(entry)]
     return res
 
 
-def list_dirs(directory, pattern=None):
+def list_dirs(directory: str, pattern=None) -> List[os.DirEntry]:
     """
     Efficient listing of sub-directories in requested directory.
 
@@ -398,7 +430,8 @@ def list_dirs(directory, pattern=None):
         filt = lambda path: path.is_dir()
 
     with os.scandir(directory) as nodes:
-        res = [entry for entry in nodes if filt(entry)]
+        res = list(filter(filt, nodes))
+        # res = [entry for entry in nodes if filt(entry)]
     return res
 
 
@@ -410,14 +443,14 @@ class RedirectStdToLogger:
     This is a very simplified version tuned to answer S1Tiling needs.
     It also acts as a context manager.
     """
-    def __init__(self, logger):
+    def __init__(self, logger_) -> None:
         self.__old_stdout = sys.stdout
         self.__old_stderr = sys.stderr
-        self.__logger     = logger
-        sys.stdout = RedirectStdToLogger.__StdOutErrAdapter(logger)
-        sys.stderr = RedirectStdToLogger.__StdOutErrAdapter(logger, logging.ERROR)
+        self.__logger     = logger_
+        sys.stdout = RedirectStdToLogger.__StdOutErrAdapter(self.__logger)
+        sys.stderr = RedirectStdToLogger.__StdOutErrAdapter(self.__logger, logging.ERROR)
 
-    def __enter__(self):
+    def __enter__(self) -> 'RedirectStdToLogger':
         return self
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
@@ -429,8 +462,8 @@ class RedirectStdToLogger:
         """
         Internal adapter that redirects messages, initially sent to a file, to a logger.
         """
-        def __init__(self, logger, mode=None):
-            self.__logger     = logger
+        def __init__(self, logger_, mode=None) -> None:
+            self.__logger     = logger_
             self.__mode       = mode  # None => adapt DEBUG/INFO/ERROR/...
             self.__last_level = mode  # None => adapt DEBUG/INFO/ERROR/...
             self.__lvl_re     = re.compile(r'(\((DEBUG|INFO|WARNING|ERROR)\))')
@@ -440,7 +473,7 @@ class RedirectStdToLogger:
                     'WARNING': logging.WARNING,
                     'ERROR':   logging.ERROR}
 
-        def write(self, message):
+        def write(self, message) -> None:
             """
             Overrides sys.stdout.write() method
             """
@@ -459,13 +492,13 @@ class RedirectStdToLogger:
                 self.__last_level = lvl
                 self.__logger.log(lvl, msg)
 
-        def flush(self):
+        def flush(self) -> None:
             """
             Overrides sys.stdout.flush() method
             """
             pass
 
-        def isatty(self):  # pylint: disable=no-self-use
+        def isatty(self) -> bool:
             """
             Overrides sys.stdout.isatty() method.
             This is required by OTB Python bindings.
@@ -473,7 +506,7 @@ class RedirectStdToLogger:
             return False
 
 
-def remove_files(files: list):
+def remove_files(files: list) -> None:
     """
     Removes the files from the disk
     """
@@ -488,7 +521,7 @@ class TopologicalSorter:
     """
     Depth-first topological_sort implementation
     """
-    def __init__(self, dag, fetch_successor_function=None):
+    def __init__(self, dag: Dict, fetch_successor_function: Optional[Callable]=None) -> None:
         """
         constructor
         """
@@ -499,24 +532,24 @@ class TopologicalSorter:
         else:
             self.__successors        = self.__successors_direct
 
-    def depth(self, start_nodes):
+    def depth(self, start_nodes: Union[List, Set, KeysView]) -> List:
         """
         Depth-first topological sorting method
         """
-        results = []
-        visited_nodes = {}
+        results       : List = []
+        visited_nodes : Dict = {}
         self.__recursive_depth_first(start_nodes, results, visited_nodes)
         return reversed(results)
 
-    def __successors_lazy(self, node):
+    def __successors_lazy(self, node: Any) -> List:
         node_info = self.__table.get(node, None)
         # logging.debug('node:%s ; infos=%s', node, node_info)
         return self.__successor_fetcher(node_info) if node_info else []
 
-    def __successors_direct(self, node):
+    def __successors_direct(self, node: Any) -> List:
         return self.__table.get(node, [])
 
-    def __recursive_depth_first(self, start_nodes, results, visited_nodes):
+    def __recursive_depth_first(self, start_nodes: Union[List, Set, KeysView], results: List, visited_nodes: Dict[Any, int]) -> None:
         # logging.debug('start_nodes: %s', start_nodes)
         for node in start_nodes:
             visited = visited_nodes.get(node, 0)
@@ -534,7 +567,7 @@ class TopologicalSorter:
             visited_nodes[node] = 1 # visited
             results.append(node)
 
-def tsort(dag, start_nodes, fetch_successor_function=None):
+def tsort(dag: Dict, start_nodes: Union[List, Set, KeysView], fetch_successor_function: Optional[Callable]=None):
     """
     Topological sorting function (depth-first)
 

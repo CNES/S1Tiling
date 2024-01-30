@@ -85,7 +85,7 @@ setup(
         "graphviz",
         "numpy",
         "objgraph", # leaks
-        "packaging", # version
+        # "packaging", # version
         "pympler", # leaks
         "pyyaml",
         # Any way to require OTB ?
@@ -101,6 +101,7 @@ setup(
             # "twine",
             "wheel",
             "flake8",
+            "mypy",
             "pre-commit",
             "pytest-bdd < 6",  # Using "example table" feature, removed from v6
             #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x
@@ -110,13 +111,14 @@ setup(
             "pylint",
             ],
         "docs": [
-            "jinja2 == 3.0.3",
+            "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
+            "jinja2",
             "m2r2",
             "natsort",
-            "nbsphinx == 0.3.5",
-            "nbsphinx-link == 1.1.1",
-            "sphinx == 1.8.0",
-            "sphinx_rtd_theme",
+            "nbsphinx==0.9.3",
+            "nbsphinx-link==1.3.0",
+            "sphinx~=7.1",
+            "sphinx_rtd_theme~=1.3.0",
             ],
         },
 

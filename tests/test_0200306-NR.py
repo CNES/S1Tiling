@@ -47,9 +47,8 @@ from .mock_data import FileDB
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
 import s1tiling.libs.configuration
-from s1tiling.libs.otbpipeline import ram as param_ram
-
-from s1tiling.libs.otbpipeline import _fetch_input_data, out_filename
+from s1tiling.libs.meta import out_filename
+from s1tiling.libs.steps import ram as param_ram
 
 
 # ======================================================================
@@ -280,8 +279,8 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         for (kw, val) in img_meta.items():
             assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
-    mocker.patch('s1tiling.libs.otbpipeline.AbstractStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.otbpipeline.commit_execution',                    lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.steps.AbstractStep._write_image_metadata',  mock_write_image_metadata)
+    mocker.patch('s1tiling.libs.steps.commit_execution',                    lambda tmp, out : True)
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))

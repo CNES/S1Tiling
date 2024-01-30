@@ -9,6 +9,7 @@ Simple visualization of dask graph pipelines.
 """
 
 import os
+from typing import Dict, Optional
 import graphviz
 
 from dask.utils import key_split
@@ -25,19 +26,19 @@ __contact__ = "https://gist.github.com/jcrist/dc5b7cedfddff123f2177e5238e566e5"
 
 
 class SimpleComputationGraph:
-    def __init__(self):
+    def __init__(self) -> None:
         return
 
     @staticmethod
-    def _node_key(s):
+    def _node_key(s) -> str:
         if isinstance(s, tuple):
             return s[0]
         return str(s)
 
     def simple_graph(self,
-                     x,
+                     x: Dict,
                      filename='simple_computation_graph',
-                     format=None):
+                     format : Optional[str]=None):
 
         if hasattr(x, 'dask'):
             dsk = x.__dask_optimize__(x.dask, x.__dask_keys__())

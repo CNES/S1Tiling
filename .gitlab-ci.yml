@@ -222,6 +222,5 @@ ubuntu-user:
     STEP: user
   only:
   - /^[0-9]+\.[0-9]+.*/
-  - /^145-entrypoint.*/
 
 # vim: set sw=2:

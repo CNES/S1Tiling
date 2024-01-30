@@ -38,24 +38,45 @@ import os
 import shutil
 import re
 from abc import abstractmethod
+from typing import Dict, List, Type, Union
+# from packaging import version
 
 import numpy as np
 from osgeo import gdal
 import otbApplication as otb
 
-from .otbpipeline import (StepFactory, _FileProducingStepFactory, OTBStepFactory,
-        ExecutableStepFactory, in_filename, out_filename, tmp_filename,
-        manifest_to_product_name, AbstractStep, otb_version, _check_input_step_type,
-        _fetch_input_data, OutputFilenameGenerator,
-        OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
-        ReplaceOutputFilenameGenerator, commit_execution, is_running_dry,
-        get_task_name, Step, ram)
+from .file_naming   import (
+        OutputFilenameGeneratorList, ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
+)
+from .meta import (
+        Meta, get_task_name, in_filename, out_filename, tmp_filename, is_running_dry,
+)
+from .steps import (
+        InputList, OTBParameters, ExeParameters,
+        _check_input_step_type,
+        AbstractStep, StepFactory,
+        _FileProducingStepFactory, ExecutableStepFactory, OTBStepFactory,
+        FirstStep, MergeStep,
+        commit_execution, manifest_to_product_name,
+        ram,
+)
+from .otbpipeline import (
+    _fetch_input_data, TaskInputInfo,
+)
+from .otbtools import otb_version
 from . import Utils
+from .configuration import Configuration
 from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling.wrappers')
 
-def append_to(meta, key, value):
+
+# InputList     = List[Dict[str, AbstractStep]]
+# OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
+# ExeParameters = List[str]
+
+
+def append_to(meta: Meta, key: str, value) -> Dict:
     """
     Helper function to append to a list that may be empty
     """
@@ -63,7 +84,7 @@ def append_to(meta, key, value):
     return meta
 
 
-def has_too_many_NoData(image, threshold, nodata):
+def has_too_many_NoData(image, threshold: int, nodata: Union[float, int]) -> bool:
     """
     Analyses whether an image contains NO DATA.
 
@@ -76,7 +97,7 @@ def has_too_many_NoData(image, threshold, nodata):
     return nbNoData > threshold
 
 
-def extract_IPF_version(tifftag_software):
+def extract_IPF_version(tifftag_software: str) -> str:
     """
     Extracts a comparable IPF version number
     for packaging.version.parse for instance.
@@ -95,23 +116,23 @@ class ExtractSentinel1Metadata(StepFactory):
     Note: At this moment it needs to be used on a separate pipeline to make
     sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:  # pylint: disable=unused-argument
         super().__init__('ExtractSentinel1Metadata')
 
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta) -> str:
         """
         Forward the output filename.
         """
         return meta['out_filename']
 
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta) -> str:
         """
         As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
         there is no temporary filename.
         """
         return self.build_step_output_filename(meta)
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
@@ -133,9 +154,8 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 
         meta['task_name']        = f'ExtractS1Meta_{meta["basename"]}'
-        return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set the common and root information that'll get carried around.
         """
@@ -160,7 +180,7 @@ class ExtractSentinel1Metadata(StepFactory):
             date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
         imd['ACQUISITION_DATETIME'] = date
 
-    def _get_canonical_input(self, inputs):
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
@@ -179,7 +199,7 @@ class ExtractSentinel1Metadata(StepFactory):
             assert 'insar' in keys
             return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Complete meta information with inputs
         """
@@ -201,27 +221,29 @@ class AnalyseBorders(StepFactory):
     Found information will be stored into the `meta` dictionary for later use
     by :class:`CutBorders` step factory.
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor
         """
         super().__init__('AnalyseBorders')
         self.__override_azimuth_cut_threshold_to = cfg.override_azimuth_cut_threshold_to
 
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta) -> str:
         """
         Forward the output filename.
         """
         return meta['out_filename']
 
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta) -> str:
         """
         As there is no OTB application associated to :class:`AnalyseBorders`,
         there is no temporary filename.
         """
         return self.build_step_output_filename(meta)
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(  # pylint: disable=too-many-locals
+            self, meta: Meta, all_inputs: InputList
+    ) -> Meta:
         """
         Complete meta information with Cutting thresholds.
         """
@@ -242,8 +264,7 @@ class AnalyseBorders(StepFactory):
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        # tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')
-        # Ex: Sentinel-1 IPF 003.10
+        # tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE') # Ex: Sentinel-1 IPF 003.10
 
         # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
         # see Issue #88
@@ -293,7 +314,7 @@ k_calib_convert = {'normlim' : 'beta'}
 class Calibrate(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
+    :external:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
     Calibration` documentation.
 
     Requires the following information from the configuration object:
@@ -309,7 +330,7 @@ class Calibrate(OTBStepFactory):
     - output filename
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor
         """
@@ -330,13 +351,14 @@ class Calibrate(OTBStepFactory):
         self.__calibration_type   = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
         self.__removethermalnoise = cfg.removethermalnoise
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the ``calibration_type`` in step metadata.
         """
         meta['calibration_type'] = self.__calibration_type
+        return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set calibration related information that'll get carried around.
         """
@@ -346,12 +368,12 @@ class Calibrate(OTBStepFactory):
         imd['CALIBRATION']   = meta['calibration_type']
         imd['NOISE_REMOVED'] = str(self.__removethermalnoise)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`SARCalibration OTB
+        Returns the parameters to use with :external:doc:`SARCalibration OTB
         application <Applications/app_SARCalibration>`.
         """
-        params = {
+        params : OTBParameters = {
                 'ram'           : ram(self.ram_per_process),
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
@@ -368,7 +390,7 @@ class Calibrate(OTBStepFactory):
 class CorrectDenoising(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
+    :external:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
     documentation.
 
     Requires the following information from the configuration object:
@@ -382,7 +404,7 @@ class CorrectDenoising(OTBStepFactory):
     - output filename
     - lower_signal_value
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
@@ -397,7 +419,7 @@ class CorrectDenoising(OTBStepFactory):
                 )
         self.__lower_signal_value = cfg.lower_signal_value
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set noise correction related information that'll get carried around.
         """
@@ -406,12 +428,12 @@ class CorrectDenoising(OTBStepFactory):
         imd = meta['image_metadata']
         imd['LOWER_SIGNAL_VALUE'] = str(self.__lower_signal_value)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
         """
-        params = {
+        params : OTBParameters = {
                 'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
@@ -423,7 +445,7 @@ class CorrectDenoising(OTBStepFactory):
 class CutBorders(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
+    :external:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
 
     Requires the following information from the configuration object:
 
@@ -438,7 +460,7 @@ class CutBorders(OTBStepFactory):
     - `cut`->`threshold.y.start` -- from :class:`AnalyseBorders`
     - `cut`->`threshold.y.end`   -- from :class:`AnalyseBorders`
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
@@ -451,7 +473,7 @@ class CutBorders(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    # def create_step(self, in_memory: bool, previous_steps):
+    # def create_step(self, in_memory: bool, previous_steps: List[InputList]):
     #     """
     #     This overrides checks whether ResetMargin would cut any border.
     #
@@ -466,9 +488,9 @@ class CutBorders(OTBStepFactory):
     #     else:
     #         return super().create_step(in_memory, previous_steps)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`ResetMargin OTB
+        Returns the parameters to use with :external:doc:`ResetMargin OTB
         application <Applications/app_ResetMargin>`.
         """
         params = {
@@ -487,7 +509,7 @@ class CutBorders(OTBStepFactory):
 class _OrthoRectifierFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` as described in
+    :external:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     This factory will be specialized for calibrated S1 images
@@ -510,7 +532,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `tile_name`
     - `tile_origin`
     """
-    def __init__(self, cfg, fname_fmt, image_description):
+    def __init__(self, cfg: Configuration, fname_fmt: str, image_description: str) -> None:
         """
         Constructor.
         Extract and cache configuration options.
@@ -533,7 +555,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         # (and locally override calibration type in case of normlim calibration)
         self.__calibration_type     = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
@@ -545,7 +567,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         meta['calibration_type'] = self.__calibration_type
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
@@ -554,12 +576,12 @@ class _OrthoRectifierFactory(OTBStepFactory):
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
 
     @abstractmethod
-    def _get_input_image(self, meta):
+    def _get_input_image(self, meta: Meta):
         raise TypeError("_OrthoRectifierFactory does not know how to fetch input image")
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`OrthoRectification OTB
+        Returns the parameters to use with :external:doc:`OrthoRectification OTB
         application <Applications/app_OrthoRectification>`.
         """
         image                   = self._get_input_image(meta)
@@ -568,7 +590,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
                 self.__class__.__name__, meta, image, tile_name)
         out_utm_zone            = tile_name[0:2]
-        out_utm_northern        = (tile_name[2] >= 'N')
+        out_utm_northern        = tile_name[2] >= 'N'
         in_epsg                 = 4326
         out_epsg                = 32600 + int(out_utm_zone)
         if not out_utm_northern:
@@ -607,7 +629,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
 class OrthoRectify(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` as described in
+    :external:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     Requires the following information from the configuration object:
@@ -627,7 +649,7 @@ class OrthoRectify(_OrthoRectifierFactory):
     - `tile_name`
     - `tile_origin`
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         Extract and cache configuration options.
@@ -638,14 +660,14 @@ class OrthoRectify(_OrthoRectifierFactory):
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def _get_input_image(self, meta):
+    def _get_input_image(self, meta: Meta) -> str:
         return in_filename(meta)   # meta['in_filename']
 
 
 class _ConcatenatorFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` as described in
+    :external:doc:`Applications/app_Synthetize` as described in
     :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
@@ -657,17 +679,20 @@ class _ConcatenatorFactory(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg, *args, **kwargs):
-        super().__init__(cfg,
-                appname='Synthetize', name='Concatenation',
-                param_in='il', param_out='out',
-                *args, **kwargs
-                )
+    def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
+        super().__init__(  # type: ignore # mypy issue 4335
+            cfg,
+            appname='Synthetize',
+            name='Concatenation',
+            param_in='il',
+            param_out='out',
+            *args, **kwargs
+        )
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Precompute output basename from the input file(s).
-        Makes sure the :std:doc:`Synthetize OTB application
+        Makes sure the :external:doc:`Synthetize OTB application
         <Applications/app_Synthetize>` would compress its result file,
         through extended filename.
 
@@ -688,26 +713,29 @@ class _ConcatenatorFactory(OTBStepFactory):
             logger.debug('DONT register single file to remove after concatenation: %s', in_file)
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set concatenation related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        inp = self._get_canonical_input(all_inputs)
+        inp = self._get_canonical_input(all_inputs) # input_metas in FirstStep, MergeStep
+        assert isinstance(inp, (FirstStep, MergeStep))
         if len(inp.input_metas) >= 2:
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
             imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            imd[f'ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(product_names[0])))
+            acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
+            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
             for idx, pn in enumerate(product_names, start=1):
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(Utils.extract_product_start_time(os.path.basename(pn)))
+                acq_time = Utils.extract_product_start_time(os.path.basename(pn))
+                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`Synthetize OTB
+        Returns the parameters to use with :external:doc:`Synthetize OTB
         application <Applications/app_Synthetize>`.
         """
         return {
@@ -716,7 +744,7 @@ class _ConcatenatorFactory(OTBStepFactory):
                 # self.param_out     : out_filename(meta),
                 }
 
-    def create_step(self, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
         """
         :func:`create_step` is overridden in :class:`Concatenate` case in
         order to by-pass Concatenation in case there is only a single file.
@@ -745,7 +773,7 @@ class _ConcatenatorFactory(OTBStepFactory):
 class Concatenate(_ConcatenatorFactory):
     """
     Abstract factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` as described in
+    :external:doc:`Applications/app_Synthetize` as described in
     :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
@@ -757,7 +785,7 @@ class Concatenate(_ConcatenatorFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         # TODO: factorise this recurring test!
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
@@ -776,7 +804,7 @@ class Concatenate(_ConcatenatorFactory):
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def update_out_filename(self, meta, with_task_info):  # pylint: disable=unused-argument
+    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
         """
         This hook will be triggered everytime a new compatible input is added.
         The effect is quite unique to :class:`Concatenate` as the name of the
@@ -793,7 +821,7 @@ class Concatenate(_ConcatenatorFactory):
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         in_file = out_filename(meta)
         if isinstance(in_file, list):
             meta['acquisition_stamp'] = meta['acquisition_day']
@@ -803,8 +831,9 @@ class Concatenate(_ConcatenatorFactory):
         else:
             meta['acquisition_stamp'] = meta['acquisition_time']
             logger.debug("Only one file to concatenate, just move it (%s)", in_file)
+        return meta
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Make sure the task_name and the basename are updated
         """
@@ -815,7 +844,7 @@ class Concatenate(_ConcatenatorFactory):
         meta['update_out_filename'] = self.update_out_filename
         in_file               = out_filename(meta)
         if not isinstance(in_file, list):
-            def check_product(meta):
+            def check_product(meta: Meta):
                 task_name       = get_task_name(meta)
                 filename        = out_filename(meta)
                 exist_task_name = os.path.isfile(task_name)
@@ -844,7 +873,7 @@ class BuildBorderMask(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
@@ -856,18 +885,18 @@ class BuildBorderMask(OTBStepFactory):
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
                 )
 
-    def set_output_pixel_type(self, app, meta):
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force the output pixel type to ``UINT8``.
         """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for computing border mask.
         """
-        params = {
+        params : OTBParameters = {
                 'ram'              : ram(self.ram_per_process),
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
@@ -891,7 +920,7 @@ class SmoothBorderMask(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         super().__init__(cfg,
                 appname='BinaryMorphologicalOperation', name='SmoothBorderMask',
                 param_in='in', param_out='out',
@@ -901,16 +930,16 @@ class SmoothBorderMask(OTBStepFactory):
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
                 )
 
-    def set_output_pixel_type(self, app, meta):
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force the output pixel type to ``UINT8``.
         """
         app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`BinaryMorphologicalOperation OTB application
+        :external:doc:`BinaryMorphologicalOperation OTB application
         <Applications/app_BinaryMorphologicalOperation>` to smooth border
         masks.
         """
@@ -959,7 +988,7 @@ class SpatialDespeckle(OTBStepFactory):
     # To be chained in-memory SpatialDespeckle would need to:
     # - recognize 2 compatibles inputs and change the output filename in consequence
     # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         fname_fmt = cfg.fname_fmt_filtered
         super().__init__(cfg,
                 appname='Despeckle', name='Despeckle',
@@ -985,13 +1014,13 @@ class SpatialDespeckle(OTBStepFactory):
                 , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
         assert (self.__nblooks != 0.) != (self.__deramp != 0.)
 
-    # def set_output_pixel_type(self, app, meta):
+    # def set_output_pixel_type(self, app, meta: Meta):
     #     """
     #     Force the output pixel type to ``UINT8``.
     #     """
     #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Register ``is_compatible`` hook for
         :func:`s1tiling.libs.otbpipeline.is_compatible`.
@@ -1002,7 +1031,7 @@ class SpatialDespeckle(OTBStepFactory):
         # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
         meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
 
-    def _is_compatible(self, output_meta, input_meta):
+    def _is_compatible(self, output_meta: Meta, input_meta: Meta) -> bool:
         """
         Tells in the case Despeckle is chained in memory after
         ApplyLIACalibration whether a given sin_LIA input is compatible with
@@ -1014,7 +1043,7 @@ class SpatialDespeckle(OTBStepFactory):
         fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
         return all(input_meta[k] == output_meta[k] for k in fields)
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Complete meta information with inputs, and set compression method to
         DEFLATE.
@@ -1023,7 +1052,7 @@ class SpatialDespeckle(OTBStepFactory):
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set despeckling related information that'll get carried around.
         """
@@ -1038,10 +1067,10 @@ class SpatialDespeckle(OTBStepFactory):
         if self.__nblooks:
             imd['FILTERING_NBLOOKS']   = str(self.__nblooks)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`Despeckle OTB application
+        :external:doc:`Despeckle OTB application
         <Applications/app_Despeckle>` to perform speckle noise reduction.
         """
         assert self.__rad
@@ -1062,7 +1091,7 @@ class SpatialDespeckle(OTBStepFactory):
 # ======================================================================
 # Applications used to produce LIA
 
-def remove_polarization_marks(name):
+def remove_polarization_marks(name: str) -> str:
     """
     Clean filename of any specific polarization mark like ``vv``, ``vh``, or
     the ending in ``-001`` and ``002``.
@@ -1079,25 +1108,26 @@ class AgglomerateDEM(ExecutableStepFactory):
     root S1 product and not the names of the DEM tiles.
     """
 
-    def __init__(self, cfg, *args, **kwargs):
+    def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
         """
         constructor
         """
         fname_fmt = 'DEM_{polarless_rootname}.vrt'
         fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration') or fname_fmt
-        super().__init__(cfg,
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,      # Use gen_tmp_dir,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                name="AgglomerateDEM", exename='gdalbuildvrt',
-                *args, **kwargs)
+        super().__init__(  # type: ignore # mypy issue 4335
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,      # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            name="AgglomerateDEM", exename='gdalbuildvrt',
+            *args, **kwargs)
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_dir             = cfg.dem
         self.__dem_filename_format = cfg.dem_filename_format
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
         provide names clear from polar related informations.
@@ -1108,8 +1138,9 @@ class AgglomerateDEM(ExecutableStepFactory):
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        return meta
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Factory that takes care of extracting meta data from S1 input files.
         """
@@ -1124,10 +1155,11 @@ class AgglomerateDEM(ExecutableStepFactory):
                 meta['dem_infos'])
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
-            raise RuntimeError(f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
+            raise RuntimeError(
+                    f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> ExeParameters:
         # While it won't make much a difference here, we are still using
         # tmp_filename.
         return [tmp_filename(meta)] \
@@ -1136,10 +1168,10 @@ class AgglomerateDEM(ExecutableStepFactory):
 
 class SARDEMProjection(OTBStepFactory):
     """
-    Factory that prepares steps that run :std:doc:`Applications/app_SARDEMProjection`
+    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
     as described in :ref:`Normals computation` documentation.
 
-    :std:doc:`Applications/app_SARDEMProjection` application puts a DEM file
+    :external:doc:`Applications/app_SARDEMProjection` application puts a DEM file
     into SAR geometry and estimates two additional coordinates.
     For each point of the DEM input four components are calculated:
     C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
@@ -1156,10 +1188,10 @@ class SARDEMProjection(OTBStepFactory):
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
     DEM information already registered in dask worker (through
-    :std:doc:`Applications/app_OrthoRectification` for instance) and only use
+    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
     the Geoid.
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
         super().__init__(cfg,
@@ -1174,7 +1206,7 @@ class SARDEMProjection(OTBStepFactory):
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
         provide names clear from polar related informations.
@@ -1186,8 +1218,9 @@ class SARDEMProjection(OTBStepFactory):
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        return meta
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Complete meta information with hook for updating image metadata
         w/ directiontoscandemc, directiontoscandeml and gain.
@@ -1209,7 +1242,7 @@ class SARDEMProjection(OTBStepFactory):
         meta['inbasename'] = inbasename
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set SARDEMProjection related information that'll get carried around.
         """
@@ -1219,7 +1252,7 @@ class SARDEMProjection(OTBStepFactory):
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
         imd['DEM_LIST']     = ', '.join(meta['dems'])
 
-    def add_image_metadata(self, meta, app):  # pylint: disable=no-self-use
+    def add_image_metadata(self, meta: Meta, app) -> None:
         """
         Post-application hook used to complete GDAL metadata.
 
@@ -1243,10 +1276,10 @@ class SARDEMProjection(OTBStepFactory):
         dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
         del dst
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
-        :std:doc:`SARDEMProjection OTB application
+        :external:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
         nodata = meta.get('nodata', -32768)
@@ -1262,7 +1295,7 @@ class SARDEMProjection(OTBStepFactory):
                 'nodata'     : nodata
                 }
 
-    def requirement_context(self):
+    def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
         SARDEMProjection comes from DiapOTB.
@@ -1273,11 +1306,11 @@ class SARDEMProjection(OTBStepFactory):
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_SARCartesianMeanEstimation` as described in
+    :external:doc:`Applications/app_SARCartesianMeanEstimation` as described in
     :ref:`Normals computation` documentation.
 
 
-    :std:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
+    :external:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
     cartesian mean image thanks to a DEM file.
 
     Requires the following information from the configuration object:
@@ -1291,7 +1324,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
     Note: It cannot be chained in memory because of the ``directiontoscandem*`` parameters.
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration):
         fname_fmt = 'XYZ_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('xyz') or fname_fmt
         super().__init__(cfg,
@@ -1303,7 +1336,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 image_description='Cartesian XYZ coordinates estimation',
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
         provide names clear from polar related informations.
@@ -1314,8 +1347,9 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        return meta
 
-    def _get_canonical_input(self, inputs):
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
@@ -1329,7 +1363,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         assert 'indemproj' in keys
         return [input['indemproj'] for input in inputs if 'indemproj' in input.keys()][0]
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList):
         """
         Complete meta information with hook for updating image metadata
         w/ directiontoscandemc, directiontoscandeml and gain.
@@ -1347,7 +1381,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set SARCartesianMeanEstimation related information that'll get carried around.
         """
@@ -1359,7 +1393,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         imd['PRJ.DIRECTIONTOSCANDEMC'] = ""
         imd['PRJ.GAIN']                = ""
 
-    def fetch_direction(self, inputpath, meta):  # pylint: disable=no-self-use
+    def fetch_direction(self, inputpath, meta: Meta) -> None:
         """
         Extract back direction to scan DEM from SARDEMProjected image metadata.
         """
@@ -1377,10 +1411,10 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             meta['directiontoscandeml'] = 42
             meta['directiontoscandemc'] = 42
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`SARCartesianMeanEstimation OTB application
+        :external:doc:`SARCartesianMeanEstimation OTB application
         <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
         coordinates of each point of the origin S1 image.
         """
@@ -1411,11 +1445,11 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 class ComputeNormals(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     as described in :ref:`Normals computation` documentation.
 
 
-    :std:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     computes surface normals.
 
     Requires the following information from the configuration object:
@@ -1427,7 +1461,7 @@ class ComputeNormals(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration):
         fname_fmt = 'Normals_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('normals') or fname_fmt
         super().__init__(cfg,
@@ -1439,15 +1473,16 @@ class ComputeNormals(OTBStepFactory):
                 image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata.
         """
         # Ignore polarization in filenames
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        return meta
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList):
         """
         Override :func:`complete_meta()` to inject files to remove
         """
@@ -1457,10 +1492,10 @@ class ComputeNormals(OTBStepFactory):
         logger.debug('Register files to remove after normals computation: %s', meta['files_to_remove'])
         return meta
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`ExtractNormalVector OTB application
+        :external:doc:`ExtractNormalVector OTB application
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
@@ -1483,11 +1518,11 @@ class ComputeNormals(OTBStepFactory):
 class ComputeLIA(OTBStepFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     as described in :ref:`Normals computation` documentation.
 
 
-    :std:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
 
     Requires the following information from the configuration object:
@@ -1499,7 +1534,7 @@ class ComputeLIA(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration):
         fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
         fname_fmt = [
@@ -1515,22 +1550,22 @@ class ComputeLIA(OTBStepFactory):
                 image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata.
         """
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        return meta
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Override "does_product_exist" hook to take into account the multiple
         output files produced by ComputeLIA
         """
         meta['does_product_exist'] = lambda : all(os.path.isfile(of) for of in out_filename(meta))
-        return meta
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList):
         """
         Complete meta information with inputs
         """
@@ -1538,7 +1573,7 @@ class ComputeLIA(OTBStepFactory):
         meta['inputs'] = all_inputs
         return meta
 
-    def _get_inputs(self, previous_steps):
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
         Extract the last inputs to use at the current level from all previous
         products seens in the pipeline.
@@ -1557,10 +1592,10 @@ class ComputeLIA(OTBStepFactory):
         _check_input_step_type(inputs)
         return inputs
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta):
         """
         Returns the parameters to use with
-        :std:doc:`SARComputeLocalIncidenceAngle OTB application
+        :external:doc:`SARComputeLocalIncidenceAngle OTB application
         <Applications/app_SARComputeLocalIncidenceAngle>`.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
@@ -1595,20 +1630,22 @@ class _FilterStepFactory(StepFactory):
     # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
     _LIA_kind = None
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         meta = super()._update_filename_meta_pre_hook(meta)
         assert self._LIA_kind, "LIA kind should have been set in filter_LIA()"
         meta['LIA_kind'] = self._LIA_kind
         return meta
 
-    def _get_input_image(self, meta):
+    def _get_input_image(self, meta: Meta):
         # Flatten should be useless, but kept for better error messages
         related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta))
                 if re.search(rf'\b{self._LIA_kind}_', f)]
-        assert len(related_inputs) == 1, f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
+        assert len(related_inputs) == 1, (
+            f"Incorrect number ({len(related_inputs)}) of S1 LIA products of type '{self._LIA_kind}' in {in_filename(meta)} found: {related_inputs}"
+        )
         return related_inputs[0]
 
-    def build_step_output_filename(self, meta):
+    def build_step_output_filename(self, meta: Meta):
         """
         Forward the output filename.
         """
@@ -1616,7 +1653,7 @@ class _FilterStepFactory(StepFactory):
         logger.debug('%s KEEP %s from %s', self.__class__.__name__, inp, in_filename(meta))
         return inp
 
-    def build_step_output_tmp_filename(self, meta):
+    def build_step_output_tmp_filename(self, meta: Meta):
         """
         As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
         there is no temporary filename.
@@ -1624,7 +1661,7 @@ class _FilterStepFactory(StepFactory):
         return self.build_step_output_filename(meta)
 
 
-def filter_LIA(LIA_kind):
+def filter_LIA(LIA_kind: str) -> Type[_FilterStepFactory]:
     """
     Generates a new :class:`StepFactory` class that filters which LIA product
     shall be processed: LIA maps or sin LIA maps.
@@ -1639,7 +1676,7 @@ def filter_LIA(LIA_kind):
 class OrthoRectifyLIA(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_OrthoRectification` on LIA maps.
+    :external:doc:`Applications/app_OrthoRectification` on LIA maps.
 
     Requires the following information from the configuration object:
 
@@ -1658,7 +1695,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
     - `tile_name`
     - `tile_origin`
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration):
         """
         Constructor.
         Extract and cache configuration options.
@@ -1669,17 +1706,17 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
                 image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         meta = super()._update_filename_meta_pre_hook(meta)
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         return meta
 
-    def _get_input_image(self, meta):
+    def _get_input_image(self, meta: Meta):
         inp = in_filename(meta)
         assert isinstance(inp, str), f"A single string inp was expected, got {inp}"
         return inp   # meta['in_filename']
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set LIA kind related information that'll get carried around.
         """
@@ -1694,7 +1731,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         imd = meta['image_metadata']
         imd['DATA_TYPE'] = types[kind]
 
-    def set_output_pixel_type(self, app, meta):
+    def set_output_pixel_type(self, app, meta: Meta):
 
         """
         Force LIA output pixel type to ``INT8``.
@@ -1706,7 +1743,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
 class ConcatenateLIA(_ConcatenatorFactory):
     """
     Factory that prepares steps that run
-    :std:doc:`Applications/app_Synthetize` on LIA images.
+    :external:doc:`Applications/app_Synthetize` on LIA images.
 
     Requires the following information from the configuration object:
 
@@ -1717,7 +1754,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
     - input filename
     - output filename
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration):
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         fname_fmt = cfg.fname_fmt.get('lia_concatenation') or fname_fmt
         super().__init__(cfg,
@@ -1727,7 +1764,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Override "update_out_filename" hook to help select the input set with
         the best coverage.
@@ -1737,7 +1774,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Update concatenated LIA related information that'll get carried around.
         """
@@ -1745,7 +1782,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
 
-    def update_out_filename(self, meta, with_task_info):  # pylint: disable=no-self-use
+    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
         Unlike usual :class:`Concatenate`, the output filename will always ends
         in "txxxxxx".
@@ -1757,7 +1794,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         services.
         """
         inputs = with_task_info.inputs['in']
-        dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
+        dates = {re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs}
         assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
         date = min(dates)
         logger.debug('[ConcatenateLIA] at %s:', date)
@@ -1772,7 +1809,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
         meta['tile_coverage'] = coverage
 
-    def set_output_pixel_type(self, app, meta):
+    def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force LIA output pixel type to ``INT8``.
         """
@@ -1795,7 +1832,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
     renamed.
 
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
         super().__init__(cfg, name='SelectBestCoverage',
@@ -1804,7 +1841,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    def _update_filename_meta_pre_hook(self, meta):
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Inject the :func:`reduce_LIAs` hook in step metadata.
         """
@@ -1823,8 +1860,9 @@ class SelectBestCoverage(_FileProducingStepFactory):
             return [best_covered_input]
 
         meta['reduce_inputs_in'] = reduce_LIAs
+        return meta
 
-    def create_step(self, in_memory: bool, previous_steps):
+    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
         inp = self._get_canonical_input(inputs)
@@ -1864,7 +1902,7 @@ class ApplyLIACalibration(OTBStepFactory):
     - acquisition_stamp
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
@@ -1878,7 +1916,7 @@ class ApplyLIACalibration(OTBStepFactory):
                 image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
                 )
 
-    def complete_meta(self, meta, all_inputs):
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Complete meta information with inputs, and set compression method to
         DEFLATE.
@@ -1889,7 +1927,7 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
         return meta
 
-    def update_image_metadata(self, meta, all_inputs):  # pylint: disable=unused-argument
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set σ° normlim calibration related information that'll get carried around.
         """
@@ -1901,7 +1939,7 @@ class ApplyLIACalibration(OTBStepFactory):
         imd['CALIBRATION'] = meta['calibration_type']
         imd['LIA_FILE']    = os.path.basename(in_sin_LIA)
 
-    def _get_canonical_input(self, inputs):
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
@@ -1914,7 +1952,7 @@ class ApplyLIACalibration(OTBStepFactory):
         assert 'concat_S2' in keys
         return [input['concat_S2'] for input in inputs if 'concat_S2' in input.keys()][0]
 
-    def _update_filename_meta_post_hook(self, meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Register ``is_compatible`` hook for
         :func:`s1tiling.libs.otbpipeline.is_compatible`.
@@ -1925,7 +1963,7 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['basename']         = self._get_nominal_output_basename(meta)
         meta['calibration_type'] = 'Normlim'
 
-    def _is_compatible(self, output_meta, input_meta):
+    def _is_compatible(self, output_meta: Meta, input_meta: Meta) -> bool:
         """
         Tells whether a given sin_LIA input is compatible with the the current
         S2 tile.
@@ -1936,9 +1974,9 @@ class ApplyLIACalibration(OTBStepFactory):
         fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
         return all(input_meta[k] == output_meta[k] for k in fields)
 
-    def parameters(self, meta):
+    def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :std:doc:`BandMath OTB application
+        Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
         image orthorectified to S2 tile.
         """
@@ -1947,7 +1985,7 @@ class ApplyLIACalibration(OTBStepFactory):
         in_concat_S2 = _fetch_input_data('concat_S2', inputs).out_filename
         in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
-        params = {
+        params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
                 'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'

@@ -34,7 +34,8 @@ from pathlib import Path
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, MergeStep, FirstStep, to_dask_key
+from s1tiling.libs.steps import MergeStep, FirstStep
+from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
@@ -320,7 +321,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids):
         pipeline_ids['mask'] = pipeline
 
 @given('A pipeline that computes LIA')
-def given_pipeline_ortho(pipelines):
+def given_pipeline_that_computes_LIA(pipelines):
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
@@ -397,7 +398,7 @@ def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, 
     return raster_list
 
 @given('a series of S1 VV images')
-def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
+def given_a_series_of_VV_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
     for i in range(6):
         known_files.append(input_file(i, 'vv'))
         raster_list.append(raster_vv(i))
@@ -826,7 +827,7 @@ def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies):
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('no S2 LIA image is required')
-def then_S2_LIA_image_is_required(dependencies):
+def then_no_S2_LIA_image_is_required(dependencies):
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]

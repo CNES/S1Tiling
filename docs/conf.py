@@ -20,7 +20,7 @@ import os
 import re
 import sys
 import subprocess
-import sphinx_rtd_theme
+# import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('..'))
 
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(os.path.realpath(__file__))))
@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
+    "sphinx_rtd_theme",
     'm2r2'
 ]
 
@@ -143,7 +144,8 @@ todo_include_todos = True
 # html_theme = 'bizstyle'
 html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()+"/sphinx_rtd_theme/static/"]
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -161,13 +163,12 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-    ],
-}
+# Override tables width from RTD theme, and other options
+html_css_files = [
+    'theme_overrides.css'
+]
 
-
+#   
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -240,14 +241,43 @@ texinfo_documents = [
 
 # Configuration for intersphinx
 intersphinx_mapping = {
-    'https://docs.python.org/3/': None,
-    'https://distributed.dask.org/en/latest/': None,
-    'https://docs.dask.org/en/latest/': None,
+    "Python": ("https://docs.python.org/3/", None),
+    "Distributed": ("https://distributed.dask.org/en/latest/", None),
+    "Dask": ("https://docs.dask.org/en/latest/", None),
+    "Gdal": ("https://gdal.org/", None),
+    # "numpy": ("http://docs.scipy.org/doc/numpy", None),
+
+
     # 'https://www.orfeo-toolbox.org/CookBook/': None,
     # Using CookBook from OTB 7.4 as it still distributes DiapOTB.
-    'https://www.orfeo-toolbox.org/CookBook-7.4/': None,
-    'https://gdal.org/': None,
+    "OTB": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
 }
+
+
+def autodoc_process_docstring(app, what, name, obj, options, lines):
+    """
+    Used to fix docstrings on-the-fly when generatiing pages with sphinx
+    See https://github.com/sphinx-doc/sphinx/issues/10151
+    """
+    for i in range(len(lines)):
+        # Auto convert np.whatever into numpy.whatever in docstrings for sphinx
+        lines[i] = lines[i].replace("np.", "numpy.")
+        lines[i] = lines[i].replace("Callable[",  "~typing.Callable[")
+        lines[i] = lines[i].replace("Generator[", "~typing.Generator[")
+        lines[i] = lines[i].replace("Generic[",   "~typing.Generic[")
+        lines[i] = lines[i].replace("Any",        "~typing.Any")
+        lines[i] = lines[i].replace("Dict[",      "~typing.Dict[")
+        lines[i] = lines[i].replace("Iterator[",  "~typing.Iterator[")
+        lines[i] = lines[i].replace("List[",      "~typing.List[")
+        lines[i] = lines[i].replace("Literal[",   "~typing.Literal[")
+        lines[i] = lines[i].replace("KeysView[",  "~typing.KeysView[")
+        lines[i] = lines[i].replace("Optional[",  "~typing.Optional[")
+        lines[i] = lines[i].replace("Set[",       "~typing.Set[")
+        lines[i] = lines[i].replace("Tuple[",     "~typing.Tuple[")
+        lines[i] = lines[i].replace("Type[",      "~typing.Type[")
+        lines[i] = lines[i].replace("TypeVar[",   "~typing.TypeVar[")
+        lines[i] = lines[i].replace("Union[",     "~typing.Union[")
+
 
 # Configuration for inheritance_diagram
 inheritance_graph_attrs = dict(rankdir="TB")
