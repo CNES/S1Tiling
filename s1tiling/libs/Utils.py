@@ -47,7 +47,13 @@ from osgeo import osr
 
 from .S1DateAcquisition import S1DateAcquisition
 
-logger = logging.getLogger('s1tiling.utils')
+EXTENSION_TO_DRIVER_MAP = {
+    '.gpkg': 'GPKG',
+    '.shp': 'ESRI Shapefile',
+}
+
+
+logger = logging.getLogger("s1tiling.utils")
 
 
 def flatten_stringlist(itr):
@@ -69,13 +75,17 @@ class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid, driver_name="ESRI Shapefile") -> None:
-        logger.debug("Open Layer(%s, %s)", grid, driver_name)
+    def __init__(self, grid, driver_name: Optional[str]=None) -> None:
+        if not driver_name:
+            _, ext = os.path.splitext(grid)
+            driver_name = EXTENSION_TO_DRIVER_MAP.get(ext, "ESRI Shapefile")
+            logging.debug("'%s' database extension: '%s'; using '%s' driver", grid, ext, driver_name)
+
         self.__grid        = grid
         self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
-        if self.__data_source is None:
-            raise RuntimeError(f"Impossible to open layer {driver_name} layer {grid!r}")
+        if not self.__data_source:
+            raise RuntimeError(f"Cannot open {grid} with {driver_name} driver")
         self.__layer       = self.__data_source.GetLayer()
 
     def __iter__(self) -> Iterator[ogr.Feature]:
@@ -89,7 +99,7 @@ class Layer:
         """
         self.__layer.ResetReading()
 
-    def find_tile_named(self, tile_name_field: str) -> ogr.Feature:
+    def find_tile_named(self, tile_name_field: str) -> Optional[ogr.Feature]:
         """
         Search for a tile that maches the name.
         """
@@ -98,8 +108,12 @@ class Layer:
                 return tile
         return None
 
+    def get_spatial_reference(self) -> osr.SpatialReference:
+        """Returns the SpatialReference the Layer is in"""
+        return self.__layer.GetSpatialRef()
 
-def get_relative_orbit(manifest) -> int:
+
+def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
     Returns the relative orbit number of the product.
     """
@@ -112,7 +126,9 @@ def get_relative_orbit(manifest) -> int:
     return int(ron.text)
 
 
-def get_origin(manifest)-> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]]:
+def get_origin(
+        manifest: Union[str, Path]
+) -> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float], str]:
     """Parse the coordinate of the origin in the manifest file to return its footprint.
 
     Args:
@@ -121,16 +137,35 @@ def get_origin(manifest)-> Tuple[Tuple[float,float], Tuple[float,float], Tuple[f
     Returns:
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
-    with open(manifest, "r", encoding="utf-8") as save_file:
-        for line in save_file:
-            if "<gml:coordinates>" in line:
-                coor = line.replace("                <gml:coordinates>", "")\
-                           .replace("</gml:coordinates>", "").split(" ")
-                coord = [(float(val.replace("\n", "").split(",")[0]),
-                          float(val.replace("\n", "").split(",")[1]))
-                          for val in coor]
-                return coord[0], coord[1], coord[2], coord[3]
-        raise RuntimeError(f"Coordinates not found in {manifest!r}")
+    prefix_map = {"safe": "http://www.esa.int/safe/sentinel-1.0"}
+    root = ET.parse(manifest)
+    node_footprint = root.find("metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
+              prefix_map)
+    if node_footprint is None:
+        raise RuntimeError(f"Cannot find coordinates in manifest {manifest!r}")
+    srsName = node_footprint.attrib['srsName']
+    srsName = re.sub(r"http://www.opengis.net/gml/srs/(epsg).xml#(\d+)", r"\1:\2", srsName)
+
+    coord_text = node_footprint.findtext('{http://www.opengis.net/gml}coordinates')
+    if coord_text is None:
+        raise RuntimeError(f"Cannot find coordinates in manifest {manifest!r}")
+
+    assert coord_text
+    coord = [(float(val.replace("\n", "").split(",")[0]),
+              float(val.replace("\n", "").split(",")[1]))
+              for val in coord_text.split(" ")]
+    return coord[0], coord[1], coord[2], coord[3], srsName
+
+    # with open(manifest, "r", encoding="utf-8") as save_file:
+    #     for line in save_file:
+    #         if "<gml:coordinates>" in line:
+    #             coor = line.replace("                <gml:coordinates>", "")\
+    #                        .replace("</gml:coordinates>", "").split(" ")
+    #             coord = [(float(val.replace("\n", "").split(",")[0]),
+    #                       float(val.replace("\n", "").split(",")[1]))
+    #                       for val in coor]
+    #             return coord[0], coord[1], coord[2], coord[3]
+    #     raise RuntimeError(f"Coordinates not found in {manifest!r}")
 
 
 def get_shape_from_polygon(
@@ -138,8 +173,11 @@ def get_shape_from_polygon(
 ) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
-    """
 
+    .. note:
+        For the moment, return the Geometry in OAMS_TRADITIONAL_GIS_ORDER (lat, lon; as in GDAL 2.x for WGS84).
+        This also means we expect the polygon returned in WGS84
+    """
     nw_coord, ne_coord, se_coord, sw_coord = polygon
     poly = ogr.Geometry(ogr.wkbPolygon)
     ring = ogr.Geometry(ogr.wkbLinearRing)
@@ -156,8 +194,14 @@ def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
     """
-    nw_coord, ne_coord, se_coord, sw_coord = get_origin(manifest)
-    return get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
+    nw_coord, ne_coord, se_coord, sw_coord, srsName = get_origin(manifest)
+    shape = get_shape_from_polygon((nw_coord, ne_coord, se_coord, sw_coord))
+    sr = osr.SpatialReference()
+    sr.SetFromUserInput(srsName)
+    assert sr.GetName() == "WGS 84", f"Expected SpatialReference name to be 'WGS 84', found {sr.GetName()}"
+    sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    shape.AssignSpatialReference(sr)
+    return shape
 
 def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     """
@@ -168,7 +212,7 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     else:
         manifest = s1image.get_manifest()
 
-    logging.debug("Manifest: %s", manifest)
+    logger.debug("Manifest: %s", manifest)
     assert manifest.exists()
     poly = get_shape(manifest)
     return poly
@@ -210,26 +254,45 @@ def find_dem_intersecting_poly(
 ) -> Dict[str,Any]:
     """
     Searches the DEM tiles that intersect the specifid polygon
+
+    precondition: Expect poly.GetSpatialReference() and dem_layer.get_spatial_reference() to be identical!
     """
     # main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, dem_field_ids))
     # main_id = (main_ids or dem_field_ids)[0]
     # logger.debug('Using %s as DEM tile main id for name', main_id)
 
     dem_tiles = {}
+
+    # Makes sure poly is expressed in the Layer SpatialReference
+    orig_spatial_reference = poly.GetSpatialReference()
+    out_sr = dem_layer.get_spatial_reference()
+    # out_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    if orig_spatial_reference.GetName() != out_sr.GetName():
+        poly = poly.Clone()
+        res = poly.TransformTo(out_sr)
+        if res != 0:
+            raise RuntimeError(
+                    f"Cannot convert footprint from {orig_spatial_reference.GetName()!r} to {out_sr.GetName()!r}")
     area = poly.GetArea()
+    logger.debug("Searching for DEM intersecting %s/%s", poly, poly.GetSpatialReference().GetName())
 
     dem_layer.reset_reading()
+    tested = 0
+    found = 0
     for dem_tile in dem_layer:
+        tested += 1
         dem_footprint = dem_tile.GetGeometryRef()
         intersection = poly.Intersection(dem_footprint)
         if intersection.GetArea() > 0.0:
-            # logging.debug("Tile: %s", dem_tile)
+            found += 1
+            # logger.debug("Tile: %s", dem_tile)
             coverage = intersection.GetArea() / area
             dem_info = {}
             for field_id in dem_field_ids:
                 dem_info[field_id] = dem_tile.GetField(field_id)
             dem_info['_coverage'] = coverage
             dem_tiles[dem_info[main_id]] = dem_info
+    logger.debug("Found %s DEM tiles among %s", found, tested)
     return dem_tiles
 
 
@@ -245,13 +308,13 @@ def find_dem_intersecting_raster(
     poly = get_s1image_poly(s1image)
     assert dem_db_filepath
     assert os.path.isfile(dem_db_filepath)
-    dem_layer = Layer(dem_db_filepath, driver_name='GPKG')
+    dem_layer = Layer(dem_db_filepath)
 
-    logging.info("Shape of %s: %s", os.path.basename(s1image), poly)
+    logger.info("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
 
 
-def get_orbit_direction(manifest: str) -> Literal['DES', 'ASC']:
+def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:
     """This function returns the orbit direction from a S1 manifest file.
 
     Args:
@@ -311,7 +374,7 @@ def convert_coord(
 
         coord_trans = osr.CoordinateTransformation(in_spatial_ref, out_spatial_ref)
         coord = coord_trans.TransformPoint(lon, lat)
-        # logging.debug("convert_coord(lon=%s, lat=%s): %s, %s ==> %s", in_epsg, out_epsg, lon, lat, coord)
+        # logger.debug("convert_coord(lon=%s, lat=%s): %s, %s ==> %s", in_epsg, out_epsg, lon, lat, coord)
         tuple_out.append(coord)
     return tuple_out
 
@@ -388,10 +451,10 @@ class ExecutionTimer:
         self._start = timer()  # pylint: disable=attribute-defined-outside-init
         return self
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         if self._do_measure:
             end = timer()
-            logging.info("%s took %ssec", self._text, end - self._start)
+            logger.info("%s took %ssec", self._text, end - self._start)
         return False
 
 
@@ -453,7 +516,7 @@ class RedirectStdToLogger:
     def __enter__(self) -> 'RedirectStdToLogger':
         return self
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         sys.stdout = self.__old_stdout
         sys.stderr = self.__old_stderr
         return False
@@ -511,7 +574,7 @@ def remove_files(files: list) -> None:
     Removes the files from the disk
     """
     assert isinstance(files, list)
-    logging.debug("Remove %s", files)
+    logger.debug("Remove %s", files)
     for file_it in files:
         if os.path.exists(file_it):
             os.remove(file_it)
@@ -543,14 +606,14 @@ class TopologicalSorter:
 
     def __successors_lazy(self, node: Any) -> List:
         node_info = self.__table.get(node, None)
-        # logging.debug('node:%s ; infos=%s', node, node_info)
+        # logger.debug('node:%s ; infos=%s', node, node_info)
         return self.__successor_fetcher(node_info) if node_info else []
 
     def __successors_direct(self, node: Any) -> List:
         return self.__table.get(node, [])
 
     def __recursive_depth_first(self, start_nodes: Union[List, Set, KeysView], results: List, visited_nodes: Dict[Any, int]) -> None:
-        # logging.debug('start_nodes: %s', start_nodes)
+        # logger.debug('start_nodes: %s', start_nodes)
         for node in start_nodes:
             visited = visited_nodes.get(node, 0)
             if   visited == 1:
@@ -566,6 +629,7 @@ class TopologicalSorter:
                 raise e
             visited_nodes[node] = 1 # visited
             results.append(node)
+
 
 def tsort(dag: Dict, start_nodes: Union[List, Set, KeysView], fetch_successor_function: Optional[Callable]=None):
     """

@@ -50,9 +50,9 @@ from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
 from eodag.api.search_result import SearchResult
+from eodag.utils             import get_geometry_from_various
 from eodag.utils.exceptions  import NotAvailableError
 from eodag.utils.logging     import setup_logging
-from eodag.utils             import get_geometry_from_various
 try:
     from shapely.errors import TopologicalError
 except ImportError:
@@ -63,6 +63,7 @@ import numpy as np
 from s1tiling.libs      import exceptions
 from .Utils             import (
     get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly,
+        get_platform_from_s1_raster
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
@@ -332,6 +333,7 @@ def _discard_small_redundant(
     """
     if not products:
         return products
+    assert ident is not None, "Please call with a ident parameter!"
     prod_re = re.compile(r'S1._IW_...._...._(\d{8}T\d{6})_(\d{8}T\d{6}).*')
 
     ordered_products = sorted(products, key=ident)
@@ -690,9 +692,10 @@ class S1FileManager:
             logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
             for _, dem_tile_info in dem_tile_infos.items():
-                dem_file = dem_filename_format.format_map(dem_tile_info)
+                dem_file         = dem_filename_format.format_map(dem_tile_info)
                 dem_tile_filepath=Path(self.cfg.dem, dem_file)
-                dem_tile_filelink=Path(self.__tmpdemdir.name, dem_file)
+                dem_tile_filelink=Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
+                dem_tile_filelink.parent.mkdir(parents=True, exist_ok=True)
                 if self.__caching_option == 'symlink':
                     logger.debug('- ln -s %s <-- %s', dem_tile_filepath, dem_tile_filelink)
                     dem_tile_filelink.symlink_to(dem_tile_filepath)
@@ -858,7 +861,7 @@ class S1FileManager:
                                            # And let's suppose nobody deletd files
                                            # manually!
         products = list(filter(lambda p: ident(p) not in self._product_list, products))
-        # products = [p for p in products if ident(p) not in self._product_list ]
+        # products = [p for p in products if ident(p) not in self._product_list]
         # logger.debug('Products cache: %s', self._product_list.keys())
         logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
         if not products:  # no need to continue
@@ -1177,7 +1180,8 @@ class S1FileManager:
         if not current_tile:
             logger.info("Tile %s does not exist", tile_name)
             return []
-        products_info = _keep_products_with_enough_coverage(products_info, self.cfg.tile_to_product_overlap_ratio, current_tile)
+        products_info = _keep_products_with_enough_coverage(
+                products_info, self.cfg.tile_to_product_overlap_ratio, current_tile)
         return products_info
 
     def _update_s1_img_list_for(  # pylint: disable=too-many-locals
@@ -1375,16 +1379,18 @@ class S1FileManager:
           A list of tuples (DEM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        dem_layer = Layer(self.cfg.dem_db_filepath, driver_name='GPKG')
+        dem_layer = Layer(self.cfg.dem_db_filepath)
 
         needed_dem_tiles = {}
 
         for tile in tiles_to_process:
-            logger.debug("Check DEM tile for %s", tile)
+            logger.debug("Check DEM tiles for %s", tile)
             mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
+            logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
             dem_tiles = find_dem_intersecting_poly(
                     mgrs_footprint, dem_layer, self.cfg.dem_field_ids, self.cfg.dem_main_field_id)
             needed_dem_tiles[tile] = dem_tiles
+            logger.info("S2 tile %s is covered by %s DEM tiles", tile, len(dem_tiles))
         logger.info("DEM ok")
         return needed_dem_tiles
 
