@@ -143,7 +143,7 @@ Again the processing classes are split in two families:
 Step Factories
 ++++++++++++++
 
-.. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
+.. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps.AnyProducerStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
    :parts: 1
    :top-classes: s1tiling.libs.steps.StepFactory
    :private-bases:
@@ -179,6 +179,14 @@ Step Factories
 
    .. automethod:: __init__
 
+``AnyProducerStepFactory``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: s1tiling.libs.steps.AnyProducerStepFactory
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 ``ExecutableStepFactory``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -199,7 +207,7 @@ Step Factories
 Steps
 +++++
 
-.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._StepWithOTBApplication
+.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.AnyProducerStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._ProducerStep
    :parts: 1
    :top-classes: s1tiling.libs.steps.AbstractStep
    :private-bases:
@@ -218,6 +226,8 @@ Step types are usually instantiated automatically.
   found several possible inputs that lead to a product.
 - :class:`Step <s1tiling.libs.steps.Step>` is the main class for steps
   that execute an OTB application.
+- :class:`AnyProducerStep <s1tiling.libs.steps.AnyProducerStep>` is the
+  main class for steps that execute a Python function.
 - :class:`ExecutableStep <s1tiling.libs.steps.ExecutableStep>` is the
   main class for steps that execute an external application.
 - :class:`AbstractStep <s1tiling.libs.steps.AbstractStep>` is the root
@@ -238,10 +248,10 @@ Step types are usually instantiated automatically.
    :members:
    :show-inheritance:
 
-``_StepWithOTBApplication``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``MergeStep``
+~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.steps._StepWithOTBApplication
+.. autoclass:: s1tiling.libs.steps.MergeStep
    :members:
    :show-inheritance:
 
@@ -252,10 +262,10 @@ Step types are usually instantiated automatically.
    :members:
    :show-inheritance:
 
-``MergeStep``
-~~~~~~~~~~~~~
+``AnyProducerStep``
+~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.steps.MergeStep
+.. autoclass:: s1tiling.libs.steps.AnyProducerStep
    :members:
    :show-inheritance:
 
