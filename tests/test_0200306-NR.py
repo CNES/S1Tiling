@@ -46,9 +46,9 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 import s1tiling.S1Processor
 import s1tiling.libs.configuration
-import s1tiling.libs.configuration
 from s1tiling.libs.meta import out_filename
 from s1tiling.libs.steps import ram as param_ram
+from s1tiling.libs.otbwrappers import AgglomerateDEM
 
 
 # ======================================================================
@@ -279,7 +279,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         for (kw, val) in img_meta.items():
             assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
-    mocker.patch('s1tiling.libs.steps.AbstractStep._write_image_metadata',  mock_write_image_metadata)
+    mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
     mocker.patch('s1tiling.libs.steps.commit_execution',                    lambda tmp, out : True)
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
@@ -479,7 +479,7 @@ def mock_LIA(application_mocker, file_db):
         exp_out_dem       = file_db.sardemprojfile(idx, False)
         exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
-        application_mocker.set_expectations('gdalbuildvrt', [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
+        application_mocker.set_expectations(AgglomerateDEM.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
 
         application_mocker.set_expectations('SARDEMProjection2', {
             'ram'        : param_ram(2048),
