@@ -6,11 +6,18 @@ Release notes
 Version 1.1.0
 -------------
 
-v1.0.0 Improvements
+v1.1.0 Improvements
 +++++++++++++++++++
 
+- Add support for OTB 8 applications
+  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_).
+- Improve API (separate CLI from computing functions)
+  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_).
 - Support any other type of DEM files
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+- Support DEMs in any spatial reference (they are not restricted to WGS84
+  anymore)
+  (`#146 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/146>`_).
 
 
 Version 1.0.0
