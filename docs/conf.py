@@ -47,6 +47,7 @@ def setup(app):
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     "sphinx.ext.autosectionlabel",
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
@@ -168,7 +169,7 @@ html_css_files = [
     'theme_overrides.css'
 ]
 
-#   
+#
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -261,7 +262,7 @@ def autodoc_process_docstring(app, what, name, obj, options, lines):
     """
     for i in range(len(lines)):
         # Auto convert np.whatever into numpy.whatever in docstrings for sphinx
-        lines[i] = lines[i].replace("np.", "numpy.")
+        lines[i] = lines[i].replace("np.",        "numpy.")
         lines[i] = lines[i].replace("Callable[",  "~typing.Callable[")
         lines[i] = lines[i].replace("Generator[", "~typing.Generator[")
         lines[i] = lines[i].replace("Generic[",   "~typing.Generic[")

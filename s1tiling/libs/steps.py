@@ -168,7 +168,7 @@ def execute(params: List[str], dryrun: bool) -> None:
 
 class AbstractStep:
     """
-    Internal root class for all actual `Step` s.
+    Internal root class for all actual `steps`.
 
     There are several kinds of steps:
 
@@ -296,12 +296,16 @@ class _ProducerStep(AbstractStep):
     def _do_execute(self, parameters, dryrun: bool) -> None:
         """
         Variation point that takes care of the actual production.
+
+        :meta public:
         """
         pass
 
     def _do_call_hook(self, hook: Callable) -> None:
         """
         Variation point that takes care to execute hooks.
+
+        :meta public:
         """
         hook(self.meta)
 
@@ -379,6 +383,8 @@ class AnyProducerStep(_ProducerStep):
     def _do_execute(self, parameters, dryrun: bool) -> None:
         """
         Takes care of executing the action stored as a function to call.
+
+        :meta public:
         """
         self._action(parameters, dryrun)
 
@@ -400,6 +406,8 @@ class ExecutableStep(_ProducerStep):
     def _do_execute(self, parameters, dryrun: bool) -> None:
         """
         Takes care of executing the external program.
+
+        :meta public:
         """
         execute([self._exename]+ parameters, dryrun)
 
@@ -464,7 +472,7 @@ def _check_input_step_type(inputs: InputList) -> None:
 
 class StepFactory(ABC):
     """
-    Abstract factory for :class:`Step`
+    Abstract factory for :class:`AbstractStep`
 
     Meant to be inherited for each possible OTB application or external
     application used in a pipeline.
@@ -473,7 +481,7 @@ class StepFactory(ABC):
     products, filenames..., or step that help filter products for following
     pipelines.
 
-    See: `Existing processings`_
+    See: :ref:`Existing processings`
     """
     def __init__(self, name: str, *unused_argv, **kwargs) -> None:
         assert name
@@ -584,6 +592,8 @@ class StepFactory(ABC):
         they are used to produce filenames or tasknames.
 
         Called from :func:`update_filename_meta()`
+
+        :meta public:
         """
         return meta
 
@@ -593,6 +603,8 @@ class StepFactory(ABC):
         overriding their default definition.
 
         Called from :func:`update_filename_meta()`
+
+        :meta public:
         """
         pass
 
@@ -690,6 +702,8 @@ class StepFactory(ABC):
         """
         Generic variation point for the exact step creation.
         The default implementation returns a new :class:`AbstractStep`.
+
+        :meta public:
         """
         return AbstractStep(**meta)
 
@@ -725,6 +739,8 @@ class StoreStep(_ProducerStep):
         """
         Takes care of positionning the `out` parameter of the OTB applications
         pipeline, and trigger the execution of the (in-memory, or not) pipeline.
+
+        :meta public:
         """
         assert self._app
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
@@ -735,6 +751,8 @@ class StoreStep(_ProducerStep):
     def _do_call_hook(self, hook: Callable) -> None:
         """
         Specializes hook execution in case of OTB applications: we also pass the otb application.
+
+        :meta public:
         """
         assert self._app
         hook(self.meta, self._app)
@@ -798,7 +816,7 @@ class MergeStep(AbstractStep):
         return f'MergeStep{self.__input_steps_metas}'
 
     @property
-    def input_metas(self):
+    def input_metas(self) -> Dict:
         """
         Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
         metas from the inputs as a list.
@@ -866,8 +884,8 @@ class _FileProducingStepFactory(StepFactory):
         is required (i.e. not in-memory processing).
 
         This specialization uses ``gen_output_filename`` naming policy
-        parameter to build the output filename. See the `Available naming
-        policies`_.
+        parameter to build the output filename. See the :ref:`Available naming
+        policies`.
         """
         filename = self._get_nominal_output_basename(meta)
         def in_dir(fn: str) -> str:
@@ -966,7 +984,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
 
     @property
-    def appname(self):
+    def appname(self) -> str:
         """
         OTB Application property.
         """
@@ -980,7 +998,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
 
     @property
-    def param_in(self):
+    def param_in(self) -> str:
         """
         Name of the "in" parameter used by the OTB Application.
         Default is likely to be "in", while some applications use "io.in", often "il" for list of
@@ -989,7 +1007,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         return self._in
 
     @property
-    def param_out(self):
+    def param_out(self) -> str:
         """
         Name of the "out" parameter used by the OTB Application.
         Default is likely to be "out", whie some applications use "io.out".
@@ -1021,6 +1039,8 @@ class OTBStepFactory(_FileProducingStepFactory):
 
         1-bis. in case the new step isn't related to an OTB application,
         nothing specific is done, we'll just return an :class:`AbstractStep`
+
+        :meta public:
         """
         assert self.appname
 
@@ -1127,6 +1147,8 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
+
+        :meta public:
         """
         logger.debug("Directly execute %s step", self.name)
         res        = ExecutableStep(self._exename, **meta)
@@ -1165,6 +1187,8 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
+
+        :meta public:
         """
         logger.debug("Directly execute %s step", self.name)
         res        = AnyProducerStep(self._action, **meta)
