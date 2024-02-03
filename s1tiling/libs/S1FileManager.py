@@ -723,7 +723,7 @@ class S1FileManager:
     def _search_products(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dag:                            EODataAccessGateway,
-        extent:                         Dict[str, int],
+        extent:                         Dict[str, float],
         first_date:                     str,
         last_date:                      str,
         platform_list:                  List[str],
@@ -888,10 +888,10 @@ class S1FileManager:
     def _download(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dag:                     EODataAccessGateway,
-        lonmin:                  int,
-        lonmax:                  int,
-        latmin:                  int,
-        latmax:                  int,
+        lonmin:                  float,
+        lonmax:                  float,
+        latmin:                  float,
+        latmax:                  float,
         first_date:              str,
         last_date:               str,
         tile_out_dir:            str,
