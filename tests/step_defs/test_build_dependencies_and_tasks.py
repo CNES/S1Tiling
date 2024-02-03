@@ -31,6 +31,7 @@
 
 import logging
 from pathlib import Path
+from typing import Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
@@ -124,10 +125,10 @@ file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 #def polarization(idx):
 #    return ['vv', 'vh'][idx]
 
-def input_file(idx, polarity):
+def input_file(idx, polarity) -> str:
     return file_db.input_file(idx, polarity)
 
-def raster(idx, polarity):
+def raster(idx, polarity) -> Dict:
     S2_tile_origin = file_db.tile_origins(TILE)
     s1dir  = FILES[idx]['s1dir']
     coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
@@ -140,63 +141,63 @@ def raster(idx, polarity):
             'tile_coverage': coverage
         }
 
-def raster_vv(idx):
+def raster_vv(idx) -> Dict:
     return raster(idx, 'vv')
-def raster_vh(idx):
+def raster_vh(idx) -> Dict:
     return raster(idx, 'vh')
 
-def orthofile(idx, polarity):
+def orthofile(idx, polarity) -> str:
     return file_db.orthofile(idx, tmp=False, polarity=polarity)
 
-def concattask(polarity):
+def concattask(polarity) -> str:
     return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
 
-def concatfile(idx, polarity):
+def concatfile(idx, polarity) -> str:
     if idx is None:
         return file_db.concatfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
     else:
         return file_db.concatfile_from_one(idx, tmp=False, polarity=polarity, calibration='_sigma')
 
-def maskfile(idx, polarity):
+def maskfile(idx, polarity) -> str:
     if idx is None:
         return file_db.maskfile_from_two(0, tmp=False, polarity=polarity, calibration='_sigma')
     else:
         return file_db.maskfile_from_one(idx, tmp=False, polarity=polarity, calibration='_sigma')
 
-def DEM_file(idx):
+def DEM_file(idx) -> str:
     return file_db.vrtfile(idx, tmp=False)
 
-def DEMPROJ_file(idx):
+def DEMPROJ_file(idx) -> str:
     return file_db.sardemprojfile(idx, tmp=False)
 
-def XYZ_file(idx):
+def XYZ_file(idx) -> str:
     return file_db.xyzfile(idx, tmp=False)
 
-def LIA_file(idx):
+def LIA_file(idx) -> str:
     return file_db.LIAfile(idx, tmp=False)
 
-def sin_LIA_file(idx):
+def sin_LIA_file(idx) -> str:
     return file_db.sinLIAfile(idx, tmp=False)
 
-def ortho_LIA_file(idx):
+def ortho_LIA_file(idx) -> str:
     return file_db.orthoLIAfile(idx, tmp=False)
 
-def S2_LIA_file():
+def S2_LIA_file() -> str:
     return file_db.selectedLIAfile()
 
-def S2_LIA_preselect_file():
+def S2_LIA_preselect_file() -> str:
     return file_db.concatLIAfile_from_two(idx=0, tmp=False)
 
-def ortho_sin_LIA_file(idx):
+def ortho_sin_LIA_file(idx) -> str:
     return file_db.orthosinLIAfile(idx, tmp=False)
 
-def S2_sin_LIA_file():
+def S2_sin_LIA_file() -> str:
     return file_db.selectedsinLIAfile()
 
-def S2_sin_LIA_preselect_file():
+def S2_sin_LIA_preselect_file() -> str:
     return file_db.concatsinLIAfile_from_two(idx=0, tmp=False)
 
-def normlim_concatfile(idx, polarity):
+def normlim_concatfile(idx, polarity) -> str:
     if idx is None:
         return file_db.sigma0_normlim_file_from_two(0, tmp=False, polarity=polarity)
     else:
@@ -208,7 +209,7 @@ def normlim_concatfile(idx, polarity):
 resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
 
 class Configuration():
-    def __init__(self, tmpdir, outputdir, liadir, *argv):
+    def __init__(self, tmpdir, outputdir, liadir, *argv) -> None:
         """
         constructor
         """
@@ -237,7 +238,7 @@ class Configuration():
                 }
         self.fname_fmt_concatenation = self.fname_fmt['concatenation']
 
-def isfile(filename, existing_files):
+def isfile(filename, existing_files) -> bool:
     # assert False
     res = filename in existing_files
     logging.debug("isfile(%s) = %s ∈ %s", filename, res, existing_files)
@@ -247,44 +248,44 @@ def isfile(filename, existing_files):
 # Fixtures
 
 @pytest.fixture
-def known_file_ids():
+def known_file_ids() -> List[Tuple[int, str]]:
     fn = []
     return fn
 
 @pytest.fixture
-def known_files():
+def known_files() -> List[str]:
     kf = []
     return kf
 
 @pytest.fixture()
-def expected_files_id():
+def expected_files_id() -> List[int]:
     ex = []
     return ex
 
 @pytest.fixture
-def pipelines():
+def pipelines() -> PipelineDescriptionSequence:
     # TODO: propagate --tmpdir to scenario runners
     config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR)
     pd = PipelineDescriptionSequence(config, dryrun=True, debug_caches=False)
     return pd
 
 @pytest.fixture
-def pipeline_ids():
+def pipeline_ids() -> Dict[str, Pipeline]:
     ids = {}
     return ids
 
 @pytest.fixture
-def raster_list():
+def raster_list() -> List[Dict]:
     rl = []
     return rl
 
 @pytest.fixture
-def dependencies():
+def dependencies() -> List:
     deps = []
     return deps
 
 @pytest.fixture
-def tasks():
+def tasks() -> Dict:
     t = {}
     return t
 
@@ -292,7 +293,7 @@ def tasks():
 # Given steps
 
 @given(parsers.parse('A pipeline that {calibration} calibrates and orthorectifies'))
-def given_pipeline_ortho(pipelines, pipeline_ids, calibration):
+def given_pipeline_ortho(pipelines, pipeline_ids, calibration) -> None:
     pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
             # , inputs={'in': 'basename'}
@@ -301,7 +302,7 @@ def given_pipeline_ortho(pipelines, pipeline_ids, calibration):
     pipeline_ids['last'] = pipeline
 
 @given('that concatenates')
-def given_pipeline_concat(pipelines, pipeline_ids, calibration):
+def given_pipeline_concat(pipelines, pipeline_ids, calibration) -> None:
     concat_product_required = calibration in {'sigma', 'beta', 'gamma', 'dn'}
     pipeline = pipelines.register_pipeline([Concatenate],
             product_required=concat_product_required
@@ -311,7 +312,7 @@ def given_pipeline_concat(pipelines, pipeline_ids, calibration):
     pipeline_ids['last'] = pipeline
 
 @given(parsers.parse('that {builds} masks'))
-def given_pipeline_mask(pipelines, builds, pipeline_ids):
+def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
     if builds == 'builds':
         # logging.info('REGISTER MASKS')
         pipeline = pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',    product_required=True
@@ -321,7 +322,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids):
         pipeline_ids['mask'] = pipeline
 
 @given('A pipeline that computes LIA')
-def given_pipeline_that_computes_LIA(pipelines):
+def given_pipeline_that_computes_LIA(pipelines) -> None:
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
@@ -332,7 +333,7 @@ def given_pipeline_that_computes_LIA(pipelines):
             inputs={'xyz': xyz})
 
 @given('A pipeline that fully computes in LIA S2 geometry')
-def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
+def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids) -> None:
     LIA_product_required = 'concat' not in pipeline_ids
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
@@ -371,7 +372,7 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids):
     pipeline_ids['selectsinlia'] = best_concat_sin
 
 @given('that applies LIA')
-def given_pipeline_that_applies_LIA(pipelines, pipeline_ids):
+def given_pipeline_that_applies_LIA(pipelines, pipeline_ids) -> None:
     concat_sin = pipeline_ids['selectsinlia']
     concat_S2  = pipeline_ids['concat']
     s2_normlimed = pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
@@ -435,7 +436,7 @@ def given_two_FullOrtho_tmp_images(raster_list, known_files, known_file_ids):
 # When steps
 
 @when('dependencies are analysed')
-def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, known_files):
+def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, known_files) -> None:
     logging.debug("raster_list: %s" % (raster_list,))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', return_value='DES')
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  return_value=7)
@@ -443,7 +444,7 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     dependencies.extend(pipelines._build_dependencies(TILE, raster_list))
 
 @when('tasks are generated')
-def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
+def when_tasks_are_generated(pipelines, dependencies, tasks, mocker) -> None:
     # mocker.patch('os.path.isfile', lambda f: isfile(f, [input_file(0), input_file(1)]))
     required, previous, task2outfile_map = dependencies
     res = pipelines._build_tasks_from_dependencies(required=required, previous=previous, task_names_to_output_files_table=task2outfile_map,
@@ -456,7 +457,7 @@ def when_tasks_are_generated(pipelines, dependencies, tasks, mocker):
 # Then steps
 
 @then(parsers.parse('a txxxxxx S2 file is expected but not required'))
-def then_expect_txxxxxx(dependencies):
+def then_expect_txxxxxx(dependencies) -> None:
     expected_tn = [concattask('vv')]
 
     required, previous, task2outfile_map = dependencies
@@ -472,7 +473,7 @@ def then_expect_txxxxxx(dependencies):
     assert maskfile(1, 'vv')   not in required
 
 @then(parsers.parse('a txxxxxx S2 file is required, and {a} mask is required'))
-def then_require_txxxxxx_and_mask(dependencies, a):
+def then_require_txxxxxx_and_mask(dependencies, a) -> None:
     expected_fn = [concatfile(None, 'vv')]
     if a != 'no':
         expected_fn += [maskfile(None, 'vv')]
@@ -491,7 +492,7 @@ def then_require_txxxxxx_and_mask(dependencies, a):
     assert maskfile(1, 'vv')   not in req_files
 
 @then(parsers.parse('it depends on 2 ortho files (and two S1 inputs), and {a} mask on a concatenated product'))
-def then_depends_on_2_ortho_files(dependencies, a, calibration):
+def then_depends_on_2_ortho_files(dependencies, a, calibration) -> None:
     required, previous, task2outfile_map = dependencies
     req_files = [task2outfile_map[t] for t in required]
     # logging.info("previous (%s) = %s", type(previous), previous)
@@ -535,7 +536,7 @@ def then_depends_on_2_ortho_files(dependencies, a, calibration):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a t-chrono S2 file is required, and {a} mask is required'))
-def then_require_tchrono_outline(dependencies, known_file_ids, a):
+def then_require_tchrono_outline(dependencies, known_file_ids, a) -> None:
     assert len(known_file_ids) == 1
     known_file_id            = known_file_ids[0]
     known_file_number, polar = known_file_id
@@ -560,14 +561,14 @@ def then_require_tchrono_outline(dependencies, known_file_ids, a):
 
 
 @then(parsers.parse('it depends on one ortho file (and one S1 input), and {a} mask on a concatenated product'))
-def then_depends_on_first_ortho_file(dependencies, known_file_ids, a):
+def then_depends_on_first_ortho_file(dependencies, known_file_ids, a) -> None:
     __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a)
 
 @then(parsers.parse('it depends on second ortho file (and second S1 input), and {a} mask on a concatenated product'))
-def then_depends_on_second_ortho_file(dependencies, a, known_file_ids):
+def then_depends_on_second_ortho_file(dependencies, a, known_file_ids) -> None:
     __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a)
 
-def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a):
+def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a) -> None:
     required, previous, task2outfile_map = dependencies
     req_files = [task2outfile_map[t] for t in required]
     # logging.info("previous (%s) = %s", type(previous), previous)
@@ -606,7 +607,7 @@ def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a):
 
 # ----------------------------------------------------------------------
 # Helpers
-def assert_orthorectify_product_number(idx, tasks, task2outfile_map):
+def assert_orthorectify_product_number(idx, tasks, task2outfile_map) -> None:
     expectations = {
             orthofile(idx, 'vv'): {'pipeline': 'FullOrtho',
                 'input_steps': {
@@ -615,21 +616,21 @@ def assert_orthorectify_product_number(idx, tasks, task2outfile_map):
             }
     _check_registered_task(expectations, tasks, [orthofile(idx, 'vv')], task2outfile_map)
 
-def assert_dont_orthorectify_product_number(idx, tasks):
+def assert_dont_orthorectify_product_number(idx, tasks) -> None:
     ortho = to_dask_key(orthofile(idx, 'vv'))
     assert (ortho not in tasks) or isinstance(tasks[ortho], FirstStep)
 
-def assert_start_from_s1_image_number(idx, tasks):
+def assert_start_from_s1_image_number(idx, tasks) -> None:
     input = to_dask_key(input_file(idx, 'vv'))
     assert input in tasks
     task = tasks[input]
     assert isinstance(task, FirstStep)
 
-def assert_dont_start_from_s1_image_number(idx, tasks):
+def assert_dont_start_from_s1_image_number(idx, tasks) -> None:
     input = to_dask_key(input_file(idx, 'vv'))
     assert input not in tasks
 
-def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
+def _check_registered_task(expectations, tasks, task_names, task2outfile_map) -> None:
     for req_taskname in task_names:
         ex_output        = task2outfile_map[req_taskname]
         # Special case for LIA, we register only one of the two files for the
@@ -639,8 +640,8 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
                 if exo in expectations:
                     res = exo
                     break
-                else:
-                    res = None
+            else:
+                res = None
             single_ex_output = res
         else:
             single_ex_output = ex_output
@@ -669,7 +670,7 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a concatenation task is registered and produces txxxxxxx S2 file and {a} mask'))
-def then_concatenate_2_files_(tasks, dependencies, a, calibration):
+def then_concatenate_2_files_(tasks, dependencies, a, calibration) -> None:
     expectations = {
             # MergeStep as there are two inputs
             concatfile(None, 'vv'): {'pipeline': 'Concatenation',
@@ -701,7 +702,7 @@ def then_concatenate_2_files_(tasks, dependencies, a, calibration):
 
 
 @then('two orthorectification tasks are registered')
-def then_orthorectify_two_products(tasks, dependencies):
+def then_orthorectify_two_products(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert len(tasks) >= 5
@@ -714,7 +715,7 @@ def then_orthorectify_two_products(tasks, dependencies):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @then(parsers.parse('a concatenation task is registered and produces t-chrono S2 file, and {a} mask'))
-def then_concatenate_1_files(tasks, dependencies, known_file_ids, a):
+def then_concatenate_1_files(tasks, dependencies, known_file_ids, a) -> None:
     assert len(known_file_ids) == 1
     known_file_number, polar = known_file_ids[0]
     expectations = {
@@ -741,7 +742,7 @@ def then_concatenate_1_files(tasks, dependencies, known_file_ids, a):
 
 
 @then('a single orthorectification task is registered')
-def then_orthorectify_one_product(tasks, dependencies):
+def then_orthorectify_one_product(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert len(tasks) >= 3
@@ -749,7 +750,7 @@ def then_orthorectify_one_product(tasks, dependencies):
     assert_start_from_s1_image_number(0, tasks)
 
 @then('no orthorectification tasks is registered')
-def then_dont_orthorectify_any_product(tasks, dependencies):
+def then_dont_orthorectify_any_product(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     for i in (0, 1):
@@ -757,13 +758,13 @@ def then_dont_orthorectify_any_product(tasks, dependencies):
         assert_dont_start_from_s1_image_number(i, tasks)
 
 @then('dont orthorectify the second product')
-def but_dont_orthorectify_the_second_product(tasks, dependencies):
+def but_dont_orthorectify_the_second_product(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     assert_dont_orthorectify_product_number(1, tasks)
     assert_dont_start_from_s1_image_number(1, tasks)
 
 @then('it depends on the existing FullOrtho tmp product')
-def depend_on_the_existing_fullortho_product(tasks, dependencies):
+def depend_on_the_existing_fullortho_product(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
@@ -775,7 +776,7 @@ def depend_on_the_existing_fullortho_product(tasks, dependencies):
     assert_dont_start_from_s1_image_number(1, tasks)
 
 @then('it depends on two existing FullOrtho tmp products')
-def depend_on_two_existing_fullortho_products(tasks, dependencies):
+def depend_on_two_existing_fullortho_products(tasks, dependencies) -> None:
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
 
@@ -792,7 +793,7 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies):
 # ----------------------------------------------------------------------
 
 @then('a single LIA image is required')
-def then_LIA_image_is_required(dependencies):
+def then_LIA_image_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [LIA_file(0)]
@@ -804,7 +805,7 @@ def then_LIA_image_is_required(dependencies):
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('a single S2 LIA image is required')
-def then_S2_LIA_image_is_required(dependencies):
+def then_S2_LIA_image_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]
@@ -816,7 +817,7 @@ def then_S2_LIA_image_is_required(dependencies):
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('a txxxxxx normlim S2 file is required')
-def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies):
+def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [normlim_concatfile(None, 'vv')]
@@ -827,7 +828,7 @@ def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies):
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
 @then('no S2 LIA image is required')
-def then_no_S2_LIA_image_is_required(dependencies):
+def then_no_S2_LIA_image_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = [S2_LIA_file(), S2_sin_LIA_file()]
@@ -842,7 +843,7 @@ def then_no_S2_LIA_image_is_required(dependencies):
 
 
 @then('final LIA image has been selected from one concat LIA')
-def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies, pipeline_ids):
+def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies, pipeline_ids) -> None:
     required, previous, task2outfile_map = dependencies
     expected_fn = S2_LIA_file()
     LIA_product_required = 'concat' not in pipeline_ids
@@ -856,7 +857,7 @@ def final_LIA_image_has_been_selected_from_one_concat_LIA(dependencies, pipeline
         assert set([inp['out_filename'] for inp in inputs]) == set([S2_LIA_preselect_file()])
 
 @then('concat LIA depends on 2 ortho LIA images')
-def concat_LIA_depends_on_2_ortho_LIA_images(dependencies):
+def concat_LIA_depends_on_2_ortho_LIA_images(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = S2_LIA_preselect_file()
@@ -870,7 +871,7 @@ def concat_LIA_depends_on_2_ortho_LIA_images(dependencies):
 
 
 @then('2 ortho LIA images depend on two LIA images')
-def two_ortho_LIA_depend_on_two_LIA_images(dependencies):
+def two_ortho_LIA_depend_on_two_LIA_images(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in [0, 1]:  # Only the first 2 dates should be used
@@ -885,7 +886,7 @@ def two_ortho_LIA_depend_on_two_LIA_images(dependencies):
 
 
 @then('LIA images depend on XYZ images')
-def LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id):
+def LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -904,7 +905,7 @@ def LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id):
             assert xyz_file == XYZ_file(i)
 
 @then('XYZ images depend on DEM, DEMPROJ and BASE images')
-def XYZ_depend_on_DEM_DEMPROJ_and_BASE(dependencies, expected_files_id):
+def XYZ_depend_on_DEM_DEMPROJ_and_BASE(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -930,7 +931,7 @@ def XYZ_depend_on_DEM_DEMPROJ_and_BASE(dependencies, expected_files_id):
         assert indemproj_as_input['out_filename'] == DEMPROJ_file(i)
 
 @then('DEMPROJ images depend on DEM and BASE images')
-def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id):
+def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -951,7 +952,7 @@ def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id):
         assert indem_as_input['out_filename'] == DEM_file(i)
 
 @then('DEM images depend on BASE images')
-def DEM_depends_on_BASE(dependencies, expected_files_id):
+def DEM_depends_on_BASE(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -968,7 +969,7 @@ def DEM_depends_on_BASE(dependencies, expected_files_id):
 
 
 @then('a select LIA task is registered')
-def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids):
+def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_LIA_file()
     out_sin = S2_sin_LIA_file()
     expectations = {
@@ -1003,7 +1004,7 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 
 
 @then('a concat LIA task is registered')
-def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids):
+def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_LIA_preselect_file()
     out_sin = S2_sin_LIA_preselect_file()
     expectations = {
@@ -1034,7 +1035,7 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 
 
 @then('ortho LIA task(s) is(/are) registered')
-def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
@@ -1055,7 +1056,7 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id):
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 @then('LIA task(s) is(/are) registered')
-def then_a_LIA_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_LIA_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
@@ -1076,7 +1077,7 @@ def then_a_LIA_task_is_registered(tasks, dependencies, expected_files_id):
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 @then('XYZ task(s) is(/are) registered')
-def then_a_XYZ_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_XYZ_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
@@ -1096,7 +1097,7 @@ def then_a_XYZ_task_is_registered(tasks, dependencies, expected_files_id):
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 @then('DEMPROJ task(s) is(/are) registered')
-def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
@@ -1115,7 +1116,7 @@ def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id):
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
 @then('DEM task(s) is(/are) registered')
-def then_a_DEM_task_is_registered(tasks, dependencies, expected_files_id):
+def then_a_DEM_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
