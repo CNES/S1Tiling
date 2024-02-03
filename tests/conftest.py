@@ -32,6 +32,7 @@
 import os
 import pathlib
 import argparse
+import logging
 from pathlib import Path
 
 import pytest
@@ -58,7 +59,7 @@ def pytest_addoption(parser) -> None:
     parser.addoption("--outputdir",   action="store",      default=crt_dir/'output',                   type=dir_path, help="Directory where the S2 products will be generated. Don't forget to clean it eventually.")
     parser.addoption("--liadir",      action="store",      default=crt_dir/'LIAs',                     type=dir_path, help="Directory where the LIA products will be generated. Don't forget to clean it eventually.")
     parser.addoption("--tmpdir",      action="store",      default=crt_dir/'tmp',                      type=dir_path, help="Directory where the temporary files will be generated. Don't forget to clean it eventually.")
-    parser.addoption("--demdir",     action="store",      default=os.getenv('SRTM_DIR', '$SRTM_DIR'), type=dir_path, help="Directory where DEM files are - default: $SRTM_DIR")
+    parser.addoption("--demdir",     action="store",      default=os.getenv('SRTM_DIR', '$SRTM_DIR'),  type=dir_path, help="Directory where DEM files are - default: $SRTM_DIR")
     parser.addoption("--ram",         action="store",      default='4096'                            , type=int     , help="Available RAM allocated to each OTB process")
     parser.addoption("--download",    action="store_true", default=False, help="Download the input files with eodag instead of using the compressed ones from the baseline. If true, raw S1 products will be downloaded into {tmpdir}/inputs")
     parser.addoption("--watch_ram",   action="store_true", default=False, help="Watch memory usage")
@@ -88,3 +89,16 @@ def baseline_dir():
     # ~> https://github.com/pytest-dev/pytest-bdd/issues/620
     global the_baseline
     return the_baseline
+
+# ======================================================================
+# BDD Hooks
+
+def pytest_bdd_before_scenario(request, feature, scenario) -> None:
+    logging.info("===[ Before scenario: %s ====================", scenario.name)
+    # Perform setup actions
+
+
+def pytest_bdd_before_step(request, feature, scenario, step, step_func) -> None:
+    logging.debug("-----[ Before step: %s: %s ]-----", step.type.upper(), step.name)
+    # Perform actions specific to each step
+    # Access step-specific information via the 'step' argument

@@ -198,25 +198,20 @@ def _declare_known_S1_files(mocker, known_files, known_dirs, patterns):
 
 @given('No S1 files are known')
 def given_no_S1_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: No S1 files are known')
-    # _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 files are known')
 def given_all_S1_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S1 files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VV files are known')
 def given_all_S1_VV_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S1 VV files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vv'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
 @given('All S1 VH files are known')
 def given_all_S1_VH_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S1 VH files are known')
     _declare_known_S1_files(mocker, known_files, known_dirs, ['vh'])
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
 
@@ -324,7 +319,6 @@ def _declare_known_products_for_download(mocker, product_ids):
 
 @given('All products are available for download')
 def given_all_products_are_available_for_download(mocker, configuration):
-    logging.debug('Given: All products are available for download')
     _declare_known_products_for_download(mocker, range(configuration.nb_products_to_download))
 
 
@@ -342,23 +336,18 @@ def _declare_known_S2_files(mocker, known_files, known_dirs, patterns):
 
 @given('All S2 files are known')
 def given_all_S2_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S2 files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
 
 @given('All S2 VV files are known')
 def given_all_S2_VV_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S2 VV files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vv'])
 
 @given('All S2 VH files are known')
 def given_all_S2_VH_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: All S2 VH files are known')
     _declare_known_S2_files(mocker, known_files, known_dirs, ['vh'])
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known(mocker, known_files, known_dirs):
-    logging.debug('Given: No S2 files are known')
-    # _declare_known_S2_files(mocker, known_files, known_dirs, ['vv', 'vh'])
     pass
 
 # ======================================================================
@@ -378,17 +367,14 @@ def _search(configuration, image_list, polarisation):
 
 @when('VV-VH files are searched')
 def when_searching_VV_VH(configuration, image_list, mocker):
-    logging.debug('When: VV-VH files are searched')
     _search(configuration, image_list, 'VV VH')
 
 @when('VV files are searched')
 def when_searching_VV(configuration, image_list, mocker):
-    logging.debug('When: VV files are searched')
     _search(configuration, image_list, 'VV')
 
 @when('VH files are searched')
 def when_searching_VH(configuration, image_list, mocker):
-    logging.debug('When: VH files are searched')
     _search(configuration, image_list, 'VH')
 
 # ----------------------------------------------------------------------
@@ -400,7 +386,6 @@ def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product):
 
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, image_list, mocker, downloads):
-    logging.debug('When: Searching which S1 files to download')
     # mocker.patch('s1tiling.libs.S1FileManager._search_products',
     #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
     #         orbit_direction, relative_orbit_list, polarization,
@@ -434,12 +419,10 @@ def when_searching_which_S1_to_download(configuration, image_list, mocker, downl
 
 @then('No (other) files are found')
 def then_no_other_files_are_found(image_list):
-    logging.debug('Then: No (other) files are found')
     assert len(image_list) == 0
 
 @then('VV files are found')
 def then_VV_files_are_found(image_list):
-    logging.debug('Then: VV files are found')
     assert len(image_list) >= 2
     for i in [0, 1]:
         assert input_file_vv(i) in image_list
@@ -447,7 +430,6 @@ def then_VV_files_are_found(image_list):
 
 @then('VH files are found')
 def then_VH_files_are_found(image_list):
-    logging.debug('Then: VH files are found')
     assert len(image_list) >= 2
     for i in [0, 1]:
         assert input_file_vh(i) in image_list
@@ -458,12 +440,10 @@ def then_VH_files_are_found(image_list):
 
 @then('None are requested for download')
 def then_none_are_requested_for_download(downloads):
-    logging.debug('Then: None are requested for download')
     assert len(downloads) == 0
 
 @then('All are requested for download')
 def then_all_are_requested_for_download(downloads, configuration):
-    logging.debug('Then: All are requested for download')
     assert len(downloads) == configuration.nb_products_to_download
 
 
@@ -487,14 +467,12 @@ def dl_kepts():
 
 @given(parsers.parse('S1 product {idx} has been downloaded'))
 def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, mocker, idx):
-    logging.debug('Given: S1 product #%s has been downloaded', idx)
     product = MockEOProduct(int(idx))
     dl_successes.append(product)
     _declare_known_S1_files(mocker, known_files, known_dirs, [product.as_dict()['id']])
 
 @given(parsers.parse('S1 product {idx} download has timed-out'))
 def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx):
-    logging.debug('Given: S1 product #%s download timed-out', idx)
     missing_product = MockEOProduct(int(idx))
     failed = DownloadOutcome(
             NotAvailableError(
@@ -505,7 +483,6 @@ def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx):
 
 @when('Filtering products to use')
 def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_kepts, mocker, known_files, known_dirs):
-    logging.debug('When: Filtering products to use')
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
     manager = S1FileManager(configuration)
     # `manager._products_info` is filled-up during manager construction
@@ -524,25 +501,21 @@ def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_
 
 @then('All S2 products will be generated')
 def then_all_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts):
-    logging.debug('Then: All S2 products will be generated')
     assert len(dl_kepts) == len(dl_successes), f'Keeping {dl_kepts} instead of {dl_successes}'
     assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
 
 @then('No S2 product will be generated')
 def then_no_S2_product_will_be_generated(dl_successes, dl_failures, dl_kepts):
-    logging.debug('Then: No S2 product will be generated')
     assert len(dl_kepts) == 0, f'Keeping {dl_kepts} instead of nothing'
 
 @then(parsers.parse('{nb} S2 product(s) will be generated'))
 def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, nb):
-    logging.debug('Then: %s S2 product(s) will be generated', nb)
     assert len(dl_kepts) == 2*int(nb), f'Keeping {[p["product"] for p in dl_kepts]} instead of {nb}'
     # assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
 
 @then(parsers.parse('S2 product n° {idx} will be generated'))
 def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, idx):
     idx = int(idx)
-    logging.debug('Then: S2 product %s will be generated', idx)
     kept_product_names = [str(p['product']) for p in dl_kepts]
     logging.debug('Keeping: %s', kept_product_names)
     for i in range(2*idx, 2*idx+2):
