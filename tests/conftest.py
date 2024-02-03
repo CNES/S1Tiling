@@ -32,6 +32,9 @@
 import os
 import pathlib
 import argparse
+from pathlib import Path
+
+import pytest
 
 # - ${S1TILING_TEST_DATA_OUTPUT}
 # - ${S1TILING_TEST_DATA_INPUT}
@@ -40,13 +43,13 @@ import argparse
 # - ${S1TILING_TEST_DOWNLOAD}
 # - ${S1TILING_TEST_RAM}
 
-def dir_path(path):
+def dir_path(path) -> Path:
     if os.path.isdir(path):
         return pathlib.Path(path)
     else:
         raise argparse.ArgumentTypeError(f"{path} is not a valid directory")
 
-def pytest_addoption(parser):
+def pytest_addoption(parser) -> None:
     crt_dir = pathlib.Path(__file__).parent.absolute()
     src_dir = crt_dir.parent.absolute()
     test_dir = (crt_dir.parent.parent / "tests").absolute()
@@ -60,7 +63,8 @@ def pytest_addoption(parser):
     parser.addoption("--download",    action="store_true", default=False, help="Download the input files with eodag instead of using the compressed ones from the baseline. If true, raw S1 products will be downloaded into {tmpdir}/inputs")
     parser.addoption("--watch_ram",   action="store_true", default=False, help="Watch memory usage")
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc) -> None:
+    # print("metafunc ->", metafunc.function)
     # This is called for every test. Only get/set command line arguments
     # if the argument is specified in the list of test "fixturenames".
     option_list = ['baselinedir', 'demdir', 'download', 'outputdir', 'tmpdir', 'liadir', 'watch_ram', 'ram']
@@ -70,3 +74,17 @@ def pytest_generate_tests(metafunc):
         # value = metafunc.config.option.baselinedir
         if option in metafunc.fixturenames and value is not None:
             metafunc.parametrize(option, [value])
+    global the_baseline
+    the_baseline = metafunc.config.option.baselinedir
+
+crt_dir = pathlib.Path(__file__).parent.absolute()
+the_baseline = crt_dir/'baseline'
+
+@pytest.fixture
+def baseline_dir():
+    # pytest_generate_tests doesn't work to expose fixtures to pytest-bdd
+    # Hence this dirty workaround. pytest_generate_tests sets the global
+    # the_baseline that is returned then by this fixture...
+    # ~> https://github.com/pytest-dev/pytest-bdd/issues/620
+    global the_baseline
+    return the_baseline
