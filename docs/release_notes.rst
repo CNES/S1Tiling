@@ -13,10 +13,11 @@ v1.1.0 Improvements
   (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_).
 - Improve API (separate CLI from computing functions)
   (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_).
-- Support any other type of DEM files
+- Support DEM files from other origins (Copernicus...). Their footprints,
+  organization on disk... need to be deduced from a DEM database.
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
-- Support DEMs in any spatial reference (they are not restricted to WGS84
-  anymore)
+- Support DEM databases in any spatial reference (they are not restricted to
+  WGS84 anymore)
   (`#146 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/146>`_).
 
 
