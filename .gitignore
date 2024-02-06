@@ -7,6 +7,15 @@
 *.sw*
 *#
 
+# Luc's Vim spell files
+code-symbols-spell.utf-8.add
+code-symbols-spell.utf-8.add.spl
+ignore.utf-8.add
+ignore.utf-8.add.spl
+
+# Vim tags
+tags
+
 # KWStyle hook output
 *.kws
 
@@ -17,6 +26,9 @@
 BUILD/*
 build/*
 _build/
+
+# Directory where autosummary files are generated
+docs/api
 
 #data
 data/Output/*.tif
@@ -44,3 +56,7 @@ public/
 .config/
 *egg-info/
 dist/
+.gdb_history
+report.xml
+Pipfile
+Pipfile.lock

@@ -143,68 +143,34 @@ Again the processing classes are split in two families:
 Step Factories
 ++++++++++++++
 
-.. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
+Step factories are the main entry point to add new processings. They are meant
+to inherit from either one of :class:`OTBStepFactory`,
+:class:`AnyProducerStepFactory`, or :class:`ExecutableStepFactory`.
+
+They describe processings, and they are used to instanciate the actual
+:ref:`step <Steps>` that do the processing.
+
+.. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps.AnyProducerStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
    :parts: 1
    :top-classes: s1tiling.libs.steps.StepFactory
    :private-bases:
 
-``StepFactory``
-~~~~~~~~~~~~~~~
 
-.. autoclass:: s1tiling.libs.steps.StepFactory
-   :members:
-   :show-inheritance:
-   :undoc-members:
+.. autosummary::
+   :toctree: api
 
-   .. automethod:: _update_filename_meta_pre_hook
-   .. automethod:: _update_filename_meta_post_hook
-
-``_FileProducingStepFactory``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps._FileProducingStepFactory
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-   .. automethod:: __init__
-
-``OTBStepFactory``
-~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.OTBStepFactory
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-   .. automethod:: __init__
-
-``ExecutableStepFactory``
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.ExecutableStepFactory
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-``Store``
-~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.Store
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
+   s1tiling.libs.steps.StepFactory
+   s1tiling.libs.steps._FileProducingStepFactory
+   s1tiling.libs.steps.OTBStepFactory
+   s1tiling.libs.steps.AnyProducerStepFactory
+   s1tiling.libs.steps.ExecutableStepFactory
+   s1tiling.libs.steps.Store
 
 Steps
 +++++
 
-.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._StepWithOTBApplication
-   :parts: 1
-   :top-classes: s1tiling.libs.steps.AbstractStep
-   :private-bases:
-
-Step types are usually instantiated automatically.
+Step types are usually instantiated automatically. They are documented for
+convenience, but they are not expected to be extended.
 
 - :class:`FirstStep <s1tiling.libs.steps.FirstStep>` is instantiated
   automatically by the program from existing files (downloaded, or produced by
@@ -218,54 +184,30 @@ Step types are usually instantiated automatically.
   found several possible inputs that lead to a product.
 - :class:`Step <s1tiling.libs.steps.Step>` is the main class for steps
   that execute an OTB application.
+- :class:`AnyProducerStep <s1tiling.libs.steps.AnyProducerStep>` is the
+  main class for steps that execute a Python function.
 - :class:`ExecutableStep <s1tiling.libs.steps.ExecutableStep>` is the
   main class for steps that execute an external application.
 - :class:`AbstractStep <s1tiling.libs.steps.AbstractStep>` is the root
   class of steps hierarchy. It still get instantiated automatically for steps
   not related to any kind of application.
 
-``AbstractStep``
-~~~~~~~~~~~~~~~~
+.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.AnyProducerStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._ProducerStep
+   :parts: 1
+   :top-classes: s1tiling.libs.steps.AbstractStep
+   :private-bases:
 
-.. autoclass:: s1tiling.libs.steps.AbstractStep
-   :members:
-   :show-inheritance:
+.. autosummary::
+   :toctree: api
 
-``FirstStep``
-~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.FirstStep
-   :members:
-   :show-inheritance:
-
-``_StepWithOTBApplication``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps._StepWithOTBApplication
-   :members:
-   :show-inheritance:
-
-``Step``
-~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.Step
-   :members:
-   :show-inheritance:
-
-``MergeStep``
-~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.MergeStep
-   :members:
-   :show-inheritance:
-
-``ExecutableStep``
-~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: s1tiling.libs.steps.ExecutableStep
-   :members:
-   :show-inheritance:
-
+   s1tiling.libs.steps.AbstractStep
+   s1tiling.libs.steps.FirstStep
+   s1tiling.libs.steps.MergeStep
+   s1tiling.libs.steps._ProducerStep
+   s1tiling.libs.steps.Step
+   s1tiling.libs.steps.AnyProducerStep
+   s1tiling.libs.steps.ExecutableStep
+   s1tiling.libs.steps.StoreStep
 
 Existing processings
 ++++++++++++++++++++
@@ -277,68 +219,18 @@ subclasses of :class:`AbstractStep` for the actual processing.
 Main processings
 ~~~~~~~~~~~~~~~~
 
-``ExtractSentinel1Metadata``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autosummary::
+   :toctree: api
 
-.. autoclass:: s1tiling.libs.otbwrappers.ExtractSentinel1Metadata
-   :members:
-   :show-inheritance:
-
-``AnalyseBorders``
-^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.AnalyseBorders
-   :members:
-   :show-inheritance:
-
-``Calibrate``
-^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.Calibrate
-   :members:
-   :show-inheritance:
-
-``CutBorders``
-^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.CutBorders
-   :members:
-   :show-inheritance:
-
-``OrthoRectify``
-^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.OrthoRectify
-   :members:
-   :show-inheritance:
-
-``Concatenate``
-^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.Concatenate
-   :members:
-   :show-inheritance:
-
-``BuildBorderMask``
-^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.BuildBorderMask
-   :members:
-   :show-inheritance:
-
-``SmoothBorderMask``
-^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.SmoothBorderMask
-   :members:
-   :show-inheritance:
-
-``SpatialDespeckle``
-^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.SpatialDespeckle
-   :members:
-   :show-inheritance:
+   s1tiling.libs.otbwrappers.ExtractSentinel1Metadata
+   s1tiling.libs.otbwrappers.AnalyseBorders
+   s1tiling.libs.otbwrappers.Calibrate
+   s1tiling.libs.otbwrappers.CutBorders
+   s1tiling.libs.otbwrappers.OrthoRectify
+   s1tiling.libs.otbwrappers.Concatenate
+   s1tiling.libs.otbwrappers.BuildBorderMask
+   s1tiling.libs.otbwrappers.SmoothBorderMask
+   s1tiling.libs.otbwrappers.SpatialDespeckle
 
 Processings for advanced calibration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -346,78 +238,20 @@ Processings for advanced calibration
 These processings permit to produce Local Incidence Angles Maps for
 σ\ :sub:`0`\ :sup:`NORMLIM` calibration.
 
-``AgglomerateDEM``
-^^^^^^^^^^^^^^^^^^
+.. autosummary::
+   :toctree: api
 
-.. autoclass:: s1tiling.libs.otbwrappers.AgglomerateDEM
-   :members:
-   :show-inheritance:
-
-``SARDEMProjection``
-^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.SARDEMProjection
-   :members:
-   :show-inheritance:
-
-``SARCartesianMeanEstimation``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
-   :members:
-   :show-inheritance:
-
-``ComputeNormals``
-^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.ComputeNormals
-   :members:
-   :show-inheritance:
-
-``ComputeLIA``
-^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.ComputeLIA
-   :members:
-   :show-inheritance:
-
-``filter_LIA()``
-^^^^^^^^^^^^^^^^
-
-.. autofunction:: s1tiling.libs.otbwrappers.filter_LIA
-
-.. autoclass:: s1tiling.libs.otbwrappers._FilterStepFactory
-   :members:
-   :show-inheritance:
-
-``OrthoRectifyLIA``
-^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.OrthoRectifyLIA
-   :members:
-   :show-inheritance:
-
-``ConcatenateLIA``
-^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.ConcatenateLIA
-   :members:
-   :show-inheritance:
-
-``SelectBestCoverage``
-^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.SelectBestCoverage
-   :members:
-   :show-inheritance:
-
-``ApplyLIACalibration``
-^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.otbwrappers.ApplyLIACalibration
-   :members:
-   :show-inheritance:
-
+   s1tiling.libs.otbwrappers.AgglomerateDEM
+   s1tiling.libs.otbwrappers.SARDEMProjection
+   s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
+   s1tiling.libs.otbwrappers.ComputeNormals
+   s1tiling.libs.otbwrappers.ComputeLIA
+   s1tiling.libs.otbwrappers.filter_LIA
+   s1tiling.libs.otbwrappers._FilterStepFactory
+   s1tiling.libs.otbwrappers.OrthoRectifyLIA
+   s1tiling.libs.otbwrappers.ConcatenateLIA
+   s1tiling.libs.otbwrappers.SelectBestCoverage
+   s1tiling.libs.otbwrappers.ApplyLIACalibration
 
 Filename generation
 +++++++++++++++++++
@@ -473,26 +307,13 @@ Available naming policies
 Three filename generators are available by default. They apply a transformation
 on the ``basename`` meta information.
 
-``ReplaceOutputFilenameGenerator``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autosummary::
+   :toctree: api
 
-.. autoclass:: s1tiling.libs.file_naming.ReplaceOutputFilenameGenerator
+   s1tiling.libs.file_naming.ReplaceOutputFilenameGenerator
+   s1tiling.libs.file_naming.TemplateOutputFilenameGenerator
+   s1tiling.libs.file_naming.OutputFilenameGeneratorList
 
-``TemplateOutputFilenameGenerator``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.file_naming.TemplateOutputFilenameGenerator
-
-Most filename format templates can be fine tuned to end-user ideal filenames.
-While the filenames used for intermediary products may be changed, it's not
-recommended for data flow stability.
-See :ref:`[Processing].fname_fmt.* <Processing.fname_fmt>` for the short list
-of filenames meants to be adapted.
-
-``OutputFilenameGeneratorList``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: s1tiling.libs.file_naming.OutputFilenameGeneratorList
 
 Hooks
 ~~~~~

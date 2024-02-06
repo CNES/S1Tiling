@@ -131,6 +131,7 @@ class Pipeline:
         """
         Name of the pipeline application(s).
         """
+        # assert: if self.__name is not set, all crt are instances of Step
         appname = self.__name or '|'.join(crt.appname for crt in self.__pipeline)
         return appname
 

@@ -55,7 +55,7 @@ from .steps import (
         InputList, OTBParameters, ExeParameters,
         _check_input_step_type,
         AbstractStep, StepFactory,
-        _FileProducingStepFactory, ExecutableStepFactory, OTBStepFactory,
+        _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
         FirstStep, MergeStep,
         commit_execution, manifest_to_product_name,
         ram,
@@ -69,11 +69,6 @@ from .configuration import Configuration
 from ..__meta__ import __version__
 
 logger = logging.getLogger('s1tiling.wrappers')
-
-
-# InputList     = List[Dict[str, AbstractStep]]
-# OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
-# ExeParameters = List[str]
 
 
 def append_to(meta: Meta, key: str, value) -> Dict:
@@ -378,7 +373,7 @@ class Calibrate(OTBStepFactory):
                 self.param_in   : in_filename(meta),
                 # self.param_out  : out_filename(meta),
                 'lut'           : self.__calibration_type,
-                }
+        }
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
         else:
@@ -438,7 +433,7 @@ class CorrectDenoising(OTBStepFactory):
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
                 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
-                }
+        }
         return params
 
 
@@ -901,7 +896,7 @@ class BuildBorderMask(OTBStepFactory):
                 self.param_in      : [in_filename(meta)],
                 # self.param_out     : out_filename(meta),
                 'exp'              : 'im1b1==0?0:1'
-                }
+        }
         # logger.debug('%s(%s)', self.appname, params)
         return params
 
@@ -1100,7 +1095,7 @@ def remove_polarization_marks(name: str) -> str:
     return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
 
 
-class AgglomerateDEM(ExecutableStepFactory):
+class AgglomerateDEM(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that build a VRT from a list of DEM files.
 
@@ -1119,13 +1114,24 @@ class AgglomerateDEM(ExecutableStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            name="AgglomerateDEM", exename='gdalbuildvrt',
+                name="AgglomerateDEM",
+                action=AgglomerateDEM.agglomerate,
             *args, **kwargs)
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_dir             = cfg.dem
         self.__dem_filename_format = cfg.dem_filename_format
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
+
+    @staticmethod
+    def agglomerate(parameters, dryrun: bool) -> None:
+        """
+        The function that calls :func:`gdal.BuildVRT()`.
+        """
+        logger.info("gdal.BuildVRT(%s, %s)", parameters[0], parameters[1:])
+        assert len(parameters) > 0
+        if not dryrun:
+            gdal.BuildVRT(parameters[0], parameters[1:])
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -1989,5 +1995,5 @@ class ApplyLIACalibration(OTBStepFactory):
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
                 'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
-                }
+        }
         return params

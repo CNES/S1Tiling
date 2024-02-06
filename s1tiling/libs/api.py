@@ -85,6 +85,7 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
         all_requested = True
     else:
         for tile in cfg.tile_list:
+            # TODO: In order to avoid opening the Layer 42 times, Check all tiles at once
             if s1_file_manager.tile_exists(tile):
                 tiles_to_process.append(tile)
             else:

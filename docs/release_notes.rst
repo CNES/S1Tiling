@@ -6,11 +6,19 @@ Release notes
 Version 1.1.0
 -------------
 
-v1.0.0 Improvements
+v1.1.0 Improvements
 +++++++++++++++++++
 
-- Support any other type of DEM files
+- Add support for OTB 8 applications
+  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_).
+- Improve API (separate CLI from computing functions)
+  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_).
+- Support DEM files from other origins (Copernicus...). Their footprints,
+  organization on disk... need to be deduced from a DEM database.
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+- Support DEM databases in any spatial reference (they are not restricted to
+  WGS84 anymore)
+  (`#146 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/146>`_).
 
 
 Version 1.0.0
@@ -63,8 +71,8 @@ v1.0.0 Improvements
   #908 <https://github.com/CS-SI/eodag/issues/908>`_.
   (`#140 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/140>`_).
 
-v1.0.0 Bug fixed
-++++++++++++++++
+v1.0.0 Bugs fixed
++++++++++++++++++
 
 - Offline S1 products are now correctly detected and processed
   (`#71 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/71>`_,
@@ -108,8 +116,8 @@ Version 0.3.1
 
 Bug fixes for version 0.3
 
-v0.3.1 Bug fixed
-++++++++++++++++
+v0.3.1 Bugs fixed
++++++++++++++++++
 
 - Don't produce partial products when complete ones already exist for a given
   S2 tile at a requested time
@@ -199,8 +207,8 @@ v0.2 Improvements
     - Log level are supported
     - A summary of the successfully of failed computations is provided.
 
-v0.2 Bug fixed
-++++++++++++++
+v0.2 Bugs fixed
++++++++++++++++
 
 - Fix thermnal noise usage ((`#84 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/84>`_)
 - Fix pylint error ((`#82 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/82>`_)

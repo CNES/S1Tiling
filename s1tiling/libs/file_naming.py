@@ -78,6 +78,12 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     """
     Given a template: ``"text{key1}_{another_key}_.."``,
     inject the metadata instead of the template keys.
+
+    Most filename format templates can be fine tuned to end-user ideal filenames.
+    While the filenames used for intermediary products may be changed, it's not
+    recommended for data flow stability.
+    See :ref:`[Processing].fname_fmt.* <Processing.fname_fmt>` for the short list
+    of filenames meants to be adapted.
     """
     def __init__(self, template) -> None:
         assert isinstance(template, str)
