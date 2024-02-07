@@ -104,6 +104,38 @@ def extract_IPF_version(tifftag_software: str) -> str:
     return match.group(1)
 
 
+def s2_tile_extent(tile_name: str, tile_origin: Utils.Polygon, in_epsg: int, spacing: float) -> Dict:
+    """
+    Helper function that computes and returns contant-sized extents of S2 tiles in the
+    S2 tile spatial reference.
+    """
+    out_utm_zone     = int(tile_name[0:2])
+    out_utm_northern = tile_name[2] >= 'N'
+    out_epsg         = 32600 + out_utm_zone
+    if not out_utm_northern:
+        out_epsg = out_epsg + 100
+    x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
+    lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
+
+    if not out_utm_northern and y_coord < 0:
+        y_coord += 10000000.
+        lry     += 10000000.
+    sizex = int(round(abs(lrx - x_coord) / spacing))
+    sizey = int(round(abs(lry - y_coord) / spacing))
+    logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
+    return {
+            'xmin'        : x_coord,
+            'ymin'        : y_coord - sizey * spacing,
+            'xmax'        : x_coord + sizex * spacing,
+            'ymax'        : y_coord,
+            'xsize'       : sizex,
+            'ysize'       : sizey,
+            'epsg'        : out_epsg,
+            'utm_zone'    : out_utm_zone,
+            'utm_northern': out_utm_northern,
+    }
+
+
 class ExtractSentinel1Metadata(StepFactory):
     """
     Factory that takes care of extracting meta data from S1 input files.
@@ -532,14 +564,15 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='OrthoRectification', name='OrthoRectification',
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description=image_description,
-                )
+        )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
         self.__grid_spacing         = cfg.grid_spacing
@@ -579,27 +612,15 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Returns the parameters to use with :external:doc:`OrthoRectification OTB
         application <Applications/app_OrthoRectification>`.
         """
-        image                   = self._get_input_image(meta)
-        tile_name               = meta['tile_name']
-        tile_origin             = meta['tile_origin']
+        image       = self._get_input_image(meta)
+        tile_name   = meta['tile_name']
+        tile_origin = meta['tile_origin']
+        spacing     = self.__out_spatial_res
+
+        extent      = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
         logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
                 self.__class__.__name__, meta, image, tile_name)
-        out_utm_zone            = tile_name[0:2]
-        out_utm_northern        = tile_name[2] >= 'N'
-        in_epsg                 = 4326
-        out_epsg                = 32600 + int(out_utm_zone)
-        if not out_utm_northern:
-            out_epsg = out_epsg + 100
 
-        x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
-        lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
-
-        if not out_utm_northern and y_coord < 0:
-            y_coord += 10000000.
-            lry     += 10000000.
-
-        spacing = self.__out_spatial_res
-        logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
         parameters = {
                 'opt.ram'          : ram(self.ram_per_process),
                 self.param_in      : image,
@@ -607,17 +628,17 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'interpolator'     : self.__interpolation_method,
                 'outputs.spacingx' : spacing,
                 'outputs.spacingy' : -spacing,
-                'outputs.sizex'    : int(round(abs(lrx - x_coord) / spacing)),
-                'outputs.sizey'    : int(round(abs(lry - y_coord) / spacing)),
+                'outputs.sizex'    : extent['xsize'],
+                'outputs.sizey'    : extent['ysize'],
                 'opt.gridspacing'  : self.__grid_spacing,
                 'map'              : 'utm',
-                'map.utm.zone'     : int(out_utm_zone),
-                'map.utm.northhem' : out_utm_northern,
-                'outputs.ulx'      : x_coord,
-                'outputs.uly'      : y_coord,
+                'map.utm.zone'     : extent['utm_zone'],
+                'map.utm.northhem' : extent['utm_northern'],
+                'outputs.ulx'      : extent['xmin'],
+                'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
                 'elev.dem'         : self.__tmp_dem_dir,
                 'elev.geoid'       : self.__GeoidFile
-                }
+        }
         return parameters
 
 

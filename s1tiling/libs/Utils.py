@@ -47,6 +47,10 @@ from osgeo import osr
 
 from .S1DateAcquisition import S1DateAcquisition
 
+
+Polygon = Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]]
+
+
 EXTENSION_TO_DRIVER_MAP = {
     '.gpkg': 'GPKG',
     '.shp': 'ESRI Shapefile',
@@ -169,7 +173,7 @@ def get_origin(
 
 
 def get_shape_from_polygon(
-    polygon: Union[Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]], List[Tuple[float,float]]]
+    polygon: Union[Polygon, List[Tuple[float,float]]]
 ) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
