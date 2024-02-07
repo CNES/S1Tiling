@@ -40,7 +40,7 @@ from abc import ABC, abstractmethod
 import logging
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, List, NoReturn, Optional, Tuple, Union
+from typing import Callable, Dict, List, NoReturn, Optional, Set, Tuple, Union
 
 from osgeo import gdal
 import otbApplication as otb
@@ -629,7 +629,7 @@ class StepFactory(ABC):
         if self.image_description:
             imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,
-                    flying_unit_code_short=meta['flying_unit_code'][1:].upper())
+                    flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1058,6 +1058,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             app = otb.Registry.CreateApplication(self.appname)
             if not app:
                 raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
+            left_over_parameters : Set[str] = set()
             if input_step.is_first_step:
                 if not files_exist(input_step.out_filename):
                     logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input_step.out_filename)
@@ -1075,7 +1076,16 @@ class OTBStepFactory(_FileProducingStepFactory):
                 app.PropagateConnectMode(this_step_is_in_memory)
                 if this_step_is_in_memory:
                     # When this is not a store step, we need to clear the input parameters
-                    # from its list, otherwise some OTB applications may comply
+                    # from its list, otherwise some OTB applications may complain
+                    in_parameters = parameters[self.param_in]
+                    if isinstance(in_parameters, list):
+                        # However, if the input is a list, and previous app provide only a subset of
+                        # the piped inputs => We still need a AddImageToInputImageList
+                        crt_in_parameter_set   = set(in_parameters)
+                        prv_out_parameter_set  = {input_step.out_filename} # TODO what if it was a list?
+                        params_piped_in_memory = crt_in_parameter_set & prv_out_parameter_set
+                        left_over_parameters   = crt_in_parameter_set - params_piped_in_memory
+
                     del parameters[self.param_in]
                 lg_from = 'app'
 
@@ -1086,6 +1096,10 @@ class OTBStepFactory(_FileProducingStepFactory):
                     self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
             try:
                 app.SetParameters(parameters)
+
+                for input_param in left_over_parameters:
+                    logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
+                    app.AddParameterStringList(self.param_in, input_param)
             except Exception:
                 logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
                 raise
