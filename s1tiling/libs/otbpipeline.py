@@ -302,17 +302,21 @@ class PipelineDescription:
         """
         assert self.__factory_steps  # shall not be None or empty
         try:
+            # logger.debug("INCREMENTAL: %s in %s", self.__is_name_incremental, self)
             if self.__is_name_incremental:
                 res = input_meta
                 for step in self.__factory_steps:
+                    # logger.debug("   in %s, updating %s", step.name, res)
                     res = step.update_filename_meta(res)
             else:
                 res = self.__factory_steps[-1].update_filename_meta(input_meta)
             logger.debug("    expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
             return res
         except CannotGenerateFilename as e:
-            # logger.exception('expected(%s) rejected because', input_meta)
-            logger.debug('%s => rejecting expected(%s)', e, input_meta)
+            # This warning may happen, when incremental name building hasn't been activated:
+            # indeed, later calls to update_filename_meta, may require meta data set on
+            # earlier steps.
+            logger.warning('%s => rejecting expected(%s)', e, input_meta)
             return None
 
     @property
@@ -669,7 +673,7 @@ class PipelineDescriptionSequence:
             # endfor origin, sources in pipeline.inputs.items():
 
             # For all new outputs, check which dropped inputs would be compatible
-            logger.debug('* Checking dropped inputs: %s', dropped_inputs.keys())
+            logger.debug('* Checking dropped inputs: %s', list(dropped_inputs.keys()))
             for output in outputs:
                 for origin, inputs in dropped_inputs.items():
                     for inp in inputs:
