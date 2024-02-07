@@ -242,6 +242,9 @@ These processings permit to produce Local Incidence Angles Maps for
    :toctree: api
 
    s1tiling.libs.otbwrappers.AgglomerateDEM
+   s1tiling.libs.otbwrappers.ProjectDEMToS2Tile
+   s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile
+   s1tiling.libs.otbwrappers.SumAllHeights
    s1tiling.libs.otbwrappers.SARDEMProjection
    s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
    s1tiling.libs.otbwrappers.ComputeNormals

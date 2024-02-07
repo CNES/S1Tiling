@@ -55,7 +55,7 @@ from .steps import (
         InputList, OTBParameters, ExeParameters,
         _check_input_step_type,
         AbstractStep, StepFactory,
-        _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
+        _FileProducingStepFactory, AnyProducerStepFactory, ExecutableStepFactory, OTBStepFactory,
         FirstStep, MergeStep,
         commit_execution, manifest_to_product_name,
         ram,
@@ -420,11 +420,11 @@ class CorrectDenoising(OTBStepFactory):
     :external:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
     documentation.
 
-    Requires the following information from the configuration object:
+    It requires the following information from the configuration object:
 
     - `ram_per_process`
 
-    Requires the following information from the metadata dictionary
+    It requires the following information from the metadata dictionary:
 
     - base name -- to generate typical output filename
     - input filename
@@ -978,7 +978,7 @@ class SpatialDespeckle(OTBStepFactory):
     described in :ref:`Spatial despeckle filtering <spatial-despeckle>`
     documentation.
 
-    Requires the following information from the configuration object:
+    It requires the following information from the configuration object:
 
     - `ram_per_process`
     - `fname_fmt_filtered`
@@ -987,7 +987,7 @@ class SpatialDespeckle(OTBStepFactory):
     - `nblooks`: the number of looks
     - `deramp`:  the deramp factor
 
-    Requires the following information from the metadata dictionary
+    It requires the following information from the metadata dictionary
 
     - input filename
     - output filename
@@ -1118,7 +1118,7 @@ def remove_polarization_marks(name: str) -> str:
 
 class AgglomerateDEM(AnyProducerStepFactory):
     """
-    Factory that produces a :class:`Step` that build a VRT from a list of DEM files.
+    Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
 
     The choice has been made to name the VRT file after the basename of the
     root S1 product and not the names of the DEM tiles.
@@ -1193,6 +1193,244 @@ class AgglomerateDEM(AnyProducerStepFactory):
                 + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
 
 
+class ProjectDEMToS2Tile(ExecutableStepFactory):
+    """
+    Factory that produces a :class:`ExecutableStep` that projects DEM onto target S2 tile
+    as described in :ref:`Project DEM to S2 tile <project-dem-to-s2>`.
+
+    It requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `tmp_dir`
+    - `fname_fmt`  -- optinal key: `dem_on_s2`
+    - `out_spatial_res`
+    - `interpolation_method` -- OTB key converted to GDAL equivalent
+    - `nb_procs`
+
+    It requires the following information from the metadata dictionary:
+
+    - `tile_name`
+    - `tile_origin`
+    - `nodata` -- optional
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'DEM_projected_on_{tile_name}.tiff'
+        fname_fmt = cfg.fname_fmt.get('dem_to_s2_projection') or fname_fmt
+        super().__init__(
+                cfg,
+                exename='gdalwarp', name='ProjectDEMToS2Tile',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description="Warped DEM to {tile_name} S2 tile",
+        )
+        self.__out_spatial_res      = cfg.out_spatial_res
+        self.__interpolation_method = cfg.interpolation_method
+        self.__nb_threads           = cfg.nb_procs
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set S2 related information, that should have been carried around...
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
+        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
+        # TODO: shall we set "ORTHORECTIFIED = True" ??
+        # TODO: propagate DEM files list
+
+    def parameters(self, meta: Meta) -> ExeParameters:
+        """
+        Returns the parameters to use with :external:std:doc:`gdalwarp
+        <programs/gdalwarp>` to projected the DEM onto the S2 geometry.
+        """
+        image       = in_filename(meta)
+        tile_name   = meta['tile_name']
+        tile_origin = meta['tile_origin']
+        spacing     = self.__out_spatial_res
+        logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
+                self.__class__.__name__, meta, image, tile_name)
+
+        extent = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
+
+        nodata = meta.get('nodata', -32768)
+        parameters = [
+                "-wm", str(self.ram_per_process),
+                "-multi", "-wo", f"{self.__nb_threads}", # It's already quite fast...
+                "-t_srs", f"epsg:{extent['epsg']}",
+                "-tr", f"{spacing}", f"-{spacing}",
+                "-ot", "Float32",
+                # "-crop_to_cutline",
+                "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
+                "-r", "cubic",  # TODO: take a parameter
+                "-dstnodata", str(nodata),
+                image,
+                tmp_filename(meta),
+        ]
+        return parameters
+
+
+class ProjectGeoidToS2Tile(OTBStepFactory):
+    """
+    Factory that produces a :class:`Step` that projects any kind of Geoid onto
+    target S2 tile as described in :ref:`Project Geoid to S2 tile
+    <project-geoid-to-s2>`.
+
+    This particular implementation uses another file in the expected geometry
+    and :external:std:doc:`super impose <Applications/app_Superimpose>` the
+    Geoid onto it. Unlike :external:std:doc:`gdalwarp <programs/gdalwarp>`,
+    OTB application supports non-raster geoid formats.
+
+    It requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `tmp_dir`
+    - `fname_fmt`  -- optinal key: `geoid_on_s2`, useless in the in-memory nominal case
+    - `interpolation_method` -- for use by :external:std:doc:`super impose
+      <Applications/app_Superimpose>`
+    - `out_spatial_res` -- as a workaround...
+
+    It requires the following information from the metadata dictionary:
+
+    - `tile_name`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'GEOID_projected_on_{tile_name}.tiff'
+        fname_fmt = cfg.fname_fmt.get('geoid_on_s2') or fname_fmt
+        super().__init__(
+                cfg,
+                param_in="inr", param_out="out",
+                appname='Superimpose', name='ProjectGeoidToS2Tile',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description="Geoid superimposed on {tile_name} S2 tile",
+        )
+        self.__GeoidFile            = cfg.GeoidFile
+        self.__interpolation_method = cfg.interpolation_method
+        self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set S2 related information, that'll be carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
+        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external:std:doc:`super impose
+        <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
+        """
+        in_s2_dem = in_filename(meta)
+        return {
+                'ram'           : ram(self.ram_per_process),
+                'inr'           : in_s2_dem, # Reference input is the DEM projected on S2
+                'inm'           : self.__GeoidFile,
+                'interpolator'  : self.__interpolation_method, # TODO: add parameter
+                'interpolator.bco.radius' : 2, # 2 is the default value for bco
+        }
+
+
+class SumAllHeights(OTBStepFactory):
+    """
+    Factory that produces a :class:`Step` that adds DEM + Geoid that cover a
+    same footprint, as described in :ref:`Sum DEM + Geoid
+    <sum-dem-geoid-on-s2>`.
+
+    It requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `tmp_dir`
+    - `fname_fmt`  -- optinal key: `height_on_s2`, useless in the in-memory nominal case
+
+    It requires the following information from the metadata dictionary:
+
+    - `nodata` -- optional
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        """
+        Constructor.
+        """
+        fname_fmt = 'DEM+GEOID_projected_on_{tile_name}.tiff'
+        fname_fmt = cfg.fname_fmt.get('height_on_s2') or fname_fmt
+        super().__init__(
+                cfg,
+                appname='BandMath', name='SumAllHeights', param_in='il', param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description='DEM + GEOID height info projected on S2 tile',
+        )
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Complete meta information with inputs.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
+        return meta
+
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method will is overridden in order to fetch N-1 "in_s2_dem" input.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        assert len(previous_steps) > 1
+
+        # "in_s2_geoid" is expected at level -1, likelly named '__last'
+        s2_geoid = _fetch_input_data('__last', previous_steps[-1])
+        # "in_s2_dem"     is expected at level -2, likelly named 'in_s2_dem'
+        s2_dem   = _fetch_input_data('in_s2_dem', previous_steps[-2])
+
+        inputs = [{'in_s2_geoid': s2_geoid, 'in_s2_dem': s2_dem}]
+        _check_input_step_type(inputs)
+        logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
+        return inputs
+
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+
+        In current case, the canonical input comes from the "in_s2_geoid"
+        step instanciated in :func:`s1tiling.s1_process_lia` pipeline builder.
+        """
+        _check_input_step_type(inputs)
+        keys = set().union(*(input.keys() for input in inputs))
+        assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
+        assert 'in_s2_geoid' in keys
+        return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external:doc:`BandMath OTB
+        application <Applications/app_BandMath>` for additionning DEM and Geoid
+        data projected on S2.
+        """
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        in_s2_dem   = _fetch_input_data('in_s2_dem',   inputs).out_filename
+        in_s2_geoid = _fetch_input_data('in_s2_geoid', inputs).out_filename
+        nodata = meta.get('nodata', -32768)
+        params : OTBParameters = {
+                'ram'         : ram(self.ram_per_process),
+                self.param_in : [in_s2_dem, in_s2_geoid],
+                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1'
+        }
+        return params
+
+
 class SARDEMProjection(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
@@ -1207,11 +1445,16 @@ class SARDEMProjection(OTBStepFactory):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `dem_db_filepath`   -- to fill-up image metadata
+    - `dem_field_ids`     -- to fill-up image metadata
+    - `dem_main_field_id` -- to fill-up image metadata
 
     Requires the following information from the metadata dictionary
 
-    - input filename
-    - output filename
+    - `basename`
+    - `input filename`
+    - `output filename`
+    - `nodata` -- optional
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
     DEM information already registered in dask worker (through
@@ -1249,8 +1492,10 @@ class SARDEMProjection(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with hook for updating image metadata
-        w/ directiontoscandemc, directiontoscandeml and gain.
+        - Complete meta information with hook for updating image metadata
+          w/ directiontoscandemc, directiontoscandeml and gain.
+        - Computes dem information and add them to the meta structure, to be used
+          later to fill-in the image metadata.
         """
         meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
@@ -1325,9 +1570,9 @@ class SARDEMProjection(OTBStepFactory):
     def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
-        SARDEMProjection comes from DiapOTB.
+        SARDEMProjection2 comes from normlim_sigma0.
         """
-        return "Please install DiapOTB."
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
 class SARCartesianMeanEstimation(OTBStepFactory):
@@ -1461,12 +1706,12 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 'mlazi'           : 1,
                 }
 
-    def requirement_context(self):
+    def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
-        SARCartesianMeanEstimation comes from DiapOTB.
+        SARCartesianMeanEstimation2 comes from normlim_sigma0.
         """
-        return "Please install DiapOTB."
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
 class ComputeNormals(OTBStepFactory):
@@ -1534,7 +1779,7 @@ class ComputeNormals(OTBStepFactory):
                 'nodata'          : float(nodata),
                 }
 
-    def requirement_context(self):
+    def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
         ComputeNormals comes from normlim_sigma0.
@@ -1637,7 +1882,7 @@ class ComputeLIA(OTBStepFactory):
                 'nodata'          : float(nodata),
                 }
 
-    def requirement_context(self):
+    def requirement_context(self) -> str:
         """
         Return the requirement context that permits to fix missing requirements.
         ComputeLIA comes from normlim_sigma0.
