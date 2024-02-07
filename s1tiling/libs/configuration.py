@@ -376,7 +376,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
                 'lia_orthorectification', 'lia_concatenation', 'lia_product',
                 's2_lia_corrected', 'filtered',
-                'dem_on_s2', 'geoid_on_s2', 'height_on_s2',
+                'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:

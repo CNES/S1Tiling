@@ -1202,7 +1202,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
 
     - `ram_per_process`
     - `tmp_dir`
-    - `fname_fmt`  -- optinal key: `dem_on_s2`
+    - `fname_fmt`  -- optional key: `dem_on_s2`
     - `out_spatial_res`
     - `interpolation_method` -- OTB key converted to GDAL equivalent
     - `nb_procs`
@@ -1287,8 +1287,8 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     It requires the following information from the configuration object:
 
     - `ram_per_process`
-    - `tmp_dir`
-    - `fname_fmt`  -- optinal key: `geoid_on_s2`, useless in the in-memory nominal case
+    - `tmp_dir`    -- useless in the in-memory nomical case
+    - `fname_fmt`  -- optional key: `geoid_on_s2`, useless in the in-memory nominal case
     - `interpolation_method` -- for use by :external:std:doc:`super impose
       <Applications/app_Superimpose>`
     - `out_spatial_res` -- as a workaround...
@@ -1349,8 +1349,8 @@ class SumAllHeights(OTBStepFactory):
     It requires the following information from the configuration object:
 
     - `ram_per_process`
-    - `tmp_dir`
-    - `fname_fmt`  -- optinal key: `height_on_s2`, useless in the in-memory nominal case
+    - `tmp_dir`    -- useless in the in-memory nomical case
+    - `fname_fmt`  -- optional key: `height_on_s2`, useless in the in-memory nominal case
 
     It requires the following information from the metadata dictionary:
 
@@ -1431,6 +1431,130 @@ class SumAllHeights(OTBStepFactory):
         return params
 
 
+class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
+    """
+    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
+    as described in :ref:`Normals computation` documentation to obtain the XYZ
+    ECEF coordinates of the ground and of the satelitte positions associated
+    to the pixel from input the `heigth` file.
+
+    :external:doc:`Applications/app_SARDEMProjection` application fill a
+    multi-bands image anchored on the footprint of the input DEM image.
+    In each pixel in the DEM/output image, we store the XYZ ECEF coordinate of
+    the ground point (associated to the pixel), and the XYZ coordinates of the
+    satelitte position (associated to the pixel...)
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `dem_db_filepath`   -- to fill-up image metadata
+    - `dem_field_ids`     -- to fill-up image metadata
+    - `dem_main_field_id` -- to fill-up image metadata
+    - `tmp_dir`           -- useless in the in-memory nomical case
+    - `fname_fmt`         -- optional key: `ground_and_sat_s2`, useless in the in-memory nominal case
+
+    Requires the following information from the metadata dictionary
+
+    - `basename`
+    - `input filename`
+    - `output filename`
+    - `nodata` -- optional
+
+    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
+    DEM information already registered in dask worker (through
+    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
+    the Geoid.
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'XYZ_projected_on_{tile_name}_{polarless_basename}'
+        fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2') or fname_fmt
+        super().__init__(
+                cfg,
+                appname='SARDEMProjection2', name='SARDEMProjection',
+                param_in=None, param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description="XYZ ground and satelitte positions on S2 tile",
+        )
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
+
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
+        provide names clear from polar related informations.
+        """
+        # Ignore polarization in filenames
+        if 'polarless_basename' in meta:
+            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        else:
+            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        return meta
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Computes dem information and adds them to the meta structure, to be used
+        later to fill-in the image metadata.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
+        # meta['inputs'] = all_inputs
+
+        # TODO: The following has been duplicated from AgglomerateDEM.
+        # See to factorize this code
+        # find DEMs that intersect the input image
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+
+        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(meta), meta['dems'])
+        _, inbasename = os.path.split(in_filename(meta))
+        meta['inbasename'] = inbasename
+        return meta
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set SARDEMProjection related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_LIST']     = ', '.join(meta['dems'])
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with
+        :external:doc:`SARDEMProjection OTB application
+        <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
+        """
+        nodata = meta.get('nodata', -32768)
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        indem = _fetch_input_data('indem', inputs).out_filename
+        return {
+                'ram'        : ram(self.ram_per_process),
+                'insar'      : in_filename(meta),
+                'indem'      : indem,
+                'withcryz'   : False,
+                'withxyz'    : True,
+                'withsatpos' : True,
+                # 'withh'      : True,  # uncomment to analyse/debug height computed
+                'nodata'     : nodata
+                }
+
+    def requirement_context(self) -> str:
+        """
+        Return the requirement context that permits to fix missing requirements.
+        SARDEMProjection2 comes from normlim_sigma0.
+        """
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+
 class SARDEMProjection(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
@@ -1448,6 +1572,8 @@ class SARDEMProjection(OTBStepFactory):
     - `dem_db_filepath`   -- to fill-up image metadata
     - `dem_field_ids`     -- to fill-up image metadata
     - `dem_main_field_id` -- to fill-up image metadata
+    - `tmp_dir`           -- useless in the in-memory nomical case
+    - `fname_fmt`         -- optional key: `s1_on_dem`, useless in the in-memory nominal case
 
     Requires the following information from the metadata dictionary
 
@@ -1704,7 +1830,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
                 'indirectiondeml' : int(meta['directiontoscandeml']),
                 'mlran'           : 1,
                 'mlazi'           : 1,
-                }
+        }
 
     def requirement_context(self) -> str:
         """
