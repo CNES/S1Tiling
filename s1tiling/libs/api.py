@@ -57,7 +57,9 @@ from .otbwrappers import (
         SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
-        ApplyLIACalibration, SpatialDespeckle)
+        ApplyLIACalibration,
+        ProjectDEMToS2Tile, ProjectGeoidToS2Tile, SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        SpatialDespeckle)
 from .outcome import Outcome
 
 
@@ -491,13 +493,14 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         )
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
     dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
             inputs={'insar': 'basename'})
+
     demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
             inputs={'insar': 'basename', 'indem': dem})
     xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
@@ -515,6 +518,52 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     concat_sin      = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatSinLIA', inputs={'in': ortho_sin})
     best_concat_sin = pipelines.register_pipeline([SelectBestCoverage],                        'SelectSinLIA', inputs={'in': concat_sin}, product_required=True)
 
+    return best_concat_sin
+
+
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEM], 'AgglomerateDEM',
+            inputs={'insar': 'basename'})
+
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile", is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
+
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
+
+    # TODO: merge Superimpose | BandMath | SARDEMProjection | LIA
+    xyz = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata, ComputeGroundAndSatPositionsOnDEM], 'ComputeGroundAndSatPositionsOnDEM',
+            is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': s2_height},
+    )
+
+    # Now always generates both sin + deg
+    lia = pipelines.register_pipeline(
+            [ComputeNormals, ComputeLIA],                 'Normals|LIA',
+            is_name_incremental=True,
+            inputs={'xyz': xyz},
+            # product_required=True,
+    )
+
+    # TODO: why does it fails?
+    best_concat_sin = pipelines.register_pipeline(
+            [filter_LIA('sin_LIA'), SelectBestCoverage],  'SelectLIA',
+            is_name_incremental=True,
+            inputs={'in': lia},
+            # product_required=produce_angles,
+            product_required=True,
+    )
     return best_concat_sin
 
 
@@ -729,6 +778,7 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        # register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces

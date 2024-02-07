@@ -246,16 +246,27 @@ These processings permit to produce Local Incidence Angles Maps for
    s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile
    s1tiling.libs.otbwrappers.SumAllHeights
    s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEM
-   s1tiling.libs.otbwrappers.SARDEMProjection
-   s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
    s1tiling.libs.otbwrappers.ComputeNormals
    s1tiling.libs.otbwrappers.ComputeLIA
    s1tiling.libs.otbwrappers.filter_LIA
    s1tiling.libs.otbwrappers._FilterStepFactory
-   s1tiling.libs.otbwrappers.OrthoRectifyLIA
-   s1tiling.libs.otbwrappers.ConcatenateLIA
    s1tiling.libs.otbwrappers.SelectBestCoverage
    s1tiling.libs.otbwrappers.ApplyLIACalibration
+
+Deprecated processings for advanced calibration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following processings used to be used in v1.0 of S1Tiling, along some of
+the previous ones. Starting from v1.1, they are deprecated.
+
+.. autosummary::
+   :toctree: api
+
+   s1tiling.libs.otbwrappers.SARDEMProjection
+   s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
+   s1tiling.libs.otbwrappers.OrthoRectifyLIA
+   s1tiling.libs.otbwrappers.ConcatenateLIA
+
 
 Filename generation
 +++++++++++++++++++
