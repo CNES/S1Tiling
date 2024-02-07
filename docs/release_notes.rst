@@ -18,7 +18,10 @@ v1.1.0 Improvements
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
 - Support DEM databases in any spatial reference (they are not restricted to
   WGS84 anymore)
-  (`#146 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/146>`_).
+  (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
+- Change LIA workflow in order to minimize occurrences of artefacts in rugged
+  areas, and to speed-up performances
+  (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
 
 
 Version 1.0.0
