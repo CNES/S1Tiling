@@ -1536,16 +1536,20 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         inheight = _fetch_input_data('inheight', inputs).out_filename
+        # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
+        # from $OTB_GEOID_FILE, indeed geoid information is already in
+        # DEM+Geoid input.
         return {
                 'ram'        : ram(self.ram_per_process),
                 'insar'      : in_filename(meta),
                 'indem'      : inheight,
+                'elev.geoid' : '@',
                 'withcryz'   : False,
                 'withxyz'    : True,
                 'withsatpos' : True,
                 # 'withh'      : True,  # uncomment to analyse/debug height computed
                 'nodata'     : nodata
-                }
+        }
 
     def requirement_context(self) -> str:
         """
