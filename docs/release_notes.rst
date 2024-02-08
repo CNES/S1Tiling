@@ -6,16 +6,26 @@ Release notes
 Version 1.1.0
 -------------
 
+This version integrates 3 main improvements:
+
+- it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
+- it supports OTB 8 applications (while staying backward compatible with OTB
+  7.4.2),
+- it improves the quality of LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
+
 v1.1.0 Improvements
 +++++++++++++++++++
 
 - Add support for OTB 8 applications
-  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_).
+  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_)
+  -- contributed by CS Group FRANCE.
 - Improve API (separate CLI from computing functions)
-  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_).
+  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_) --
+  contributed by CS Group FRANCE.
 - Support DEM files from other origins (Copernicus...). Their footprints,
   organization on disk... need to be deduced from a DEM database.
-  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_) --
+  contributed by CS Group FRANCE.
 - Support DEM databases in any spatial reference (they are not restricted to
   WGS84 anymore)
   (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
