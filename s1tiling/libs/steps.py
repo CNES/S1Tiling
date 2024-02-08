@@ -541,7 +541,7 @@ class StepFactory(ABC):
         """
         pass
 
-    def update_filename_meta(self, meta: Meta) -> Dict:  # to be overridden
+    def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
         information for the current factory regarding tasks analysis.
@@ -560,12 +560,19 @@ class StepFactory(ABC):
         It's possible to inject some other metadata (that could be used from
         :func:`_get_canonical_input()` for instance) thanks to
         :func:`_update_filename_meta_pre_hook()`.
+
+        This method is not meant to be overridden. Instead it implements the
+        `template method` design pattern, and expects the customization to
+        be done through the specialization of the hooks:
+
+        - :func:`_update_filename_meta_pre_hook()`,
+        - :func:`_update_filename_meta_post_hook()`.
+
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
         meta['in_filename']        = out_filename(meta)
         meta['out_filename']       = self.build_step_output_filename(meta)
-        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
         def check_product(meta) -> bool:
             filename        = out_filename(meta)
@@ -614,7 +621,9 @@ class StepFactory(ABC):
         information for the current factory regarding :class:`Step` instanciation.
         """
         meta.pop('out_extended_filename_complement', None)
-        return self.update_filename_meta(meta)
+        meta = self.update_filename_meta(meta)  # copy on-the-fly
+        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
+        return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:  # pylint: disable=unused-argument
         """
