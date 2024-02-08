@@ -533,12 +533,16 @@ def _register_new_input_and_update_out_filename(
         task_name = task_name[0]
     task_inputs = tasks[task_name]
     if task_inputs.add_input(origin, input_meta, new_task_meta):
-        logger.debug('    The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating %s ...', task_name, new_task_meta)
-        _update_out_filename(new_task_meta, task_inputs)
-        logger.debug('    ...to (%s)', new_task_meta)
-        already_registered_next_input = [ni for ni in outputs if get_task_name(ni) == task_name]
+        logger.debug('    The %s task depends on one more input, updating its metadata to reflect the situation.\nUpdating from %s ...', task_name, new_task_meta)
+        _update_out_filename(new_task_meta, task_inputs)  # Required for concatenation dates handling
+        logger.debug('    ...to %s', new_task_meta)
+        logger.debug("  Next inputs: %s", [get_task_name(ni) for ni in outputs])
+        def simflified_task_name(meta: Meta) -> str:
+            tn = get_task_name(meta)
+            return tn[0] if isinstance(tn, list) else tn
+        already_registered_next_input = [ni for ni in outputs if simflified_task_name(ni) == task_name]
         assert len(already_registered_next_input) == 1, \
-                f'{len(already_registered_next_input)} != 1 => {already_registered_next_input}'
+                f'Task {task_name!r}: {len(already_registered_next_input)} != 1 => {already_registered_next_input} inputs have already been registered'
         _update_out_filename(already_registered_next_input[0], task_inputs)
         # Can't we simply override the already_registered_next_input with expected fields?
         already_registered_next_input[0].update(new_task_meta)
@@ -634,8 +638,8 @@ class PipelineDescriptionSequence:
                         dropped.append(inp)  # remember that source/input will be used differently
                         continue
                     expected_taskname = get_task_name(expected)
-                    logger.debug('    %s <-- from input: %s', expected_taskname, out_filename(inp))
-                    logger.debug('    --> "%s": %s', out_filename(expected), expected)
+                    logger.debug('    task %s <-- from input: %s', expected_taskname, out_filename(inp))
+                    logger.debug('    --> file "%s": %s', out_filename(expected), expected)
                     # TODO: Correctly handle the case where a task produce
                     # several filenames. In that case we shall have only one
                     # task, but possibly, several following tasks may depend on
@@ -656,7 +660,8 @@ class PipelineDescriptionSequence:
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
                         previous[expected_taskname].add_input(origin, inp, expected)
                         logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
-                    elif get_task_name(inp) not in previous[expected_taskname].input_task_names:
+                    elif (input_task_name := get_task_name(inp)) not in previous[expected_taskname].input_task_names:
+                        logger.debug("    Not new product, but input task %s NOT registered in input_task_names(%s) ", input_task_name, previous[expected_taskname].pipeline.name)
                         _register_new_input_and_update_out_filename(
                                 tasks=previous,
                                 origin=origin,
