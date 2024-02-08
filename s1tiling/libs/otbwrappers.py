@@ -500,7 +500,7 @@ class CutBorders(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 )
 
-    # def create_step(self, in_memory: bool, previous_steps: List[InputList]):
+    # def create_step(self, execution_parameters: Dict, previous_steps: List[InputList]):
     #     """
     #     This overrides checks whether ResetMargin would cut any border.
     #
@@ -513,7 +513,7 @@ class CutBorders(OTBStepFactory):
     #         logger.debug('Margins cutting is not required and thus skipped!')
     #         return None
     #     else:
-    #         return super().create_step(in_memory, previous_steps)
+    #         return super().create_step(execution_parameters, previous_steps)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -760,7 +760,11 @@ class _ConcatenatorFactory(OTBStepFactory):
                 # self.param_out     : out_filename(meta),
                 }
 
-    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> AbstractStep:
         """
         :func:`create_step` is overridden in :class:`Concatenate` case in
         order to by-pass Concatenation in case there is only a single file.
@@ -775,13 +779,14 @@ class _ConcatenatorFactory(OTBStepFactory):
         elif isinstance(inp.out_filename, str):
             concat_in_filename = inp.out_filename
         else:
-            return super().create_step(in_memory, previous_steps)
+            return super().create_step(execution_parameters, previous_steps)
         # Back to a single file inp case
         logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
         meta = self.complete_meta(inp.meta, inputs)
+        dryrun = is_running_dry(execution_parameters)
         res = AbstractStep(**meta)
         logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        if not meta.get('dryrun', False):
+        if not dryrun:
             shutil.move(concat_in_filename, res.out_filename)
         return res
 
@@ -1800,7 +1805,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         Extract back direction to scan DEM from SARDEMProjected image metadata.
         """
         logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
-        if not is_running_dry(meta):
+        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
             if not dst:
                 raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
@@ -2264,14 +2269,18 @@ class SelectBestCoverage(_FileProducingStepFactory):
         meta['reduce_inputs_in'] = reduce_LIAs
         return meta
 
-    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> AbstractStep:
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
         inp = self._get_canonical_input(inputs)
         meta = self.complete_meta(inp.meta, inputs)
 
         # Let's reuse commit_execution as it does exactly what we need
-        if not is_running_dry(meta):
+        if not is_running_dry(execution_parameters):
             commit_execution(out_filename(inp.meta), out_filename(meta))
 
         # Return a dummy Step

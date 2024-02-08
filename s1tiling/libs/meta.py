@@ -113,11 +113,11 @@ def is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
         return False
 
 
-def is_running_dry(meta: Meta) -> bool:
+def is_running_dry(execution_parameters: Dict) -> bool:
     """
-    Helper function to test whether metadata has ``dryrun`` property set to True.
+    Helper function to test whether execution parameters have ``dryrun`` property set to True.
     """
-    return meta.get('dryrun', False)
+    return execution_parameters.get('dryrun', False)
 
 
 def is_debugging_caches(meta: Meta) -> bool:

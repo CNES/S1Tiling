@@ -204,8 +204,13 @@ class Pipeline:
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
+        execution_parameters = {
+                'in_memory'   : self.__in_memory,
+                'dryrun'      : self.__dryrun,
+                'debug_caches': "???",
+        }
         for crt in self.__pipeline:
-            step = crt.create_step(self.__in_memory, steps)
+            step = crt.create_step(execution_parameters, steps)
             if step:  # a StepFactory may return no step so it can be skipped
                 steps.append([{'__last': step}])
 
@@ -599,7 +604,6 @@ class PipelineDescriptionSequence:
         first_inputs = generate_first_steps_from_manifests(
                 tile_name=tile_name,
                 raster_list=raster_list,
-                dryrun=self.__dryrun,
                 debug_caches=self.__debug_caches)
 
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
@@ -830,7 +834,6 @@ class PipelineDescriptionSequence:
 def generate_first_steps_from_manifests(
     raster_list:  List[Dict],
     tile_name:    str,
-    dryrun:       bool,
     debug_caches: bool
 ) -> List[Dict]:  # List[meta(FirstStep)]
     """
@@ -849,7 +852,6 @@ def generate_first_steps_from_manifests(
                               tile_coverage=raster_info['tile_coverage'],
                               manifest=manifest,
                               basename=image,
-                              dryrun=dryrun,
                               debug_caches=debug_caches)
             inputs.append(start.meta)
     return inputs
