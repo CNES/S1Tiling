@@ -120,8 +120,8 @@ def is_running_dry(execution_parameters: Dict) -> bool:
     return execution_parameters.get('dryrun', False)
 
 
-def is_debugging_caches(meta: Meta) -> bool:
+def is_debugging_caches(execution_parameters: Dict) -> bool:
     """
-    Helper function to test whether metadata has ``debug_caches`` property set to True.
+    Helper function to test whether execution parameters have ``debug_caches`` property set to True.
     """
-    return meta.get('debug_caches', False)
+    return execution_parameters.get('debug_caches', False)

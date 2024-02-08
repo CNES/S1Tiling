@@ -53,7 +53,7 @@ from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
 from .file_naming       import CannotGenerateFilename
 from .meta              import (
-        Meta, is_compatible, get_task_name, product_exists, out_filename,
+        Meta, is_compatible, is_running_dry, get_task_name, product_exists, out_filename,
 )
 from .outcome           import PipelineOutcome
 from .steps             import (
@@ -79,23 +79,19 @@ class Pipeline:
     Internal class only meant to be used by :class:`PipelineDescriptionSequence`.
     """
     # Should we inherit from contextlib.ExitStack?
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
-        do_measure:   bool,
-        in_memory:    bool,
-        do_watch_ram: bool,
-        name:         Optional[str]=None,
-        dryrun:       bool=False,
-        output:       Optional[str]=None
+        execution_parameters: Dict,
+        do_watch_ram:         bool,
+        name:                 Optional[str]=None,
+        output:               Optional[str]=None
     ) -> None:
-        self.__pipeline     : List[StepFactory] = []
-        # self.__do_measure   = do_measure
-        self.__in_memory    = in_memory
-        self.__do_watch_ram = do_watch_ram
-        self.__dryrun       = dryrun
-        self.__name         = name
-        self.__output       = output
-        self.__inputs       : InputList = []
+        self.__pipeline             : List[StepFactory] = []
+        self.__execution_parameters = execution_parameters
+        self.__do_watch_ram         = do_watch_ram
+        self.__name                 = name
+        self.__output               = output
+        self.__inputs               : InputList = []
 
     def __repr__(self) -> str:
         return self.name
@@ -197,20 +193,15 @@ class Pipeline:
             [v.out_filename for inp in self.__inputs for _,v in inp.items()]))
         logger.info("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
-        if len(missing_inputs) > 0 and not self.__dryrun:
+        if len(missing_inputs) > 0 and not is_running_dry(self.__execution_parameters):
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"
             logger.warning(msg)
             return PipelineOutcome(RuntimeError(msg))
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
-        execution_parameters = {
-                'in_memory'   : self.__in_memory,
-                'dryrun'      : self.__dryrun,
-                'debug_caches': "???",
-        }
         for crt in self.__pipeline:
-            step = crt.create_step(execution_parameters, steps)
+            step = crt.create_step(self.__execution_parameters, steps)
             if step:  # a StepFactory may return no step so it can be skipped
                 steps.append([{'__last': step}])
 
@@ -278,7 +269,7 @@ class PipelineDescription:
     def __init__(  # pylint: disable=too-many-arguments
         self,
         factory_steps:       List[StepFactory],
-        dryrun:              bool,
+        execution_parameters: Dict,
         name:                Optional[str]  = None,
         product_required:    bool           = False,
         is_name_incremental: bool           = False,
@@ -288,10 +279,10 @@ class PipelineDescription:
         constructor
         """
         assert factory_steps  # shall not be None or empty
-        self.__factory_steps       = factory_steps
-        self.__is_name_incremental = is_name_incremental
-        self.__is_product_required = product_required
-        self.__dryrun              = dryrun
+        self.__factory_steps        = factory_steps
+        self.__is_name_incremental  = is_name_incremental
+        self.__is_product_required  = product_required
+        self.__execution_parameters = execution_parameters
         if name:
             self.__name = name
         else:
@@ -365,7 +356,12 @@ class PipelineDescription:
         Returns:
             A :class:`Pipeline` instance
         """
-        pipeline = Pipeline(do_measure, in_memory, do_watch_ram, self.name, self.__dryrun, file)
+        execution_parameters = {
+                **self.__execution_parameters,
+                'in_memory' : in_memory,
+                'do_measure': do_measure
+        }
+        pipeline = Pipeline(execution_parameters, do_watch_ram, self.name, file)
         need_OTB_store = False
         for factory_step in self.__factory_steps + []:
             pipeline.push(factory_step)
@@ -547,7 +543,7 @@ def _register_new_input_and_update_out_filename(
             return tn[0] if isinstance(tn, list) else tn
         already_registered_next_input = [ni for ni in outputs if simflified_task_name(ni) == task_name]
         assert len(already_registered_next_input) == 1, \
-                f'Task {task_name!r}: {len(already_registered_next_input)} != 1 => {already_registered_next_input} inputs have already been registered'
+                f'Task {task_name!r}: 1!={len(already_registered_next_input)} => {already_registered_next_input} inputs have already been registered'
         _update_out_filename(already_registered_next_input[0], task_inputs)
         # Can't we simply override the already_registered_next_input with expected fields?
         already_registered_next_input[0].update(new_task_meta)
@@ -566,10 +562,12 @@ class PipelineDescriptionSequence:
         constructor
         """
         assert cfg
-        self.__cfg          = cfg
-        self.__pipelines    : List[PipelineDescription] = []
-        self.__dryrun       = dryrun
-        self.__debug_caches = debug_caches
+        self.__cfg                  = cfg
+        self.__pipelines            : List[PipelineDescription] = []
+        self.__execution_parameters = {
+                'dryrun'      : dryrun,
+                'debug_caches': debug_caches,
+        }
 
     def register_pipeline(self, factory_steps: List[Type], *args, **kwargs) -> PipelineDescription:
         """
@@ -589,7 +587,7 @@ class PipelineDescriptionSequence:
         if 'inputs' not in kwargs:
             # Register the last pipeline as 'in' if nothing is specified
             kwargs['inputs'] = {'in' : self.__pipelines[-1] if self.__pipelines else 'basename'}
-        pipeline = PipelineDescription(steps, self.__dryrun, *args, **kwargs)
+        pipeline = PipelineDescription(steps, self.__execution_parameters, *args, **kwargs)
         logger.debug('--> Register pipeline %s as %s', pipeline.name, [fs.__name__ for fs in factory_steps])
         self.__pipelines.append(pipeline)
         return pipeline
@@ -601,10 +599,7 @@ class PipelineDescriptionSequence:
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
         """
-        first_inputs = generate_first_steps_from_manifests(
-                tile_name=tile_name,
-                raster_list=raster_list,
-                debug_caches=self.__debug_caches)
+        first_inputs = generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
 
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
@@ -834,7 +829,6 @@ class PipelineDescriptionSequence:
 def generate_first_steps_from_manifests(
     raster_list:  List[Dict],
     tile_name:    str,
-    debug_caches: bool
 ) -> List[Dict]:  # List[meta(FirstStep)]
     """
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
@@ -851,8 +845,7 @@ def generate_first_steps_from_manifests(
                               tile_origin=raster_info['tile_origin'],
                               tile_coverage=raster_info['tile_coverage'],
                               manifest=manifest,
-                              basename=image,
-                              debug_caches=debug_caches)
+                              basename=image)
             inputs.append(start.meta)
     return inputs
 

@@ -289,7 +289,7 @@ class _ProducerStep(AbstractStep):
                 # are passed around between around Factories and Steps.
                 logger.debug("Execute post-hook for %s", self.out_filename)
                 self._do_call_hook(hook)
-        self._clean_cache(dryrun)
+        self._clean_cache(dryrun, is_debugging_caches(execution_parameters))
         self.meta['pipe'] = [self.out_filename]
 
     @abstractmethod
@@ -309,7 +309,7 @@ class _ProducerStep(AbstractStep):
         """
         hook(self.meta)
 
-    def _clean_cache(self, dryrun: bool) -> None:
+    def _clean_cache(self, dryrun: bool, debug_caches: bool) -> None:
         """
         Takes care or removing intermediary files once we know they are no
         longer required like the orthorectified subtiles once the
@@ -322,7 +322,7 @@ class _ProducerStep(AbstractStep):
             # All geaoms that do actually exist
             geoms = [fn for fn in geoms if os.path.isfile(fn)]
             files = files + geoms
-            if is_debugging_caches(self.meta):
+            if debug_caches:
                 logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
                 logger.debug('Cleaning intermediary files: %s', files)
