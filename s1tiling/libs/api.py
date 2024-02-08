@@ -541,22 +541,32 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
             inputs={"in_s2_dem": s2_dem},
     )
 
-    # TODO: merge Superimpose | BandMath | SARDEMProjection | LIA
+    # Note: ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
+    # normals production AND LIA production: indeed the XYZ, and satposXYZ data
+    # needs to be reused several times, and in-memory pipeline can't support
+    # that (yet?)
     xyz = pipelines.register_pipeline(
-            [ExtractSentinel1Metadata, ComputeGroundAndSatPositionsOnDEM], 'ComputeGroundAndSatPositionsOnDEM',
+            [ExtractSentinel1Metadata, ComputeGroundAndSatPositionsOnDEM],
+            'ComputeGroundAndSatPositionsOnDEM',
             is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': s2_height},
+            inputs={'insar': 'basename', 'inheight': s2_height},
     )
 
     # Now always generates both sin + deg
     lia = pipelines.register_pipeline(
-            [ComputeNormals, ComputeLIA],                 'Normals|LIA',
+            [ComputeNormals, ComputeLIA],
+            'ComputeLIAOnS2',
             is_name_incremental=True,
             inputs={'xyz': xyz},
             # product_required=True,
     )
 
-    # TODO: why does it fails?
+    pipelines.register_pipeline(
+            [filter_LIA('LIA'), SelectBestCoverage],  'SelectLIA',
+            is_name_incremental=True,
+            inputs={'in': lia},
+            product_required=produce_angles,
+    )
     best_concat_sin = pipelines.register_pipeline(
             [filter_LIA('sin_LIA'), SelectBestCoverage],  'SelectLIA',
             is_name_incremental=True,

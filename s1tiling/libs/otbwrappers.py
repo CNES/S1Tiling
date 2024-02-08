@@ -1535,11 +1535,11 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        indem = _fetch_input_data('indem', inputs).out_filename
+        inheight = _fetch_input_data('inheight', inputs).out_filename
         return {
                 'ram'        : ram(self.ram_per_process),
                 'insar'      : in_filename(meta),
-                'indem'      : indem,
+                'indem'      : inheight,
                 'withcryz'   : False,
                 'withxyz'    : True,
                 'withsatpos' : True,
