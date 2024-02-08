@@ -102,7 +102,7 @@ def product_property(prod: EOProduct, key: str, default=None):
     return res
 
 
-def product_cover(product: EOProduct, geometry: Dict[str, int]) -> float:
+def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
     """
     Compute the coverage of the intersection of the product and the target geometry
     relativelly to the target geometry.
@@ -820,7 +820,7 @@ class S1FileManager:
     def _filter_products(  # pylint: disable=too-many-arguments
         self,
         products:     List[EOProduct],
-        extent:       Dict[str, int],
+        extent:       Dict[str, float],
         tile_out_dir: str,
         tile_name:    str,
         polarization: str,
