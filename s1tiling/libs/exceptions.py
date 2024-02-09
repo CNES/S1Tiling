@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2017-2024 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -48,11 +48,11 @@ class ConfigurationError(Error):
     """
     Generic error for configuration file errors.
     """
-    def __init__(self, message: str, *args, configFile: Union[str,Path]="", **kwargs) -> None:
+    def __init__(self, message: str, configFile: Union[str,Path], *args, **kwargs) -> None:
         """
         Constructor
         """
-        super().__init__(f"{message}\nPlease fix the configuration file '{configFile}'.",
+        super().__init__(f"{message}\nPlease fix the configuration file {str(configFile)!r}.",
                          *args, **kwargs)
 
 
