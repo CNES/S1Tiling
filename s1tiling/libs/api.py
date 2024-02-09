@@ -97,13 +97,12 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
     # and and download all tiles
 
     if all_requested:
-        if cfg.download and "ALL" in cfg.roi_by_tiles:
-            raise exceptions.ConfigurationError("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
-                    + " Change either value or deactivate download instead")
-        else:
-            tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
-            logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
-                    100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
+        # Check already done in the configuration object
+        assert not(cfg.download and "ALL" in cfg.roi_by_tiles), \
+            "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
+        tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
+        logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
+                100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
