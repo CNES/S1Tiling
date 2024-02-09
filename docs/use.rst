@@ -596,6 +596,17 @@ You can use this :download:`this template
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
+      .. _Processing.dem_warp_resampling_method:
+  * - ``dem_warp_resampling_method``
+    - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
+      <lia-files>`.
+      This parameters permits to select the resampling method that
+      :external:std:doc:`gdalwarp <programs/gdalwarp>` will use.
+
+      The possible values are: ``near``, ``bilinear``, ``cubic``,
+      ``cubicspline``, ``lanczos``, ``average``, ``rms``, ``mode``, ``max``,
+      ``min``, ``med``, ``q1``, ``q3`` and ``qum``.
+
       .. _Processing.override_azimuth_cut_threshold_to:
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be

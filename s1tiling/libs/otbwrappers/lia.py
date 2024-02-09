@@ -194,9 +194,9 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="Warped DEM to S2 tile",
         )
-        self.__out_spatial_res      = cfg.out_spatial_res
-        self.__interpolation_method = cfg.interpolation_method
-        self.__nb_threads           = cfg.nb_procs
+        self.__out_spatial_res   = cfg.out_spatial_res
+        self.__resampling_method = cfg.dem_warp_resampling_method
+        self.__nb_threads        = cfg.nb_procs
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -209,6 +209,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
         imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
         imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
+        imd['DEM_RESAMPLING_METHOD']      = self.__resampling_method
         # TODO: shall we set "ORTHORECTIFIED = True" ??
         # TODO: DEM_LIST
 
@@ -235,7 +236,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
                 "-ot", "Float32",
                 # "-crop_to_cutline",
                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
-                "-r", "cubic",  # TODO: take a parameter
+                "-r", self.__resampling_method,
                 "-dstnodata", str(nodata),
                 image,
                 tmp_filename(meta),
