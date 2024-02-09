@@ -254,6 +254,11 @@ intersphinx_mapping = {
     "OTB": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
 }
 
+# Search w/
+# $> python -msphinx.ext.intersphinx https://gdal.org/objects.inv
+# $> python -msphinx.ext.intersphinx https://www.orfeo-toolbox.org/CookBook/objects.inv
+# $> python -msphinx.ext.intersphinx https://github.com/OSGeo/gdal-docs/blob/master/objects.inv | less
+
 
 def autodoc_process_docstring(app, what, name, obj, options, lines):
     """
