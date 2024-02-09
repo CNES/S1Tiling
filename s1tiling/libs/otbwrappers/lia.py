@@ -185,14 +185,14 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'DEM_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('dem_to_s2_projection') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('dem_on_s2') or fname_fmt
         super().__init__(
                 cfg,
                 exename='gdalwarp', name='ProjectDEMToS2Tile',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description="Warped DEM to {tile_name} S2 tile",
+                image_description="Warped DEM to S2 tile",
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__interpolation_method = cfg.interpolation_method
@@ -210,7 +210,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
         imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
         # TODO: shall we set "ORTHORECTIFIED = True" ??
-        # TODO: propagate DEM files list
+        # TODO: DEM_LIST
 
     def parameters(self, meta: Meta) -> ExeParameters:
         """
@@ -277,7 +277,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description="Geoid superimposed on {tile_name} S2 tile",
+                image_description="Geoid superimposed on S2 tile",
         )
         self.__GeoidFile            = cfg.GeoidFile
         self.__interpolation_method = cfg.interpolation_method
@@ -405,14 +405,14 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
     as described in :ref:`Normals computation` documentation to obtain the XYZ
-    ECEF coordinates of the ground and of the satelitte positions associated
+    ECEF coordinates of the ground and of the satellite positions associated
     to the pixel from input the `heigth` file.
 
     :external:doc:`Applications/app_SARDEMProjection` application fill a
     multi-bands image anchored on the footprint of the input DEM image.
     In each pixel in the DEM/output image, we store the XYZ ECEF coordinate of
     the ground point (associated to the pixel), and the XYZ coordinates of the
-    satelitte position (associated to the pixel...)
+    satellite position (associated to the pixel...)
 
     Requires the following information from the configuration object:
 
@@ -445,7 +445,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description="XYZ ground and satelitte positions on S2 tile",
+                image_description="XYZ ground and satellite positions on S2 tile",
         )
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_field_ids       = cfg.dem_field_ids
@@ -547,8 +547,9 @@ class ComputeNormals(OTBStepFactory):
 
     - input filename
     - output filename
+    - `fname_fmt`  -- optional key: `normals`, useless in the in-memory nominal case
     """
-    def __init__(self, cfg: Configuration):
+    def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'Normals_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('normals') or fname_fmt
         super().__init__(
@@ -621,6 +622,8 @@ class ComputeLIA(OTBStepFactory):
 
     - input filename
     - output filename
+    - `fname_fmt`  -- optional key: `s1_lia`
+    - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
@@ -775,6 +778,16 @@ class SelectBestCoverage(_FileProducingStepFactory):
     into the final expected name. Note: in LIA case two files will actually
     renamed.
 
+    Requires the following information from the metadata dictionary
+
+    - `acquisition_day`
+    - `tile_coverage`
+    - `LIA_kind`
+    - `flying_unit_code`
+    - `tile_name`
+    - `orbit_direction`
+    - `orbit`
+    - `fname_fmt`  -- optional key: `lia_product`
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
@@ -850,6 +863,7 @@ class ApplyLIACalibration(OTBStepFactory):
     - orbit_direction
     - orbit
     - acquisition_stamp
+    - `fname_fmt`  -- optional key: `s2_lia_corrected`
     """
 
     def __init__(self, cfg: Configuration) -> None:

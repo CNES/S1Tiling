@@ -458,11 +458,12 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         fname_fmt_keys = [
                 'calibration', 'correct_denoising', 'cut_borders',
-                'orthorectification', 'concatenation', 'dem_s1_agglomeration',
-                's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
-                'lia_orthorectification', 'lia_concatenation', 'lia_product',
-                's2_lia_corrected', 'filtered',
+                'orthorectification', 'concatenation', 'filtered',
+                'dem_s1_agglomeration',
                 'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
+                'normals', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+                # Keys to deprecated workflow
+                's1_on_dem', 'xyz', 'lia_orthorectification', 'lia_concatenation',
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
