@@ -318,8 +318,8 @@ class _ProducerStep(AbstractStep):
         if 'files_to_remove' in self.meta :
             files = self.meta['files_to_remove']
             # All possible geom files that may exist
-            geoms = [re.sub(re_tiff, '.geom', fn) for fn in files]
-            # All geaoms that do actually exist
+            geoms = [re.sub(re_tiff, '.geom', fn) for fn in files if '.tif' in files]
+            # All geoms that do actually exist
             geoms = [fn for fn in geoms if os.path.isfile(fn)]
             files = files + geoms
             if debug_caches:
