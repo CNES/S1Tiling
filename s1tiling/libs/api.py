@@ -282,28 +282,26 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     """
     Execute the tasks in parallel through Dask.
     """
-    for product, how in dsk.items():
-        logger.debug('- task: %s <-- %s', product, _how2str(how))
-
     if debug_tasks:
         SimpleComputationGraph().simple_graph(
                 dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
     logger.info('Start S1 -> S2 transformations for %s', tile_name)
     nb_tries = 2
-    for run_attemp in range(1, nb_tries+1):
+    for run_attempt in range(1, nb_tries+1):
         try:
+            logger.debug("  Execute tasks, attempt #%s", run_attempt)
             results = client.get(dsk, required_products)
             return results
         except KilledWorker as e:
             logger.critical('%s', dir(e))
             logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
-                    e.last_worker.name, e.task, tile_name, e, run_attemp, nb_tries)
+                    e.last_worker.name, e.task, tile_name, e, run_attempt, nb_tries)
             # TODO: don't overwrite previous logs
             # And we'll need to use the synchronous=False parameter to be able to check
             # successful executions but then, how do we clean up futures and all??
             client.restart()
             # Update the list of remaining tasks
-            if run_attemp < nb_tries:
+            if run_attempt < nb_tries:
                 dsk, required_products = pipelines.generate_tasks(tile_name,
                         intersect_raster_list, do_watch_ram=do_watch_ram)
             else:
@@ -357,7 +355,10 @@ def process_one_tile(  # pylint: disable=too-many-arguments
 
     dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram=do_watch_ram)
     logger.debug('######################################################################')
-    logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
+    logger.debug('Summary of %s tasks related to S1 -> S2 transformations of %s', len(dsk), tile_name)
+    for product, how in dsk.items():
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
+
     if debug_otb:
         return _execute_tasks_debug(dsk, tile_name)
     else:
