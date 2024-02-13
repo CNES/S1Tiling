@@ -365,11 +365,7 @@ DEM VRT files
 
 :Metadata: No metadata is added by S1Tiling to these files.
 
-:Cleanup:
-
-    .. warning::
-       These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+:Cleanup: These files are cleaned automatically (since new workflow from v1.1).
 
 
 .. _DEM_on_S2-files:
@@ -405,7 +401,7 @@ DEM data projected on S2 tile
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
-:Cleanup:
+:Cleanup: These files are cleaned automatically.
 
 .. _height_on_S2-files:
 
@@ -431,7 +427,7 @@ Height (DEM+Geoid) projected on S2 tile
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satelitte positions on S2 tile`
 
-:Cleanup:
+:Cleanup: These files are cleaned automatically.
 
 
 .. _ground_and_sat_S2-files:
@@ -482,7 +478,7 @@ Ground and sensor position in XYZ ECEF coordinates
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
-:Cleanup:
+:Cleanup: These files are cleaned automatically.
 
 
 Deprecated temporary files
