@@ -198,6 +198,17 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         self.__resampling_method = cfg.dem_warp_resampling_method
         self.__nb_threads        = cfg.nb_procs
 
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Register temporary files from previous step for removal.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+
+        in_file = in_filename(meta)
+        meta['files_to_remove'] = [in_file]  # DEM VRT
+        logger.debug('Register files to remove after DEM warping on S2 computation: %s', meta['files_to_remove'])
+        return meta
+
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set S2 related information, that should have been carried around...
@@ -344,10 +355,14 @@ class SumAllHeights(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs.
+        Complete meta information with inputs, and
+        register temporary files from previous step for removal.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
+        dem_on_s2  = _fetch_input_data('in_s2_dem', all_inputs).out_filename
+        meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
+        logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
@@ -355,7 +370,7 @@ class SumAllHeights(OTBStepFactory):
         Extract the last inputs to use at the current level from all previous
         products seens in the pipeline.
 
-        This method will is overridden in order to fetch N-1 "in_s2_dem" input.
+        This method is overridden in order to fetch N-1 "in_s2_dem" input.
         It has been specialized for S1Tiling exact pipelines.
         """
         assert len(previous_steps) > 1
@@ -466,14 +481,41 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
         return meta
 
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method is overridden in order to fetch N-2 "insar" and "inheight" inputs.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        assert len(previous_steps) > 1
+
+        # "insar"    is expected at level -2, likelly named 'insar'
+        sar    = _fetch_input_data('insar', previous_steps[-2])
+        # "inheight" is expected at level -2, likelly named 'inheight'
+        height = _fetch_input_data('inheight', previous_steps[-2])
+
+        inputs = [{'insar': sar, 'inheight': height}]
+        _check_input_step_type(inputs)
+        logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
+        return inputs
+
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Computes dem information and adds them to the meta structure, to be used
         later to fill-in the image metadata.
+
+        Also register temporary files from previous step for removal.
         """
         meta = super().complete_meta(meta, all_inputs)
+        logger.debug("inputs are: %s", all_inputs)
+        meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-        # meta['inputs'] = all_inputs
+
+        height_on_s2  = _fetch_input_data('inheight', all_inputs).out_filename
+        meta['files_to_remove'] = [height_on_s2]
+        logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
 
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
@@ -670,7 +712,7 @@ class ComputeLIA(OTBStepFactory):
         Extract the last inputs to use at the current level from all previous
         products seens in the pipeline.
 
-        This method will is overridden in order to fetch N-1 "xyz" input.
+        This method is overridden in order to fetch N-1 "xyz" input.
         It has been specialized for S1Tiling exact pipelines.
         """
         assert len(previous_steps) > 1
@@ -1186,9 +1228,9 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         indem     = _fetch_input_data('indem',     all_inputs).out_filename
         indemproj = _fetch_input_data('indemproj', all_inputs).out_filename
         meta['files_to_remove'] = [indem, indemproj]
+        logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         _, inbasename = os.path.split(in_filename(meta))
         meta['inbasename'] = inbasename
-        logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:

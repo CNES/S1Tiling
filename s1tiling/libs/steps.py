@@ -325,7 +325,7 @@ class _ProducerStep(AbstractStep):
             if debug_caches:
                 logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
-                logger.debug('Cleaning intermediary files: %s', files)
+                logger.debug('Cleaning intermediary files: %s used for  %s', files, self.out_filename)
                 if not dryrun:
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
@@ -337,7 +337,6 @@ class _ProducerStep(AbstractStep):
 
         .. precondition:: Call from non dryrun mode only
         """
-        assert isinstance(self, (StoreStep, ExecutableStep))
         img_meta = self.meta.get('image_metadata', {})
         # fullpath = out_filename(self.meta)
         fullpath = self.tmp_filename
