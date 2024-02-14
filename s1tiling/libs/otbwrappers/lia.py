@@ -157,8 +157,7 @@ class AgglomerateDEM(AnyProducerStepFactory):
         return meta
 
     def parameters(self, meta: Meta) -> ExeParameters:
-        # While it won't make much a difference here, we are still using
-        # tmp_filename.
+        # While it won't make much a difference here, we are still using tmp_filename.
         return [tmp_filename(meta)] \
                 + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
 
@@ -665,23 +664,35 @@ class ComputeLIA(OTBStepFactory):
 
     - input filename
     - output filename
-    - `fname_fmt`  -- optional key: `s1_lia`
+    - `fname_fmt`  -- optional key: `s1_lia`  TODO!!
     - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
-        fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
-        fname_fmt = [
-                TemplateOutputFilenameGenerator(fname_fmt_lia),
-                TemplateOutputFilenameGenerator(fname_fmt_sin)]
+        fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
+        fname_fmt_lia = Utils.partial_format(fname_fmt, LIA_kind="LIA")
+        fname_fmt_sin = Utils.partial_format(fname_fmt, LIA_kind="sin_LIA")
+
+        # TODO: Keep ComputeLIAOnS1 in the deprecated zone.
+        # fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
+        # fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
+        fname_fmt = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
+        param_out = ['out.sin']
+        if cfg.produce_lia_map:
+            # We always produce out.sin, and optionally we produce out.lia.
+            # Anyway, their production is always done in output_dir!
+            fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_lia))
+            param_out.append('out.lia')
         super().__init__(cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 # In-memory connected to in.normals
-                param_in='in.normals', param_out=['out.lia', 'out.sin'],
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
+                param_in='in.normals', param_out=param_out,
+                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+                gen_output_dir=cfg.lia_directory,
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
-                image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
+                # image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
+                image_description='LIA on S2 grid',
                 )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
@@ -752,12 +763,14 @@ class ComputeLIA(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
-class _FilterStepFactory(StepFactory):
+class _FilterLIAStepFactory(StepFactory):
     """
     Helper root class for all LIA/sin filtering steps.
 
     This class will be specialized on the fly by :func:`filter_LIA` which
     will inject the static data ``_LIA_kind``.
+
+    Related step will forward the selected input under a new task-name (that differs from the filename).
     """
 
     # Useless definition used to trick pylint in believing self._LIA_kind is set.
@@ -770,7 +783,13 @@ class _FilterStepFactory(StepFactory):
         meta['LIA_kind'] = self._LIA_kind
         return meta
 
-    def _get_input_image(self, meta: Meta):
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        Update task name to avoid collision with inputs as file aren't renamed by this filter.
+        """
+        meta['task_name']        = f'FilterLIA_{out_filename(meta)}'
+
+    def _get_input_image(self, meta: Meta) -> str:
         # Flatten should be useless, but kept for better error messages
         related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta))
                 if re.search(rf'\b{self._LIA_kind}_', f)]
@@ -779,7 +798,7 @@ class _FilterStepFactory(StepFactory):
         )
         return related_inputs[0]
 
-    def build_step_output_filename(self, meta: Meta):
+    def build_step_output_filename(self, meta: Meta) -> str:
         """
         Forward the output filename.
         """
@@ -787,24 +806,25 @@ class _FilterStepFactory(StepFactory):
         logger.debug('%s KEEP %s from %s', self.__class__.__name__, inp, in_filename(meta))
         return inp
 
-    def build_step_output_tmp_filename(self, meta: Meta):
+    def build_step_output_tmp_filename(self, meta: Meta) -> str:
         """
-        As there is no OTB application associated to :class:`ExtractSentinel1Metadata`,
+        As there is no producer associated to :class:`_FilterLIAStepFactory`,
         there is no temporary filename.
         """
         return self.build_step_output_filename(meta)
 
 
-def filter_LIA(LIA_kind: str) -> Type[_FilterStepFactory]:
+def filter_LIA(LIA_kind: str) -> Type[_FilterLIAStepFactory]:
     """
     Generates a new :class:`StepFactory` class that filters which LIA product
     shall be processed: LIA maps or sin LIA maps.
     """
     # We return a new class
-    return type("Filter_"+LIA_kind,   # Class name
-            (_FilterStepFactory,),    # Parent
+    return type(
+            "Filter_"+LIA_kind,     # Class name
+            (_FilterLIAStepFactory,),  # Parent
             { '_LIA_kind': LIA_kind}
-            )
+    )
 
 
 class SelectBestCoverage(_FileProducingStepFactory):
