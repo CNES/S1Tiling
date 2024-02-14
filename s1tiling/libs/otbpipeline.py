@@ -224,7 +224,7 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
     Returns the product filename(s) or the caught error in case of failure.
     """
     assert pipeline is not None
-    logger.debug('Parameters for %s: %s', pipeline, args)
+    logger.debug('Parameters for %s:\n|--> %s', pipeline, args)
     watch_ram = pipeline.shall_watch_ram
     if watch_ram:
         objgraph.show_growth(limit=5)
@@ -538,10 +538,10 @@ def _register_new_input_and_update_out_filename(
         _update_out_filename(new_task_meta, task_inputs)  # Required for concatenation dates handling
         logger.debug('    ...to %s', new_task_meta)
         logger.debug("  Next inputs: %s", [get_task_name(ni) for ni in outputs])
-        def simflified_task_name(meta: Meta) -> str:
+        def simplified_task_name(meta: Meta) -> str:
             tn = get_task_name(meta)
             return tn[0] if isinstance(tn, list) else tn
-        already_registered_next_input = [ni for ni in outputs if simflified_task_name(ni) == task_name]
+        already_registered_next_input = [ni for ni in outputs if simplified_task_name(ni) == task_name]
         assert len(already_registered_next_input) == 1, \
                 f'Task {task_name!r}: 1!={len(already_registered_next_input)} => {already_registered_next_input} inputs have already been registered'
         _update_out_filename(already_registered_next_input[0], task_inputs)
@@ -660,7 +660,7 @@ class PipelineDescriptionSequence:
                         previous[expected_taskname].add_input(origin, inp, expected)
                         logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif (input_task_name := get_task_name(inp)) not in previous[expected_taskname].input_task_names:
-                        logger.debug("    Not new product, but input task %s NOT registered in input_task_names(%s) ", input_task_name, previous[expected_taskname].pipeline.name)
+                        logger.debug("    Not new product, but input task %s NOT registered in input_task_names(%s)", input_task_name, previous[expected_taskname].pipeline.name)
                         _register_new_input_and_update_out_filename(
                                 tasks=previous,
                                 origin=origin,
