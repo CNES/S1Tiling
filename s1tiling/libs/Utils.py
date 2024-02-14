@@ -39,7 +39,7 @@ from pathlib import Path
 import re
 import sys
 from timeit import default_timer as timer
-from typing import Any, Callable, Dict, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
 from osgeo import ogr
 import osgeo  # To test __version__
@@ -58,21 +58,6 @@ EXTENSION_TO_DRIVER_MAP = {
 
 
 logger = logging.getLogger("s1tiling.utils")
-
-
-def flatten_stringlist(itr):
-    """
-    Flatten a list of lists.
-    But don't decompose string.
-    """
-    if type(itr) in (str,bytes):
-        yield itr
-    else:
-        for x in itr:
-            try:
-                yield from flatten_stringlist(x)
-            except TypeError:
-                yield x
 
 
 class Layer:
@@ -116,6 +101,9 @@ class Layer:
         """Returns the SpatialReference the Layer is in"""
         return self.__layer.GetSpatialRef()
 
+
+# ======================================================================
+## Technical helpers
 
 def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
@@ -438,6 +426,45 @@ def get_platform_from_s1_raster(path_to_raster: str) -> str:
       a string representing the platform
     """
     return path_to_raster.split("/")[-1].split("-")[0]
+
+
+# ======================================================================
+## Technical helpers
+
+class _PartialFormatHelper(dict):
+    """
+    Helper class that return missing ``{key}`` as themselves
+    """
+    def __missing__(self, key:str) ->str:
+        return "{" + key + "}"
+
+
+def partial_format(format_str: str, **kwargs) -> str:
+    """
+    Permits to apply partial formatting to format string.
+
+    Example:
+    --------
+    >>> s = "{ab}_bla_{cd}"
+    >>> partial_format(s, ab="TOTO")
+    'tot_bla_{cd}'
+    """
+    return format_str.format_map(_PartialFormatHelper(**kwargs))
+
+
+def flatten_stringlist(itr) -> Generator[str, None, None]:
+    """
+    Flatten a list of lists.
+    But don't decompose string.
+    """
+    if type(itr) in (str,bytes):
+        yield itr
+    else:
+        for x in itr:
+            try:
+                yield from flatten_stringlist(x)
+            except TypeError:
+                yield x
 
 
 class ExecutionTimer:
