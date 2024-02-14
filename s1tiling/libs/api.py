@@ -34,6 +34,7 @@ Submodule that defines all API related functions and classes.
 """
 
 import logging
+import logging.config
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
@@ -378,7 +379,7 @@ def read_config(config_opt: Union[str,Configuration]) -> Configuration:
         return config_opt
 
 
-def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
+def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = False) -> Configuration:
     """
     Adds attributes to configuration object.
 
@@ -514,9 +515,20 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     concat          = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatLIA', inputs={'in': ortho})
     pipelines.register_pipeline([SelectBestCoverage],                                          'SelectLIA', inputs={'in': concat}, product_required=produce_angles)
 
-    ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
-    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatSinLIA', inputs={'in': ortho_sin})
-    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage],                        'SelectSinLIA', inputs={'in': concat_sin}, product_required=True)
+    ortho_sin       = pipelines.register_pipeline(
+            [filter_LIA('sin_LIA'), OrthoRectifyLIA],
+            'OrthoSinLIA',
+            inputs={'in': lia},
+            is_name_incremental=True)
+    concat_sin      = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatSinLIA',
+            inputs={'in': ortho_sin})
+    best_concat_sin = pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectSinLIA',
+            inputs={'in': concat_sin},
+            product_required=True)
 
     return best_concat_sin
 
@@ -552,29 +564,16 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
             inputs={'insar': 'basename', 'inheight': s2_height},
     )
 
-    # Now always generates both sin + deg
+    # Always generate sin(LIA). If LIA° is requested, then it's also a
+    # final/requested product.
     lia = pipelines.register_pipeline(
             [ComputeNormals, ComputeLIA],
             'ComputeLIAOnS2',
             is_name_incremental=True,
             inputs={'xyz': xyz},
-            # product_required=True,
-    )
-
-    pipelines.register_pipeline(
-            [filter_LIA('LIA'), SelectBestCoverage],  'SelectLIA',
-            is_name_incremental=True,
-            inputs={'in': lia},
-            product_required=produce_angles,
-    )
-    best_concat_sin = pipelines.register_pipeline(
-            [filter_LIA('sin_LIA'), SelectBestCoverage],  'SelectLIA',
-            is_name_incremental=True,
-            inputs={'in': lia},
-            # product_required=produce_angles,
             product_required=True,
     )
-    return best_concat_sin
+    return lia
 
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
@@ -691,9 +690,18 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             else:
                 need_to_keep_non_filtered_products = True
 
-            concat_sin = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+            lias = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+
+            # This steps helps forwarding sin(LIA) (only) to the next step
+            # that corrects the β° with sin(LIA) map.
+            sin_LIA = pipelines.register_pipeline(
+                    [filter_LIA('sin_LIA')],
+                    'SelectSinLIA',
+                    is_name_incremental=True,
+                    inputs={'in': lias},
+            )
             apply_LIA = pipelines.register_pipeline(apply_LIA_seq, product_required=True,
-                    inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2}, is_name_incremental=True)
+                    inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2}, is_name_incremental=True)
             last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
 
