@@ -57,7 +57,6 @@ from .lia import (
         ComputeGroundAndSatPositionsOnDEM,
         ComputeNormals,
         ComputeLIA,
-        _FilterStepFactory,
         SelectBestCoverage,
         ApplyLIACalibration,
         SARDEMProjection,
