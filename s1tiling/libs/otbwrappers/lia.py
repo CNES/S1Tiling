@@ -86,7 +86,7 @@ def remove_polarization_marks(name: str) -> str:
     return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
 
 
-class AgglomerateDEM(AnyProducerStepFactory):
+class AgglomerateDEMOnS2(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
 
@@ -98,21 +98,20 @@ class AgglomerateDEM(AnyProducerStepFactory):
         """
         constructor
         """
-        fname_fmt = 'DEM_{polarless_rootname}.vrt'
-        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration') or fname_fmt
+        fname_fmt = 'DEM_{tile_name}.vrt'
+        fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration') or fname_fmt
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 name="AgglomerateDEM",
-                action=AgglomerateDEM.agglomerate,
+                action=AgglomerateDEMOnS2.agglomerate,
             *args, **kwargs)
-        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
+        # TODO: Use the dems stored in cache!
         self.__dem_dir             = cfg.dem
         self.__dem_filename_format = cfg.dem_filename_format
-        self.__dem_field_ids       = cfg.dem_field_ids
-        self.__dem_main_field_id   = cfg.dem_main_field_id
 
     @staticmethod
     def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:
@@ -124,27 +123,13 @@ class AgglomerateDEM(AnyProducerStepFactory):
         if not dryrun:
             gdal.BuildVRT(parameters[0], parameters[1:])
 
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related informations.
-        """
-        # Ignore polarization in filenames
-        assert 'polarless_basename' not in meta
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        rootname = os.path.splitext(meta['polarless_basename'])[0]
-        meta['polarless_rootname'] = rootname
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
-        return meta
-
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Factory that takes care of extracting meta data from S1 input files.
         """
         meta = super().complete_meta(meta, all_inputs)
         # find DEMs that intersect the input image
-        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
-            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dem_infos'] = self.__cfg.get_dems_covering_s2_tile(meta['tile_name'])
         meta['dems'] = sorted(meta['dem_infos'].keys())
         logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
         dem_files = map(
@@ -153,7 +138,7 @@ class AgglomerateDEM(AnyProducerStepFactory):
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
             raise RuntimeError(
-                    f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
+                    f"Cannot create DEM vrt for {meta['tile_name']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta: Meta) -> ExeParameters:
@@ -469,7 +454,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related informations.
+        provide names clear from polar related information.
         """
         # Ignore polarization in filenames
         if 'polarless_basename' in meta:
@@ -1027,6 +1012,82 @@ class ApplyLIACalibration(OTBStepFactory):
 # until the production of the LIA map that was eventuall orthorectified and
 # concatenated.
 
+class AgglomerateDEM(AnyProducerStepFactory):
+    """
+    Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
+
+    The choice has been made to name the VRT file after the basename of the
+    root S1 product and not the names of the DEM tiles.
+    """
+
+    def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
+        """
+        constructor
+        """
+        fname_fmt = 'DEM_{polarless_rootname}.vrt'
+        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration') or fname_fmt
+        super().__init__(  # type: ignore # mypy issue 4335
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,      # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                name="AgglomerateDEM",
+                action=AgglomerateDEM.agglomerate,
+            *args, **kwargs)
+        self.__dem_db_filepath     = cfg.dem_db_filepath
+        self.__dem_dir             = cfg.dem
+        self.__dem_filename_format = cfg.dem_filename_format
+        self.__dem_field_ids       = cfg.dem_field_ids
+        self.__dem_main_field_id   = cfg.dem_main_field_id
+
+    @staticmethod
+    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:
+        """
+        The function that calls :func:`gdal.BuildVRT()`.
+        """
+        logger.info("gdal.BuildVRT(%s, %s)", parameters[0], parameters[1:])
+        assert len(parameters) > 0
+        if not dryrun:
+            gdal.BuildVRT(parameters[0], parameters[1:])
+
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        """
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
+        provide names clear from polar related information.
+        """
+        # Ignore polarization in filenames
+        assert 'polarless_basename' not in meta
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        rootname = os.path.splitext(meta['polarless_basename'])[0]
+        meta['polarless_rootname'] = rootname
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        return meta
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Factory that takes care of extracting meta data from S1 input files.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        # find DEMs that intersect the input image
+        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
+            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+        logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
+        dem_files = map(
+                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+                meta['dem_infos'])
+        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
+        if len(missing_dems) > 0:
+            raise RuntimeError(
+                    f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
+        return meta
+
+    def parameters(self, meta: Meta) -> ExeParameters:
+        # While it won't make much a difference here, we are still using tmp_filename.
+        return [tmp_filename(meta)] \
+                + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
+
+
 class SARDEMProjection(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
@@ -1078,7 +1139,7 @@ class SARDEMProjection(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related informations.
+        provide names clear from polar related information.
         """
         # Ignore polarization in filenames
         if 'polarless_basename' in meta:
@@ -1211,7 +1272,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related informations.
+        provide names clear from polar related information.
         """
         # Ignore polarization in filenames
         if 'polarless_basename' in meta:

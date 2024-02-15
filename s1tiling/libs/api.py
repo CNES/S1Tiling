@@ -55,7 +55,7 @@ from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequ
 from .otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
-        SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
+        SmoothBorderMask, AgglomerateDEMOnS2, SARDEMProjection,
         SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
         OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
         ApplyLIACalibration,
@@ -109,7 +109,7 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict]:
+def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str,Dict]]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
@@ -140,7 +140,7 @@ def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileM
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
-    return tiles_to_process_checked, needed_dem_tiles
+    return tiles_to_process_checked, needed_dem_tiles, dem_tiles_check
 
 
 def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
@@ -354,7 +354,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments
         logger.info("No intersection with tile %s", tile_name)
         return []
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram=do_watch_ram)
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
     logger.debug('######################################################################')
     logger.debug('Summary of %s tasks related to S1 -> S2 transformations of %s', len(dsk), tile_name)
     for product, how in dsk.items():
@@ -426,7 +426,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         if len(tiles_to_process) == 0:
             raise exceptions.NoS2TileError()
 
-        tiles_to_process_checked, needed_dem_tiles = check_tiles_to_process(
+        tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
                 tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
@@ -451,6 +451,8 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         config.tmp_dem_dir = s1_file_manager.tmpdemdir(needed_dem_tiles, config.dem_filename_format)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
+        config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
+
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
@@ -539,8 +541,9 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDe
     LIA map and sin(LIA) map.
     """
     dem_vrt = pipelines.register_pipeline(
-            [AgglomerateDEM], 'AgglomerateDEM',
-            inputs={'insar': 'basename'})
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'insar': 'basename'},
+    )
 
     s2_dem = pipelines.register_pipeline(
             [ProjectDEMToS2Tile], "ProjectDEMToS2Tile", is_name_incremental=True,

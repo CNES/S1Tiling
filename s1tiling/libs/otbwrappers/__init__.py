@@ -50,7 +50,7 @@ from .s1_to_s2 import (
 
 from .lia import (
         filter_LIA,
-        AgglomerateDEM,
+        AgglomerateDEMOnS2,
         ProjectDEMToS2Tile,
         ProjectGeoidToS2Tile,
         SumAllHeights,
@@ -59,6 +59,8 @@ from .lia import (
         ComputeLIA,
         SelectBestCoverage,
         ApplyLIACalibration,
+
+        AgglomerateDEM,
         SARDEMProjection,
         SARCartesianMeanEstimation,
         OrthoRectifyLIA,
