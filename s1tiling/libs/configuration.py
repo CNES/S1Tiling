@@ -225,6 +225,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init__(
             self, config_file : Union[str, Path], do_show_configuration=True
     ) -> None:
+        #: Cache of DEM information covering S2 tiles
+        self.__dems_by_s2_tiles = {}
+
         config = configparser.ConfigParser(os.environ)
         config.read(config_file)
 
@@ -606,3 +609,19 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
         return fname_fmt
+
+    # ======================================================================
+    # Things stored for later use
+    def register_dems_related_to_S2_tiles(self, dems_by_s2_tiles: Dict[str, Dict]) -> None:
+        """
+        Workaround that helps caching DEM related information for later use.
+        """
+        self.__dems_by_s2_tiles = dems_by_s2_tiles
+
+    def get_dems_covering_s2_tile(self, tile_name: str) -> Dict:
+        """
+        Retrieve the DEM associated to the specified S2 tile.
+        """
+        if tile_name not in self.__dems_by_s2_tiles:
+            raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
+        return self.__dems_by_s2_tiles[tile_name]
