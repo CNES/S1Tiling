@@ -276,10 +276,10 @@ class _ProducerStep(AbstractStep):
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
         with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
+            self._do_execute(parameters, dryrun)
             if not dryrun:
                 # TODO: catch execute failure, and report it!
                 # logger.info("START %s", pipeline_name)
-                self._do_execute(parameters, dryrun)
                 self._write_image_metadata()
                 commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
@@ -537,6 +537,7 @@ class StepFactory(ABC):
         :func:`build_step_output_filename()`, and possibly moved into
         :func:`_FileProducingStepFactory.output_directory()` if this is a final product.
         """
+        # TODO: Move to _ProducerStep ?
         pass
 
     def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
@@ -754,6 +755,8 @@ class StoreStep(_ProducerStep):
         :meta public:
         """
         assert self._app
+        if dryrun:
+            return
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
             # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
             self._set_out_parameters()
