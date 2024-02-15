@@ -533,7 +533,7 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
@@ -690,7 +690,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             else:
                 need_to_keep_non_filtered_products = True
 
-            lias = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+            lias = register_LIA_pipelines(pipelines)
 
             # This steps helps forwarding sin(LIA) (only) to the next step
             # that corrects the β° with sin(LIA) map.
@@ -700,6 +700,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                     is_name_incremental=True,
                     inputs={'in': lias},
             )
+            # TODO: Merge filter_LIA in apply_LIA_seq!
             apply_LIA = pipelines.register_pipeline(apply_LIA_seq, product_required=True,
                     inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2}, is_name_incremental=True)
             last_product_S2 = apply_LIA
@@ -797,7 +798,7 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         # register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
-        register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+        register_LIA_pipelines(pipelines)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
