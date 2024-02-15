@@ -41,9 +41,8 @@ import sys
 from timeit import default_timer as timer
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
-from osgeo import ogr
+from osgeo import ogr, osr
 import osgeo  # To test __version__
-from osgeo import osr
 
 from .S1DateAcquisition import S1DateAcquisition
 
@@ -304,6 +303,22 @@ def find_dem_intersecting_raster(
 
     logger.info("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
+
+
+def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Layer]) -> ogr.Geometry:
+    """
+    This method returns the MGRS tile geometry as OGRGeometry given its identifier
+
+    :param mgrs_tile_name: MGRS tile identifier
+    :param mgrs_db:        Database (or its filename) storing the MGRS tile information.
+    :return:  The MGRS tile geometry as OGRGeometry or raise ValueError
+    """
+    mgrs_layer = Layer(mgrs_db) if isinstance(mgrs_db, str) else mgrs_db
+
+    for mgrs_tile in mgrs_layer:
+        if mgrs_tile.GetField('NAME') == mgrs_tile_name:
+            return mgrs_tile.GetGeometryRef().Clone()
+    raise ValueError("MGRS tile does not exist", mgrs_tile_name)
 
 
 def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:

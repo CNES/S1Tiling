@@ -62,7 +62,9 @@ import numpy as np
 
 from s1tiling.libs      import exceptions
 from .Utils             import (
-    get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly,
+    Layer,
+    extract_product_start_time, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name,
+    get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
@@ -1348,24 +1350,6 @@ class S1FileManager:
 
         return intersect_raster
 
-    def _get_mgrs_tile_geometry_by_name(self, mgrs_tile_name: str):
-        """
-        This method returns the MGRS tile geometry
-        as OGRGeometry given its identifier
-
-        Args:
-          mgrs_tile_name: MGRS tile identifier
-
-        Returns:
-          The MGRS tile geometry as OGRGeometry or raise ValueError
-        """
-        mgrs_layer = Layer(self.cfg.output_grid)
-
-        for mgrs_tile in mgrs_layer:
-            if mgrs_tile.GetField('NAME') == mgrs_tile_name:
-                return mgrs_tile.GetGeometryRef().Clone()
-        raise ValueError("MGRS tile does not exist", mgrs_tile_name)
-
     def check_dem_coverage(self, tiles_to_process: List[str]) -> Dict[str, Dict]:
         """
         Given a set of MGRS tiles to process, this method
@@ -1378,13 +1362,14 @@ class S1FileManager:
           A list of tuples (DEM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        dem_layer = Layer(self.cfg.dem_db_filepath)
+        dem_layer  = Layer(self.cfg.dem_db_filepath)
+        mgrs_layer = Layer(self.cfg.output_grid)
 
         needed_dem_tiles = {}
 
         for tile in tiles_to_process:
             logger.debug("Check DEM tiles for %s", tile)
-            mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
+            mgrs_footprint = get_mgrs_tile_geometry_by_name(tile, mgrs_layer)
             logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
             dem_tiles = find_dem_intersecting_poly(
                     mgrs_footprint, dem_layer, self.cfg.dem_field_ids, self.cfg.dem_main_field_id)
