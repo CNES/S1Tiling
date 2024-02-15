@@ -200,7 +200,7 @@ class Pipeline:
         # logger.debug("LOG OTB: %s", os.environ.get('OTB_LOGGER_LEVEL'))
         assert self.__pipeline  # shall not be empty!
         steps = [self.__inputs]
-        for crt in self.__pipeline:
+        for crt in self.__pipeline:  # crt is a StepFactory
             step = crt.create_step(self.__execution_parameters, steps)
             if step:  # a StepFactory may return no step so it can be skipped
                 steps.append([{'__last': step}])
@@ -482,7 +482,7 @@ class TaskInputInfo:
     @property
     def input_metas(self) -> List[Dict]:
         """
-        List of input meta informations the current task depends on.
+        List of input meta information the current task depends on.
         """
         metas = [meta for inputs in self.inputs.values() for meta in inputs]
         return metas
@@ -599,7 +599,7 @@ class PipelineDescriptionSequence:
         Runs the inputs through all pipeline descriptions to build the full list
         of intermediary and final products and what they require to be built.
         """
-        first_inputs = generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
+        first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
 
         pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
@@ -797,7 +797,7 @@ class PipelineDescriptionSequence:
             logger.debug('All required applications are correctly available')
 
     def generate_tasks(
-        self, tile_name: str, raster_list: List[Dict], do_watch_ram=False
+        self, tile_name:    str, raster_list:  List[Dict], do_watch_ram=False
     ) -> Tuple[Dict[str, Union[Tuple, "FirstStep"]], List[str]]:
         """
         Generate the minimal list of tasks that can be passed to Dask
@@ -826,7 +826,7 @@ class PipelineDescriptionSequence:
         return tasks, final_products
 
 
-def generate_first_steps_from_manifests(
+def _generate_first_steps_from_manifests(
     raster_list:  List[Dict],
     tile_name:    str,
 ) -> List[Dict]:  # List[meta(FirstStep)]
