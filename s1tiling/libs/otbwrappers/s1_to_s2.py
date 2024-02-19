@@ -68,7 +68,7 @@ from ..              import exceptions
 from ..              import Utils
 from ..configuration import Configuration
 from ...__meta__     import __version__
-from .lia            import does_sin_lia_match_s2_tile_for_orbit
+from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
 

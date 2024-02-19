@@ -46,7 +46,7 @@ from ..file_naming   import (
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
 )
 from ..meta import (
-        Meta, in_filename, out_filename, tmp_filename, is_running_dry,
+        Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
 )
 from ..steps import (
         InputList, OTBParameters, ExeParameters,
@@ -56,55 +56,22 @@ from ..steps import (
         commit_execution,
         ram,
 )
-from ..otbpipeline import (
+from ..otbpipeline   import (
     _fetch_input_data, TaskInputInfo,
 )
-from .s1_to_s2 import (
+from .helpers        import (
+        does_s2_data_match_s2_tile,
+        does_sin_lia_match_s2_tile_for_orbit,
+        remove_polarization_marks,
+)
+from .s1_to_s2       import (
         s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
 )
-from .. import Utils
+from ..              import Utils
 from ..configuration import Configuration
-from ...__meta__ import __version__
+from ...__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
-
-
-def append_to(meta: Meta, key: str, value) -> Dict:
-    """
-    Helper function to append to a list that may be empty
-    """
-    meta[key] = meta.get(key, []) + [value]
-    return meta
-
-
-def remove_polarization_marks(name: str) -> str:
-    """
-    Clean filename of any specific polarization mark like ``vv``, ``vh``, or
-    the ending in ``-001`` and ``002``.
-    """
-    # (?=  marks a 0-length match to ignore the dot
-    return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
-
-
-def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) -> bool:
-    """
-    Tells whether a given ComputeGroundAndSatPositionsOnDEM input is compatible
-    with the the current S2 tile.
-
-    ``tile_name`` has to be identical.
-    """
-    fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
-    return all(input_meta[k] == output_meta[k] for k in fields)
-
-
-def _does_s2_data_match_s2_tile(output_meta: Meta, input_meta: Meta) -> bool:
-    """
-    Tells whether a given sin_LIA input is compatible with the the current S2 tile.
-
-    ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit`` have to be identical.
-    """
-    fields = ['tile_name']
-    return all(input_meta[k] == output_meta[k] for k in fields)
 
 
 class AgglomerateDEMOnS2(AnyProducerStepFactory):
@@ -493,7 +460,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         It will tell whether a given heights file on S2 tile input is
         compatible with the current S2 tile.
         """
-        meta['accept_as_compatible_input'] = lambda input_meta : _does_s2_data_match_s2_tile(meta, input_meta)
+        meta['accept_as_compatible_input'] = lambda input_meta : does_s2_data_match_s2_tile(meta, input_meta)
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """

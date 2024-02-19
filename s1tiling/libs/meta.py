@@ -37,6 +37,14 @@ from typing import Dict
 Meta          = Dict
 
 
+def append_to(meta: Meta, key: str, value) -> Dict:
+    """
+    Helper function to append to a list that may be empty
+    """
+    meta[key] = meta.get(key, []) + [value]
+    return meta
+
+
 def in_filename(meta: Meta) -> str:
     """
     Helper accessor to access the input filename of a `Step`.
