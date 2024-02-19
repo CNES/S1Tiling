@@ -60,7 +60,7 @@ from .lia import (
         SelectBestCoverage,
         ApplyLIACalibration,
 
-        AgglomerateDEM,
+        AgglomerateDEMOnS1,
         SARDEMProjection,
         SARCartesianMeanEstimation,
         OrthoRectifyLIA,

@@ -1031,7 +1031,7 @@ class ApplyLIACalibration(OTBStepFactory):
 # until the production of the LIA map that was eventuall orthorectified and
 # concatenated.
 
-class AgglomerateDEM(AnyProducerStepFactory):
+class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
 
@@ -1050,8 +1050,8 @@ class AgglomerateDEM(AnyProducerStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                name="AgglomerateDEM",
-                action=AgglomerateDEM.agglomerate,
+            name="AgglomerateDEM",
+            action=AgglomerateDEMOnS1.agglomerate,
             *args, **kwargs)
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_dir             = cfg.dem

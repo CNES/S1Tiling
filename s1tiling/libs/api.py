@@ -53,13 +53,18 @@ from . import Utils
 from .configuration import Configuration
 from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence, StepFactory, AbstractStep
 from .otbwrappers import (
+        # Main S1 -> S2 Step Factories
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
-        CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
-        SmoothBorderMask, AgglomerateDEMOnS2, SARDEMProjection,
-        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
-        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
+        CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
+        # LIA relate Step Factories
+        AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
+        SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        ComputeLIA, filter_LIA, ComputeNormals,
         ApplyLIACalibration,
-        ProjectDEMToS2Tile, ProjectGeoidToS2Tile, SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        # Deprecated LIA related Step Factories
+        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
+        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
+        # Filter Step Factories
         SpatialDespeckle)
 from .outcome import Outcome
 
@@ -501,7 +506,7 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
-    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
+    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM',
             inputs={'insar': 'basename'})
 
     demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
