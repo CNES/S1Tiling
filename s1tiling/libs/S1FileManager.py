@@ -46,6 +46,7 @@ import shutil
 import tempfile
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from osgeo import ogr
 from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
@@ -286,7 +287,7 @@ def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-l
 def _keep_products_with_enough_coverage(
     content_info: List[Dict],
     target_cover: float,
-    current_tile
+    current_tile: ogr.Feature,
 ) -> List[Dict]:
     """
     Helper function that filters the products (/pairs of products) that provide
