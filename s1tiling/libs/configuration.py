@@ -43,7 +43,7 @@ import logging.config
 import os
 from pathlib import Path
 import re
-from typing import Callable, Dict, List, NoReturn, Optional, Union, TypeVar
+from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
 import yaml
 
 from s1tiling.libs import exceptions
@@ -54,11 +54,11 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
-def _load_log_config(cfgpaths: List[Path]) -> Dict:
+def _load_log_config(cfgpaths: Path) -> Dict:
     """
     Take care of loading a log configuration file expressed in YAML
     """
-    with open(cfgpaths[0], 'r', encoding='UTF-8') as stream:
+    with open(cfgpaths, 'r', encoding='UTF-8') as stream:
         # FullLoader requires yaml 5.1
         # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
         assert hasattr(yaml, 'FullLoader'), "Please upgrade pyyaml to version 5.1+"
@@ -125,7 +125,7 @@ def add_missing(dst: List[str], entry: str):
     if entry not in dst:
         dst.append(entry)
 
-def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
+def _init_logger(mode, paths: List[Path]) -> Tuple[Optional[Dict], Optional[Path]]:
     """
     Initializes logging service.
     """
@@ -140,7 +140,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        config = _load_log_config(cfgpaths)
+        config = _load_log_config(cfgpaths[0])
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -166,7 +166,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             if 'filename' in cfg and '{kind}' in cfg['filename']:
                 cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
-        return config
+        return config, cfgpaths[0]
     else:
         # This situation should not happen
         if verbose:
@@ -174,7 +174,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
         else:
             logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-        return None
+        return None, None
 
 
 class _ConfigAccessor:
@@ -550,9 +550,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         """
         if not self.__log_config:
             # pylint: disable=attribute-defined-outside-init
-            self.__log_config = _init_logger(self.Mode, [config_log_dir])
+            self.__log_config, config_file = _init_logger(self.Mode, [config_log_dir])
             self.Mode = mode or self.Mode
             assert self.Mode, "Please set a valid logging mode!"
+            logging.debug("S1 tiling configuration initialized from '%s'", config_file)
             # self.log_queue = multiprocessing.Queue()
             # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
             if "debug" in self.Mode and self.__log_config and self.__log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
