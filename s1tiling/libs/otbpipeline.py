@@ -55,6 +55,7 @@ from .file_naming       import CannotGenerateFilename
 from .meta              import (
         Meta, is_compatible, is_running_dry, get_task_name, product_exists, out_filename,
 )
+from .node_queue        import node_queue
 from .outcome           import PipelineOutcome
 from .steps             import (
         AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
@@ -729,49 +730,44 @@ class PipelineDescriptionSequence:
         - "inputs": list of the inputs (metadata)
         """
         tasks : Dict[str, Union[Tuple,FirstStep]] = {}
-        already_registered = required.copy()
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
         logger.debug('Building all tasks')
-        while required:
-            new_required = set()
-            for task_name in required:
-                logger.debug("* Checking if task '%s' needs to be executed", os.path.basename(task_name))
-                assert (task_name in previous) and previous[task_name], \
-                        f"No previous task registered for {task_name}.\nOnly the following have previous tasks: {previous.keys()} "
-                base_task_name = to_dask_key(task_name)
-                task_inputs    = previous[task_name].inputs
-                pipeline_descr = previous[task_name].pipeline
-                def first(files: Union[str, List[str]]) -> str:
-                    return files[0] if isinstance(files, list) else  files
-                input_task_keys = [to_dask_key(first(tn))
-                        for tn in previous[task_name].input_task_names]
-                assert list(input_task_keys)
-                logger.debug(' - It depends on %s --> %s', [os.path.basename(tn) for tn in input_task_keys], task_inputs)
-                output_filename = task_names_to_output_files_table[task_name]
-                pipeline_instance = pipeline_descr.instanciate(
-                        output_filename, True, True, do_watch_ram)
-                pipeline_instance.set_inputs(task_inputs)
-                logger.debug(' ~~> TASKS[%s] += %s(keys=%s)', os.path.basename(base_task_name), pipeline_descr.name, [os.path.basename(tn) for tn in input_task_keys])
-                register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
+        required_tasks = node_queue(required)
+        for task_name in required_tasks:
+            logger.debug("* Checking if task '%s' needs to be executed", os.path.basename(task_name))
+            assert (task_name in previous) and previous[task_name], \
+                    f"No previous task registered for {task_name}.\nOnly the following have previous tasks: {previous.keys()} "
+            base_task_name = to_dask_key(task_name)
+            task_inputs    = previous[task_name].inputs
+            pipeline_descr = previous[task_name].pipeline
+            def first(files: Union[str, List[str]]) -> str:
+                return files[0] if isinstance(files, list) else  files
+            input_task_keys = [to_dask_key(first(tn))
+                    for tn in previous[task_name].input_task_names]
+            assert list(input_task_keys)
+            logger.debug(' - It depends on %s --> %s', [os.path.basename(tn) for tn in input_task_keys], task_inputs)
+            output_filename = task_names_to_output_files_table[task_name]
+            pipeline_instance = pipeline_descr.instanciate(output_filename, True, True, do_watch_ram)
+            pipeline_instance.set_inputs(task_inputs)
+            logger.debug(' ~~> TASKS[%s] += %s(keys=%s)', os.path.basename(base_task_name), pipeline_descr.name, [os.path.basename(tn) for tn in input_task_keys])
+            register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
-                logger.debug(" - Analysing whether its inputs needs to be registered for production...")
-                logger.debug("   Already registered: %s", [os.path.basename(tn) for tn in already_registered])
-                # logger.debug("   Already registered: %s", already_registered)
-                for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
-                    tn = first(get_task_name(t))
-                    logger.debug("   - About task '%s': %s?", os.path.basename(tn), t)
-                    # logger.debug("   - About task '%s': %s?", tn, t)
-                    if tn in already_registered:
-                        logger.info("      ~> Ignoring '%s' which is already registered for production", os.path.basename(tn))
-                    elif not product_exists(t):
-                        logger.info("      => Need to register production of task '%s' (for %s)", os.path.basename(tn), pipeline_descr.name)
-                        new_required.add(tn)
-                        already_registered.add(tn)
-                    else:
-                        logger.info("      => Starting %s from existing '%s' task", pipeline_descr.name, os.path.basename(tn))
-                        register_task(tasks, to_dask_key(tn), FirstStep(**t))
-            required = new_required
+            logger.debug(" - Analysing whether its inputs needs to be registered for production...")
+            logger.debug("   Already registered: %s", [os.path.basename(tn) for tn in required_tasks])
+            # logger.debug("   Already registered: %s", already_registered)
+            for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
+                tn = first(get_task_name(t))
+                logger.debug("   - About task '%s': %s?", os.path.basename(tn), t)
+                # logger.debug("   - About task '%s': %s?", tn, t)
+                if tn in required_tasks:
+                    logger.info("      ~> Ignoring '%s' which is already registered for production", os.path.basename(tn))
+                elif not product_exists(t):
+                    logger.info("      => Need to register production of task '%s' (for %s)", os.path.basename(tn), pipeline_descr.name)
+                    required_tasks.add_if_new(tn)
+                else:
+                    logger.info("      => Starting %s from existing '%s' task", pipeline_descr.name, os.path.basename(tn))
+                    register_task(tasks, to_dask_key(tn), FirstStep(**t))
         return tasks
 
     def _check_static_task_requirements(self, tasks: Dict[str, Union[Tuple,"FirstStep"]]) -> None:
