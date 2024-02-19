@@ -802,7 +802,7 @@ class _FilterLIAStepFactory(StepFactory):
         """
         Update task name to avoid collision with inputs as file aren't renamed by this filter.
         """
-        meta['task_name']        = f'FilterLIA_{out_filename(meta)}'
+        meta['task_name']        = f'{out_filename(meta)}_FilterLIA'
 
     def _get_input_image(self, meta: Meta) -> str:
         # Flatten should be useless, but kept for better error messages
