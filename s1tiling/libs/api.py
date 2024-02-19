@@ -542,7 +542,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDe
     """
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
-            inputs={'insar': 'basename'},
+            inputs={'tilename': 'tilename'},
     )
 
     s2_dem = pipelines.register_pipeline(

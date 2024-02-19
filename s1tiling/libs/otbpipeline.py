@@ -604,8 +604,21 @@ class PipelineDescriptionSequence:
         of intermediary and final products and what they require to be built.
         """
         first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
+        assert len(first_inputs), f"A non empty list of raster inputs is expected"
+        # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
+        tile_origin = first_inputs[0]["tile_origin"]
 
-        pipelines_outputs = {'basename': first_inputs}  # TODO: find the right name _0/__/_firststeps/...?
+        pipelines_outputs = {
+                'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
+                'tilename': [
+                    FirstStep(
+                        tile_name=tile_name,
+                        tile_origin=tile_origin,  # S2 tile footprint
+                        basename=f"S2info_{tile_name}",
+                        out_filename=self.__cfg.output_grid,  # Trick existing file detection
+                        does_product_exist=lambda: True,
+                    ).meta],
+        }
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
         required = {}  # (first batch) Final products identified as _needed to be produced_
