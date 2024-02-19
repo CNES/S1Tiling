@@ -60,9 +60,7 @@ from ..otbpipeline   import (
     _fetch_input_data, TaskInputInfo,
 )
 from .helpers        import (
-        does_s2_data_match_s2_tile,
-        does_sin_lia_match_s2_tile_for_orbit,
-        remove_polarization_marks,
+        does_s2_data_match_s2_tile, does_sin_lia_match_s2_tile_for_orbit, remove_polarization_marks,
 )
 from .s1_to_s2       import (
         s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
@@ -650,10 +648,10 @@ class ComputeLIA(OTBStepFactory):
     - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
-        fname_fmt_lia = Utils.partial_format(fname_fmt, LIA_kind="LIA")
-        fname_fmt_sin = Utils.partial_format(fname_fmt, LIA_kind="sin_LIA")
+        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt0 = cfg.fname_fmt.get('lia_product') or fname_fmt0
+        fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
+        fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
 
         # TODO: Keep ComputeLIAOnS1 in the deprecated zone.
         # fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'

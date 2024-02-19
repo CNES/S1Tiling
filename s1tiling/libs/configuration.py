@@ -226,7 +226,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             self, config_file : Union[str, Path], do_show_configuration=True
     ) -> None:
         #: Cache of DEM information covering S2 tiles
-        self.__dems_by_s2_tiles = {}
+        self.__dems_by_s2_tiles : Dict[str, Dict] = {}
 
         config = configparser.ConfigParser(os.environ)
         config.read(config_file)
@@ -481,7 +481,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 self.fname_fmt[key] = fmt
 
     # ----------------------------------------------------------------------
-    def show_configuration(self) -> None:
+    def show_configuration(self) -> None:  # pylint: disable=too-many-statements
         """
         Displays the configuration
         """

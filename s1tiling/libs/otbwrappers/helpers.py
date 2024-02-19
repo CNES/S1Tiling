@@ -69,5 +69,3 @@ def does_s2_data_match_s2_tile(output_meta: Meta, input_meta: Meta) -> bool:
     """
     fields = ['tile_name']
     return all(input_meta[k] == output_meta[k] for k in fields)
-
-

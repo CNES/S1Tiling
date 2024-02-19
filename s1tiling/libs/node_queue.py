@@ -27,6 +27,10 @@
 #          Luc HERMITTE (CS Group)
 # =========================================================================
 
+"""
+Submodule that provides :class:`node_queue`
+"""
+
 import logging
 from typing import Iterable, Iterator, List, Optional, Set, TypeVar
 

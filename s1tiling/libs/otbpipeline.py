@@ -604,7 +604,7 @@ class PipelineDescriptionSequence:
         of intermediary and final products and what they require to be built.
         """
         first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
-        assert len(first_inputs), f"A non empty list of raster inputs is expected"
+        assert first_inputs, "A non empty list of raster inputs is expected"
         # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
         tile_origin = first_inputs[0]["tile_origin"]
 
