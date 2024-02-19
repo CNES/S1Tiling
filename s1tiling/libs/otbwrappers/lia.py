@@ -86,6 +86,27 @@ def remove_polarization_marks(name: str) -> str:
     return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
 
 
+def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) -> bool:
+    """
+    Tells whether a given ComputeGroundAndSatPositionsOnDEM input is compatible
+    with the the current S2 tile.
+
+    ``tile_name`` has to be identical.
+    """
+    fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+    return all(input_meta[k] == output_meta[k] for k in fields)
+
+
+def _does_s2_data_match_s2_tile(output_meta: Meta, input_meta: Meta) -> bool:
+    """
+    Tells whether a given sin_LIA input is compatible with the the current S2 tile.
+
+    ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit`` have to be identical.
+    """
+    fields = ['tile_name']
+    return all(input_meta[k] == output_meta[k] for k in fields)
+
+
 class AgglomerateDEMOnS2(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
@@ -464,6 +485,15 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
 
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
         return meta
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
+        It will tell whether a given heights file on S2 tile input is
+        compatible with the current S2 tile.
+        """
+        meta['accept_as_compatible_input'] = lambda input_meta : _does_s2_data_match_s2_tile(meta, input_meta)
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -967,25 +997,14 @@ class ApplyLIACalibration(OTBStepFactory):
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
-        Register ``is_compatible`` hook for
-        :func:`s1tiling.libs.otbpipeline.is_compatible`.
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
         It will tell whether a given sin_LIA input is compatible with the
         current S2 tile.
         """
-        meta['is_compatible']    = lambda input_meta : self._is_compatible(meta, input_meta)
-        meta['basename']         = self._get_nominal_output_basename(meta)
-        meta['calibration_type'] = 'Normlim'
-
-    def _is_compatible(self, output_meta: Meta, input_meta: Meta) -> bool:
-        """
-        Tells whether a given sin_LIA input is compatible with the the current
-        S2 tile.
-
-        ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit``
-        have to be identical.
-        """
-        fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
-        return all(input_meta[k] == output_meta[k] for k in fields)
+        meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
+        meta['basename']                   = self._get_nominal_output_basename(meta)
+        meta['calibration_type']           = 'Normlim'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """

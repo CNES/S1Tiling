@@ -95,11 +95,11 @@ def product_exists(meta: Meta) -> bool:
         return os.path.isfile(out_filename(meta))
 
 
-def is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
+def accept_as_compatible_input(output_meta: Meta, input_meta: Meta) -> bool:
     """
-    Tells whether ``input_meta`` is a valid input for ``output_meta``
+    Tells whether ``input_meta`` is a valid and compatible input for ``output_meta``
 
-    Uses the optional meta information ``is_compatible`` from ``output_meta``
+    Uses the optional meta information ``accept_as_compatible_input`` from ``output_meta``
     to tell whether they are compatible.
 
     This will be uses for situations where an input file will be used as input
@@ -107,8 +107,8 @@ def is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
     outputs on a S2 tile will rely on the same map of sin(LIA). As such,
     the usual __input -> expected output__ approach cannot work.
     """
-    if 'is_compatible' in output_meta:
-        return output_meta['is_compatible'](input_meta)
+    if 'accept_as_compatible_input' in output_meta:
+        return output_meta['accept_as_compatible_input'](input_meta)
     else:
         return False
 

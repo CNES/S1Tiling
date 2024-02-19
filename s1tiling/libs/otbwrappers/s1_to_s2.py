@@ -63,11 +63,12 @@ from ..steps import (
 from ..otbpipeline import (
     TaskInputInfo,
 )
-from ..otbtools import otb_version
+from ..otbtools      import otb_version
 from ..              import exceptions
-from .. import Utils
+from ..              import Utils
 from ..configuration import Configuration
-from ...__meta__ import __version__
+from ...__meta__     import __version__
+from .lia            import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
 
@@ -1038,26 +1039,14 @@ class SpatialDespeckle(OTBStepFactory):
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
-        Register ``is_compatible`` hook for
-        :func:`s1tiling.libs.otbpipeline.is_compatible`.
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
         It will tell in the case Despeckle is chained in memory after
         ApplyLIACalibration whether a given sin_LIA input is compatible with
         the current S2 tile.
         """
         # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
-        meta['is_compatible'] = lambda input_meta : self._is_compatible(meta, input_meta)
-
-    def _is_compatible(self, output_meta: Meta, input_meta: Meta) -> bool:
-        """
-        Tells in the case Despeckle is chained in memory after
-        ApplyLIACalibration whether a given sin_LIA input is compatible with
-        the current S2 tile.
-
-        ``flying_unit_code``, ``tile_name``, ``orbit_direction`` and ``orbit``
-        have to be identical.
-        """
-        fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
-        return all(input_meta[k] == output_meta[k] for k in fields)
+        meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """

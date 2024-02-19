@@ -53,7 +53,7 @@ from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
 from .file_naming       import CannotGenerateFilename
 from .meta              import (
-        Meta, is_compatible, is_running_dry, get_task_name, product_exists, out_filename,
+        Meta, accept_as_compatible_input, is_running_dry, get_task_name, product_exists, out_filename,
 )
 from .node_queue        import node_queue
 from .outcome           import PipelineOutcome
@@ -686,7 +686,8 @@ class PipelineDescriptionSequence:
                 for origin, inputs in dropped_inputs.items():
                     for inp in inputs:
                         logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(inp), origin, out_filename(output))
-                        if is_compatible(output, inp):
+                        # Does the output accepts the inpu as compatible?
+                        if accept_as_compatible_input(output, inp):
                             logger.debug('    => YES')
                             _register_new_input_and_update_out_filename(
                                     tasks=previous,
