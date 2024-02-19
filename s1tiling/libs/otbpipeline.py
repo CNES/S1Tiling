@@ -309,6 +309,9 @@ class PipelineDescription:
                 res = self.__factory_steps[-1].update_filename_meta(input_meta)
             logger.debug("    expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
             return res
+        except exceptions.NotCompatibleInput as e:
+            logger.warning('%s => rejecting expected(%s)', e, input_meta)
+            return None
         except CannotGenerateFilename as e:
             # This warning may happen, when incremental name building hasn't been activated:
             # indeed, later calls to update_filename_meta, may require meta data set on

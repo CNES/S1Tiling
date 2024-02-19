@@ -174,3 +174,11 @@ class MissingApplication(Error):
         for ctx in contexts:
             message.append(f" --> {ctx}")
         super().__init__("\n".join(message), *args, **kwargs)
+
+
+class NotCompatibleInput(Error):
+    """
+    Exception used to report input of incompatible type.
+    For instance DEM+geoid on S2 tile is not compatible with ExtractSentinel1Metadata.
+    """
+    pass

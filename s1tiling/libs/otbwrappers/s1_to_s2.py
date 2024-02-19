@@ -64,6 +64,7 @@ from ..otbpipeline import (
     TaskInputInfo,
 )
 from ..otbtools import otb_version
+from ..              import exceptions
 from .. import Utils
 from ..configuration import Configuration
 from ...__meta__ import __version__
@@ -156,6 +157,8 @@ class ExtractSentinel1Metadata(StepFactory):
         Complete meta information such as filenames, GDAL metadata from
         information found in the current S1 image filename.
         """
+        if 'manifest' not in meta:
+            raise exceptions.NotCompatibleInput(f"{out_filename(meta)} is not an input for ExtractSentinel1Metadata.")
         manifest                = meta['manifest']
         # image                   = in_filename(meta)   # meta['in_filename']
         image                   = meta['basename']
