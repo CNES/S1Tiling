@@ -57,7 +57,7 @@ from ..steps import (
         ram,
 )
 from ..otbpipeline   import (
-    _fetch_input_data, TaskInputInfo,
+    fetch_input_data, fetch_input_data_all_inputs, TaskInputInfo,
 )
 from .helpers        import (
         does_s2_data_match_s2_tile, does_sin_lia_match_s2_tile_for_orbit, remove_polarization_marks,
@@ -330,7 +330,7 @@ class SumAllHeights(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
-        dem_on_s2  = _fetch_input_data('in_s2_dem', all_inputs).out_filename
+        dem_on_s2  = fetch_input_data('in_s2_dem', all_inputs).out_filename
         meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
         logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
         return meta
@@ -346,9 +346,9 @@ class SumAllHeights(OTBStepFactory):
         assert len(previous_steps) > 1
 
         # "in_s2_geoid" is expected at level -1, likelly named '__last'
-        s2_geoid = _fetch_input_data('__last', previous_steps[-1])
+        s2_geoid = fetch_input_data('__last', previous_steps[-1])
         # "in_s2_dem"     is expected at level -2, likelly named 'in_s2_dem'
-        s2_dem   = _fetch_input_data('in_s2_dem', previous_steps[-2])
+        s2_dem   = fetch_input_data('in_s2_dem', previous_steps[-2])
 
         inputs = [{'in_s2_geoid': s2_geoid, 'in_s2_dem': s2_dem}]
         _check_input_step_type(inputs)
@@ -376,8 +376,8 @@ class SumAllHeights(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_s2_dem   = _fetch_input_data('in_s2_dem',   inputs).out_filename
-        in_s2_geoid = _fetch_input_data('in_s2_geoid', inputs).out_filename
+        in_s2_dem   = fetch_input_data('in_s2_dem',   inputs).out_filename
+        in_s2_geoid = fetch_input_data('in_s2_geoid', inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
@@ -468,14 +468,10 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         This method is overridden in order to fetch N-2 "insar" and "inheight" inputs.
         It has been specialized for S1Tiling exact pipelines.
         """
-        assert len(previous_steps) > 1
+        for i, st in enumerate(previous_steps):
+            logger.debug("INPUTS: %s previous step[%s] = %s", self.__class__.__name__, i, st)
 
-        # "insar"    is expected at level -2, likelly named 'insar'
-        sar    = _fetch_input_data('insar', previous_steps[-2])
-        # "inheight" is expected at level -2, likelly named 'inheight'
-        height = _fetch_input_data('inheight', previous_steps[-2])
-
-        inputs = [{'insar': sar, 'inheight': height}]
+        inputs = [fetch_input_data_all_inputs({"insar", "inheight"}, previous_steps)]
         _check_input_step_type(inputs)
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
@@ -492,7 +488,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
-        height_on_s2  = _fetch_input_data('inheight', all_inputs).out_filename
+        height_on_s2  = fetch_input_data('inheight', all_inputs).out_filename
         meta['files_to_remove'] = [height_on_s2]
         logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
 
@@ -527,7 +523,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        inheight = _fetch_input_data('inheight', inputs).out_filename
+        inheight = fetch_input_data('inheight', inputs).out_filename
         # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
         # from $OTB_GEOID_FILE, indeed geoid information is already in
         # DEM+Geoid input.
@@ -709,9 +705,9 @@ class ComputeLIA(OTBStepFactory):
         assert len(previous_steps) > 1
 
         # "normals" is expected at level -1, likelly named '__last'
-        normals = _fetch_input_data('__last', previous_steps[-1])
+        normals = fetch_input_data('__last', previous_steps[-1])
         # "xyz"     is expected at level -2, likelly named 'xyz'
-        xyz = _fetch_input_data('xyz', previous_steps[-2])
+        xyz = fetch_input_data('xyz', previous_steps[-2])
 
         inputs = [{'normals': normals, 'xyz': xyz}]
         _check_input_step_type(inputs)
@@ -725,8 +721,8 @@ class ComputeLIA(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        xyz     = _fetch_input_data('xyz', inputs).out_filename
-        normals = _fetch_input_data('normals', inputs).out_filename
+        xyz     = fetch_input_data('xyz', inputs).out_filename
+        normals = fetch_input_data('normals', inputs).out_filename
         nodata  = meta.get('nodata', -32768)
         return {
                 'ram'             : ram(self.ram_per_process),
@@ -941,7 +937,7 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         super().update_image_metadata(meta, all_inputs)
         inputs = meta['inputs']
-        in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
+        in_sin_LIA   = fetch_input_data('sin_LIA',   inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['CALIBRATION'] = meta['calibration_type']
@@ -979,8 +975,8 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_concat_S2 = _fetch_input_data('concat_S2', inputs).out_filename
-        in_sin_LIA   = _fetch_input_data('sin_LIA',   inputs).out_filename
+        in_concat_S2 = fetch_input_data('concat_S2', inputs).out_filename
+        in_sin_LIA   = fetch_input_data('sin_LIA',   inputs).out_filename
         nodata = meta.get('nodata', -32768)
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
@@ -1201,7 +1197,7 @@ class SARDEMProjection(OTBStepFactory):
         nodata = meta.get('nodata', -32768)
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        indem = _fetch_input_data('indem', inputs).out_filename
+        indem = fetch_input_data('indem', inputs).out_filename
         return {
                 'ram'        : ram(self.ram_per_process),
                 'insar'      : in_filename(meta),
@@ -1290,8 +1286,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
             self.fetch_direction(inputpath, meta)
-        indem     = _fetch_input_data('indem',     all_inputs).out_filename
-        indemproj = _fetch_input_data('indemproj', all_inputs).out_filename
+        indem     = fetch_input_data('indem',     all_inputs).out_filename
+        indemproj = fetch_input_data('indemproj', all_inputs).out_filename
         meta['files_to_remove'] = [indem, indemproj]
         logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
         _, inbasename = os.path.split(in_filename(meta))
@@ -1337,9 +1333,9 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        insar     = _fetch_input_data('insar', inputs).out_filename
-        indem     = _fetch_input_data('indem', inputs).out_filename
-        indemproj = _fetch_input_data('indemproj', inputs).out_filename
+        insar     = fetch_input_data('insar', inputs).out_filename
+        indem     = fetch_input_data('indem', inputs).out_filename
+        indemproj = fetch_input_data('indemproj', inputs).out_filename
         return {
                 'ram'             : ram(self.ram_per_process),
                 'insar'           : insar,

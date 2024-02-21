@@ -308,6 +308,7 @@ class PipelineDescription:
             else:
                 res = self.__factory_steps[-1].update_filename_meta(input_meta)
             logger.debug("    expected: %s(%s) -> %s", self.__name, input_meta['out_filename'], out_filename(res))
+            # logger.debug("    -> full meta: %s", res)
             return res
         except exceptions.NotCompatibleInput as e:
             logger.warning('%s => rejecting expected(%s)', e, input_meta)
@@ -433,8 +434,8 @@ class TaskInputInfo:
             logger.debug('    add_input[%s # %s]: first time <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
             self._inputs[origin] = [input_meta]
             return True
-        logger.debug('add_input[%s # %s]: not empty <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
-        logger.debug('check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
+        logger.debug('    add_input[%s # %s]: not empty <<-- %s', origin, out_filename(destination_meta), out_filename(input_meta))
+        logger.debug('    -> check %s in %s', f'reduce_inputs_{origin}', destination_meta.keys())
         if f'reduce_inputs_{origin}' in destination_meta.keys():
             # logger.debug('add_input[%s]: self.__inputs[%s]= %s <--- %s',
             #     origin, origin, self._inputs[origin], destination_meta[f'reduce_inputs_{origin}'](self._inputs[origin] + [input_meta]))
@@ -501,7 +502,7 @@ class TaskInputInfo:
         return res
 
 
-def _fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
+def fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
     """
     Helper function that extract the meta data associated to a key from a
     multiple-inputs list of inputs.
@@ -510,6 +511,27 @@ def _fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
     assert key in keys, f"Cannot find input '{key}' among {keys}"
     return [input[key] for input in inputs if key in input.keys()][0]
 
+
+def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> Dict[str, AbstractStep]:
+    """
+    Helper function that extract the meta data associated to a key from a
+    multiple-inputs list of list of inputs.
+
+    Unlike :func:`fetch_input_data`, this flavor is able to dig in inputs from
+    all levels to find the requested one.
+    """
+    data = {k:[] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
+    # for inputs in all_inputs:
+    for _, inputs in enumerate(all_inputs):
+        for inp in inputs:
+            for key in keys & inp.keys() :
+                # logger.debug('#%s -> key: %s, input: %s\n   +++---> %s', lvl, key, inp[key], data[key])
+                data[key].append(inp[key])
+    res = {}
+    for k, i in data.items():
+        assert len(i) == 1, f"Only {len(i)} input(s) found instead of 1. Found: {i!r}"
+        res[k] = i[0]
+    return res
 
 def _update_out_filename(updated_meta, with_meta) -> None:
     """
@@ -677,7 +699,7 @@ class PipelineDescriptionSequence:
                         previous[expected_taskname].add_input(origin, inp, expected)
                         logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
                     elif (input_task_name := get_task_name(inp)) not in previous[expected_taskname].input_task_names:
-                        logger.debug("    Not new product, but input task %s NOT registered in input_task_names(%s)", input_task_name, previous[expected_taskname].pipeline.name)
+                        logger.debug("    Not a new product, but input task %s NOT registered in input_task_names(%s)", input_task_name, previous[expected_taskname].pipeline.name)
                         _register_new_input_and_update_out_filename(
                                 tasks=previous,
                                 origin=origin,

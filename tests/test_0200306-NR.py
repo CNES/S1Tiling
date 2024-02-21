@@ -301,7 +301,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         logging.debug('Mock Set metadata in %s', fullpath)
         assert 'inputs' in mt, f'Looking for "inputs" in {mt.keys()}'
         inputs = mt['inputs']
-        # indem = _fetch_input_data('indem', inputs)
+        # indem = fetch_input_data('indem', inputs)
         assert 'dems' in mt, f"Metadata don't contain 'dems', only: {mt.keys()}"
         return mt
     mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
