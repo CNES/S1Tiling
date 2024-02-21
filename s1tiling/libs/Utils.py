@@ -204,7 +204,7 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
         manifest = s1image.get_manifest()
 
     logger.debug("Manifest: %s", manifest)
-    assert manifest.exists()
+    assert manifest.exists(), f"Manifest {manifest!r} doesn't exist!"
     poly = get_shape(manifest)
     return poly
 

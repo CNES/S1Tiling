@@ -482,7 +482,7 @@ class StepFactory(ABC):
     See: :ref:`Existing processings`
     """
     def __init__(self, name: str, *unused_argv, **kwargs) -> None:
-        assert name
+        assert isinstance(name, str), f"{self.__class__.__name__} name is a {name.__class__.__name__}, not a string -> {name!r}"
         self._name               = name
         self.__image_description = kwargs.get('image_description', None)
         # logger.debug("new StepFactory(%s)", name)
@@ -492,7 +492,7 @@ class StepFactory(ABC):
         """
         Step Name property.
         """
-        assert isinstance(self._name, str)
+        assert isinstance(self._name, str), f"Step name is a {self._name.__class__.__name__}, not a string -> {self._name!r}"
         return self._name
 
     @property
@@ -740,7 +740,7 @@ class StoreStep(_ProducerStep):
         files = as_list(self.tmp_filename)
         assert self._app
         for po, tmp in zip(p_out, files):
-            assert isinstance(po, str), f"String expected for param_out={po}"
+            assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
             self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
 
