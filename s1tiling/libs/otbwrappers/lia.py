@@ -753,6 +753,13 @@ class _FilterLIAStepFactory(StepFactory):
     # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
     _LIA_kind = None
 
+    def __init__(self, cfg: Configuration) -> None:
+        """
+        Constructor.
+        Required to ignore the ``cfg`` parameter, and correctly forward the ``name`` parameter.
+        """
+        super().__init__(self.__class__.__name__)
+
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         meta = super()._update_filename_meta_pre_hook(meta)
         assert self._LIA_kind, "LIA kind should have been set in filter_LIA()"
