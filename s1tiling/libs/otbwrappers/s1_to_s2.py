@@ -160,9 +160,9 @@ class ExtractSentinel1Metadata(StepFactory):
         """
         if 'manifest' not in meta:
             raise exceptions.NotCompatibleInput(f"{out_filename(meta)} is not an input for ExtractSentinel1Metadata.")
-        manifest                = meta['manifest']
+        manifest                 = meta['manifest']
         # image                   = in_filename(meta)   # meta['in_filename']
-        image                   = meta['basename']
+        image                    = meta['basename']
 
         # TODO: if the manifest is no longer here, we may need to look into the geom instead
         # It'd actually be better
