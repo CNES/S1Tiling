@@ -189,10 +189,10 @@ class Pipeline:
         3. Return the resulting output filename, or the caught errors.
         """
         assert self.__inputs
-        logger.info("INPUTS: %s", self.__inputs)
+        logger.debug("INPUTS: %s", self.__inputs)
         tested_files = list(Utils.flatten_stringlist(
             [v.out_filename for inp in self.__inputs for _,v in inp.items()]))
-        logger.info("Testing whether input files exist: %s", tested_files)
+        logger.debug("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
         if len(missing_inputs) > 0 and not is_running_dry(self.__execution_parameters):
             msg = f"Cannot execute {self} as the following input(s) {missing_inputs} do(es)n't exist"

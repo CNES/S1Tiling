@@ -275,7 +275,7 @@ class _ProducerStep(AbstractStep):
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
+        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure, logging.DEBUG):
             self._do_execute(parameters, dryrun)
             if not dryrun:
                 # TODO: catch execute failure, and report it!
@@ -1066,7 +1066,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             logger.warning('DRY RUN mode: ignore step and OTB Application creation')
             lg_from = input_step.out_filename if input_step.is_first_step else 'app'
             parameters = self.parameters(meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
+            logger.info('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
             meta['param_out'] = self.param_out
             return Step('FAKEAPP', **meta)
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):

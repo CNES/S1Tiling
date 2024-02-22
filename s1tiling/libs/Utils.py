@@ -301,7 +301,7 @@ def find_dem_intersecting_raster(
     assert os.path.isfile(dem_db_filepath)
     dem_layer = Layer(dem_db_filepath)
 
-    logger.info("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
+    logger.debug("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
 
 
@@ -489,9 +489,10 @@ class ExecutionTimer:
     with ExecutionTimer("the code", True) as t:
         Code_to_measure()
     """
-    def __init__(self, text, do_measure) -> None:
+    def __init__(self, text, do_measure, log_level=None) -> None:
         self._text       = text
         self._do_measure = do_measure
+        self._log_level  = log_level or logging.INFO
 
     def __enter__(self) -> "ExecutionTimer":
         self._start = timer()  # pylint: disable=attribute-defined-outside-init
@@ -500,7 +501,7 @@ class ExecutionTimer:
     def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         if self._do_measure:
             end = timer()
-            logger.info("%s took %ssec", self._text, end - self._start)
+            logger.log(self._log_level, "%s took %ssec", self._text, end - self._start)
         return False
 
 
