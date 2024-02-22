@@ -57,7 +57,6 @@ from .lia import (
         ComputeGroundAndSatPositionsOnDEM,
         ComputeNormals,
         ComputeLIA,
-        SelectBestCoverage,
         ApplyLIACalibration,
 
         AgglomerateDEMOnS1,
@@ -65,4 +64,5 @@ from .lia import (
         SARCartesianMeanEstimation,
         OrthoRectifyLIA,
         ConcatenateLIA,
+        SelectBestCoverage,
 )

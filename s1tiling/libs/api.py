@@ -561,15 +561,23 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDe
             inputs={"in_s2_dem": s2_dem},
     )
 
-    # Note: ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
-    # normals production AND LIA production: indeed the XYZ, and satposXYZ data
-    # needs to be reused several times, and in-memory pipeline can't support
-    # that (yet?)
+    # Notes:
+    # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
+    #   normals production AND LIA production: indeed the XYZ, and satposXYZ
+    #   data needs to be reused several times, and in-memory pipeline can't
+    #   support that (yet?)
+    # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
+    #   all meta are available later on to filter on the coverage.
+    # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
+    #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
+    sar = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata],
+            inputs={'inrawsar': 'basename'}
+    )
     xyz = pipelines.register_pipeline(
-            [ExtractSentinel1Metadata, ComputeGroundAndSatPositionsOnDEM],
-            'ComputeGroundAndSatPositionsOnDEM',
-            is_name_incremental=True,
-            inputs={'insar': 'basename', 'inheight': s2_height},
+            [ComputeGroundAndSatPositionsOnDEM],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'insar': sar, 'inheight': s2_height},
     )
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a

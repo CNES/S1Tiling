@@ -422,7 +422,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'XYZ_projected_on_{tile_name}_{polarless_basename}'
+        fname_fmt = 'XYZ_projected_on_{tile_name}.tiff'
         fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2') or fname_fmt
         super().__init__(
                 cfg,
@@ -433,9 +433,28 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="XYZ ground and satellite positions on S2 tile",
         )
-        self.__dem_db_filepath     = cfg.dem_db_filepath
-        self.__dem_field_ids       = cfg.dem_field_ids
-        self.__dem_main_field_id   = cfg.dem_main_field_id
+        self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
+
+    @staticmethod
+    def reduce_inputs(inputs) -> List:
+        """
+        Filters which insar input will be kept.
+
+        Given several (usually 2 is the maximum) possible input S1 files (insar
+        input channels), select and return the one that maximize its
+        intersection with the current S2 destination tile.
+
+        .. todo:
+
+            Actually, the exact objective is to have the recorded orbit cover
+            the integrality of the S2 tile.
+
+        """
+        best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
+        logger.debug('Best coverage is %.2f%% at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_time'])
+        for inp in inputs:
+            logger.debug(' - %s: %.2f%%', inp['acquisition_time'], inp['tile_coverage'])
+        return [best_covered_input]
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -448,7 +467,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = ComputeGroundAndSatPositionsOnDEM.reduce_inputs
         return meta
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
@@ -488,19 +507,19 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
-        height_on_s2  = fetch_input_data('inheight', all_inputs).out_filename
-        meta['files_to_remove'] = [height_on_s2]
+        height_on_s2  = fetch_input_data('inheight', all_inputs)
+        meta['files_to_remove'] = [height_on_s2.out_filename]
         logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
 
-        # TODO: The following has been duplicated from AgglomerateDEM.
-        # See to factorize this code
-        # find DEMs that intersect the input image
-        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
-            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
+        # sar = all_inputs[0]['insar'].meta
+        sar = fetch_input_data('insar', all_inputs).meta
+
+        # TODO: Check whether the DEM_LIST is already there and automatically propagated!
+        meta['dem_infos'] = self.__cfg.get_dems_covering_s2_tile(meta['tile_name'])
         meta['dems'] = sorted(meta['dem_infos'].keys())
 
-        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(meta), meta['dems'])
-        _, inbasename = os.path.split(in_filename(meta))
+        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(sar), meta['dems'])
+        _, inbasename = os.path.split(in_filename(sar))
         meta['inbasename'] = inbasename
         return meta
 
@@ -524,12 +543,13 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         inheight = fetch_input_data('inheight', inputs).out_filename
+        insar    = fetch_input_data('insar'   , inputs).out_filename
         # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
         # from $OTB_GEOID_FILE, indeed geoid information is already in
         # DEM+Geoid input.
         return {
                 'ram'        : ram(self.ram_per_process),
-                'insar'      : in_filename(meta),
+                'insar'      : insar,
                 'indem'      : inheight,
                 'elev.geoid' : '@',
                 'withcryz'   : False,
@@ -582,7 +602,7 @@ class ComputeNormals(OTBStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata.
+        Injects ``polarless_basename`` -- Old LIA workflow case
         """
         # Ignore polarization in filenames
         assert 'polarless_basename' in meta
@@ -673,7 +693,7 @@ class ComputeLIA(OTBStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata.
+        Injects ``polarless_basename``.
         """
         assert 'polarless_basename' in meta
         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
