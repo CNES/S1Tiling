@@ -277,10 +277,10 @@ class _ProducerStep(AbstractStep):
             return
         with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure, logging.DEBUG):
             self._do_execute(parameters, dryrun)
+            self._write_image_metadata(dryrun)
             if not dryrun:
                 # TODO: catch execute failure, and report it!
                 # logger.info("START %s", pipeline_name)
-                self._write_image_metadata()
                 commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
@@ -330,7 +330,7 @@ class _ProducerStep(AbstractStep):
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
 
-    def _write_image_metadata(self) -> None:
+    def _write_image_metadata(self, dryrun: bool) -> None:
         """
         Update Image metadata (with GDAL API).
         Fetch the new content in ``meta['image_metadata']``
@@ -343,6 +343,13 @@ class _ProducerStep(AbstractStep):
         if not img_meta:
             logger.debug('No metadata to update in %s', fullpath)
             return
+
+        def do_log(fullpath, img_meta) -> None:
+            logger.debug('(dryrun) Set metadata in %s', fullpath)
+            for (kw, val) in img_meta.items():
+                logger.debug('(dryrun)  - %s -> %s', kw, val)
+            logger.debug('(dryrun) Metadata Set! (%s)', fullpath)
+
         def do_write(fullpath, img_meta) -> None:
             logger.debug('Set metadata in %s', fullpath)
             dst = gdal.Open(fullpath, gdal.GA_Update)
@@ -355,13 +362,15 @@ class _ProducerStep(AbstractStep):
             dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
             del dst
             logger.debug('Metadata Set! (%s)', fullpath)
+
+        do_apply = do_log if dryrun else do_write;
         if isinstance(fullpath, list):
             # Case of applications that produce several files like ComputeLIA
             for fp in fullpath:
                 # TODO: how to specialize DESCRIPTION for each output image
-                do_write(fp, img_meta)
+                do_apply(fp, img_meta)
         else:
-            do_write(fullpath, img_meta)
+            do_apply(fullpath, img_meta)
 
 
 class AnyProducerStep(_ProducerStep):
