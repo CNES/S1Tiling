@@ -694,9 +694,9 @@ class S1FileManager:
             logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
             for _, dem_tile_info in dem_tile_infos.items():
-                dem_file         = dem_filename_format.format_map(dem_tile_info)
-                dem_tile_filepath=Path(self.cfg.dem, dem_file)
-                dem_tile_filelink=Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
+                dem_file          = dem_filename_format.format_map(dem_tile_info)
+                dem_tile_filepath = Path(self.cfg.dem, dem_file)
+                dem_tile_filelink = Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
                 dem_tile_filelink.parent.mkdir(parents=True, exist_ok=True)
                 if self.__caching_option == 'symlink':
                     logger.debug('- ln -s %s <-- %s', dem_tile_filepath, dem_tile_filelink)

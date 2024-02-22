@@ -96,7 +96,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
             *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         # TODO: Use the dems stored in cache!
-        self.__dem_dir             = cfg.dem
+        self.__dem_dir             = cfg.tmp_dem_dir
         self.__dem_filename_format = cfg.dem_filename_format
 
     @staticmethod
@@ -119,7 +119,10 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         meta['dems'] = sorted(meta['dem_infos'].keys())
         logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
         dem_files = map(
-                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+                lambda s: os.path.join(
+                    self.__dem_dir,    # Use copies/links from cached DEM directory
+                    os.path.basename(  # => Strip any dirname from the input dem_filename_format
+                        self.__dem_filename_format.format_map(meta['dem_infos'][s]))),
                 meta['dem_infos'])
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
