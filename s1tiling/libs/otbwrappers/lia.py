@@ -88,7 +88,8 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration') or fname_fmt
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+            # Because VRT links temporary files, it most not be reused in case of a crash => use tmp_dem_dir
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 name="AgglomerateDEM",
@@ -439,7 +440,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
 
     @staticmethod
-    def reduce_inputs(inputs) -> List:
+    def reduce_inputs(inputs: List[Meta]) -> List:
         """
         Filters which insar input will be kept.
 
@@ -959,6 +960,7 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
+        # TODO: Remove insar beta file
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
