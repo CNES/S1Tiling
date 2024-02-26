@@ -515,9 +515,10 @@ class StepFactory(ABC):
         """
         Abstract method used to test whether a :class:`StepFactory` has all
         its external requirements fulfilled. For instance,
-        :class:`OTBStepFactory`'s will check their related OTB application can be executed.
+        :class:`OTBStepFactory`'s will check their related OTB application can
+        be executed.
 
-        :return: ``None`` if  requirements are fulfilled.
+        :return: ``None`` if requirements are fulfilled.
         :return: A message indicating what is missing otherwise, and some
                  context how to fix it.
         """

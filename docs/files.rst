@@ -260,7 +260,7 @@ several runs to shorten processing times when resuming after an interruption.
 
 Cut and calibrated S1 images ready for orthorectification
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-:Content: S1 images :ref:`calibrated <calibration>` and :ref:`cut <cutting>`.
+:Content: S1 images :ref:`calibrated <calibration-proc>` and :ref:`cut <cutting-proc>`.
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
@@ -374,7 +374,7 @@ DEM data projected on S2 tile
 +++++++++++++++++++++++++++++
 
 :Content:          DEM information projected on S2 tile according to
-                   :ref:`<project-dem-to-s2>`
+                   :ref:`project_dem_to_s2-proc`
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`DEM_projected_on_{{tile_name}}.tiff`
 :File name format: ``fname_fmt.dem_on_s2`` = :samp:`DEM_projected_on_{{tile_name}}.tiff`
@@ -409,8 +409,8 @@ Height (DEM+Geoid) projected on S2 tile
 +++++++++++++++++++++++++++++++++++++++
 
 :Content:          Height information (DEM + Geoid combined) projected on S2
-                   tile according to :ref:`<project-geoid-to-s2>` and :ref:`Sum
-                   DEM + Geoid <sum-dem-geoid-on-s2>`.
+                   tile according to :ref:`project_geoid_to_s2-proc` and
+                   :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
 :File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
@@ -425,7 +425,7 @@ Height (DEM+Geoid) projected on S2 tile
       * - Metadata
         - Value
       * - ``TIFFTAG_IMAGEDESCRIPTION``
-        - :samp:`XYZ ground and satelitte positions on S2 tile`
+        - :samp:`DEM + GEOID height info projected on S2 tile`
 
 :Cleanup: These files are cleaned automatically.
 
@@ -437,7 +437,9 @@ Ground and sensor position in XYZ ECEF coordinates
 
 :Content:          Six bands 64 bits float image that contains ground pixel
                    coordinates and associated sensor position coordinates
-                   expressed as XYZ cartesian pixels in ECEF spatial reference.
+                   expressed as XYZ cartesian pixels in `ECEF
+                   <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
+                   spatial reference.
                    The image footprint matches the associated S2 tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`XYZ_projected_on_{{tile_name}}_s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`

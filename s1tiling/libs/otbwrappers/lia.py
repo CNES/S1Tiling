@@ -36,7 +36,7 @@ the pipeline for LIA production needs.
 import logging
 import os
 import re
-from typing import Dict, List, Type
+from typing import Dict, List, Optional, Type
 # from packaging import version
 
 from osgeo import gdal
@@ -140,7 +140,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
 class ProjectDEMToS2Tile(ExecutableStepFactory):
     """
     Factory that produces a :class:`ExecutableStep` that projects DEM onto target S2 tile
-    as described in :ref:`Project DEM to S2 tile <project-dem-to-s2>`.
+    as described in :ref:`Project DEM to S2 tile <project_dem_to_s2-proc>`.
 
     It requires the following information from the configuration object:
 
@@ -233,7 +233,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that projects any kind of Geoid onto
     target S2 tile as described in :ref:`Project Geoid to S2 tile
-    <project-geoid-to-s2>`.
+    <project_geoid_to_s2-proc>`.
 
     This particular implementation uses another file in the expected geometry
     and :external:std:doc:`super impose <Applications/app_Superimpose>` the
@@ -300,7 +300,7 @@ class SumAllHeights(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that adds DEM + Geoid that cover a
     same footprint, as described in :ref:`Sum DEM + Geoid
-    <sum-dem-geoid-on-s2>`.
+    <sum_dem_geoid_on_s2-proc>`.
 
     It requires the following information from the configuration object:
 
@@ -575,8 +575,7 @@ class ComputeNormals(OTBStepFactory):
     """
     Factory that prepares steps that run
     :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    as described in :ref:`Normals computation` documentation.
-
+    as described in :ref:`Normals computation <compute_normals-proc>` documentation.
 
     :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     computes surface normals.
@@ -651,7 +650,6 @@ class ComputeLIA(OTBStepFactory):
     Factory that prepares steps that run
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     as described in :ref:`Normals computation` documentation.
-
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -775,7 +773,7 @@ class _FilterLIAStepFactory(StepFactory):
 
     # Useless definition used to trick pylint in believing self._LIA_kind is set.
     # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
-    _LIA_kind = None
+    _LIA_kind : Optional[str] = None
 
     def __init__(self, cfg: Configuration) -> None:
         """
