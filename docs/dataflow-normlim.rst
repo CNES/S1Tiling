@@ -75,6 +75,107 @@ dependencies.
 LIA specific processings
 ------------------------
 
+.. graphviz::
+    :name: graph_LIA
+    :caption: Tasks for processing 33NWC and 33NWB with NORMLIM calibration -- v1.1 workflow
+    :alt: Complete task flow for processing 33NWC and 33NWB with NORMLIM calibration
+    :align: center
+
+     digraph "sphinx-ext-graphviz" {
+         rankdir="LR";
+         graph [fontname="Verdana", fontsize="12"];
+         node [fontname="Verdana", fontsize="12", shape="note", target="_top", style=filled];
+         edge [fontname="Sans", fontsize="9"];
+
+         # =====[ Inputs nodes
+         raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
+
+         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+
+         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+
+         # =====[ Classic workflow
+         # β° calibrated + orthorectified nodes
+         o_nwb_d1_t1 [label="Orthorectified β° 33NWB d1 t1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d1_t2 [label="Orthorectified β° 33NWB d1 t2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+
+         o_nwb_d2_t1 [label="Orthorectified β° 33NWB d2 t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d2_t2 [label="Orthorectified β° 33NWB d2 t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+
+         o_nwb_dn_t1 [label="Orthorectified β° 33NWB dn t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+
+         # Concatenated β° calibrated + orthorectified nodes
+         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
+
+         # Classic workflow up to concatenated β° calibrated + orthorectified nodes
+         raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
+         raw_d1_t2t3 -> o_nwb_d1_t2 [label="β° cal | noise | cut | ortho"];
+         raw_d2_t1t2 -> o_nwb_d2_t1 [label="β° cal | noise | cut | ortho"];
+         raw_d2_t2t3 -> o_nwb_d2_t2 [label="β° cal | noise | cut | ortho"];
+         raw_dn_t1t2 -> o_nwb_dn_t1 [label="β° cal | noise | cut | ortho"];
+         raw_dn_t2t3 -> o_nwb_dn_t2 [label="β° cal | noise | cut | ortho"];
+
+         o_nwb_d1_t1 -> nwb_d1_b0 [label="concatenation"];
+         o_nwb_d1_t2 -> nwb_d1_b0 [label="concatenation"];
+         o_nwb_d2_t1 -> nwb_d2_b0 [label="concatenation"];
+         o_nwb_d2_t2 -> nwb_d2_b0 [label="concatenation"];
+         o_nwb_dn_t1 -> nwb_dn_b0 [label="concatenation"];
+         o_nwb_dn_t2 -> nwb_dn_b0 [label="concatenation"];
+
+         # ===================================
+         # ====[ LIA workflow
+         vrt_nwb       [label="DEM VRT 33NWB",                 fillcolor=palegoldenrod];
+
+         DEM_on_S2     [label="DEM projected on 33NWB",        fillcolor=palegoldenrod];
+         heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      fillcolor=palegoldenrod];
+         xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", fillcolor=palegoldenrod];
+
+         nwb_lia       [label="sin(LIA) on 33NWB",             fillcolor="gold" ]
+
+         mult_d1       [label="X", shape="circle"]
+         mult_d2       [label="X", shape="circle"]
+         mult_dn       [label="X", shape="circle"]
+
+         nwb_d1        [label="S2 σ° NORMLIM 33NWB d1", fillcolor=lightblue];
+         nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", fillcolor=lightblue];
+         nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", fillcolor=lightblue];
+
+
+         vrt_nwb       -> DEM_on_S2;
+         DEM_on_S2     -> heights_on_S2;
+
+         heights_on_S2 -> xyz_d1_t1;
+         raw_d1_t1t2   -> xyz_d1_t1;
+         xyz_d1_t1     -> nwb_lia;
+
+         nwb_lia   -> mult_d1;
+         nwb_lia   -> mult_d2;
+         nwb_lia   -> mult_dn;
+         nwb_d1_b0 -> mult_d1;
+         nwb_d2_b0 -> mult_d2;
+         nwb_dn_b0 -> mult_dn;
+
+         mult_d1 -> nwb_d1;
+         mult_d2 -> nwb_d2;
+         mult_dn -> nwb_dn;
+
+         # =====[ Align
+         {
+             rank = same ; 
+             vrt_nwb raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3
+             edge[ style=invis];
+             vrt_nwb -> raw_d1_t1t2 -> raw_d1_t2t3 -> raw_d2_t1t2 -> raw_d2_t2t3 -> raw_dn_t1t2 -> raw_dn_t2t3
+
+         }
+     }
+
+
 .. _prepare_VRT_s2-proc:
 .. index:: Agglomerate DEMs over S2 tile
 
@@ -290,8 +391,8 @@ LIA specific deprecated processings
 -----------------------------------
 
 .. graphviz::
-    :name: graph_LIA
-    :caption: Tasks for processing 33NWC and 33NWB with NORMLIM calibration
+    :name: graph_LIA_v1
+    :caption: Tasks for processing 33NWC and 33NWB with NORMLIM calibration -- v1.0 deprecated workflow
     :alt: Complete task flow for processing 33NWC and 33NWB with NORMLIM calibration
     :align: center
 
@@ -301,6 +402,7 @@ LIA specific deprecated processings
          node [fontname="Verdana", fontsize="12", shape="note", target="_top", style=filled];
          edge [fontname="Sans", fontsize="9"];
 
+         # =====[ Inputs nodes
          raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
          raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
 
@@ -312,6 +414,7 @@ LIA specific deprecated processings
 
          { rank = same ;  raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3}
 
+         # =====[ Classic workflow
          o_nwb_d1_t1 [label="Orthorectified β° 33NWB d1 t1", href="files.html#orthorectified-files", fillcolor=lightyellow]
          o_nwb_d1_t2 [label="Orthorectified β° 33NWB d1 t2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
@@ -321,10 +424,12 @@ LIA specific deprecated processings
          o_nwb_dn_t1 [label="Orthorectified β° 33NWB dn t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
          o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
+         # Concatenated β° calibrated + orthorectified nodes
          nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
          nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
          nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
 
+         # Classic workflow up to concatenated β° calibrated + orthorectified nodes
          raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
          raw_d1_t2t3 -> o_nwb_d1_t2 [label="β° cal | noise | cut | ortho"];
          raw_d2_t1t2 -> o_nwb_d2_t1 [label="β° cal | noise | cut | ortho"];
@@ -340,6 +445,7 @@ LIA specific deprecated processings
          o_nwb_dn_t2 -> nwb_dn_b0 [label="concatenation"];
 
          # ===================================
+         # ====[ LIA workflow
          vrt_d1_t1t2 [label="DEM VRT d1 t1-t2", fillcolor=palegoldenrod];
          vrt_d1_t2t3 [label="DEM VRT d1 t2-t3", fillcolor=palegoldenrod];
 
