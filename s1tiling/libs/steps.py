@@ -37,6 +37,7 @@ import shutil
 import re
 import datetime
 from abc import ABC, abstractmethod
+import fnmatch
 import logging
 import subprocess
 from pathlib import Path
@@ -352,13 +353,32 @@ class _ProducerStep(AbstractStep):
 
         def do_write(fullpath, img_meta) -> None:
             logger.debug('Set metadata in %s', fullpath)
+            if not img_meta:
+                return  # Nothing to update
+
             dst = gdal.Open(fullpath, gdal.GA_Update)
             assert dst
+            all_metadata = dst.GetMetadata()
+            def set_or_del(key: str, val:str):
+                if val:
+                    all_metadata[key] = val
+                else:
+                    all_metadata.pop(key, None)
+
 
             for (kw, val) in img_meta.items():
                 assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                 logger.debug(' - %s -> %s', kw, val)
-                dst.SetMetadataItem(kw, val)
+                if kw.endswith('*'):
+                    if not val:  # Expected scenario: we clear the keys.*
+                        all_metadata = {m:all_metadata[m] for m in all_metadata if not fnmatch.fnmatch(m, kw)}
+                    else:        # Unlikely scenario: new & same value for all
+                        updated_kws = {m:val for m in all_metadata if fnmatch.fnmatch(m, kw)}
+                        all_metadata.update(updated_kws)
+                else:
+                    set_or_del(kw, val)
+
+            dst.SetMetadata(all_metadata)
             dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
             del dst
             logger.debug('Metadata Set! (%s)', fullpath)

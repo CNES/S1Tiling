@@ -167,7 +167,7 @@ LIA specific processings
 
          # =====[ Align
          {
-             rank = same ; 
+             rank = same ;
              vrt_nwb raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3
              edge[ style=invis];
              vrt_nwb -> raw_d1_t1t2 -> raw_d1_t2t3 -> raw_d2_t1t2 -> raw_d2_t2t3 -> raw_dn_t1t2 -> raw_dn_t2t3
