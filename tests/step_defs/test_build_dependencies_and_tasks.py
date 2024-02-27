@@ -39,7 +39,7 @@ from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEM, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
+        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
@@ -323,7 +323,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
 
 @given('A pipeline that computes LIA')
 def given_pipeline_that_computes_LIA(pipelines) -> None:
-    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
+    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
             inputs={'insar': 'basename', 'indem': dem})
@@ -335,7 +335,7 @@ def given_pipeline_that_computes_LIA(pipelines) -> None:
 @given('A pipeline that fully computes in LIA S2 geometry')
 def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids) -> None:
     LIA_product_required = 'concat' not in pipeline_ids
-    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM', product_required=False,
+    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM', product_required=False,
             inputs={'insar': 'basename'})
     demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', product_required=False, is_name_incremental=True,
             inputs={'insar': 'basename', 'indem': dem})

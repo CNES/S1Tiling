@@ -48,7 +48,7 @@ import s1tiling.S1Processor
 import s1tiling.libs.configuration
 from s1tiling.libs.meta import out_filename
 from s1tiling.libs.steps import ram as param_ram
-from s1tiling.libs.otbwrappers import AgglomerateDEM
+from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1
 
 
 # ======================================================================
@@ -479,7 +479,7 @@ def mock_LIA(application_mocker, file_db):
         exp_out_dem       = file_db.sardemprojfile(idx, False)
         exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
-        application_mocker.set_expectations(AgglomerateDEM.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
+        application_mocker.set_expectations(AgglomerateDEMOnS1.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
 
         application_mocker.set_expectations('SARDEMProjection2', {
             'ram'        : param_ram(2048),
