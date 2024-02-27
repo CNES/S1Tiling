@@ -135,7 +135,7 @@ def raster(idx, polarity) -> Dict:
     logging.debug("coverage of %s by %s = %s", TILE, FILES[idx]['s1dir'], coverage)
     product_info = {'origin': S2_tile_origin, 'coverage': coverage}  # don't need more
     return {
-            'raster': S1DateAcquisition(f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe',
+            'raster': S1DateAcquisition(Path(f'{INPUT}/{s1dir}/{s1dir}.SAFE/manifest.safe'),
                 [input_file(idx, 'vv')], product_info),
             'tile_origin': S2_tile_origin,
             'tile_coverage': coverage
@@ -215,6 +215,7 @@ class Configuration():
         """
         self.GeoidFile                         = 'UNUSED HERE'
         self.calibration_type                  = 'sigma'
+        self.output_grid                       = resource_dir/'shapefile/Features.shp'
         self.grid_spacing                      = 40
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
@@ -231,6 +232,7 @@ class Configuration():
         self.dem_main_field_id                 = 'UNUSED HERE'
         self.dem_db_filepath                   = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
         self.cache_dem_by                      = 'symlink'
+        self.produce_lia_map                   = True
         assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests

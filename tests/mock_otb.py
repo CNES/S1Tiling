@@ -300,6 +300,7 @@ class OTBApplicationsMockContext:
         self.__last_expected_metadata = {}
 
         self.__known_files.append(cfg.dem_db_filepath)
+        self.__known_files.append(cfg.output_grid)
         mocker.patch('s1tiling.libs.steps.otb.Registry.CreateApplication', lambda a : self.create_application(a))
         mocker.patch('s1tiling.libs.steps.execute',                        lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
         mocker.patch('s1tiling.libs.steps.AnyProducerStep._do_execute',    lambda slf, params, dryrun : self.execute_function(slf._action, params, dryrun))

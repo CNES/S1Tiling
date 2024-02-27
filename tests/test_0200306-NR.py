@@ -270,7 +270,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
     # TODO: Test written meta data as well
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
-    def mock_write_image_metadata(slf):
+    def mock_write_image_metadata(slf, dryrun: bool):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
         application_mocker.assert_these_metadata_are_expected(fullpath, img_meta)
@@ -293,7 +293,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
         assert os.path.isfile(inp)
         known_files.append(out)
         known_files.remove(inp)
-    mocker.patch('s1tiling.libs.otbwrappers.commit_execution', mock_commit_execution_for_SelectLIA)
+    mocker.patch('s1tiling.libs.otbwrappers.lia.commit_execution', mock_commit_execution_for_SelectLIA)
 
     def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???
@@ -647,7 +647,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     logging.info("Full mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
@@ -694,7 +694,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     logging.info("Full mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
@@ -744,7 +744,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
@@ -783,7 +783,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
@@ -852,7 +852,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     configuration.produce_lia_map  = True
     configuration.show_configuration()
 
-    mocker.patch('s1tiling.libs.otbwrappers.otb_version', lambda : '7.4.0')
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
