@@ -351,15 +351,22 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
             'out'        : out_calib,
             }, None,
             {
-                'ACQUISITION_DATETIME': file_db.start_time(i),
-                'CALIBRATION'         : raw_calibration,
-                'FLYING_UNIT_CODE'    : 's1a',
-                'IMAGE_TYPE'          : 'GRD',
-                'INPUT_S1_IMAGES'     : file_db.product_name(i),
-                'NOISE_REMOVED'       : 'False',
-                'ORBIT'               : '007',
-                'ORBIT_DIRECTION'     : 'DES',
-                'POLARIZATION'        : 'vv',
+                'ACQUISITION_DATETIME' : file_db.start_time(i),
+                'CALIBRATION'          : raw_calibration,
+                'FLYING_UNIT_CODE'     : 's1a',
+                'IMAGE_TYPE'           : 'GRD',
+                'INPUT_S1_IMAGES'      : file_db.product_name(i),
+                'NOISE_REMOVED'        : 'False',
+                'ORBIT'                : '007',
+                'ORBIT_DIRECTION'      : 'DES',
+                'POLARIZATION'         : 'vv',
+                'RedDisplayChannel'    : '',
+                'GreenDisplayChannel'  : '',
+                'BlueDisplayChannel'   : '',
+                'PRF'                  : '',
+                'RadarFrequency'       : '',
+                'SAR'                  : '',
+                'SARCalib*'            : '',
                 })
 
         if True:     #  workaround defect on skipping cutmargin       #old_IPF:
@@ -755,7 +762,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
 
     mock_LIA(application_mocker, file_db)
 
-    s1tiling.S1Processor.s1_process_lia(config_opt=configuration, searched_items_per_page=0,
+    s1tiling.S1Processor.s1_process_lia_v0(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
