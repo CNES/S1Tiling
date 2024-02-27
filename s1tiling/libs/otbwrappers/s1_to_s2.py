@@ -598,6 +598,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['ORTHORECTIFIED']             = 'true'
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        # S1 -> S2 => remove all SAR specific metadata inserted by OTB
+        for kw in ( 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel', 'GreenDisplayChannel', 'BlueDisplayChannel'):
+            imd[kw] = ''
 
     @abstractmethod
     def _get_input_image(self, meta: Meta):

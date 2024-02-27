@@ -534,8 +534,10 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['DEM_LIST']     = ', '.join(meta['dems'])
+        imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_LIST']                 = ', '.join(meta['dems'])
+        imd['band.DirectionToScanDEM*'] = ''
+        imd['band.Gain']                = ''
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
