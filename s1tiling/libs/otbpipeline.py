@@ -697,15 +697,16 @@ class PipelineDescriptionSequence:
                         outputs.append(expected)
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
                         previous[expected_taskname].add_input(origin, inp, expected)
-                        logger.debug('    This is a new product: %s, with a source from "%s"', expected_taskname, origin)
+                        logger.debug('    Is a new product? YES! %s, with a source from "%s"', expected_taskname, origin)
                     elif (input_task_name := get_task_name(inp)) not in previous[expected_taskname].input_task_names:
-                        logger.debug("    Not a new product, but input task %s NOT registered in input_task_names(%s)", input_task_name, previous[expected_taskname].pipeline.name)
+                        logger.debug("    Is a new product? NO!  %s, but input task %s NOT registered in input_task_names(%s)", expected_taskname, input_task_name, previous[expected_taskname].pipeline.name)
                         _register_new_input_and_update_out_filename(
                                 tasks=previous,
                                 origin=origin,
                                 input_meta=inp,
                                 new_task_meta=expected,
                                 outputs=outputs)
+                    logger.debug("    Keys in previous: %s", previous.keys()) 
                     if pipeline.product_is_required:
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected

@@ -56,13 +56,14 @@ from .lia import (
         SumAllHeights,
         ComputeGroundAndSatPositionsOnDEM,
         ComputeNormals,
-        ComputeLIA,
+        ComputeLIAOnS2,
         ApplyLIACalibration,
 
         AgglomerateDEMOnS1,
         SARDEMProjection,
         SARCartesianMeanEstimation,
         OrthoRectifyLIA,
+        ComputeLIAOnS1,
         ConcatenateLIA,
         SelectBestCoverage,
 )

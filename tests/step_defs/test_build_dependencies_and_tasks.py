@@ -39,7 +39,7 @@ from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIA,
+        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
@@ -331,7 +331,7 @@ def given_pipeline_that_computes_LIA(pipelines) -> None:
             inputs={'insar': 'basename', 'indem': dem})
     xyz = pipelines.register_pipeline([SARCartesianMeanEstimation], 'SARCartesianMeanEstimation', product_required=False,
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA], 'Normals|LIA', product_required=True, is_name_incremental=True,
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1], 'Normals|LIA', product_required=True, is_name_incremental=True,
             inputs={'xyz': xyz})
 
 @given('A pipeline that fully computes in LIA S2 geometry')
@@ -343,7 +343,7 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids) -> None:
             inputs={'insar': 'basename', 'indem': dem})
     xyz = pipelines.register_pipeline([SARCartesianMeanEstimation], 'SARCartesianMeanEstimation', product_required=False,
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA], 'Normals|LIA', product_required=False, is_name_incremental=True,
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1], 'Normals|LIA', product_required=False, is_name_incremental=True,
             inputs={'xyz': xyz})
     ortho = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
             inputs={'in': lia})

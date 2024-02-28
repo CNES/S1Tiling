@@ -44,10 +44,11 @@ from unittest.mock import patch
 from .helpers import otb_compare, comparable_metadata
 from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob, dirname, makedirs
 from .mock_data import FileDB
-import s1tiling.S1Processor
+# import s1tiling.S1Processor
 import s1tiling.libs.configuration
-from s1tiling.libs.meta import out_filename
-from s1tiling.libs.steps import ram as param_ram
+from s1tiling.libs.api         import s1_process, s1_process_lia_v0
+from s1tiling.libs.meta        import out_filename
+from s1tiling.libs.steps       import ram as param_ram
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1
 
 
@@ -676,7 +677,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
 
     mock_upto_concat_S2(application_mocker, file_db, 'sigma', 2, old_IPF=True)
     mock_masking(application_mocker, file_db, 'sigma', 2)
-    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+    s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
     application_mocker.assert_all_have_been_executed()
@@ -723,7 +724,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
 
     mock_upto_concat_S2(application_mocker, file_db, 'sigma', 1)
     mock_masking(application_mocker, file_db, 'sigma', 1)
-    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+    s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
     application_mocker.assert_all_have_been_executed()
@@ -762,7 +763,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
 
     mock_LIA(application_mocker, file_db)
 
-    s1tiling.S1Processor.s1_process_lia_v0(config_opt=configuration, searched_items_per_page=0,
+    s1_process_lia_v0(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
@@ -826,7 +827,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
 
-    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+    s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
@@ -896,7 +897,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
 
-    s1tiling.S1Processor.s1_process(config_opt=configuration, searched_items_per_page=0,
+    s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()

@@ -297,7 +297,8 @@ LIA maps computation
                  - and the associated normals, chained in memory from
                    :ref:`Normals computation <compute_normals-proc>`
 :Output:         :ref:`Local Incidence Angle map, and sine LIA map
-                 <lia-s1-files>`
+                 <lia-files>` (or :ref:`the equivalent <lia-s1-files>` in the
+                 deprecated workflow)
 :OTBApplication: `SARComputeLocalIncidenceAngle OTB application
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
                  (developed for the purpose of this project)
@@ -307,7 +308,9 @@ LIA maps computation
                      yet. It has to be installed specifically on your machine.
                      It will be already installed in the :ref:`docker images
                      <docker>` though.
-:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeLIA`
+:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeLIAOnS2` (or
+                 :class:`s1tiling.libs.otbwrappers.ComputeLIAOnS2` in the
+                 deprecated workflow)
 
 It computes the :ref:`Local Incidence Angle map, and sine LIA map
 <lia-s1-files>` between the between the ground normal projected in range plane

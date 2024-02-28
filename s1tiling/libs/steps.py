@@ -672,7 +672,7 @@ class StepFactory(ABC):
         products seen in the pipeline.
 
         This method will need to be overridden in classes like
-        :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
+        :class:`_ComputeLIA` in order to fetch N-1 "xyz" input.
 
         Postcondition:
             :``_check_input_step_type(result)`` is True
@@ -874,8 +874,10 @@ class _FileProducingStepFactory(StepFactory):
     :func:`create_step` is kind of *abstract* at this point.
     """
     def __init__(
-        self, cfg: Configuration,
-        gen_tmp_dir: str, gen_output_dir, gen_output_filename,
+        self, cfg          : Configuration,
+        gen_tmp_dir        : str,
+        gen_output_dir     : Optional[str],
+        gen_output_filename: OutputFilenameGenerator,
         *argv, **kwargs
     ) -> None:
         """

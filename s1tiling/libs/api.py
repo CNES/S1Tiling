@@ -59,11 +59,11 @@ from .otbwrappers import (
         # LIA relate Step Factories
         AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
         SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
-        ComputeLIA, filter_LIA, ComputeNormals,
+        ComputeLIAOnS2, filter_LIA, ComputeNormals,
         ApplyLIACalibration,
         # Deprecated LIA related Step Factories
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
-        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
+        OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Filter Step Factories
         SpatialDespeckle)
 from .outcome import Outcome
@@ -513,14 +513,25 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
             inputs={'insar': 'basename', 'indem': dem})
     xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],                     'Normals|LIA', is_name_incremental=True,
+    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1],                     'Normals|LIA', is_name_incremental=True,
             inputs={'xyz': xyz})
 
     # "inputs" parameter doesn't need to be specified in the following pipeline declarations
     # but we still use it for clarity!
-    ortho           = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],        'OrthoLIA',  inputs={'in': lia}, is_name_incremental=True)
-    concat          = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatLIA', inputs={'in': ortho})
-    pipelines.register_pipeline([SelectBestCoverage],                                          'SelectLIA', inputs={'in': concat}, product_required=produce_angles)
+    ortho_deg       = pipelines.register_pipeline(
+            [filter_LIA('LIA'), OrthoRectifyLIA],
+            'OrthoLIA',
+            inputs={'in': lia},
+            is_name_incremental=True)
+    concat_deg      = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatLIA',
+            inputs={'in': ortho_deg})
+    pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectLIA',
+            inputs={'in': concat_deg},
+            product_required=produce_angles)
 
     ortho_sin       = pipelines.register_pipeline(
             [filter_LIA('sin_LIA'), OrthoRectifyLIA],
@@ -583,7 +594,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDe
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
     lia = pipelines.register_pipeline(
-            [ComputeNormals, ComputeLIA],
+            [ComputeNormals, ComputeLIAOnS2],
             'ComputeLIAOnS2',
             is_name_incremental=True,
             inputs={'xyz': xyz},
@@ -692,7 +703,11 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         else:
             need_to_keep_non_filtered_products = True
 
-        concat_S2 = pipelines.register_pipeline(concat_seq, product_required=calibration_is_done_in_S1, is_name_incremental=True)
+        concat_S2 = pipelines.register_pipeline(
+                concat_seq,
+                product_required=calibration_is_done_in_S1,
+                is_name_incremental=True
+        )
         last_product_S2 = concat_S2
 
         required_workspaces = [WorkspaceKinds.TILE]

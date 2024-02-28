@@ -92,7 +92,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                name="AgglomerateDEM",
+                name="AgglomerateDEMOnS2",
                 action=AgglomerateDEMOnS2.agglomerate,
             *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
@@ -647,11 +647,11 @@ class ComputeNormals(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
-class ComputeLIA(OTBStepFactory):
+class _ComputeLIA(OTBStepFactory):
     """
-    Factory that prepares steps that run
+    Abstract factory that prepares steps that run
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    as described in :ref:`Normals computation` documentation.
+    as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -664,18 +664,15 @@ class ComputeLIA(OTBStepFactory):
 
     - input filename
     - output filename
-    - `fname_fmt`  -- optional key: `s1_lia`  TODO!!
-    - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
-    def __init__(self, cfg: Configuration) -> None:
-        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt0 = cfg.fname_fmt.get('lia_product') or fname_fmt0
-        fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
-        fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
-
-        # TODO: Keep ComputeLIAOnS1 in the deprecated zone.
-        # fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
-        # fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
+    def __init__(
+            self, cfg: Configuration,
+            fname_fmt_sin : str,
+            fname_fmt_lia : str,
+            gen_tmp_dir : str,
+            gen_output_dir : Optional[str],
+            image_description : str,
+    ) -> None:
         fname_fmt = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
         param_out = ['out.sin']
         if cfg.produce_lia_map:
@@ -687,12 +684,10 @@ class ComputeLIA(OTBStepFactory):
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
                 # In-memory connected to in.normals
                 param_in='in.normals', param_out=param_out,
-                # gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
-                gen_output_dir=cfg.lia_directory,
+                gen_tmp_dir=gen_tmp_dir,
+                gen_output_dir=gen_output_dir,
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
-                # image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
-                image_description='LIA on S2 grid',
+                image_description=image_description,
                 )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
@@ -761,6 +756,40 @@ class ComputeLIA(OTBStepFactory):
         ComputeLIA comes from normlim_sigma0.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+
+class ComputeLIAOnS2(_ComputeLIA):
+    """
+    Factory that prepares steps that run
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    on images in S2 geometry as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
+
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    computes Local Incidende Angle Map.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - `fname_fmt`  -- optional key: `lia_product`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt0 = cfg.fname_fmt.get('lia_product') or fname_fmt0
+        fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
+        fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
+        super().__init__(
+                cfg,
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+                gen_output_dir=cfg.lia_directory,
+                fname_fmt_lia=fname_fmt_lia,
+                fname_fmt_sin=fname_fmt_sin,
+                image_description='LIA on S2 grid',
+        )
 
 
 class _FilterLIAStepFactory(StepFactory):
@@ -1043,7 +1072,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            name="AgglomerateDEM",
+            name="AgglomerateDEMOnS1",
             action=AgglomerateDEMOnS1.agglomerate,
             *args, **kwargs)
         self.__dem_db_filepath     = cfg.dem_db_filepath
@@ -1385,6 +1414,39 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         SARCartesianMeanEstimation2 comes from normlim_sigma0.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+
+class ComputeLIAOnS1(_ComputeLIA):
+    """
+    Factory that prepares steps that run
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    on images in S1 geometry as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
+
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    computes Local Incidende Angle Map.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - `fname_fmt`  -- optional key: `s1_lia`
+    - `fname_fmt`  -- optional key: `s1_sin_lia`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
+        fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
+        super().__init__(
+                cfg,
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_output_dir=None,
+                fname_fmt_lia=fname_fmt_lia,
+                fname_fmt_sin=fname_fmt_sin,
+                image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
+        )
 
 
 class OrthoRectifyLIA(_OrthoRectifierFactory):
