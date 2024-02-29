@@ -706,8 +706,9 @@ class PipelineDescriptionSequence:
                                 input_meta=inp,
                                 new_task_meta=expected,
                                 outputs=outputs)
-                    logger.debug("    Keys in previous: %s", previous.keys()) 
+                    logger.debug("    Keys in previous: %s", previous.keys())
                     if pipeline.product_is_required:
+                        # logger.debug("    %s' products are required => register %s", pipeline.name, expected_taskname)
                         # assert (expected_taskname not in required) or (required[expected_taskname] == expected)
                         required[expected_taskname] = expected
                     task_names_to_output_files_table[expected_taskname] = out_filename(expected)
