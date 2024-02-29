@@ -30,19 +30,19 @@ Feature: Norlim
     execute.
 
     Scenario: Generate LIA tasks for a single S1 image
-        Given A pipeline that computes LIA
+        Given A pipeline that computes LIA in S1
         And   a single S1 image
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a single LIA image is required
-        And   LIA images depend on XYZ images
+        Then  a single sin(LIA) image is required
+        And   sin(LIA) images depend on XYZ images
         And   XYZ images depend on DEM, DEMPROJ and BASE images
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
-        And   LIA task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered
         And   XYZ task(s) is(/are) registered
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
@@ -50,19 +50,19 @@ Feature: Norlim
     Scenario: Generate LIA tasks for a pair of VV+VH S1 images
         # Check a reduction of type 'any()': any one between vh or vv is good:
         # just keep one
-        Given A pipeline that computes LIA
+        Given A pipeline that computes LIA in S1
         And   a pair of VV + VH S1 images
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a single LIA image is required
-        And   LIA images depend on XYZ images
+        Then  a single sin(LIA) image is required
+        And   sin(LIA) images depend on XYZ images
         And   XYZ images depend on DEM, DEMPROJ and BASE images
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
-        And   LIA task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered
         And   XYZ task(s) is(/are) registered
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
@@ -81,7 +81,7 @@ Feature: Norlim
         And   final LIA image has been selected from one concat LIA
         And   concat LIA depends on 2 ortho LIA images
         And   2 ortho LIA images depend on two LIA images
-        And   LIA images depend on XYZ images
+        And   sin(LIA) images depend on XYZ images
         And   XYZ images depend on DEM, DEMPROJ and BASE images
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
@@ -89,7 +89,7 @@ Feature: Norlim
         And   a select LIA task is registered
         And   a concat LIA task is registered
         And   ortho LIA task(s) is(/are) registered
-        And   LIA task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered
         And   XYZ task(s) is(/are) registered
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
@@ -116,7 +116,7 @@ Feature: Norlim
         And   final LIA image has been selected from one concat LIA
         And   concat LIA depends on 2 ortho LIA images
         And   2 ortho LIA images depend on two LIA images
-        And   LIA images depend on XYZ images
+        And   sin(LIA) images depend on XYZ images
         And   XYZ images depend on DEM, DEMPROJ and BASE images
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
@@ -126,7 +126,7 @@ Feature: Norlim
         And   a select LIA task is registered
         And   a concat LIA task is registered
         And   ortho LIA task(s) is(/are) registered
-        And   LIA task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered
         And   XYZ task(s) is(/are) registered
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered

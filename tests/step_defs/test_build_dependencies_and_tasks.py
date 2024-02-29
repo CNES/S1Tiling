@@ -265,15 +265,19 @@ def expected_files_id() -> List[int]:
     return ex
 
 @pytest.fixture
-def pipelines() -> PipelineDescriptionSequence:
-    # TODO: propagate --tmpdir to scenario runners
+def configuration() -> Configuration:
     config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR)
-    pd = PipelineDescriptionSequence(config, dryrun=True, debug_caches=False)
+    return config
+
+@pytest.fixture
+def pipelines(configuration) -> PipelineDescriptionSequence:
+    # TODO: propagate --tmpdir to scenario runners
+    pd = PipelineDescriptionSequence(configuration, dryrun=True, debug_caches=False)
     return pd
 
 @pytest.fixture
 def pipeline_ids() -> Dict[str, Pipeline]:
-    ids = {}
+    ids : Dict[str, Pipeline] = {}
     return ids
 
 @pytest.fixture
@@ -323,42 +327,89 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
         pipeline_ids['last'] = pipeline
         pipeline_ids['mask'] = pipeline
 
-@given('A pipeline that computes LIA')
+
+@given('A pipeline that computes LIA in S1')
 def given_pipeline_that_computes_LIA(pipelines) -> None:
-    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM', product_required=False,
+    dem = pipelines.register_pipeline(
+            [AgglomerateDEMOnS1],
+            'AgglomerateDEM',
+            product_required=False,
             inputs={'insar': 'basename'})
-    demproj = pipelines.register_pipeline([SARDEMProjection], 'SARDEMProjection', product_required=False,
+    demproj = pipelines.register_pipeline(
+            [SARDEMProjection],
+            'SARDEMProjection',
+            product_required=False,
             inputs={'insar': 'basename', 'indem': dem})
-    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation], 'SARCartesianMeanEstimation', product_required=False,
+    xyz = pipelines.register_pipeline(
+            [SARCartesianMeanEstimation],
+            'SARCartesianMeanEstimation',
+            product_required=False,
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1], 'Normals|LIA', product_required=True, is_name_incremental=True,
+    lia = pipelines.register_pipeline(
+            [ComputeNormals, ComputeLIAOnS1],
+            'Normals|LIA',
+            product_required=True,
+            is_name_incremental=True,
             inputs={'xyz': xyz})
+
 
 @given('A pipeline that fully computes in LIA S2 geometry')
-def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids) -> None:
+def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids, configuration) -> None:
     LIA_product_required = 'concat' not in pipeline_ids
-    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM', product_required=False,
+    dem = pipelines.register_pipeline(
+            [AgglomerateDEMOnS1],
+            'AgglomerateDEM',
+            product_required=False,
             inputs={'insar': 'basename'})
-    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', product_required=False, is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': dem})
-    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation], 'SARCartesianMeanEstimation', product_required=False,
-            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1], 'Normals|LIA', product_required=False, is_name_incremental=True,
-            inputs={'xyz': xyz})
-    ortho = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA], 'OrthoLIA', product_required=False, is_name_incremental=True,
-            inputs={'in': lia})
-    concat = pipelines.register_pipeline([ConcatenateLIA], 'ConcatLIA', product_required=False, is_name_incremental=True,
-            inputs={'in': ortho})
-    select = pipelines.register_pipeline([SelectBestCoverage], 'SelectLIA',
-            product_required=LIA_product_required,
+    demproj = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata, SARDEMProjection],
+            'SARDEMProjection',
+            product_required=False,
             is_name_incremental=True,
-            inputs={'in': concat})
+            inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline(
+            [SARCartesianMeanEstimation],
+            'SARCartesianMeanEstimation',
+            product_required=False,
+            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline(
+            [ComputeNormals, ComputeLIAOnS1],
+            'Normals|LIA',
+            product_required=False,
+            is_name_incremental=True,
+            inputs={'xyz': xyz})
 
-    ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',
-            inputs={'in': lia}, is_name_incremental=True)
-    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],     'ConcatSinLIA',
+    ortho_deg = pipelines.register_pipeline(
+            [filter_LIA('LIA'), OrthoRectifyLIA],
+            'OrthoLIA',
+            product_required=False,
+            is_name_incremental=True,
+            inputs={'in': lia})
+    concat_deg = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatLIA',
+            product_required=False,
+            is_name_incremental=True,
+            inputs={'in': ortho_deg})
+    select_deg = pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectLIA',
+            product_required=LIA_product_required and configuration.produce_lia_map,
+            is_name_incremental=True,
+            inputs={'in': concat_deg})
+
+    ortho_sin       = pipelines.register_pipeline(
+            [filter_LIA('sin_LIA'), OrthoRectifyLIA],
+            'OrthoSinLIA',
+            inputs={'in': lia},
+            is_name_incremental=True)
+    concat_sin      = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatSinLIA',
             inputs={'in': ortho_sin})
-    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage], 'SelectSinLIA',
+    best_concat_sin = pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectSinLIA',
             product_required=LIA_product_required,
             inputs={'in': concat_sin})
 
@@ -366,9 +417,9 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids) -> None:
     pipeline_ids['demproj']      = demproj
     pipeline_ids['xyz']          = xyz
     pipeline_ids['lia']          = lia
-    pipeline_ids['ortholia']     = ortho
-    pipeline_ids['concatlia']    = concat
-    pipeline_ids['selectlia']    = select
+    pipeline_ids['ortholia']     = ortho_deg
+    pipeline_ids['concatlia']    = concat_deg
+    pipeline_ids['selectlia']    = select_deg
     pipeline_ids['orthosinlia']  = ortho_sin
     pipeline_ids['concatsinlia'] = concat_sin
     pipeline_ids['selectsinlia'] = best_concat_sin
@@ -794,11 +845,11 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies) -> None:
 # -- LIA tests
 # ----------------------------------------------------------------------
 
-@then('a single LIA image is required')
-def then_LIA_image_is_required(dependencies) -> None:
+@then('a single sin(LIA) image is required')
+def then_sin_LIA_image_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [LIA_file(0)]
+    expected_fn = [sin_LIA_file(0)]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
@@ -884,15 +935,15 @@ def two_ortho_LIA_depend_on_two_LIA_images(dependencies) -> None:
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == [LIA_file(i), sin_LIA_file(i)]
+            assert [inp['out_filename'] for inp in inputs][0] == [sin_LIA_file(i), LIA_file(i)]
 
 
-@then('LIA images depend on XYZ images')
-def LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id) -> None:
+@then('sin(LIA) images depend on XYZ images')
+def sin_LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
-        expected_fn = LIA_file(i)
+        expected_fn = sin_LIA_file(i)
         # assert expected_fn not in required  # Depends on the scenario...
         prev_expected = previous[expected_fn]
         expected_inputs = prev_expected.inputs
@@ -1057,12 +1108,12 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
         assert LIA_file(i) not in required
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('LIA task(s) is(/are) registered')
-def then_a_LIA_task_is_registered(tasks, dependencies, expected_files_id) -> None:
+@then('sin(LIA) task(s) is(/are) registered')
+def then_a_sin_LIA_task_is_registered(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
-        out = LIA_file(i)
+        out = sin_LIA_file(i)
         dest.append(out)
         expectations[out] = {
                 'pipeline': 'Normals|LIA',
