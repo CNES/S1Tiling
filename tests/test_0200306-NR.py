@@ -46,10 +46,10 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
-from s1tiling.libs.api         import s1_process, s1_process_lia_v0
+from s1tiling.libs.api         import s1_process, s1_process_lia_v0, register_LIA_pipelines_v0
 from s1tiling.libs.meta        import out_filename
 from s1tiling.libs.steps       import ram as param_ram
-from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1
+from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AnalyseBorders
 
 
 # ======================================================================
@@ -114,12 +114,12 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
-    images = [
-            '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
-            '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
-            '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx_BorderMask.tif',
-            '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
-            ]
+    # images = [
+    #         '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
+    #         '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
+    #         '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx_BorderMask.tif',
+    #         '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
+    #         ]
     baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     logging.info("Full test")
@@ -332,7 +332,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(N):
         input_file = file_db.input_file_vv(i)
-        expected_ortho_file = file_db.orthofile(i, False)
+        # expected_ortho_file = file_db.orthofile(i, False)
 
         orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
         assert '_'+raw_calibration in orthofile
@@ -646,7 +646,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     inputdir = str((baselinedir/'inputs').absolute())
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
-    baseline_path = baselinedir / 'expected'
+    # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
@@ -665,7 +665,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     assert os.path.isfile(file_db.input_file_vv(1))
 
     def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
-        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
         meta['cut'] = {
                 'threshold.x'      : 1000,
                 'threshold.y.start': 0,
@@ -693,7 +693,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     inputdir = str((baselinedir/'inputs').absolute())
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
-    baseline_path = baselinedir / 'expected'
+    # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
@@ -712,7 +712,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     assert not os.path.isfile(file_db.input_file_vv(1))
 
     def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
-        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
         meta['cut'] = {
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
@@ -742,7 +742,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
     tile_name = '33NWB'
-    baseline_path = baselinedir / 'expected'
+    # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
@@ -769,7 +769,7 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -781,7 +781,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
     tile_name = '33NWB'
-    baseline_path = baselinedir / 'expected'
+    # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
@@ -801,7 +801,7 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
     assert os.path.isfile(file_db.input_file_vv(1))
 
     def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
-        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
         meta['cut'] = {
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
@@ -827,13 +827,15 @@ def test_33NWB_202001_normlim_mocked_one_date(baselinedir, outputdir, liadir, tm
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
 
-    s1_process(config_opt=configuration, searched_items_per_page=0,
-            dryrun=False, debug_otb=True, watch_ram=False,
-            debug_tasks=False)
+    s1_process(
+            config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
+            lia_process=register_LIA_pipelines_v0,
+    )
     application_mocker.assert_all_have_been_executed()
 
 
-def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_v_1_0_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -847,7 +849,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
     tile_name = '33NWB'
-    baseline_path = baselinedir / 'expected'
+    # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
@@ -870,7 +872,7 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
         assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
 
     def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
-        meta = super(s1tiling.libs.otbwrappers.AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
         meta['cut'] = {
                 'threshold.x'      : 0,
                 'threshold.y.start': 0,
@@ -897,8 +899,9 @@ def test_33NWB_202001_normlim_mocked_all_dates(baselinedir, outputdir, liadir, t
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
 
-    s1_process(config_opt=configuration, searched_items_per_page=0,
-            dryrun=False, debug_otb=True, watch_ram=False,
-            debug_tasks=False)
+    s1_process(
+            config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
+            lia_process=register_LIA_pipelines_v0,
+    )
     application_mocker.assert_all_have_been_executed()
-

@@ -551,7 +551,7 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDescription:
+def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
@@ -593,6 +593,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence) -> PipelineDe
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
+    # produce_angles is ignored as there is no extra select_LIA step
     lia = pipelines.register_pipeline(
             [ComputeNormals, ComputeLIAOnS2],
             'ComputeLIAOnS2',
@@ -614,7 +615,8 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         debug_caches            : bool = False,
         watch_ram               : bool = False,
         debug_tasks             : bool = False,
-        cache_before_ortho      : bool = False
+        cache_before_ortho      : bool = False,
+        lia_process                    = None,
 ) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
@@ -721,7 +723,8 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             else:
                 need_to_keep_non_filtered_products = True
 
-            lias = register_LIA_pipelines(pipelines)
+            LIA_registration = lia_process or register_LIA_pipelines
+            lias = LIA_registration(pipelines, config.produce_lia_map)
 
             # This steps helps forwarding sin(LIA) (only) to the next step
             # that corrects the β° with sin(LIA) map.
@@ -908,7 +911,7 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
-        register_LIA_pipelines(pipelines)
+        register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
