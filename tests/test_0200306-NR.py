@@ -405,6 +405,13 @@ def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db,
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
+                'RedDisplayChannel'         : '',
+                'GreenDisplayChannel'       : '',
+                'BlueDisplayChannel'        : '',
+                'PRF'                       : '',
+                'RadarFrequency'            : '',
+                'SAR'                       : '',
+                'SARCalib*'                 : '',
                 })
 
     if N == 1:
@@ -575,6 +582,13 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified LIA Sentinel-1A IW GRD',
+                'RedDisplayChannel'         : '',
+                'GreenDisplayChannel'       : '',
+                'BlueDisplayChannel'        : '',
+                'PRF'                       : '',
+                'RadarFrequency'            : '',
+                'SAR'                       : '',
+                'SARCalib*'                 : '',
                 })
 
         application_mocker.set_expectations('OrthoRectification', {
@@ -601,6 +615,13 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
+                'RedDisplayChannel'         : '',
+                'GreenDisplayChannel'       : '',
+                'BlueDisplayChannel'        : '',
+                'PRF'                       : '',
+                'RadarFrequency'            : '',
+                'SAR'                       : '',
+                'SARCalib*'                 : '',
                 })
 
     # endfor on 2 consecutive images
