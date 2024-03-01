@@ -38,6 +38,7 @@ import subprocess
 
 import otbApplication as otb
 
+import pytest
 from unittest.mock import patch
 
 # import pytest_check
@@ -753,7 +754,15 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+@pytest.mark.parametrize("register_expectations,processor",
+                         [
+                             (mock_LIA_v1_0, s1_process_lia_v0),
+                         ])
+def test_33NWB_202001_lia_mocked(
+        baselinedir, outputdir, liadir, tmpdir, demdir, ram,
+        mocker,
+        register_expectations, processor
+):
     """
     Mocked test of production of LIA and sin LIA files
     """
@@ -784,9 +793,9 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
-    mock_LIA_v1_0(application_mocker, file_db)
+    register_expectations(application_mocker, file_db)
 
-    s1_process_lia_v0(config_opt=configuration, searched_items_per_page=0,
+    processor(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
