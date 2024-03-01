@@ -257,6 +257,12 @@ class _ProducerStep(AbstractStep):
         """
         return tmp_filename(self.meta)
 
+    @property
+    def pipeline_name(self):
+        """ Generate a name for the associated pipeline """
+        return '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+
+
     def execute_and_write_output(self, parameters, execution_parameters: Dict) -> None:
         """
         Actually produce the expected output. The how is still a variation point
@@ -269,7 +275,7 @@ class _ProducerStep(AbstractStep):
         dryrun = is_running_dry(execution_parameters)
         logger.debug("_ProducerStep: %s (%s)", self, self.meta)
         do_measure = True  # TODO
-        pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+        pipeline_name = self.pipeline_name
         if files_exist(self.out_filename):
             # This is a dirty failsafe, instead of analysing at the last
             # moment, it's be better to have a clear idea of all dependencies

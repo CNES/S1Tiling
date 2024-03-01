@@ -29,11 +29,13 @@
 #
 # =========================================================================
 
+from __future__ import annotations
+
 import fnmatch
 import logging
 import os
 import re
-from typing import List, Literal
+from typing import Dict, List, Literal, Union
 from s1tiling.libs.Utils import get_shape_from_polygon
 from unittest import TestCase
 
@@ -144,16 +146,16 @@ class MockOTBApplication:
     """
     Mock-replacement for :class:`otbApplication.Application`
     """
-    def __init__(self, appname, mock_ctx) -> None:
+    def __init__(self, appname: str, mock_ctx: OTBApplicationsMockContext) -> None:
         """
         Constructor that answers to
         # app = otb.Registry.CreateApplication(self.appname)
         """
-        self.__appname      = appname
-        self.__params       = {}
-        self.__pixel_types  = {}
-        self.__metadata     = {}
-        self.__expectations = {}
+        self.__appname      : str = appname
+        self.__params       : Dict = {}
+        self.__pixel_types  : Dict = {}
+        # self.__metadata     : Dict = {}
+        # self.__expectations : Dict = {}
         self.__mock_ctx     = mock_ctx
 
     def __del__(self) -> None:
@@ -208,6 +210,7 @@ class MockOTBApplication:
         return [re.sub(r'\?.*$', '', filename) for filename in self.out_filenames]
 
     def execute_and_write_output(self, is_top_level) -> None:
+        assert self.__mock_ctx
         # Simulate app at the start of the pipeline first
         for k in k_input_keys:
             if k in self.parameters and isinstance(self.parameters[k], MockOTBApplication):
@@ -219,6 +222,7 @@ class MockOTBApplication:
         self.__mock_ctx.assert_app_is_expected(self.__appname, self.parameters, self.__pixel_types)
 
     def ExecuteAndWriteOutput(self) -> None:
+        assert self.__mock_ctx
         self.execute_and_write_output(True)
         # register output as a known file from now on
         for filename in self.out_filenames:
@@ -298,6 +302,7 @@ class OTBApplicationsMockContext:
         self.__known_files            = dem_files[:]
         self.__tmp_to_out_map         = tmp_to_out_map
         self.__last_expected_metadata = {}
+        self.__mismatching_metadata   = []
 
         self.__known_files.append(cfg.dem_db_filepath)
         self.__known_files.append(cfg.output_grid)
@@ -372,7 +377,7 @@ class OTBApplicationsMockContext:
                     params[kv] =  params[kv].appname + '|>' + self._update_output_to_final_filename(params[kv].parameters)
                 return params[kv]
 
-    def _update_input_to_root_filename(self, params):
+    def _update_input_to_root_filename(self, params: Dict) -> Union[List[str], str]:
         assert isinstance(params, dict) # of parameters
         in_param_keys = [kv for kv in k_input_keys if kv in params]
         for kv in in_param_keys:
@@ -393,18 +398,29 @@ class OTBApplicationsMockContext:
                 params[kv] = ps
                 assert isinstance(params[kv], list) # of str...
             return params[kv]
+        return []
 
-    def assert_these_metadata_are_expected(self, filename, new_metadata) -> None:
+    def assert_these_metadata_are_expected(self, new_metadata: Dict, name: str, filename: str) -> None:
         # Clean some useless/instable metadata
         new_metadata.pop('TIFFTAG_SOFTWARE', None)
         new_metadata.pop('TIFFTAG_DATETIME', None)
-        # assert new_metadata == self.__last_expected_metadata
+        if new_metadata != self.__last_expected_metadata:
+            self.__mismatching_metadata.append({
+                "expected": self.__last_expected_metadata,
+                "actual": new_metadata,
+                "context": f"\nMismatching metadata for {name}",
+            })
+        self.__last_expected_metadata = {}  # Make sure to clear before existing
+
+    def assert_all_metadata_match(self) -> None:
         tc = TestCase()
         tc.maxDiff = None
-        last_expected_metadata = self.__last_expected_metadata
-        self.__last_expected_metadata = {} # Make sure to clear before the assert
-        tc.assertDictEqual(new_metadata , last_expected_metadata)
-        pass
+        for metadata_mismatch in self.__mismatching_metadata:
+            tc.assertDictEqual(
+                    metadata_mismatch["actual"],
+                    metadata_mismatch["expected"],
+                    metadata_mismatch.get("context", ""),
+            )
 
     def assert_app_is_expected(self, appname, params, pixel_types) -> None:
         # Find out what the root input filename is (as we may not have any

@@ -48,7 +48,7 @@ from .mock_data import FileDB
 import s1tiling.libs.configuration
 from s1tiling.libs.api         import s1_process, s1_process_lia_v0, register_LIA_pipelines_v0
 from s1tiling.libs.meta        import out_filename
-from s1tiling.libs.steps       import ram as param_ram
+from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AnalyseBorders
 
 
@@ -244,7 +244,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 # Mocked versions
 # ======================================================================
 
-def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, application_mocker):
+def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, application_mocker: OTBApplicationsMockContext):
     # logging.debug('_declare_know_files(%s)', patterns)
     all_files = file_db.all_files()
     # logging.debug('- all_files: %s', all_files)
@@ -271,10 +271,10 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
     # TODO: Test written meta data as well
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
-    def mock_write_image_metadata(slf, dryrun: bool):
+    def mock_write_image_metadata(slf: _ProducerStep, dryrun: bool):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
-        application_mocker.assert_these_metadata_are_expected(fullpath, img_meta)
+        application_mocker.assert_these_metadata_are_expected(img_meta, slf.pipeline_name, fullpath)
 
         logging.debug('Set metadata in %s', fullpath)
         for (kw, val) in img_meta.items():
@@ -328,7 +328,7 @@ def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
 
-def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=False):
+def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db, calibration, N, old_IPF=False):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(N):
         input_file = file_db.input_file_vv(i)
@@ -435,7 +435,7 @@ def mock_upto_concat_S2(application_mocker, file_db, calibration, N, old_IPF=Fal
                     })
 
 
-def mock_masking(application_mocker, file_db, calibration, N):
+def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibration, N):
     # raw_calibration = 'beta' if calibration == 'normlim' else calibration
     raw_calibration = 'NormLim' if calibration == 'normlim' else calibration
     if N >= 2:
@@ -478,7 +478,7 @@ def mock_masking(application_mocker, file_db, calibration, N):
                 })
 
 
-def mock_LIA(application_mocker, file_db):
+def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
     demdir = file_db.demdir
     for idx in range(2):
         cov               = file_db.dem_coverage(idx)
@@ -681,6 +681,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
     application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
 
 
 def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
@@ -728,6 +729,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
     application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
 
 
 def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
@@ -761,12 +763,13 @@ def test_33NWB_202001_lia_mocked(baselinedir, outputdir, liadir, tmpdir, demdir,
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
-    mock_LIA(application_mocker, file_db)
+    mock_LIA_v1_0(application_mocker, file_db)
 
     s1_process_lia_v0(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
 
 
 def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
@@ -812,7 +815,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
     mock_upto_concat_S2(application_mocker, file_db, 'normlim', 2)
-    mock_LIA(application_mocker, file_db)
+    mock_LIA_v1_0(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'normlim', 2)
 
     application_mocker.set_expectations('BandMath', {
@@ -833,9 +836,10 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
             lia_process=register_LIA_pipelines_v0,
     )
     application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v_1_0_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -883,7 +887,7 @@ def test_33NWB_202001_normlim_v_1_0_mocked_all_dates(baselinedir, outputdir, lia
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
     mock_upto_concat_S2(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
-    mock_LIA(application_mocker, file_db)  # always N=2
+    mock_LIA_v1_0(application_mocker, file_db)  # always N=2
     mock_masking(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
 
     for idx in range(number_dates):
@@ -905,3 +909,4 @@ def test_33NWB_202001_normlim_v_1_0_mocked_all_dates(baselinedir, outputdir, lia
             lia_process=register_LIA_pipelines_v0,
     )
     application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
