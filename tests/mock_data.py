@@ -57,8 +57,8 @@ class FileDB:
             'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
-            'dem_on_s2'           : 'DEM_projected_on_{tile}.tiff',
-            'geoid_on_s2'         : 'GEOID_projected_on_{tile}.tiff',
+            'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
+            'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
             }
     FILES = [
             # 08 jan 2020
@@ -172,7 +172,11 @@ class FileDB:
     # TILE = '33NWB'
     TILE_DATA = {
             '33NWB': {
-                'extent' : { 'xmin': 42, 'ymin': 42, 'xmax': 42, 'ymax': 42, 'epsg': 32 },
+                'extent' : {'xmin': 499979.99999484676,
+                            'ymin': 90240.0000009411,
+                            'xmax': 609779.9999948468,
+                            'ymax': 200040.0000009411,
+                            'epsg': 32633},
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
             },
     }

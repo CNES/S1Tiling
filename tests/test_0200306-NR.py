@@ -681,22 +681,22 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
             [file_db.vrtfile_on_s2(True)] + exp_in_dem_files, None, None)
 
     # ProjectDEMToS2Tile
-    spacing=10
+    spacing=10.0
     nodata=-32768
     extent = file_db.TILE_DATA['33NWB']['extent']
     application_mocker.set_expectations(
             'gdalwarp', [
-                "-wm", param_ram(2028),
-                "-multi", "-wo", "42",
+                "-wm", '2048',
+                "-multi", "-wo", "2",
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
                 "-ot", "Float32",
                 # "-crop_to_cutline",
                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
-                "-r", "bc",
+                "-r", "cubic",
                 "-dstnodata", str(nodata),
                 exp_out_vrt,
-                exp_out_dem_s2,
+                file_db.demfile_on_s2(True),
             ], None, {
                 'S2_TILE_CORRESPONDING_CODE' : '33NWB',
                 'SPATIAL_RESOLUTION'         : 's1a',
