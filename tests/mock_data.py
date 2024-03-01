@@ -30,7 +30,7 @@
 # =========================================================================
 
 import logging
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 
 # from .mock_otb import compute_coverage
 
@@ -56,6 +56,9 @@ class FileDB:
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
             'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
+            'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
+            'dem_on_s2'           : 'DEM_projected_on_{tile}.tiff',
+            'geoid_on_s2'         : 'GEOID_projected_on_{tile}.tiff',
             }
     FILES = [
             # 08 jan 2020
@@ -166,7 +169,13 @@ class FileDB:
                 'last_date'   : '2020-02-05',
                 },
             ]
-    TILE = '33NWB'
+    # TILE = '33NWB'
+    TILE_DATA = {
+            '33NWB': {
+                'extent' : { 'xmin': 42, 'ymin': 42, 'xmax': 42, 'ymax': 42, 'epsg': 32 },
+                'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
+            },
+    }
     extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
 
@@ -175,7 +184,6 @@ class FileDB:
         self.__tmp_dir    = tmpdir
         self.__output_dir = outputdir
         self.__lia_dir    = liadir
-        self.__tmp_dir    = tmpdir
         self.__tile       = tile
         self.__dem_dir    = demdir
         self.__GeoidFile  = geoid_file
@@ -186,40 +194,43 @@ class FileDB:
         self.nb_S1_products = NFiles
         self.nb_S2_products = NConcats
 
-        names_to_map = [
+        names_to_map : List[Tuple[Callable, int]] = [
                 # function_reference,               [indices...]
-                [self.cal_ok,                       NFiles],
-                [self.ortho_ready,                  NFiles],
-                [self.orthofile,                    NFiles],
-                [self.concatfile_from_one,          NFiles],
-                [self.concatfile_from_two,          NConcats],
-                [self.masktmp_from_one,             NFiles],
-                [self.masktmp_from_two,             NConcats],
-                [self.maskfile_from_one,            NFiles],
-                [self.maskfile_from_two,            NConcats],
+                (self.cal_ok,                       NFiles),
+                (self.ortho_ready,                  NFiles),
+                (self.orthofile,                    NFiles),
+                (self.concatfile_from_one,          NFiles),
+                (self.concatfile_from_two,          NConcats),
+                (self.masktmp_from_one,             NFiles),
+                (self.masktmp_from_two,             NConcats),
+                (self.maskfile_from_one,            NFiles),
+                (self.maskfile_from_two,            NConcats),
 
-                [self.vrtfile,                      NFiles],
-                [self.sardemprojfile,               NFiles],
-                [self.xyzfile,                      NFiles],
-                [self.normalsfile,                  NFiles],
-                [self.LIAfile,                      NFiles],
-                [self.sinLIAfile,                   NFiles],
-                [self.orthoLIAfile,                 NFiles],
-                [self.orthosinLIAfile,              NFiles],
-                [self.concatLIAfile_from_two,       NConcats],
-                [self.concatsinLIAfile_from_two,    NConcats],
-                [self.sigma0_normlim_file_from_one, NFiles],
-                [self.sigma0_normlim_file_from_two, NConcats],
-                ]
-        names_to_map_for_beta_calib = [
-                [self.orthofile,                    NFiles],
-                [self.concatfile_from_one,          NFiles],
-                [self.concatfile_from_two,          NConcats],
-                [self.masktmp_from_one,             NFiles],
-                [self.masktmp_from_two,             NConcats],
-                [self.maskfile_from_one,            NFiles],
-                [self.maskfile_from_two,            NConcats],
-                ]
+                (self.vrtfile,                      NFiles),
+                (self.sardemprojfile,               NFiles),
+                (self.xyzfile,                      NFiles),
+                (self.normalsfile,                  NFiles),
+                (self.LIAfile,                      NFiles),
+                (self.sinLIAfile,                   NFiles),
+                (self.orthoLIAfile,                 NFiles),
+                (self.orthosinLIAfile,              NFiles),
+                (self.concatLIAfile_from_two,       NConcats),
+                (self.concatsinLIAfile_from_two,    NConcats),
+                (self.sigma0_normlim_file_from_one, NFiles),
+                (self.sigma0_normlim_file_from_two, NConcats),
+        ]
+        names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
+                (self.orthofile,                    NFiles),
+                (self.concatfile_from_one,          NFiles),
+                (self.concatfile_from_two,          NConcats),
+                (self.masktmp_from_one,             NFiles),
+                (self.masktmp_from_two,             NConcats),
+                (self.maskfile_from_one,            NFiles),
+                (self.maskfile_from_two,            NConcats),
+        ]
+        names_to_map_no_idx : List[Tuple[Callable, int]] = [
+                (self.vrtfile_on_s2,                NConcats),
+        ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
             for idx in range(nb):
@@ -228,6 +239,10 @@ class FileDB:
         for func, nb in names_to_map_for_beta_calib:
             for idx in range(nb):
                 self.__tmp_to_out_map[func(idx, True, calibration='_beta')] = func(idx, False, calibration='_beta')
+        # mapping when there is no idx.
+        for func, nb in names_to_map_no_idx:
+            self.__tmp_to_out_map[func(True)] = func(False)
+
         # for idx in range(NFiles):
         #     self.__tmp_to_out_map[self.orthofile(idx, True, calibration='_beta')] = self.orthofile(idx, False, calibration='_beta')
         #     self.__tmp_to_out_map[self.concatfile_from_one(idx, True, calibration='_beta')] = self.concatfile_from_one(idx, False, calibration='_beta')
@@ -241,30 +256,27 @@ class FileDB:
 
     @property
     def inputdir(self):
-        """
-        Property inputdir
-        """
+        """ Property inputdir """
         return self.__input_dir
 
     @property
     def outputdir(self):
-        """
-        Property outputdir
-        """
+        """ Property outputdir """
         return self.__output_dir
 
     @property
     def demdir(self):
-        """
-        Property demdir
-        """
+        """ Property demdir """
         return self.__dem_dir
 
     @property
+    def tmpdir(self):
+        """ Property tmpdir """
+        return self.__tmp_dir
+
+    @property
     def dem_files(self) -> List[str]:
-        """
-        Return list of all DEM files.
-        """
+        """ Return list of all DEM files.  """
         dem_tiles = []
         for idx in range(len(self.FILES)):
             dem_tiles.extend(self.dem_coverage(idx))
@@ -273,9 +285,7 @@ class FileDB:
 
     @property
     def GeoidFile(self):
-        """
-        Property GeoidFile
-        """
+        """ Property GeoidFile """
         return self.__GeoidFile
 
     def all_products(self) -> List[str]:
@@ -319,16 +329,16 @@ class FileDB:
                 }
         return origins[tile_name]
 
-    def raster_vv(self, idx) -> dict:
-        S2_tile_origin = self.tile_origins(self.TILE)
-        s1dir  = self.FILES[idx]['s1dir']
-        coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
-        logging.debug("coverage of %s by %s = %s", self.TILE, s1dir, coverage)
-        return {
-                'raster': S1DateAcquisition(f'{self.safe_dir(idx)}/manifest.safe', [self.input_file_vv(idx)]),
-                'tile_origin': S2_tile_origin,
-                'tile_coverage': coverage
-                }
+    # def raster_vv(self, idx) -> dict:
+    #     S2_tile_origin = self.tile_origins(self.TILE)
+    #     s1dir  = self.FILES[idx]['s1dir']
+    #     coverage = compute_coverage(self.FILES[idx]['polygon'], S2_tile_origin)
+    #     logging.debug("coverage of %s by %s = %s", self.TILE, s1dir, coverage)
+    #     return {
+    #             'raster': S1DateAcquisition(f'{self.safe_dir(idx)}/manifest.safe', [self.input_file_vv(idx)]),
+    #             'tile_origin': S2_tile_origin,
+    #             'tile_coverage': coverage
+    #             }
 
     def _find_image(self, manifest_path) -> int:
         manifest_path = str(manifest_path)  # manifest_path is either a str or a PosixPath
@@ -479,6 +489,22 @@ class FileDB:
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+    def dems_on_s2(self) -> List[str]:
+        return sorted(self.TILE_DATA[self.__tile]['dems'])
+
+    def vrtfile_on_s2(self, tmp) -> str:
+        dir = f'{self.__tmp_dir}/42'  # TODO: don't hardcode tmpdemdir
+        return f'{dir}/{self.FILE_FMTS["vrt_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt_on_s2"]}'.format(**crt, tmp=tmp_suffix(tmp))
+
+    def demfile_on_s2(self, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["dem_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def geoidfile_on_s2(self, crt, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["geoid_on_s2"]}'.format(**crt, tile=self.__tile, tmp=tmp_suffix(tmp))
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

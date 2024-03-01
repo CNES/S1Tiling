@@ -35,6 +35,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+from typing import List
 
 import otbApplication as otb
 
@@ -47,10 +48,10 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
-from s1tiling.libs.api         import s1_process, s1_process_lia_v0, register_LIA_pipelines_v0
+from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_lia_v0, register_LIA_pipelines_v0
 from s1tiling.libs.meta        import out_filename
 from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
-from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AnalyseBorders
+from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
 
 
 # ======================================================================
@@ -245,7 +246,12 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 # Mocked versions
 # ======================================================================
 
-def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, application_mocker: OTBApplicationsMockContext):
+def _declare_know_files(
+        mocker, known_files, known_dirs,
+        tile: str, patterns : List,
+        file_db: FileDB,
+        application_mocker: OTBApplicationsMockContext
+) -> None:
     # logging.debug('_declare_know_files(%s)', patterns)
     all_files = file_db.all_files()
     # logging.debug('- all_files: %s', all_files)
@@ -253,10 +259,15 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     known_files.extend(files)
+    demtmpdir = f"{file_db.tmpdir}/42"
+    known_files.extend(
+            map(lambda dem: f"{demtmpdir}/{dem}.hgt", file_db.TILE_DATA[tile]['dems'])
+    )
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     # known_dirs.update([dirname(fn, 1) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager.tmpdemdir', lambda slf, dem_tile_info, dem_filename: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
     mocker.patch('glob.glob',        lambda pat  : glob(pat, known_files))
@@ -282,7 +293,7 @@ def _declare_know_files(mocker, known_files, known_dirs, patterns, file_db, appl
             assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.steps.commit_execution',                    lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.steps.commit_execution',    lambda tmp, out : True)
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
@@ -656,6 +667,72 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             })
 
 
+def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
+    tmpdir = file_db.tmpdir
+    exp_dem_names     = file_db.dems_on_s2()
+    exp_out_vrt       = file_db.vrtfile_on_s2(False)
+    exp_out_dem_s2    = file_db.demfile_on_s2(False)
+    # exp_out_dem       = file_db.sardemprojfile(idx, False)
+    # TODO: Don't hardcode the mocked tmp subdir for DEMs
+    exp_in_dem_files  = [f"{tmpdir}/42/{dem}.hgt" for dem in exp_dem_names]
+
+    application_mocker.set_expectations(
+            AgglomerateDEMOnS2.agglomerate,
+            [file_db.vrtfile_on_s2(True)] + exp_in_dem_files, None, None)
+
+    # ProjectDEMToS2Tile
+    spacing=10
+    nodata=-32768
+    extent = file_db.TILE_DATA['33NWB']['extent']
+    application_mocker.set_expectations(
+            'gdalwarp', [
+                "-wm", param_ram(2028),
+                "-multi", "-wo", "42",
+                "-t_srs", f"epsg:{extent['epsg']}",
+                "-tr", f"{spacing}", f"-{spacing}",
+                "-ot", "Float32",
+                # "-crop_to_cutline",
+                "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
+                "-r", "bc",
+                "-dstnodata", str(nodata),
+                exp_out_vrt,
+                exp_out_dem_s2,
+            ], None, {
+                'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+                'SPATIAL_RESOLUTION'         : 's1a',
+                'LineSpacing'                : 'GRD',
+                'PixelSpacing'               : f"{spacing}",
+                'DEM_RESAMPLING_METHOD'      : 'bc',
+                'TIFFTAG_IMAGEDESCRIPTION'   : 'SARDEM projection onto DEM list',
+            }
+    )
+
+    # ProjectGeoidToS2Tile
+    # Sum DEM + GEOID
+    # ComputeGroundAndSatPositionsOnDEM
+    # ExtractNormalVector
+    # ComputeLIA
+    application_mocker.set_expectations('SARDEMProjection2', {
+        'ram'        : param_ram(2048),
+        'insar'      : file_db.input_file_vv(0),
+        'indem'      : exp_out_vrt,
+        'withxyz'    : True,
+        'nodata'     : -32768,
+        'out'        : file_db.sardemprojfile(0, True),
+        }, None,
+        {
+            'ACQUISITION_DATETIME'     : file_db.start_time(0),
+            'DEM_LIST'                 : ', '.join(exp_dem_names),
+            'FLYING_UNIT_CODE'         : 's1a',
+            'IMAGE_TYPE'               : 'GRD',
+            'INPUT_S1_IMAGES'          : file_db.product_name(0),
+            'ORBIT'                    : '007',
+            'ORBIT_DIRECTION'          : 'DES',
+            'POLARIZATION'             : '',  # <=> removing the key
+            'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
+            })
+
+
 def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
@@ -668,6 +745,8 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     inputdir = str((baselinedir/'inputs').absolute())
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
+    tile = '33NWB'
+
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
@@ -676,13 +755,13 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     configuration.show_configuration()
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
@@ -716,6 +795,8 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     inputdir = str((baselinedir/'inputs').absolute())
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
+    tile = '33NWB'
+
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
@@ -724,13 +805,13 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     configuration.show_configuration()
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), '33NWB', demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv-20200108t044150-20200108t044215'], file_db, application_mocker)
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv-20200108t044150-20200108t044215'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert not os.path.isfile(file_db.input_file_vv(1))
 
@@ -757,6 +838,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
 @pytest.mark.parametrize("register_expectations,processor",
                          [
                              (mock_LIA_v1_0, s1_process_lia_v0),
+                             (mock_LIA_v1_1, s1_process_lia),
                          ])
 def test_33NWB_202001_lia_mocked(
         baselinedir, outputdir, liadir, tmpdir, demdir, ram,
@@ -773,7 +855,8 @@ def test_33NWB_202001_lia_mocked(
 
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
-    tile_name = '33NWB'
+    tile = '33NWB'
+
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
@@ -783,13 +866,13 @@ def test_33NWB_202001_lia_mocked(
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
@@ -813,7 +896,8 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
 
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
-    tile_name = '33NWB'
+    tile = '33NWB'
+
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
@@ -823,13 +907,13 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
     assert os.path.isfile(file_db.input_file_vv(1))
 
@@ -882,7 +966,8 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
 
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
-    tile_name = '33NWB'
+    tile = '33NWB'
+
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
@@ -890,7 +975,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     configuration.lia_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile_name, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     configuration.first_date       = file_db.CONCATS[0]['first_date']
     configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
     configuration.produce_lia_map  = True
@@ -901,7 +986,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
     known_dirs = set()
-    _declare_know_files(mocker, known_files, known_dirs, ['vv'], file_db, application_mocker)
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
     for i in range(number_dates):
         assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
 
