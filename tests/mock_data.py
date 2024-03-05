@@ -59,6 +59,8 @@ class FileDB:
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
+            'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
+            'xyz_on_s2'           : 'XYZ_projected_on_{tile}{tmp}.tiff',
             }
     FILES = [
             # 08 jan 2020
@@ -234,6 +236,10 @@ class FileDB:
         ]
         names_to_map_no_idx : List[Tuple[Callable, int]] = [
                 (self.vrtfile_on_s2,                NConcats),
+                (self.demfile_on_s2,                NConcats),
+                (self.geoidfile_on_s2,              NConcats),
+                (self.height_on_s2,                 NConcats),
+                (self.xyz_on_s2,                    NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -506,9 +512,17 @@ class FileDB:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["dem_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def geoidfile_on_s2(self, crt, tmp) -> str:
+    def geoidfile_on_s2(self, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["geoid_on_s2"]}'.format(**crt, tile=self.__tile, tmp=tmp_suffix(tmp))
+        return f'{dir}/{self.FILE_FMTS["geoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def height_on_s2(self, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["height_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def xyz_on_s2(self, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["xyz_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

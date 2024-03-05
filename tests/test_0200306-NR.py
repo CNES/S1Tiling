@@ -672,6 +672,8 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     exp_dem_names     = file_db.dems_on_s2()
     exp_out_vrt       = file_db.vrtfile_on_s2(False)
     exp_out_dem_s2    = file_db.demfile_on_s2(False)
+    exp_out_geoid_s2  = file_db.geoidfile_on_s2(False)
+    exp_out_height_s2 = file_db.height_on_s2(False)
     # exp_out_dem       = file_db.sardemprojfile(idx, False)
     # TODO: Don't hardcode the mocked tmp subdir for DEMs
     exp_in_dem_files  = [f"{tmpdir}/42/{dem}.hgt" for dem in exp_dem_names]
@@ -703,34 +705,55 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'LineSpacing'                : 'GRD',
                 'PixelSpacing'               : f"{spacing}",
                 'DEM_RESAMPLING_METHOD'      : 'bc',
-                'TIFFTAG_IMAGEDESCRIPTION'   : 'SARDEM projection onto DEM list',
+                'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
             }
     )
 
     # ProjectGeoidToS2Tile
-    # Sum DEM + GEOID
-    # ComputeGroundAndSatPositionsOnDEM
-    # ExtractNormalVector
-    # ComputeLIA
-    application_mocker.set_expectations('SARDEMProjection2', {
-        'ram'        : param_ram(2048),
-        'insar'      : file_db.input_file_vv(0),
-        'indem'      : exp_out_vrt,
-        'withxyz'    : True,
-        'nodata'     : -32768,
-        'out'        : file_db.sardemprojfile(0, True),
+    application_mocker.set_expectations('Superimpose', {
+        'ram'                     : param_ram(2048),
+        'inr'                     : exp_out_dem_s2,
+        'inm'                     : file_db.GeoidFile,
+        'interpolator'            : 'nn',
+        'interpolator.bco.radius' : 2,
+        'out'                     : file_db.geoidfile_on_s2(True),
         }, None,
         {
             'ACQUISITION_DATETIME'     : file_db.start_time(0),
             'DEM_LIST'                 : ', '.join(exp_dem_names),
-            'FLYING_UNIT_CODE'         : 's1a',
-            'IMAGE_TYPE'               : 'GRD',
-            'INPUT_S1_IMAGES'          : file_db.product_name(0),
-            'ORBIT'                    : '007',
-            'ORBIT_DIRECTION'          : 'DES',
-            'POLARIZATION'             : '',  # <=> removing the key
-            'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
             })
+    # Sum DEM + GEOID
+    application_mocker.set_expectations('BandMath', {
+        'il'         : [
+            exp_out_dem_s2+"|>Superimpose",
+            exp_out_dem_s2,
+            # exp_out_geoid_s2
+        ],
+        'ram'        : param_ram(2048),
+        'exp'        : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1',
+        'out'        : file_db.height_on_s2(True),
+        }, None,
+        { })
+    # ComputeGroundAndSatPositionsOnDEM
+    application_mocker.set_expectations('SARDEMProjection2', {
+        'ram'        : param_ram(2048),
+        'insar'      : file_db.input_file_vv(0),
+        'indem'      : exp_out_height_s2,
+        'elev.geoid' : '@',
+        'withcryz'   : False,
+        'withxyz'    : True,
+        'withsatpos' : True,
+        'nodata'     : nodata,
+        'out'        : file_db.xyz_on_s2(True),
+        }, None,
+        {
+            'ACQUISITION_DATETIME'     : file_db.start_time(0),
+            'DEM_LIST'                 : ', '.join(exp_dem_names),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
+            })
+    # ExtractNormalVector
+    # ComputeLIA
 
 
 def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
