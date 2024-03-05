@@ -307,7 +307,7 @@ class OTBApplicationsMockContext:
         self.__known_files.append(cfg.dem_db_filepath)
         self.__known_files.append(cfg.output_grid)
         mocker.patch('s1tiling.libs.steps.otb.Registry.CreateApplication', lambda a : self.create_application(a))
-        mocker.patch('s1tiling.libs.steps.execute',                        lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
+        mocker.patch('s1tiling.libs.steps.ExecutableStep._do_execute',     lambda slf, params, dryrun : self.execute_process(slf, params, dryrun))
         mocker.patch('s1tiling.libs.steps.AnyProducerStep._do_execute',    lambda slf, params, dryrun : self.execute_function(slf._action, params, dryrun))
 
     @property
@@ -320,14 +320,15 @@ class OTBApplicationsMockContext:
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
         return res
 
-    def execute_process(self, cmdlinelist, dryrun) -> None:
+    def execute_process(self, step, params: List, dryrun) -> None:
+        cmdlinelist = [step._exename] + params
         msg = ' '.join([str(p) for p in cmdlinelist])
         logging.info('Mocking execution of: %s', msg)
         self.assert_execution_is_expected(cmdlinelist)
         # It's quite complex to deduce the name of the "out" product for all situation.
         # As so far there is only one executable: gdalbuildvrt and as the output is the
         # first parameter, let's rely on this!
-        file_produced = self.tmp_to_out(cmdlinelist[1])
+        file_produced = self.tmp_to_out(step.out_filename)
         logging.debug('Register new known file %s -> %s', cmdlinelist[1], file_produced)
         self.known_files.append(file_produced)
 
