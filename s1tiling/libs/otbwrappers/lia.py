@@ -119,12 +119,13 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         meta['dem_infos'] = self.__cfg.get_dems_covering_s2_tile(meta['tile_name'])
         meta['dems'] = sorted(meta['dem_infos'].keys())
         logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
-        dem_files = map(
+        dem_files = list(map(
                 lambda s: os.path.join(
                     self.__dem_dir,    # Use copies/links from cached DEM directory
                     os.path.basename(  # => Strip any dirname from the input dem_filename_format
                         self.__dem_filename_format.format_map(meta['dem_infos'][s]))),
-                meta['dem_infos'])
+                meta['dem_infos']))
+        meta['dem_files'] = dem_files
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
             raise RuntimeError(
@@ -133,8 +134,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
 
     def parameters(self, meta: Meta) -> ExeParameters:
         # While it won't make much a difference here, we are still using tmp_filename.
-        return [tmp_filename(meta)] \
-                + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
+        return [tmp_filename(meta)] + meta['dem_files']
 
 
 class ProjectDEMToS2Tile(ExecutableStepFactory):
@@ -1161,7 +1161,9 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
     def parameters(self, meta: Meta) -> ExeParameters:
         # While it won't make much a difference here, we are still using tmp_filename.
         return [tmp_filename(meta)] \
-                + [os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])) for s in meta['dem_infos']]
+                + [os.path.join(self.__dem_dir,
+                                self.__dem_filename_format.format_map(meta['dem_infos'][s]))
+                   for s in meta['dem_infos']]
 
 
 class SARDEMProjection(OTBStepFactory):
