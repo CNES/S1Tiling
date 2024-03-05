@@ -41,7 +41,7 @@ from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
-k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz']
+k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz', 'inr', 'inm']
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin']
 
 
@@ -164,6 +164,12 @@ class MockOTBApplication:
         """
         self.unregister()
 
+    def __str__(self) -> str:
+        return f"MockOTBApplication({self.__appname}) => params: {self.__params}"
+
+    def __repr__(self) -> str:
+        return f"MockOTBApplication({self.__appname}, {self.__mock_ctx})"
+
     def add_unknown_parameter(self, key, value) -> None:
         if key not in self.__params:
             self.__params[key] = value
@@ -182,9 +188,19 @@ class MockOTBApplication:
         self.__pixel_types[param_out] = pixel_type
 
     def SetParameters(self, parameters) -> None:
+        logging.debug("Setting parameters: %s", parameters)
         self.__params.update(parameters)
 
+    def AddParameterStringList(self, key, lvalues) -> None:
+        if key not in self.__params:
+            self.__params[key] = []
+        elif not isinstance(self.__params, list):
+            self.__params[key] = [self.__params[key]]
+        assert isinstance(self.__params[key], list), f"params[{key}] is a {type(self.__params[key])} : {self.__params[key]}"
+        self.__params[key].append(lvalues)
+
     def SetParameterString(self, key, svalue) -> None:
+        assert isinstance(svalue, str)
         self.__params[key] = svalue
 
     @property
@@ -378,9 +394,10 @@ class OTBApplicationsMockContext:
                     params[kv] =  params[kv].appname + '|>' + self._update_output_to_final_filename(params[kv].parameters)
                 return params[kv]
 
-    def _update_input_to_root_filename(self, params: Dict) -> Union[List[str], str]:
+    def _update_input_to_root_filename(self, params: Union[Dict, List]) -> Union[List[str], str]:
         assert isinstance(params, dict) # of parameters
         in_param_keys = [kv for kv in k_input_keys if kv in params]
+        assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
         for kv in in_param_keys:
             if isinstance(params[kv], MockOTBApplication):
                 updated = self._update_input_to_root_filename(params[kv].parameters)
@@ -393,7 +410,7 @@ class OTBApplicationsMockContext:
                 ps = []
                 for p in params[kv]:
                     if isinstance(p, MockOTBApplication):
-                        p = self._update_input_to_root_filename(p.parameters) + '|>'+params[kv].appname
+                        p = self._update_input_to_root_filename(p.parameters) + '|>'+p.appname
                     ps.append(p)
                     assert isinstance(p, str)
                 params[kv] = ps
