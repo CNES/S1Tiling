@@ -253,7 +253,7 @@ class CommandLine:
     - a dictionary of "-paramname value"
     - or a sequenced list of parameters
     """
-    def __init__(self, exename, parameters) -> None:
+    def __init__(self, exename: str, parameters: Union[List, Dict]) -> None:
         """
         constructor
         """
@@ -283,7 +283,7 @@ class CommandLine:
         """
         return isinstance(self.__parameters, dict)
 
-    def assert_have_same_keys(self, actual_parameters) -> None:
+    def assert_have_same_keys(self, actual_parameters: Dict) -> None:
         assert isinstance(actual_parameters, dict) and self.is_dict()
         actual_keys   = actual_parameters.keys()
         expected_keys = self.__parameters.keys()
@@ -312,13 +312,13 @@ class OTBApplicationsMockContext:
         """
         constructor
         """
-        self.__applications           = []
-        self.__expectations           = []
-        self.__configuration          = cfg
-        self.__known_files            = dem_files[:]
-        self.__tmp_to_out_map         = tmp_to_out_map
-        self.__last_expected_metadata = {}
-        self.__mismatching_metadata   = []
+        self.__applications           : List[MockOTBApplication] = []
+        self.__expectations           : List[Dict]               = []
+        self.__configuration                                     = cfg
+        self.__known_files                                       = dem_files[:]
+        self.__tmp_to_out_map                                    = tmp_to_out_map
+        self.__last_expected_metadata                            = {}
+        self.__mismatching_metadata                              = []
 
         self.__known_files.append(cfg.dem_db_filepath)
         self.__known_files.append(cfg.output_grid)
@@ -330,7 +330,7 @@ class OTBApplicationsMockContext:
     def known_files(self):
         return self.__known_files
 
-    def tmp_to_out(self, tmp_filename) -> str:
+    def tmp_to_out(self, tmp_filename: str) -> str:
         # Remove queued applications
         parts = tmp_filename.split('|>')
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
@@ -359,7 +359,7 @@ class OTBApplicationsMockContext:
         logging.debug('Register new known file %s -> %s', params[0], file_produced)
         self.known_files.append(file_produced)
 
-    def create_application(self, appname) -> MockOTBApplication:
+    def create_application(self, appname: str) -> MockOTBApplication:
         logging.info('Creating mocked application: %s', appname)
         app = MockOTBApplication(appname, self)
         self.__applications.append(app)
@@ -368,7 +368,7 @@ class OTBApplicationsMockContext:
     def clear(self) -> None:
         self.__applications = []
 
-    def set_expectations(self, appname, cmdline, pixel_types, metadata) -> None:
+    def set_expectations(self, appname: str, cmdline, pixel_types, metadata) -> None:
         expectation = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
         logging.debug("Register expectation: %s", expectation)
         if pixel_types:
@@ -469,7 +469,7 @@ class OTBApplicationsMockContext:
         logging.error('NO expectation FOUND for %s %s', appname, _as_cmdline_call(params))
         assert False, f"Cannot find any matching expectation for\n-> {appname}: {_as_cmdline_call(params)}\namong {self._remaining_expectations_as_str(appname)}"
 
-    def assert_execution_is_expected(self, cmdlinelist) -> None:
+    def assert_execution_is_expected(self, cmdlinelist: List) -> None:
         # self._update_input_to_root_filename(cmdlinelist)
         # self._update_output_to_final_filename(cmdlinelist)
         assert len(cmdlinelist) > 0
