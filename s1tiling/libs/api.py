@@ -59,11 +59,11 @@ from .otbwrappers import (
         # LIA relate Step Factories
         AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
         SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
-        ComputeLIAOnS2, filter_LIA, ComputeNormals,
+        ComputeLIAOnS2, filter_LIA, ComputeNormalsOnS2,
         ApplyLIACalibration,
         # Deprecated LIA related Step Factories
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
-        OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
+        ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Filter Step Factories
         SpatialDespeckle)
 from .outcome import Outcome
@@ -513,7 +513,7 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
             inputs={'insar': 'basename', 'indem': dem})
     xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIAOnS1],                     'Normals|LIA', is_name_incremental=True,
+    lia = pipelines.register_pipeline([ComputeNormalsOnS1, ComputeLIAOnS1],                     'Normals|LIA', is_name_incremental=True,
             inputs={'xyz': xyz})
 
     # "inputs" parameter doesn't need to be specified in the following pipeline declarations
@@ -562,7 +562,8 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     )
 
     s2_dem = pipelines.register_pipeline(
-            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile", is_name_incremental=True,
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
             inputs={"indem": dem_vrt}
     )
 
@@ -595,7 +596,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     # final/requested product.
     # produce_angles is ignored as there is no extra select_LIA step
     lia = pipelines.register_pipeline(
-            [ComputeNormals, ComputeLIAOnS2],
+            [ComputeNormalsOnS2, ComputeLIAOnS2],
             'ComputeLIAOnS2',
             is_name_incremental=True,
             inputs={'xyz': xyz},

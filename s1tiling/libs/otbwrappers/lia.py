@@ -88,7 +88,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration') or fname_fmt
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
-            # Because VRT links temporary files, it most not be reused in case of a crash => use tmp_dem_dir
+                # Because VRT links temporary files, it must not be reused in case of a crash => use tmp_dem_dir
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
             gen_output_dir=None,      # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -573,9 +573,9 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
-class ComputeNormals(OTBStepFactory):
+class _ComputeNormals(OTBStepFactory):
     """
-    Factory that prepares steps that run
+    Abstract factory that prepares steps that run
     :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
     as described in :ref:`Normals computation <compute_normals-proc>` documentation.
 
@@ -592,17 +592,21 @@ class ComputeNormals(OTBStepFactory):
     - output filename
     - `fname_fmt`  -- optional key: `normals`, useless in the in-memory nominal case
     """
-    def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'Normals_{polarless_basename}'
-        fname_fmt = cfg.fname_fmt.get('normals') or fname_fmt
+    def __init__(
+            self,
+            cfg               : Configuration,
+            gen_tmp_dir       : str,
+            output_fname_fmt  : str,
+            image_description : str,
+    ) -> None:
         super().__init__(
                 cfg,
                 appname='ExtractNormalVector', name='ComputeNormals',
                 param_in='xyz', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                gen_tmp_dir=gen_tmp_dir,
                 gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
+                gen_output_filename=TemplateOutputFilenameGenerator(output_fname_fmt),
+                image_description=image_description,
         )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
@@ -647,6 +651,37 @@ class ComputeNormals(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
+class ComputeNormalsOnS2(_ComputeNormals):
+    """
+    Factory that prepares steps that run
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    on images in S2 geometry as described in :ref:`Normals
+    computation <compute_normals-proc>` documentation.
+
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    computes surface normals.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - `fname_fmt`  -- optional key: `normals_on_s2`, useless in the in-memory nominal case
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'Normals_on_{tile_name}'
+        fname_fmt = cfg.fname_fmt.get('normals_on_s2') or fname_fmt
+        super().__init__(
+                cfg,
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+                output_fname_fmt=fname_fmt,
+                image_description='Image normals on S2 grid',
+        )
+
+
 class _ComputeLIA(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
@@ -666,11 +701,11 @@ class _ComputeLIA(OTBStepFactory):
     - output filename
     """
     def __init__(
-            self, cfg: Configuration,
-            fname_fmt_sin : str,
-            fname_fmt_lia : str,
-            gen_tmp_dir : str,
-            gen_output_dir : Optional[str],
+            self, cfg         : Configuration,
+            fname_fmt_sin     : str,
+            fname_fmt_lia     : str,
+            gen_tmp_dir       : str,
+            gen_output_dir    : Optional[str],
             image_description : str,
     ) -> None:
         fname_fmt = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
@@ -1414,6 +1449,37 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         SARCartesianMeanEstimation2 comes from normlim_sigma0.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+
+class ComputeNormalsOnS1(_ComputeNormals):
+    """
+    Factory that prepares steps that run
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    on images in S1 geometry as described in :ref:`Normals
+    computation <compute_normals-proc>` documentation.
+
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
+    computes surface normals.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - `fname_fmt`  -- optional key: `normals_on_s1`, useless in the in-memory nominal case
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'Normals_{polarless_basename}'
+        fname_fmt = cfg.fname_fmt.get('normals_on_s1') or fname_fmt
+        super().__init__(
+                cfg,
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+                output_fname_fmt=fname_fmt,
+                image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
+        )
 
 
 class ComputeLIAOnS1(_ComputeLIA):

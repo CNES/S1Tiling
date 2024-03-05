@@ -39,7 +39,7 @@ from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormals, ComputeLIAOnS1,
+        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormalsOnS1, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
@@ -346,7 +346,7 @@ def given_pipeline_that_computes_LIA(pipelines) -> None:
             product_required=False,
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
     lia = pipelines.register_pipeline(
-            [ComputeNormals, ComputeLIAOnS1],
+            [ComputeNormalsOnS1, ComputeLIAOnS1],
             'Normals|LIA',
             product_required=True,
             is_name_incremental=True,
@@ -373,7 +373,7 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids, configuration) ->
             product_required=False,
             inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
     lia = pipelines.register_pipeline(
-            [ComputeNormals, ComputeLIAOnS1],
+            [ComputeNormalsOnS1, ComputeLIAOnS1],
             'Normals|LIA',
             product_required=False,
             is_name_incremental=True,

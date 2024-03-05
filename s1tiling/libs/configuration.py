@@ -468,9 +468,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 'calibration', 'correct_denoising', 'cut_borders',
                 'orthorectification', 'concatenation', 'filtered',
                 'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
-                'normals', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+                'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
                 # Keys to deprecated workflow
-                'dem_s1_agglomeration', 's1_on_dem', 'xyz',
+                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
                 'lia_orthorectification', 'lia_concatenation',
         ]
         self.fname_fmt = {}

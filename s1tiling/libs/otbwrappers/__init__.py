@@ -55,7 +55,7 @@ from .lia import (
         ProjectGeoidToS2Tile,
         SumAllHeights,
         ComputeGroundAndSatPositionsOnDEM,
-        ComputeNormals,
+        ComputeNormalsOnS2,
         ComputeLIAOnS2,
         ApplyLIACalibration,
 
@@ -63,6 +63,7 @@ from .lia import (
         SARDEMProjection,
         SARCartesianMeanEstimation,
         OrthoRectifyLIA,
+        ComputeNormalsOnS1,
         ComputeLIAOnS1,
         ConcatenateLIA,
         SelectBestCoverage,
