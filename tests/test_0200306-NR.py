@@ -702,10 +702,10 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 file_db.demfile_on_s2(True),
             ], None, {
                 'S2_TILE_CORRESPONDING_CODE' : '33NWB',
-                'SPATIAL_RESOLUTION'         : 's1a',
-                'LineSpacing'                : 'GRD',
+                'SPATIAL_RESOLUTION'         : f"{spacing}",
+                'LineSpacing'                : f"{spacing}",
                 'PixelSpacing'               : f"{spacing}",
-                'DEM_RESAMPLING_METHOD'      : 'bc',
+                'DEM_RESAMPLING_METHOD'      : 'cubic',
                 'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
             }
     )
@@ -717,12 +717,17 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'inm'                     : file_db.GeoidFile,
         'interpolator'            : 'nn',
         'interpolator.bco.radius' : 2,
-        'out'                     : file_db.geoidfile_on_s2(True),
+        'out'                     : 'BandMath|>' + file_db.height_on_s2(True),
     }, None, {
-        'ACQUISITION_DATETIME'     : file_db.start_time(0),
-        'DEM_LIST'                 : ', '.join(exp_dem_names),
-        'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
+        # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
+        # 'DEM_LIST'                   : ', '.join(exp_dem_names),
+        'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+        'SPATIAL_RESOLUTION'         : f"{spacing}",
+        'LineSpacing'                : f"{spacing}",
+        'PixelSpacing'               : f"{spacing}",
+        'TIFFTAG_IMAGEDESCRIPTION'   : 'Geoid superimposed on S2 tile',
     })
+
     # Sum DEM + GEOID
     application_mocker.set_expectations('BandMath', {
         'il'         : [
@@ -733,7 +738,9 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'ram'        : param_ram(2048),
         'exp'        : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
-    }, None, { })
+    }, None, {
+        'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
+    })
     # ComputeGroundAndSatPositionsOnDEM
     application_mocker.set_expectations('SARDEMProjection2', {
         'ram'        : param_ram(2048),
@@ -746,9 +753,12 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'nodata'     : nodata,
         'out'        : file_db.xyz_on_s2(True),
     }, None, {
-        'ACQUISITION_DATETIME'     : file_db.start_time(0),
+        # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
         'DEM_LIST'                 : ', '.join(exp_dem_names),
-        'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
+        'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
+        'POLARIZATION'             : '',
+        'band.DirectionToScanDEM*' : '',
+        'band.Gain'                : '',
     })
 
     # ExtractNormalVector
@@ -772,7 +782,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     }, None, {
         # TODO: 2 files to test!!!
         # 'DATA_TYPE'                : 'sin(LIA)',
-        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
+        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',
     })
 
 
