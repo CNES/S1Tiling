@@ -229,9 +229,13 @@ class MockOTBApplication:
         assert self.__mock_ctx
         # Simulate app at the start of the pipeline first
         for k in k_input_keys:
-            if k in self.parameters and isinstance(self.parameters[k], MockOTBApplication):
-                logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
-                self.parameters[k].execute_and_write_output(False)
+            if k in self.parameters:
+                parameters = self.parameters[k] if isinstance(self.parameters[k], list) else [self.parameters[k]]
+                for param in parameters:
+                    if isinstance(param, MockOTBApplication):
+                        logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
+                        param.execute_and_write_output(False)
+
             # elif  k in self.parameters:
             #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.__appname, k, type(self.parameters[k]))
         logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.parameters))
