@@ -61,7 +61,11 @@ class FileDB:
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
             'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
             'xyz_on_s2'           : 'XYZ_projected_on_{tile}{tmp}.tiff',
-            }
+            'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
+            # TODO: add fmt for orbit direction/number
+            'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
+            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+    }
     FILES = [
             # 08 jan 2020
             {
@@ -89,7 +93,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+            },
             # 20 jan 2020
             {
                 'start_time'      : '2020:01:20 04:41:49',
@@ -103,7 +107,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+            },
             {
                 'start_time'      : '2020:01:20 04:42:14',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
@@ -116,7 +120,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+            },
             # 02 feb 2020
             {
                 'start_time'      : '2020:02:01 04:41:49',
@@ -130,7 +134,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+            },
             {
                 'start_time'      : '2020:02:01 04:42:14',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
@@ -143,7 +147,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+            },
             ]
     CONCATS = [
             # 08 jan 2020
@@ -153,7 +157,7 @@ class FileDB:
                 'start_time'  : '2020:01:08 04:41:50',
                 'first_date'  : '2020-01-01',
                 'last_date'   : '2020-01-10',
-                },
+            },
             # 20 jan 2020
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
@@ -161,7 +165,7 @@ class FileDB:
                 'start_time'  : '2020:01:20 04:41:49',
                 'first_date'  : '2020-01-10',
                 'last_date'   : '2020-01-21',
-                },
+            },
             # 02 feb 2020
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
@@ -169,8 +173,8 @@ class FileDB:
                 'start_time'  : '2020:02:01 04:41:49',
                 'first_date'  : '2020-02-01',
                 'last_date'   : '2020-02-05',
-                },
-            ]
+            },
+    ]
     # TILE = '33NWB'
     TILE_DATA = {
             '33NWB': {
@@ -240,6 +244,9 @@ class FileDB:
                 (self.geoidfile_on_s2,              NConcats),
                 (self.height_on_s2,                 NConcats),
                 (self.xyz_on_s2,                    NConcats),
+                (self.normals_on_s2,                NConcats),
+                (self.deglia_on_s2,                 NConcats),
+                (self.sinlia_on_s2,                 NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -523,6 +530,26 @@ class FileDB:
     def xyz_on_s2(self, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["xyz_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def normals_on_s2(self, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def deglia_on_s2(self, tmp=False) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2'
+        else:
+            dir = f'{self.__output_dir}/{self.__tile}'
+        # return f'LIA_s1a_33NWB_DES_007.tif'
+        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def sinlia_on_s2(self, tmp=False) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2'
+        else:
+            dir = f'{self.__output_dir}/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+        # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

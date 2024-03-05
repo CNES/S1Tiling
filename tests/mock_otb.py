@@ -35,7 +35,7 @@ import fnmatch
 import logging
 import os
 import re
-from typing import Dict, List, Literal, Union
+from typing import Callable, Dict, List, Literal, Union
 from s1tiling.libs.Utils import get_shape_from_polygon
 from unittest import TestCase
 
@@ -253,7 +253,7 @@ class CommandLine:
     - a dictionary of "-paramname value"
     - or a sequenced list of parameters
     """
-    def __init__(self, exename: str, parameters: Union[List, Dict]) -> None:
+    def __init__(self, exename: Union[Callable, str], parameters: Union[List, Dict]) -> None:
         """
         constructor
         """
@@ -368,7 +368,7 @@ class OTBApplicationsMockContext:
     def clear(self) -> None:
         self.__applications = []
 
-    def set_expectations(self, appname: str, cmdline, pixel_types, metadata) -> None:
+    def set_expectations(self, appname: Union[Callable, str], cmdline: Union[List,Dict], pixel_types, metadata) -> None:
         expectation = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
         logging.debug("Register expectation: %s", expectation)
         if pixel_types:

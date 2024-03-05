@@ -526,7 +526,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'ORBIT_DIRECTION'          : 'DES',
                 'POLARIZATION'             : '',  # <=> removing the key
                 'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
-                })
+            })
 
         application_mocker.set_expectations('SARCartesianMeanEstimation2', {
             'ram'             : param_ram(2048),
@@ -544,7 +544,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
                 'PRJ.GAIN'                 : '',  # <=> removing the key
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Cartesian XYZ coordinates estimation',
-                })
+            })
 
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : param_ram(2048),
@@ -554,7 +554,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             }, None,
             {
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-1A IW GRD',
-                })
+            })
 
         application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
             'ram'             : param_ram(2048),
@@ -568,7 +568,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 # TODO: 2 files to test!!!
                 # 'DATA_TYPE'                : 'sin(LIA)',
                 'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
-                })
+            })
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : param_ram(2048),
@@ -601,7 +601,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'RadarFrequency'            : '',
                 'SAR'                       : '',
                 'SARCalib*'                 : '',
-                })
+            })
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : param_ram(2048),
@@ -634,7 +634,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'RadarFrequency'            : '',
                 'SAR'                       : '',
                 'SARCalib*'                 : '',
-                })
+            })
 
     # endfor on 2 consecutive images
 
@@ -650,7 +650,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified LIA Sentinel-1A IW GRD',
-            })
+        })
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : param_ram(2048),
@@ -664,17 +664,18 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
-            })
+        })
 
 
 def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
     tmpdir = file_db.tmpdir
-    exp_dem_names     = file_db.dems_on_s2()
-    exp_out_vrt       = file_db.vrtfile_on_s2(False)
-    exp_out_dem_s2    = file_db.demfile_on_s2(False)
-    exp_out_geoid_s2  = file_db.geoidfile_on_s2(False)
-    exp_out_height_s2 = file_db.height_on_s2(False)
-    # exp_out_dem       = file_db.sardemprojfile(idx, False)
+    exp_dem_names       = file_db.dems_on_s2()
+    exp_out_vrt         = file_db.vrtfile_on_s2(False)
+    exp_out_dem_s2      = file_db.demfile_on_s2(False)
+    # exp_out_geoid_s2  = file_db.geoidfile_on_s2(False)
+    exp_out_height_s2   = file_db.height_on_s2(False)
+    exp_out_xyz_s2      = file_db.xyz_on_s2(False)
+    exp_out_normals_s2  = file_db.normals_on_s2(False)
     # TODO: Don't hardcode the mocked tmp subdir for DEMs
     exp_in_dem_files  = [f"{tmpdir}/42/{dem}.hgt" for dem in exp_dem_names]
 
@@ -717,12 +718,11 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'interpolator'            : 'nn',
         'interpolator.bco.radius' : 2,
         'out'                     : file_db.geoidfile_on_s2(True),
-        }, None,
-        {
-            'ACQUISITION_DATETIME'     : file_db.start_time(0),
-            'DEM_LIST'                 : ', '.join(exp_dem_names),
-            'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
-            })
+    }, None, {
+        'ACQUISITION_DATETIME'     : file_db.start_time(0),
+        'DEM_LIST'                 : ', '.join(exp_dem_names),
+        'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
+    })
     # Sum DEM + GEOID
     application_mocker.set_expectations('BandMath', {
         'il'         : [
@@ -733,8 +733,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'ram'        : param_ram(2048),
         'exp'        : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
-        }, None,
-        { })
+    }, None, { })
     # ComputeGroundAndSatPositionsOnDEM
     application_mocker.set_expectations('SARDEMProjection2', {
         'ram'        : param_ram(2048),
@@ -746,14 +745,35 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'withsatpos' : True,
         'nodata'     : nodata,
         'out'        : file_db.xyz_on_s2(True),
-        }, None,
-        {
-            'ACQUISITION_DATETIME'     : file_db.start_time(0),
-            'DEM_LIST'                 : ', '.join(exp_dem_names),
-            'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
-            })
+    }, None, {
+        'ACQUISITION_DATETIME'     : file_db.start_time(0),
+        'DEM_LIST'                 : ', '.join(exp_dem_names),
+        'TIFFTAG_IMAGEDESCRIPTION' : 'Geoid superimposed on S2 tile',
+    })
+
     # ExtractNormalVector
+    application_mocker.set_expectations('ExtractNormalVector', {
+        'ram'             : param_ram(2048),
+        'xyz'             : exp_out_xyz_s2,
+        'nodata'          : nodata,
+        'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
+    }, None, {
+        'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
+    })
+
     # ComputeLIA
+    application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+        'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
+        'ram'             : param_ram(2048),
+        'in.xyz'          : file_db.xyz_on_s2(False),
+        'out.lia'         : file_db.deglia_on_s2(True),
+        'out.sin'         : file_db.sinlia_on_s2(True),
+        'nodata'          : -32768,
+    }, None, {
+        # TODO: 2 files to test!!!
+        # 'DATA_TYPE'                : 'sin(LIA)',
+        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
+    })
 
 
 def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
