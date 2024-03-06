@@ -279,7 +279,9 @@ Normals computation
                      yet. It has to be installed specifically on your machine.
                      It will be already installed in the :ref:`docker images
                      <docker>` though.
-:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeNormals`
+:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeNormalsOnS2` (or
+                 :class:`s1tiling.libs.otbwrappers.ComputeNormalsOnS1` in the
+                 deprecated workflow)
 
 This step computes the normal vectors to the ground, in the original
 :ref:`input S1 image <paths.s1_images>` geometry.
@@ -309,7 +311,7 @@ LIA maps computation
                      It will be already installed in the :ref:`docker images
                      <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeLIAOnS2` (or
-                 :class:`s1tiling.libs.otbwrappers.ComputeLIAOnS2` in the
+                 :class:`s1tiling.libs.otbwrappers.ComputeLIAOnS1` in the
                  deprecated workflow)
 
 It computes the :ref:`Local Incidence Angle map, and sine LIA map

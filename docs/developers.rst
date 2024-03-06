@@ -246,7 +246,7 @@ These processings permit to produce Local Incidence Angles Maps for
    s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile
    s1tiling.libs.otbwrappers.SumAllHeights
    s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEM
-   s1tiling.libs.otbwrappers.ComputeNormals
+   s1tiling.libs.otbwrappers.ComputeNormalsOnS2
    s1tiling.libs.otbwrappers.ComputeLIAOnS2
    s1tiling.libs.otbwrappers.filter_LIA
    s1tiling.libs.otbwrappers.ApplyLIACalibration
@@ -264,6 +264,7 @@ the previous ones. Starting from v1.1, they are deprecated.
    s1tiling.libs.otbwrappers.SARDEMProjection
    s1tiling.libs.otbwrappers.SARCartesianMeanEstimation
    s1tiling.libs.otbwrappers.OrthoRectifyLIA
+   s1tiling.libs.otbwrappers.ComputeNormalsOnS1
    s1tiling.libs.otbwrappers.ComputeLIAOnS1
    s1tiling.libs.otbwrappers.ConcatenateLIA
    s1tiling.libs.otbwrappers.SelectBestCoverage
