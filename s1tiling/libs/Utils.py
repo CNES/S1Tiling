@@ -43,6 +43,7 @@ from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, Keys
 import xml.etree.ElementTree as ET
 from osgeo import ogr, osr
 import osgeo  # To test __version__
+import numpy as np
 
 from .S1DateAcquisition import S1DateAcquisition
 
@@ -104,6 +105,76 @@ class Layer:
 # ======================================================================
 ## Technical helpers
 
+def _find(
+        element: Union[ET.Element, ET.ElementTree],
+        key    : str,
+        context: Union[str, Path],
+        keytext: Optional[str]=None,
+        **kwargs
+) -> ET.Element:
+    """
+    Helper function that finds an XML tag within a node.
+
+    :param element: node/tree where the search is done
+    :param key:     key that identifies the tag name to search
+    :param context: extra information used to report where search failures happen
+    :param keytext: text to use instead of ``key`` to report a missing key
+    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :raise RuntimeError: If the requested ``key`` isn't found.
+    :return: The non null node.
+    """
+    node = element.find(key, **kwargs)
+    if node is None:
+        kt = keytext or f"{key} node"
+        raise RuntimeError(f"Cannot find {kt} in {context}")
+    return node
+
+
+def _find_text(
+        element: Union[ET.Element, ET.ElementTree],
+        key    : str,
+        context: Union[str, Path],
+        keytext: Optional[str]=None,
+        **kwargs
+) -> str:
+    """
+    Helper function that finds and returns the text contained in an XML tag
+    within a node.
+
+    :param element: node/tree where the search is done
+    :param key:     key that identifies the tag name to search
+    :param context: extra information used to report where search failures happen
+    :param keytext: text to use instead of ``key`` to report a missing key
+    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :raise RuntimeError: If the requested ``key`` isn't found.
+    :raise RuntimeError: If the node has non value
+    :return: The non empty text.
+    """
+    node = _find(element, key, context, **kwargs)
+    if not node.text:
+        kt = keytext or f"{key} node"
+        raise RuntimeError(f"Empty {kt} in {context}")
+    return node.text
+
+
+SAFE = "http://www.esa.int/safe/sentinel-1.0"
+
+def get_orbit_times(annotation_file: Union[str, Path]) -> Dict:
+    root = ET.parse(annotation_file)
+    # Start/Stop times
+    header = _find(root, 'adsHeader', annotation_file)
+    start_time = _find_text(header, 'startTime', annotation_file)
+    stop_time  = _find_text(header, 'stopTime',  annotation_file)
+    # Azimuth times
+    t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
+    azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
+    return {
+            'start_time'   : np.datetime64(start_time, 'ns'),
+            'stop_time'    : np.datetime64(stop_time,  'ns'),
+            'azimuth_times': azimuth_times,
+    }
+
+
 def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
     Returns the relative orbit number of the product.
@@ -111,10 +182,7 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     root = ET.parse(manifest)
     url = "{http://www.esa.int/safe/sentinel-1.0}"
     key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
-    ron = root.find(key)
-    if ron is None or ron.text is None:
-        raise RuntimeError(f"No relativeOrbitNumber key found in {manifest}")
-    return int(ron.text)
+    return int(_find_text(root, key, manifest, "relativeOrbitNumber"))
 
 
 def get_origin(
@@ -128,12 +196,14 @@ def get_origin(
     Returns:
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
-    prefix_map = {"safe": "http://www.esa.int/safe/sentinel-1.0"}
+    prefix_map = {"safe": SAFE}
     root = ET.parse(manifest)
-    node_footprint = root.find("metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
-              prefix_map)
-    if node_footprint is None:
-        raise RuntimeError(f"Cannot find coordinates in manifest {manifest!r}")
+    node_footprint = _find(
+            root,
+            "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
+            f"manifest {manifest!r}",
+            "coordinates",
+            namespaces=prefix_map)
     srsName = node_footprint.attrib['srsName']
     srsName = re.sub(r"http://www.opengis.net/gml/srs/(epsg).xml#(\d+)", r"\1:\2", srsName)
 
@@ -642,7 +712,7 @@ class TopologicalSorter:
         else:
             self.__successors        = self.__successors_direct
 
-    def depth(self, start_nodes: Union[List, Set, KeysView]) -> List:
+    def depth(self, start_nodes: Union[List, Set, KeysView]) -> Iterator:
         """
         Depth-first topological sorting method
         """
