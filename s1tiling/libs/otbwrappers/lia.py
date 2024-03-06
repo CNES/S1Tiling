@@ -921,83 +921,6 @@ def filter_LIA(LIA_kind: str) -> Type[_FilterLIAStepFactory]:
     )
 
 
-class SelectBestCoverage(_FileProducingStepFactory):
-    """
-    StepFactory that helps select only one path after LIA concatenation:
-    the one that have the best coverage of the S2 tile target.
-
-    If several concatenated products have the same coverage, the oldest one
-    will be selected.
-
-    The coverage is extracted from ``tile_coverage`` step metadata.
-
-    The step produced does nothing: it only only rename the selected product
-    into the final expected name. Note: in LIA case two files will actually
-    renamed.
-
-    Requires the following information from the metadata dictionary
-
-    - `acquisition_day`
-    - `tile_coverage`
-    - `LIA_kind`
-    - `flying_unit_code`
-    - `tile_name`
-    - `orbit_direction`
-    - `orbit`
-    - `fname_fmt`  -- optional key: `lia_product`
-    """
-    def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
-        super().__init__(
-                cfg,
-                name='SelectBestCoverage',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=cfg.lia_directory,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-        )
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Inject the :func:`reduce_LIAs` hook in step metadata.
-        """
-        def reduce_LIAs(inputs):
-            """
-            Select the concatenated pair of LIA files that have the best coverage of the considered
-            S2 tile.
-            """
-            # TODO: quid if different dates have best different coverage on a set of tiles?
-            # How to avoid computing LIA again and again on a same S1 zone?
-            # dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
-            best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
-            logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
-            for inp in inputs:
-                logger.debug(' - %s: %s', inp['acquisition_day'], inp['tile_coverage'])
-            return [best_covered_input]
-
-        meta['reduce_inputs_in'] = reduce_LIAs
-        return meta
-
-    def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
-    ) -> AbstractStep:
-        logger.debug("Directly execute %s step", self.name)
-        inputs = self._get_inputs(previous_steps)
-        inp = self._get_canonical_input(inputs)
-        meta = self.complete_meta(inp.meta, inputs)
-
-        # Let's reuse commit_execution as it does exactly what we need
-        if not is_running_dry(execution_parameters):
-            commit_execution(out_filename(inp.meta), out_filename(meta))
-
-        # Return a dummy Step
-        # logger.debug("%s step executed!", self.name)
-        res = AbstractStep('move', **meta)
-        return res
-
-
 class ApplyLIACalibration(OTBStepFactory):
     """
     Factory that concludes σ0 with NORMLIM calibration.
@@ -1685,3 +1608,80 @@ class ConcatenateLIA(_ConcatenatorFactory):
         """
         if meta.get('LIA_kind', '') == 'LIA':
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
+
+
+class SelectBestCoverage(_FileProducingStepFactory):
+    """
+    StepFactory that helps select only one path after LIA concatenation:
+    the one that have the best coverage of the S2 tile target.
+
+    If several concatenated products have the same coverage, the oldest one
+    will be selected.
+
+    The coverage is extracted from ``tile_coverage`` step metadata.
+
+    The step produced does nothing: it only only rename the selected product
+    into the final expected name. Note: in LIA case two files will actually
+    renamed.
+
+    Requires the following information from the metadata dictionary
+
+    - `acquisition_day`
+    - `tile_coverage`
+    - `LIA_kind`
+    - `flying_unit_code`
+    - `tile_name`
+    - `orbit_direction`
+    - `orbit`
+    - `fname_fmt`  -- optional key: `lia_product`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
+        super().__init__(
+                cfg,
+                name='SelectBestCoverage',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=cfg.lia_directory,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+        )
+
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        """
+        Inject the :func:`reduce_LIAs` hook in step metadata.
+        """
+        def reduce_LIAs(inputs):
+            """
+            Select the concatenated pair of LIA files that have the best coverage of the considered
+            S2 tile.
+            """
+            # TODO: quid if different dates have best different coverage on a set of tiles?
+            # How to avoid computing LIA again and again on a same S1 zone?
+            # dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
+            best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
+            logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
+            for inp in inputs:
+                logger.debug(' - %s: %s', inp['acquisition_day'], inp['tile_coverage'])
+            return [best_covered_input]
+
+        meta['reduce_inputs_in'] = reduce_LIAs
+        return meta
+
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> AbstractStep:
+        logger.debug("Directly execute %s step", self.name)
+        inputs = self._get_inputs(previous_steps)
+        inp = self._get_canonical_input(inputs)
+        meta = self.complete_meta(inp.meta, inputs)
+
+        # Let's reuse commit_execution as it does exactly what we need
+        if not is_running_dry(execution_parameters):
+            commit_execution(out_filename(inp.meta), out_filename(meta))
+
+        # Return a dummy Step
+        # logger.debug("%s step executed!", self.name)
+        res = AbstractStep('move', **meta)
+        return res
