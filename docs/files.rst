@@ -355,11 +355,15 @@ DEM VRT files
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
-:File name: :samp:`DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+:File name:
+
+    - :samp:`DEM-s1{tilename}.tif`
+    - or deprecated: :samp:`DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
 
 :File name format:
 
-    ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
+    - ``fname_fmt.dem_s2_agglomeration`` = :samp:`DEM_{{tile_name}}.vrt`
+    - or deprecated: ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
 
 :Format: VRT
 
@@ -376,7 +380,7 @@ DEM data projected on S2 tile
 :Content:          DEM information projected on S2 tile according to
                    :ref:`project_dem_to_s2-proc`
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`DEM_projected_on_{{tile_name}}.tiff`
+:File name:        :samp:`DEM_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.dem_on_s2`` = :samp:`DEM_projected_on_{{tile_name}}.tiff`
 :Format:           Float32 GeoTIFF, uncompressed.
 :Metadata:         The following metadata are added at this step:
@@ -412,7 +416,7 @@ Height (DEM+Geoid) projected on S2 tile
                    tile according to :ref:`project_geoid_to_s2-proc` and
                    :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
+:File name:        :samp:`DEM+GEOID_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
 :Format:           Float32 GeoTIFF, uncompressed.
 :Metadata:         The following metadata changed from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
