@@ -159,21 +159,6 @@ def _find_text(
 
 SAFE = "http://www.esa.int/safe/sentinel-1.0"
 
-def get_orbit_times(annotation_file: Union[str, Path]) -> Dict:
-    root = ET.parse(annotation_file)
-    # Start/Stop times
-    header = _find(root, 'adsHeader', annotation_file)
-    start_time = _find_text(header, 'startTime', annotation_file)
-    stop_time  = _find_text(header, 'stopTime',  annotation_file)
-    # Azimuth times
-    t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
-    azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
-    return {
-            'start_time'   : np.datetime64(start_time, 'ns'),
-            'stop_time'    : np.datetime64(stop_time,  'ns'),
-            'azimuth_times': azimuth_times,
-    }
-
 
 def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
@@ -277,6 +262,25 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     assert manifest.exists(), f"Manifest {manifest!r} doesn't exist!"
     poly = get_shape(manifest)
     return poly
+
+
+def get_s1image_orbit_time_range(
+        annotation_file: Union[Path,str]
+) -> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
+    """
+    Returns the start and stop time of the orbit information contained in the S1 product.
+    """
+    if not os.path.isfile(annotation_file):
+        raise RuntimeError(f"{annotation_file!r} is not a valid file")
+    root = ET.parse(annotation_file)
+    # Start/Stop times
+    header = _find(root, 'adsHeader', annotation_file)
+    start_time = np.datetime64(_find_text(header, 'startTime', annotation_file), "ns")
+    stop_time  = np.datetime64(_find_text(header, 'stopTime',  annotation_file), "ns")
+    # Azimuth times
+    t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
+    azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
+    return start_time, stop_time, azimuth_times[0], azimuth_times[-1]
 
 
 def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
