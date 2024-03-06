@@ -442,8 +442,8 @@ Ground and sensor position in XYZ ECEF coordinates
                    spatial reference.
                    The image footprint matches the associated S2 tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_{{tile_name}}_s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
-:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{polarless_basename}}`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 :Format:           Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian

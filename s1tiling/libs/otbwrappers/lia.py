@@ -87,14 +87,14 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         fname_fmt = 'DEM_{tile_name}.vrt'
         fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration') or fname_fmt
         super().__init__(  # type: ignore # mypy issue 4335
-            cfg,
+                cfg,
                 # Because VRT links temporary files, it must not be reused in case of a crash => use tmp_dem_dir
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
-            gen_output_dir=None,      # Use gen_tmp_dir,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                name="AgglomerateDEMOnS2",
-                action=AgglomerateDEMOnS2.agglomerate,
-            *args, **kwargs)
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
+                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                    name="AgglomerateDEMOnS2",
+                    action=AgglomerateDEMOnS2.agglomerate,
+                *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         # TODO: Use the dems stored in cache!
         self.__dem_dir             = cfg.tmp_dem_dir
@@ -426,7 +426,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'XYZ_projected_on_{tile_name}.tiff'
+        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
         fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2') or fname_fmt
         super().__init__(
                 cfg,
@@ -517,6 +517,11 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
 
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        assert inputs, "No inputs found in ComputeGroundAndSatPositionsOnDEM"
+        assert 'insar' in inputs[0], f"'insar' input is missing from ComputeGroundAndSatPositionsOnDEM inputs: {inputs[0].keys()}"
+        return inputs[0]['insar']
+
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Computes dem information and adds them to the meta structure, to be used
@@ -524,8 +529,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
 
         Also register temporary files from previous step for removal.
         """
+        # logger.debug("ComputeGroundAndSatPositionsOnDEM inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
-        logger.debug("inputs are: %s", all_inputs)
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
