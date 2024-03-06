@@ -247,13 +247,16 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 # ======================================================================
 
 def _declare_know_files(
-        mocker, known_files, known_dirs,
-        tile: str, patterns : List,
-        file_db: FileDB,
+        mocker,
+        known_files,
+        known_dirs,
+        tile              : str,
+        patterns          : List,
+        file_db           : FileDB,
         application_mocker: OTBApplicationsMockContext
 ) -> None:
     # logging.debug('_declare_know_files(%s)', patterns)
-    all_files = file_db.all_files()
+    all_files = file_db.all_files() + file_db.all_annotations()
     # logging.debug('- all_files: %s', all_files)
     files = []
     for pattern in patterns:
@@ -825,7 +828,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
                 'skip'             : False,
-                }
+        }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
@@ -875,7 +878,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
                 'skip'             : True,
-                }
+        }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
@@ -905,7 +908,6 @@ def test_33NWB_202001_lia_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-
     set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
 
     tile = '33NWB'

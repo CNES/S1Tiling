@@ -60,7 +60,7 @@ class FileDB:
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
             'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
-            'xyz_on_s2'           : 'XYZ_projected_on_{tile}{tmp}.tiff',
+            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
             'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
             # TODO: add fmt for orbit direction/number
             'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
@@ -311,6 +311,9 @@ class FileDB:
     def all_files(self) -> List[str]:
         return [self.input_file(idx) for idx in range(len(self.FILES))]
 
+    def all_annotations(self) -> List[str]:
+        return [self.annotation_file(idx) for idx in range(len(self.FILES))]
+
     def all_vvvh_files(self) -> List[str]:
         # return [f'{idx} {pol}' for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
         return [self.input_file(idx, polarity=pol) for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
@@ -333,8 +336,13 @@ class FileDB:
         crt    = self.FILES[idx]
         s1dir  = crt['s1dir']
         s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp=tmp_suffix(tmp))
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+
+    def annotation_file(self, idx, polarity='vv') -> str:
+        crt    = self.FILES[idx]
+        s1dir  = crt['s1dir']
+        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/annotation/{s1file}'.replace('.tiff', '.xml')
 
     def input_file_vv(self, idx) -> str:
         assert idx < 6
