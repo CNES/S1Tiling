@@ -431,7 +431,11 @@ Height (DEM+Geoid) projected on S2 tile
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`DEM + GEOID height info projected on S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Cleanup:
+
+    .. warning::
+       These files still **need** to be cleaned manually. This should change
+       eventually, or it may be conditionned to an option.
 
 
 .. _ground_and_sat_S2-files:

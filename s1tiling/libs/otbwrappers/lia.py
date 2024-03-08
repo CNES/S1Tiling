@@ -534,11 +534,13 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
-        height_on_s2  = fetch_input_data('inheight', all_inputs)
-        meta['files_to_remove'] = [height_on_s2.out_filename]
-        logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
+        # Cannot register height_on_s2 for ulterior removal as the file can be
+        # used with different orbits
+        # => TODO count how many XYZ files depend on the height_on_s2 file
+        # height_on_s2  = fetch_input_data('inheight', all_inputs)
+        # meta['files_to_remove'] = [height_on_s2.out_filename]
+        # logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
 
-        # sar = all_inputs[0]['insar'].meta
         sar = fetch_input_data('insar', all_inputs).meta
 
         # TODO: Check whether the DEM_LIST is already there and automatically propagated!
