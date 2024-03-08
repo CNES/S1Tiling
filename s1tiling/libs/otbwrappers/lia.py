@@ -771,6 +771,7 @@ class _ComputeLIA(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
+        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3"
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
