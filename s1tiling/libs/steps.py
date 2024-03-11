@@ -469,7 +469,7 @@ class Step(AbstractStep):
             self.release_app()
 
     def release_app(self) -> None:
-        del self._app
+        self._app = None
 
     @property
     def app(self):
