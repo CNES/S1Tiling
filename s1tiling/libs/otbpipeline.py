@@ -46,6 +46,7 @@ from typing import Dict, List, Optional, Set, Tuple, Type, Union
 from distributed import get_worker
 import objgraph
 from pympler import tracker # , muppy
+# from memory_profiler import profile
 
 from .                  import Utils
 from .                  import exceptions
@@ -228,6 +229,7 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
     logger.debug('Parameters for %s:\n|--> %s', pipeline, args)
     watch_ram = pipeline.shall_watch_ram
     if watch_ram:
+        logger.info("=== objgraph growth (before pipeline exection) ===")
         objgraph.show_growth(limit=5)
     try:
         assert len(args) == 1
@@ -246,9 +248,11 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
         return PipelineOutcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
 
-    pipeline = None  # Release the pipeline
+    del pipeline  # Release the pipeline
     if watch_ram:
+        logger.info("=== objgraph growth (after pipeline exection) ===")
         objgraph.show_growth()
+        objgraph.show_most_common_types()
 
         # all_objects = muppy.get_objects()
         # sum1 = summary.summarize(all_objects)

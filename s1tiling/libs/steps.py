@@ -470,7 +470,6 @@ class Step(AbstractStep):
 
     def release_app(self) -> None:
         del self._app
-        self._app = None
 
     @property
     def app(self):
@@ -794,6 +793,9 @@ class StoreStep(_ProducerStep):
             # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
             self._set_out_parameters()
             self._app.ExecuteAndWriteOutput()
+
+    def release_app(self) -> None:
+        self._app = None
 
     def _do_call_hook(self, hook: Callable) -> None:
         """
@@ -1321,8 +1323,8 @@ class Store(StepFactory):
         finally:
             # logger.debug("Collecting memory!")
             # Collect memory now!
-            res.release_app()
-            for inps in previous_steps:
+            res.release_app()  # <- StoreStep._app = None
+            for inps in reversed(previous_steps):  # delete all /*OTB*/Step._app
                 for inp in inps:
                     for _, step in inp.items():
                         step.release_app()
