@@ -335,7 +335,6 @@ class _ProducerStep(AbstractStep):
         Update Image metadata (with GDAL API).
         Fetch the new content in ``meta['image_metadata']``
         """
-        assert isinstance(self, (StoreStep, ExecutableStep))
         img_meta = self.meta.get('image_metadata', {})
         # fullpath = out_filename(self.meta)
         fullpath = self.tmp_filename
@@ -436,7 +435,6 @@ class Step(AbstractStep):
             self.release_app()
 
     def release_app(self) -> None:
-        del self._app
         self._app = None
 
     @property
@@ -747,6 +745,9 @@ class StoreStep(_ProducerStep):
             # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
             self._set_out_parameters()
             self._app.ExecuteAndWriteOutput()
+
+    def release_app(self) -> None:
+        self._app = None
 
     def _do_call_hook(self, hook: Callable) -> None:
         """
