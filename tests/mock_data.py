@@ -186,8 +186,9 @@ class FileDB:
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
             },
     }
-    extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
-    extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
+    extended_geom_compress      = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
+    extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
+    extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
 
     def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, demdir, geoid_file) -> None:
         self.__input_dir  = inputdir
@@ -471,11 +472,13 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def LIAfile(self, idx, tmp) -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -518,45 +521,49 @@ class FileDB:
     def dems_on_s2(self) -> List[str]:
         return sorted(self.TILE_DATA[self.__tile]['dems'])
 
-    def vrtfile_on_s2(self, tmp) -> str:
+    def vrtfile_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/42'  # TODO: don't hardcode tmpdemdir
         return f'{dir}/{self.FILE_FMTS["vrt_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
         # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt_on_s2"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def demfile_on_s2(self, tmp) -> str:
+    def demfile_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["dem_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def geoidfile_on_s2(self, tmp) -> str:
+    def geoidfile_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["geoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def height_on_s2(self, tmp) -> str:
+    def height_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["height_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def xyz_on_s2(self, tmp) -> str:
+    def xyz_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["xyz_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def normals_on_s2(self, tmp) -> str:
+    def normals_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def deglia_on_s2(self, tmp=False) -> str:
+    def deglia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
+            ext = self.extended_compress_predictor 
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
-        # return f'LIA_s1a_33NWB_DES_007.tif'
-        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def sinlia_on_s2(self, tmp=False) -> str:
+    def sinlia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
+            ext = self.extended_compress_predictor 
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+            ext = ''
+        # ext = self.extended_compress_predictor if compress else ''
+        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
         # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:

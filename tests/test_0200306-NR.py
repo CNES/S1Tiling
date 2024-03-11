@@ -678,7 +678,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     # exp_out_geoid_s2  = file_db.geoidfile_on_s2(False)
     exp_out_height_s2   = file_db.height_on_s2(False)
     exp_out_xyz_s2      = file_db.xyz_on_s2(False)
-    exp_out_normals_s2  = file_db.normals_on_s2(False)
+    # exp_out_normals_s2  = file_db.normals_on_s2(False)
     # TODO: Don't hardcode the mocked tmp subdir for DEMs
     exp_in_dem_files  = [f"{tmpdir}/42/{dem}.hgt" for dem in exp_dem_names]
 
