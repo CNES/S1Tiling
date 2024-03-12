@@ -549,18 +549,18 @@ class FileDB:
     def deglia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor 
+            ext = self.extended_compress_predictor
         else:
-            dir = f'{self.__output_dir}/{self.__tile}'
+            dir = f'{self.__lia_dir}'
             ext = ''
         return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
     def sinlia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor 
+            ext = self.extended_compress_predictor
         else:
-            dir = f'{self.__output_dir}/{self.__tile}'
+            dir = f'{self.__lia_dir}'
             ext = ''
         # ext = self.extended_compress_predictor if compress else ''
         return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
