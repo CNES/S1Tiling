@@ -522,7 +522,7 @@ class FileDB:
         return sorted(self.TILE_DATA[self.__tile]['dems'])
 
     def vrtfile_on_s2(self, tmp: bool) -> str:
-        dir = f'{self.__tmp_dir}/42'  # TODO: don't hardcode tmpdemdir
+        dir = f'{self.__tmp_dir}/TMP_DEM'  # TODO: don't hardcode tmpdemdir
         return f'{dir}/{self.FILE_FMTS["vrt_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
         # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt_on_s2"]}'.format(**crt, tmp=tmp_suffix(tmp))
 

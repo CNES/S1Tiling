@@ -262,7 +262,7 @@ def _declare_know_files(
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     known_files.extend(files)
-    demtmpdir = f"{file_db.tmpdir}/42"
+    demtmpdir = f"{file_db.tmpdir}/TMP_DEM"
     known_files.extend(
             map(lambda dem: f"{demtmpdir}/{dem}.hgt", file_db.TILE_DATA[tile]['dems'])
     )
@@ -680,7 +680,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     exp_out_xyz_s2      = file_db.xyz_on_s2(False)
     # exp_out_normals_s2  = file_db.normals_on_s2(False)
     # TODO: Don't hardcode the mocked tmp subdir for DEMs
-    exp_in_dem_files  = [f"{tmpdir}/42/{dem}.hgt" for dem in exp_dem_names]
+    exp_in_dem_files  = [f"{tmpdir}/TMP_DEM/{dem}.hgt" for dem in exp_dem_names]
 
     application_mocker.set_expectations(
             AgglomerateDEMOnS2.agglomerate,

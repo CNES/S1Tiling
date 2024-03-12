@@ -39,6 +39,8 @@ from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
 from s1tiling.libs.otbwrappers import (
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
+        AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile, SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        ComputeNormalsOnS2, ComputeLIAOnS2,
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormalsOnS1, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration)
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
@@ -164,19 +166,34 @@ def maskfile(idx, polarity) -> str:
     else:
         return file_db.maskfile_from_one(idx, tmp=False, polarity=polarity, calibration='_sigma')
 
+def DEM_VRT_file_s2() -> str:
+    return file_db.vrtfile_on_s2(tmp=False)
+
+def DEM_file_s2() -> str:
+    return file_db.demfile_on_s2(tmp=False)
+
+def height_file_s2() -> str:
+    return file_db.height_on_s2(tmp=False)
+
+def XYZ_file_s2() -> str:
+    return file_db.xyz_on_s2(tmp=False)
+
+def sin_LIA_file_s2() -> str:
+    return file_db.sinlia_on_s2(tmp=False)
+
 def DEM_file(idx) -> str:
     return file_db.vrtfile(idx, tmp=False)
 
 def DEMPROJ_file(idx) -> str:
     return file_db.sardemprojfile(idx, tmp=False)
 
-def XYZ_file(idx) -> str:
+def XYZ_file_s1(idx) -> str:
     return file_db.xyzfile(idx, tmp=False)
 
-def LIA_file(idx) -> str:
+def LIA_file_s1(idx) -> str:
     return file_db.LIAfile(idx, tmp=False)
 
-def sin_LIA_file(idx) -> str:
+def sin_LIA_file_s1(idx) -> str:
     return file_db.sinLIAfile(idx, tmp=False)
 
 def ortho_LIA_file(idx) -> str:
@@ -224,7 +241,7 @@ class Configuration():
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
-        self.tmp_dem_dir                       = 'UNUSED HERE'
+        self.tmp_dem_dir                       = 'TMP_DEM'
         self.tmpdir                            = tmpdir
         self.dem                               = 'UNUSED HERE'
         self.dem_filename_format               = 'UNUSED HERE'
@@ -232,6 +249,8 @@ class Configuration():
         self.dem_main_field_id                 = 'UNUSED HERE'
         self.dem_db_filepath                   = resource_dir / 'shapefile' / 'srtm_tiles.gpkg'
         self.cache_dem_by                      = 'symlink'
+        self.dem_warp_resampling_method        = 'cubic'
+        self.nb_procs                          = 1
         self.produce_lia_map                   = True
         assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
@@ -328,8 +347,49 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
         pipeline_ids['mask'] = pipeline
 
 
+@given('A pipeline that computes LIA in S2')
+def given_pipeline_that_computes_LIA_in_s2(pipelines) -> None:
+    # The following is a copy-paste of register_LIA_pipelines...
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'tilename': 'tilename'},
+    )
+
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
+
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
+    sar = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata],
+            inputs={'inrawsar': 'basename'}
+    )
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEM],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'insar': sar, 'inheight': s2_height},
+    )
+
+    # Always generate sin(LIA). If LIA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_LIA step
+    lia = pipelines.register_pipeline(
+            [ComputeNormalsOnS2, ComputeLIAOnS2],
+            'ComputeLIAOnS2',
+            is_name_incremental=True,
+            inputs={'xyz': xyz},
+            product_required=True,
+    )
+
+
 @given('A pipeline that computes LIA in S1')
-def given_pipeline_that_computes_LIA(pipelines) -> None:
+def given_pipeline_that_computes_LIA_in_s1(pipelines) -> None:
     dem = pipelines.register_pipeline(
             [AgglomerateDEMOnS1],
             'AgglomerateDEM',
@@ -500,7 +560,9 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
 def when_tasks_are_generated(pipelines, dependencies, tasks, mocker) -> None:
     # mocker.patch('os.path.isfile', lambda f: isfile(f, [input_file(0), input_file(1)]))
     required, previous, task2outfile_map = dependencies
-    res = pipelines._build_tasks_from_dependencies(required=required, previous=previous, task_names_to_output_files_table=task2outfile_map,
+    res = pipelines._build_tasks_from_dependencies(
+            required=required, previous=previous,
+            task_names_to_output_files_table=task2outfile_map,
             do_watch_ram=False)
     assert isinstance(res, dict)
     # logging.info("tasks (%s) = %s", type(res), res)
@@ -845,11 +907,23 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies) -> None:
 # -- LIA tests
 # ----------------------------------------------------------------------
 
-@then('a single sin(LIA) image is required')
-def then_sin_LIA_image_is_required(dependencies) -> None:
+@then('a single sin(LIA) image is required in S2')
+def then_sin_LIA_image_is_required_in_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [sin_LIA_file(0)]
+    expected_fn = [sin_LIA_file_s2()]
+
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) == len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('a single sin(LIA) image is required in S1')
+def then_sin_LIA_image_is_required_in_s1(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [sin_LIA_file_s1(0)]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
@@ -935,15 +1009,175 @@ def two_ortho_LIA_depend_on_two_LIA_images(dependencies) -> None:
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == [sin_LIA_file(i), LIA_file(i)]
+            assert [inp['out_filename'] for inp in inputs][0] == [sin_LIA_file_s1(i), LIA_file_s1(i)]
 
 
-@then('sin(LIA) images depend on XYZ images')
-def sin_LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id) -> None:
+@then('sin(LIA) images depend on XYZ images (S2)')
+def sin_LIA_images_depend_on_two_XYZ_images_s2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = sin_LIA_file_s2()
+    # assert expected_fn not in required  # Depends on the scenario...
+    prev_expected = previous[expected_fn]
+    expected_inputs = prev_expected.inputs
+    assert len(expected_inputs) == 1
+    for key, inputs in expected_inputs.items():
+        assert key == 'xyz'
+        assert len(inputs) == 1
+        input = inputs[0]
+        # logging.info('Inputs from %s: %s', expected_inputs, input)
+        assert 'out_filename' in input
+        xyz_file = input["out_filename"]
+        assert xyz_file == XYZ_file_s2()
+
+
+@then('XYZ images depend on height and BASE images (S2)')
+def XYZ_depend_on_height_and_BASE_s2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = XYZ_file_s2()
+    prev_expected = previous[expected_fn]
+    expected_inputs = prev_expected.inputs
+    assert len(expected_inputs) == 2
+    assert {'insar', 'inheight'} == set(expected_inputs.keys())
+
+    insar_as_inputs = expected_inputs['insar']
+    assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
+    insar_as_input = insar_as_inputs[0]
+    assert insar_as_input['out_filename'] == input_file(0, 'vv')
+
+    inheight_as_inputs = expected_inputs['inheight']
+    assert len(inheight_as_inputs) == 1
+    inheight_as_input = inheight_as_inputs[0]
+    assert inheight_as_input['out_filename'] == height_file_s2()
+
+
+@then('height images depend on DEM images (S2)')
+def height_images_depend_on_DEM_images_s2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = height_file_s2()
+    prev_expected = previous[expected_fn]
+    expected_inputs = prev_expected.inputs
+    assert len(expected_inputs) == 1
+    assert {'in_s2_dem'} == set(expected_inputs.keys())
+
+    indem_as_inputs = expected_inputs['in_s2_dem']
+    assert len(indem_as_inputs) == 1
+    indem_as_input = indem_as_inputs[0]
+    assert indem_as_input['out_filename'] == DEM_file_s2()
+
+
+@then('DEM/S2 images depend on DEM VRT images (S2)')
+def DEMS2_images_depend_on_DEM_VRT_images_S2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = DEM_file_s2()
+    prev_expected = previous[expected_fn]
+    expected_inputs = prev_expected.inputs
+    assert len(expected_inputs) == 1
+    assert {'indem'} == set(expected_inputs.keys())
+
+    indem_as_inputs = expected_inputs['indem']
+    assert len(indem_as_inputs) == 1
+    indem_as_input = indem_as_inputs[0]
+    assert indem_as_input['out_filename'] == DEM_VRT_file_s2()
+
+
+@then('sin(LIA) task(s) is(/are) registered (S2)')
+def then_a_sin_LIA_task_is_registered_s2(tasks, dependencies) -> None:
+    expectations = {}
+    out = sin_LIA_file_s2()
+    dest = [out]
+    expectations[out] = {
+            'pipeline': 'ComputeLIAOnS2',
+            'input_steps': {
+                XYZ_file_s2(): ['xyz', FirstStep]
+            }
+    }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    assert len(tasks) >= 3
+    # assert len(required) == len(expectations)
+    # assert LIA_file_s1() not in required
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+
+@then('XYZ task(s) is(/are) registered (S2)')
+def then_a_XYZ_task_is_registered_s2(tasks, dependencies) -> None:
+    expectations = {}
+    out = XYZ_file_s2()
+    dest = [out]
+    expectations[out] = {
+            'pipeline': 'ComputeGroundAndSatPositionsOnDEM',
+            'input_steps': {
+                height_file_s2():     ['inheight',  FirstStep],
+                input_file(0, 'vv'):  ['insar',     FirstStep],
+            }
+    }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+
+@then('Height task(s) is(/are) registered')
+def then_height_tasks_is_are_registered_s2(tasks, dependencies) -> None:
+    expectations = {}
+    out = height_file_s2()
+    dest = [out]
+    expectations[out] = {
+            'pipeline': 'GenerateHeightForS2Tile',
+            'input_steps': {
+                DEM_file_s2():     ['in_s2_dem',  FirstStep],
+            }
+    }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+
+@then('DEM projection task(s) is(/are) registered (S2)')
+def then_dem_projection_tasks_is_are_registered_s2(tasks, dependencies) -> None:
+    expectations = {}
+    out = DEM_file_s2()
+    dest = [out]
+    expectations[out] = {
+            'pipeline': 'ProjectDEMToS2Tile',
+            'input_steps': {
+                DEM_VRT_file_s2():     ['indem',  FirstStep],
+            }
+    }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+
+@then('DEM agglomeration task(s) is(/are) registered (S2)')
+def then_dem_agglomeration_tasks_is_are_registered_s2(tasks, dependencies) -> None:
+    expectations = {}
+    out = DEM_VRT_file_s2()
+    dest = [out]
+    expectations[out] = {
+            'pipeline': 'AgglomerateDEM',
+            'input_steps': {
+                'tilename':     ['tilename',  FirstStep],
+            }
+    }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+@then('sin(LIA) images depend on XYZ images (S1)')
+def sin_LIA_images_depend_on_two_XYZ_images_s1(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
-        expected_fn = sin_LIA_file(i)
+        expected_fn = sin_LIA_file_s1(i)
         # assert expected_fn not in required  # Depends on the scenario...
         prev_expected = previous[expected_fn]
         expected_inputs = prev_expected.inputs
@@ -955,14 +1189,14 @@ def sin_LIA_images_depend_on_two_XYZ_images(dependencies, expected_files_id) -> 
             # logging.info('Inputs from %s: %s', expected_inputs, input)
             assert 'out_filename' in input
             xyz_file = input["out_filename"]
-            assert xyz_file == XYZ_file(i)
+            assert xyz_file == XYZ_file_s1(i)
 
-@then('XYZ images depend on DEM, DEMPROJ and BASE images')
-def XYZ_depend_on_DEM_DEMPROJ_and_BASE(dependencies, expected_files_id) -> None:
+@then('XYZ images depend on DEM, DEMPROJ and BASE images (S1)')
+def XYZ_depend_on_DEM_DEMPROJ_and_BASE_s1(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
-        expected_fn = XYZ_file(i)
+        expected_fn = XYZ_file_s1(i)
         prev_expected = previous[expected_fn]
         expected_inputs = prev_expected.inputs
         assert len(expected_inputs) == 3
@@ -1096,7 +1330,7 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
         dest.append(out)
         expectations[out] = {
                 'pipeline': 'OrthoLIA',
-                'input_steps': {LIA_file(i) : ['in', FirstStep]}
+                'input_steps': {LIA_file_s1(i) : ['in', FirstStep]}
                 }
 
     required, previous, task2outfile_map = dependencies
@@ -1105,20 +1339,20 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
     assert len(tasks) >= 2 + len(expected_files_id)
     for i in expected_files_id:
         assert ortho_LIA_file(i) not in required
-        assert LIA_file(i) not in required
+        assert LIA_file_s1(i) not in required
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('sin(LIA) task(s) is(/are) registered')
-def then_a_sin_LIA_task_is_registered(tasks, dependencies, expected_files_id) -> None:
+@then('sin(LIA) task(s) is(/are) registered S1)')
+def then_a_sin_LIA_task_is_registered_s1(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
-        out = sin_LIA_file(i)
+        out = sin_LIA_file_s1(i)
         dest.append(out)
         expectations[out] = {
                 'pipeline': 'Normals|LIA',
                 'input_steps': {
-                    XYZ_file(i): ['xyz', FirstStep]
+                    XYZ_file_s1(i): ['xyz', FirstStep]
                     }
                 }
     required, previous, task2outfile_map = dependencies
@@ -1126,15 +1360,15 @@ def then_a_sin_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
     # assert len(required) == len(expectations)
-    # assert LIA_file() not in required
+    # assert LIA_file_s1() not in required
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('XYZ task(s) is(/are) registered')
-def then_a_XYZ_task_is_registered(tasks, dependencies, expected_files_id) -> None:
+@then('XYZ task(s) is(/are) registered (S1)')
+def then_a_XYZ_task_is_registered_s1(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
     for i in expected_files_id:
-        out = XYZ_file(i)
+        out = XYZ_file_s1(i)
         dest.append(out)
         expectations[out] = {
                 'pipeline': 'SARCartesianMeanEstimation',

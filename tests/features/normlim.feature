@@ -29,21 +29,42 @@ Feature: Norlim
     Existing S1 images shall be analysed to deduce normlim related tasks to
     execute.
 
-    Scenario: Generate LIA tasks for a single S1 image
+    # v1.1 Workflows
+    Scenario: Generate LIA tasks for a single S1 image w/ v1.1 workflow
+        Given A pipeline that computes LIA in S2
+        And   a single S1 image
+
+        When  dependencies are analysed
+        And   tasks are generated
+
+        Then  a single sin(LIA) image is required in S2
+        And   sin(LIA) images depend on XYZ images (S2)
+        And   XYZ images depend on height and BASE images (S2)
+        And   height images depend on DEM images (S2)
+        And   DEM/S2 images depend on DEM VRT images (S2)
+
+        And   sin(LIA) task(s) is(/are) registered (S2)
+        And   XYZ task(s) is(/are) registered (S2)
+        And   Height task(s) is(/are) registered
+        And   DEM projection task(s) is(/are) registered (S2)
+        And   DEM agglomeration task(s) is(/are) registered (S2)
+
+    # v1.0 Workflows
+    Scenario: Generate LIA tasks for a single S1 image w/ v1.0 workflow
         Given A pipeline that computes LIA in S1
         And   a single S1 image
 
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a single sin(LIA) image is required
-        And   sin(LIA) images depend on XYZ images
-        And   XYZ images depend on DEM, DEMPROJ and BASE images
+        Then  a single sin(LIA) image is required in S1
+        And   sin(LIA) images depend on XYZ images (S1)
+        And   XYZ images depend on DEM, DEMPROJ and BASE images (S1)
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
-        And   sin(LIA) task(s) is(/are) registered
-        And   XYZ task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered (S1)
+        And   XYZ task(s) is(/are) registered (S1)
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -56,14 +77,14 @@ Feature: Norlim
         When  dependencies are analysed
         And   tasks are generated
 
-        Then  a single sin(LIA) image is required
-        And   sin(LIA) images depend on XYZ images
-        And   XYZ images depend on DEM, DEMPROJ and BASE images
+        Then  a single sin(LIA) image is required in S1
+        And   sin(LIA) images depend on XYZ images (S1)
+        And   XYZ images depend on DEM, DEMPROJ and BASE images (S1)
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
-        And   sin(LIA) task(s) is(/are) registered
-        And   XYZ task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered (S1)
+        And   XYZ task(s) is(/are) registered (S1)
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -81,16 +102,16 @@ Feature: Norlim
         And   final LIA image has been selected from one concat LIA
         And   concat LIA depends on 2 ortho LIA images
         And   2 ortho LIA images depend on two LIA images
-        And   sin(LIA) images depend on XYZ images
-        And   XYZ images depend on DEM, DEMPROJ and BASE images
+        And   sin(LIA) images depend on XYZ images (S1)
+        And   XYZ images depend on DEM, DEMPROJ and BASE images (S1)
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
         And   a select LIA task is registered
         And   a concat LIA task is registered
         And   ortho LIA task(s) is(/are) registered
-        And   sin(LIA) task(s) is(/are) registered
-        And   XYZ task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered (S1)
+        And   XYZ task(s) is(/are) registered (S1)
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -116,8 +137,8 @@ Feature: Norlim
         And   final LIA image has been selected from one concat LIA
         And   concat LIA depends on 2 ortho LIA images
         And   2 ortho LIA images depend on two LIA images
-        And   sin(LIA) images depend on XYZ images
-        And   XYZ images depend on DEM, DEMPROJ and BASE images
+        And   sin(LIA) images depend on XYZ images (S1)
+        And   XYZ images depend on DEM, DEMPROJ and BASE images (S1)
         And   DEMPROJ images depend on DEM and BASE images
         And   DEM images depend on BASE images
 
@@ -126,8 +147,8 @@ Feature: Norlim
         And   a select LIA task is registered
         And   a concat LIA task is registered
         And   ortho LIA task(s) is(/are) registered
-        And   sin(LIA) task(s) is(/are) registered
-        And   XYZ task(s) is(/are) registered
+        And   sin(LIA) task(s) is(/are) registered (S1)
+        And   XYZ task(s) is(/are) registered (S1)
         And   DEMPROJ task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
