@@ -787,7 +787,7 @@ class PipelineDescriptionSequence:
             task_inputs    = previous[task_name].inputs
             pipeline_descr = previous[task_name].pipeline
             def first(files: Union[str, List[str]]) -> str:
-                return files[0] if isinstance(files, list) else  files
+                return str(files[0]) if isinstance(files, list) else str(files)
             input_task_keys = [to_dask_key(first(tn))
                     for tn in previous[task_name].input_task_names]
             assert list(input_task_keys)
