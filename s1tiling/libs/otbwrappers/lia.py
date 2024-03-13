@@ -89,7 +89,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         super().__init__(  # type: ignore # mypy issue 4335
                 cfg,
                 # Because VRT links temporary files, it must not be reused in case of a crash => use tmp_dem_dir
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', cfg.tmp_dem_dir),
+                gen_tmp_dir=os.path.join(cfg.tmpdir, cfg.tmp_dem_dir),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                     name="AgglomerateDEMOnS2",
