@@ -181,6 +181,9 @@ def height_file_s2() -> str:
 def XYZ_file_s2() -> str:
     return file_db.xyz_on_s2(tmp=False)
 
+def deg_LIA_file_s2() -> str:
+    return file_db.deglia_on_s2(tmp=False)
+
 def sin_LIA_file_s2() -> str:
     return file_db.sinlia_on_s2(tmp=False)
 
@@ -351,7 +354,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
 
 
 @given('A pipeline that computes LIA in S2')
-def given_pipeline_that_computes_LIA_in_s2(pipelines) -> None:
+def given_pipeline_that_computes_LIA_in_s2(pipelines, pipeline_ids) -> None:
     # The following is a copy-paste of register_LIA_pipelines...
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
@@ -382,13 +385,19 @@ def given_pipeline_that_computes_LIA_in_s2(pipelines) -> None:
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
     # produce_angles is ignored as there is no extra select_LIA step
+    LIA_product_required = 'concat' not in pipeline_ids
     lia = pipelines.register_pipeline(
             [ComputeNormalsOnS2, ComputeLIAOnS2],
             'ComputeLIAOnS2',
             is_name_incremental=True,
             inputs={'xyz': xyz},
-            product_required=True,
+            product_required=LIA_product_required,
     )
+    pipeline_ids['dem_vrt']     = dem_vrt
+    pipeline_ids['s2_dem']      = s2_dem
+    pipeline_ids['s2_height']   = s2_height
+    pipeline_ids['xyz']         = xyz
+    pipeline_ids['s2_sinlia']   = lia
 
 
 @given('A pipeline that computes LIA in S1')
@@ -485,14 +494,14 @@ def given_pipeline_ortho_n_concat_LIA(pipelines, pipeline_ids, configuration) ->
     pipeline_ids['selectlia']    = select_deg
     pipeline_ids['orthosinlia']  = ortho_sin
     pipeline_ids['concatsinlia'] = concat_sin
-    pipeline_ids['selectsinlia'] = best_concat_sin
+    pipeline_ids['s2_sinlia']    = best_concat_sin
 
 @given('that applies LIA')
 def given_pipeline_that_applies_LIA(pipelines, pipeline_ids) -> None:
-    concat_sin = pipeline_ids['selectsinlia']
+    s2_sin_lia = pipeline_ids['s2_sinlia']
     concat_S2  = pipeline_ids['concat']
     s2_normlimed = pipelines.register_pipeline([ApplyLIACalibration], product_required=True,
-            inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2})
+            inputs={'sin_LIA': s2_sin_lia, 'concat_S2': concat_S2})
     pipeline_ids['s2_normlimed'] = s2_normlimed
     pipeline_ids['last']         = s2_normlimed
 
@@ -958,6 +967,24 @@ def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies) -> None:
     assert len(required) >= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
     for fn in expected_fn:
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('no S2 LIA image is required (S2)')
+def then_no_S2_LIA_image_is_required_s2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [deg_LIA_file_s2(), sin_LIA_file_s2()]
+
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) <= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn not in required, f'Expected {fn} should not have been found in computed requirements {required}'
+        # Yet, they are known
+        # assert fn in previous.keys(), f'Expected {fn} is not found in computed dependencies {previous.keys()}'
+    # Yet sin(LIA), only, is know
+    assert sin_LIA_file_s2() in previous.keys(), f'{sin_LIA_file_s2()} is not found in computed dependencies {previous.keys()}'
+    assert deg_LIA_file_s2() not in previous.keys(), f'{deg_LIA_file_s2()} is found in computed dependencies {previous.keys()}'
+
 
 @then('no S2 LIA image is required')
 def then_no_S2_LIA_image_is_required(dependencies) -> None:

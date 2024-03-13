@@ -70,6 +70,38 @@ Feature: Norlim
         And   DEM projection task(s) is(/are) registered (S2)
         And   DEM agglomeration task(s) is(/are) registered (S2)
 
+    Scenario: Full production of orthorectified of normlim calibrated S2 images (S2)
+        Given A pipeline that normlim calibrates and orthorectifies
+        And   that concatenates
+        Given A pipeline that computes LIA in S2
+        And   that applies LIA
+
+        And   two S1 images
+
+        When  dependencies are analysed
+        And   tasks are generated
+
+        # We have everything we usually have + the final bandmath
+        # Then  a txxxxxx S2 file is required, and no mask is required
+        Then  a txxxxxx S2 file is expected but not required
+        And   it depends on 2 ortho files (and two S1 inputs), and no mask on a concatenated product
+        And   a concatenation task is registered and produces txxxxxxx S2 file and no mask
+        And   two orthorectification tasks are registered
+
+        Then  no S2 LIA image is required (S2)
+        And   the sin(LIA) image depends on a single XYZ image (S2)
+        And   the XYZ image depends on a single height image and a single BASE image (S2)
+        And   the height image depends on a single DEM image (S2)
+        And   the DEM/S2 image depends on a single DEM VRT image (S2)
+
+        Then  a txxxxxx normlim S2 file is required
+
+        And   sin(LIA) task(s) is(/are) registered (S2)
+        And   XYZ task(s) is(/are) registered (S2)
+        And   Height task(s) is(/are) registered
+        And   DEM projection task(s) is(/are) registered (S2)
+        And   DEM agglomeration task(s) is(/are) registered (S2)
+
     # v1.0 Workflows
     Scenario: Generate LIA tasks for a single S1 image w/ v1.0 workflow
         Given A pipeline that computes LIA in S1
