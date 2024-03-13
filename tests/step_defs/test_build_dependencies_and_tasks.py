@@ -232,7 +232,7 @@ class Configuration():
         """
         self.GeoidFile                         = 'UNUSED HERE'
         self.calibration_type                  = 'sigma'
-        self.output_grid                       = resource_dir/'shapefile/Features.shp'
+        self.output_grid                       = str(resource_dir/'shapefile/Features.shp')
         self.grid_spacing                      = 40
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
@@ -1157,14 +1157,14 @@ def then_dem_projection_tasks_is_are_registered_s2(tasks, dependencies) -> None:
 
 
 @then('DEM agglomeration task(s) is(/are) registered (S2)')
-def then_dem_agglomeration_tasks_is_are_registered_s2(tasks, dependencies) -> None:
+def then_dem_agglomeration_tasks_is_are_registered_s2(tasks, dependencies, configuration: Configuration) -> None:
     expectations = {}
     out = DEM_VRT_file_s2()
     dest = [out]
     expectations[out] = {
             'pipeline': 'AgglomerateDEM',
             'input_steps': {
-                'tilename':     ['tilename',  FirstStep],
+                configuration.output_grid:     ['tilename',  FirstStep],
             }
     }
     required, previous, task2outfile_map = dependencies
@@ -1342,7 +1342,7 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
         assert LIA_file_s1(i) not in required
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
 
-@then('sin(LIA) task(s) is(/are) registered S1)')
+@then('sin(LIA) task(s) is(/are) registered (S1)')
 def then_a_sin_LIA_task_is_registered_s1(tasks, dependencies, expected_files_id) -> None:
     expectations = {}
     dest = []
