@@ -30,7 +30,10 @@
 # =========================================================================
 
 import logging
+import re
 from typing import Callable, List, Tuple
+
+from shapely.geometry.base import np
 
 # from .mock_otb import compute_coverage
 
@@ -70,6 +73,9 @@ class FileDB:
             # 08 jan 2020
             {
                 'start_time'      : '2020:01:08 04:41:50',
+                'stop_time'       : '2020:01:08 04:42:15',
+                'orbit_start'     : '2020:01:08 00:00:00',
+                'orbit_stop'      : '2020:01:08 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
@@ -83,6 +89,9 @@ class FileDB:
                 },
             {
                 'start_time'      : '2020:01:08 04:42:15',
+                'stop_time'       : '2020:01:08 04:42:40',
+                'orbit_start'     : '2020:01:08 00:00:00',
+                'orbit_stop'      : '2020:01:08 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
@@ -97,6 +106,9 @@ class FileDB:
             # 20 jan 2020
             {
                 'start_time'      : '2020:01:20 04:41:49',
+                'stop_time'       : '2020:01:20 04:42:14',
+                'orbit_start'     : '2020:01:20 00:00:00',
+                'orbit_stop'      : '2020:01:20 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
@@ -110,6 +122,9 @@ class FileDB:
             },
             {
                 'start_time'      : '2020:01:20 04:42:14',
+                'stop_time'       : '2020:01:20 04:42:39',
+                'orbit_start'     : '2020:01:20 00:00:00',
+                'orbit_stop'      : '2020:01:20 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
@@ -124,6 +139,9 @@ class FileDB:
             # 02 feb 2020
             {
                 'start_time'      : '2020:02:01 04:41:49',
+                'stop_time'       : '2020:02:01 04:42:14',
+                'orbit_start'     : '2020:02:01 00:00:00',
+                'orbit_stop'      : '2020:02:01 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
@@ -137,6 +155,7 @@ class FileDB:
             },
             {
                 'start_time'      : '2020:02:01 04:42:14',
+                'stop_time'       : '2020:02:01 04:42:39',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
@@ -325,6 +344,23 @@ class FileDB:
     def start_time_for_two(self, idx) -> str:
         return self.CONCATS[idx]['start_time']
 
+    def orbit_time_range(self, id)-> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
+        idx = id if isinstance(id, int) else self._find_annotation(id)
+        file = self.FILES[idx]
+        def to_datetime(s :str) -> np.datetime64:
+            k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
+            match = k_date_re.match(s)
+            assert match, f"Cann decode {s!r} as a date"
+            YYYY, MM, DD, hh, mm, ss = match.groups()
+            return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
+
+        return (
+                to_datetime(file['start_time']),
+                to_datetime(file['stop_time' ]),
+                to_datetime(file['orbit_start']),
+                to_datetime(file['orbit_stop'])
+        )
+
     def product_name(self, idx) -> str:
         s1dir  = self.FILES[idx]['s1dir']
         return s1dir
@@ -372,6 +408,13 @@ class FileDB:
             if self.FILES[idx]['s1dir'] in manifest_path:
                 return idx
         raise AssertionError(f'{manifest_path} cannot be found in input list {[f["s1dir"] for f in self.FILES]}')
+
+    def _find_annotation(self, annotation_file) -> int:
+        annotation_file = str(annotation_file)  # manifest_path is either a str or a PosixPath
+        for idx in range(len(self.FILES)):
+            if self.annotation_file(idx) in annotation_file:
+                return idx
+        raise AssertionError(f'{annotation_file} cannot be found in input list {[f["annotation_file"] for f in self.FILES]}')
 
     def get_origin(self, id) -> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float], str]:
         """

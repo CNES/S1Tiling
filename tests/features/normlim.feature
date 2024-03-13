@@ -38,10 +38,31 @@ Feature: Norlim
         And   tasks are generated
 
         Then  a single sin(LIA) image is required in S2
-        And   sin(LIA) images depend on XYZ images (S2)
-        And   XYZ images depend on height and BASE images (S2)
-        And   height images depend on DEM images (S2)
-        And   DEM/S2 images depend on DEM VRT images (S2)
+        And   the sin(LIA) image depends on a single XYZ image (S2)
+        And   the XYZ image depends on a single height image and a single BASE image (S2)
+        And   the height image depends on a single DEM image (S2)
+        And   the DEM/S2 image depends on a single DEM VRT image (S2)
+
+        And   sin(LIA) task(s) is(/are) registered (S2)
+        And   XYZ task(s) is(/are) registered (S2)
+        And   Height task(s) is(/are) registered
+        And   DEM projection task(s) is(/are) registered (S2)
+        And   DEM agglomeration task(s) is(/are) registered (S2)
+
+    Scenario: Generate LIA tasks for a series of S1 VV images in S2
+        # Check a single LIA task will be registered even w/ multiple input
+        # images of different acquisition date. => Keep only one LIA
+        Given A pipeline that computes LIA in S2
+        And   a series of S1 VV images
+
+        When  dependencies are analysed
+        And   tasks are generated
+
+        Then  a single sin(LIA) image is required in S2
+        And   the sin(LIA) image depends on a single XYZ image (S2)
+        And   the XYZ image depends on a single height image and a single BASE image (S2)
+        And   the height image depends on a single DEM image (S2)
+        And   the DEM/S2 image depends on a single DEM VRT image (S2)
 
         And   sin(LIA) task(s) is(/are) registered (S2)
         And   XYZ task(s) is(/are) registered (S2)

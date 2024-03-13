@@ -130,6 +130,9 @@ file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 def input_file(idx, polarity) -> str:
     return file_db.input_file(idx, polarity)
 
+def annotation_file(idx, polarity) -> str:
+    return file_db.annotation_file(idx, polarity)
+
 def raster(idx, polarity) -> Dict:
     S2_tile_origin = file_db.tile_origins(TILE)
     s1dir  = FILES[idx]['s1dir']
@@ -515,6 +518,7 @@ def given_one_VV_and_one_VH_S1_images(raster_list, known_files, known_file_ids, 
 def given_a_series_of_VV_S1_images(raster_list, known_files, known_file_ids, expected_files_id):
     for i in range(6):
         known_files.append(input_file(i, 'vv'))
+        known_files.append(annotation_file(i, 'vv'))
         raster_list.append(raster_vv(i))
         known_file_ids.append((i, 'vv'))
     for i in [0, 1]:  # Only the first 2 should be kept. TODO: support coverage
@@ -553,6 +557,7 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     logging.debug("raster_list: %s" % (raster_list,))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', return_value='DES')
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  return_value=7)
+    mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     dependencies.extend(pipelines._build_dependencies(TILE, raster_list))
 
@@ -1012,8 +1017,8 @@ def two_ortho_LIA_depend_on_two_LIA_images(dependencies) -> None:
             assert [inp['out_filename'] for inp in inputs][0] == [sin_LIA_file_s1(i), LIA_file_s1(i)]
 
 
-@then('sin(LIA) images depend on XYZ images (S2)')
-def sin_LIA_images_depend_on_two_XYZ_images_s2(dependencies) -> None:
+@then('the sin(LIA) image depends on a single XYZ image (S2)')
+def then_the_sin_LIA_image_depends_on_a_single_XYZ_image_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = sin_LIA_file_s2()
@@ -1031,8 +1036,8 @@ def sin_LIA_images_depend_on_two_XYZ_images_s2(dependencies) -> None:
         assert xyz_file == XYZ_file_s2()
 
 
-@then('XYZ images depend on height and BASE images (S2)')
-def XYZ_depend_on_height_and_BASE_s2(dependencies) -> None:
+@then('the XYZ image depends on a single height image and a single BASE image (S2)')
+def then_the_XYZ_image_depends_on_a_single_height_image_and_a_single_BASE_image_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = XYZ_file_s2()
@@ -1052,8 +1057,8 @@ def XYZ_depend_on_height_and_BASE_s2(dependencies) -> None:
     assert inheight_as_input['out_filename'] == height_file_s2()
 
 
-@then('height images depend on DEM images (S2)')
-def height_images_depend_on_DEM_images_s2(dependencies) -> None:
+@then('the height image depends on a single DEM image (S2)')
+def then_the_height_image_depends_on_a_single_DEM_image_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = height_file_s2()
@@ -1068,8 +1073,8 @@ def height_images_depend_on_DEM_images_s2(dependencies) -> None:
     assert indem_as_input['out_filename'] == DEM_file_s2()
 
 
-@then('DEM/S2 images depend on DEM VRT images (S2)')
-def DEMS2_images_depend_on_DEM_VRT_images_S2(dependencies) -> None:
+@then('the DEM/S2 image depends on a single DEM VRT image (S2)')
+def then_the_DEMS2_image_depends_on_a_single_DEM_VRT_image_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
     expected_fn = DEM_file_s2()
