@@ -458,7 +458,7 @@ def _download_and_extract_one_product(
         # => let's do a quick sanity check
         manifest = os.path.join(raw_directory, prod_id, prod_id+'.SAFE', 'manifest.safe')
         if not os.path.exists(manifest):
-            logger.error('Actually download of %s failed, the expected manifest could not be found (%s)', prod_id, manifest)
+            logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
             e = exceptions.CorruptedDataSAFEError(manifest)
             path = DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
@@ -1233,6 +1233,7 @@ class S1FileManager:
             if l_vv + l_vh + l_hv + l_hh == 0:
                 # There is not a single file that would have been compatible
                 # with what is expected
+                logger.warning("Product associated to %s is corrupted: no VV, VH, HV or HH file found", manifest)
                 raise exceptions.CorruptedDataSAFEError(manifest)
 
             self.raw_raster_list.append(acquisition)
