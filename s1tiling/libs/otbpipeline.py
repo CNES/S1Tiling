@@ -524,7 +524,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
     Unlike :func:`fetch_input_data`, this flavor is able to dig in inputs from
     all levels to find the requested one.
     """
-    data = {k:[] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
+    data : Dict[str, List] = {k:[] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
     # for inputs in all_inputs:
     for _, inputs in enumerate(all_inputs):
         for inp in inputs:

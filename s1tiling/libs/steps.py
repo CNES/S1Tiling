@@ -389,7 +389,7 @@ class _ProducerStep(AbstractStep):
             del dst
             logger.debug('Metadata Set! (%s)', fullpath)
 
-        do_apply = do_log if dryrun else do_write;
+        do_apply = do_log if dryrun else do_write
         if isinstance(fullpath, list):
             # Case of applications that produce several files like ComputeLIA
             for fp in fullpath:

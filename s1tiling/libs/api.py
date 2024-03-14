@@ -315,7 +315,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     return []
 
 
-def process_one_tile(  # pylint: disable=too-many-arguments
+def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,

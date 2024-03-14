@@ -62,7 +62,7 @@ from typing import NoReturn
 
 import click
 
-from s1tiling.libs.api import s1_process, s1_process_lia, s1_process_lia_v0
+from s1tiling.libs.api import s1_process, s1_process_lia
 from s1tiling.libs.exits import translate_exception_into_exit_code
 
 from s1tiling.libs.S1FileManager import (
