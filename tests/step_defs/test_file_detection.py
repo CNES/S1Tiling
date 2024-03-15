@@ -36,7 +36,7 @@ import os
 from typing import Dict, List, Set
 from eodag.api.search_result import SearchResult
 
-import shapely
+from shapely import geometry
 
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
@@ -101,19 +101,19 @@ class Configuration():
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
         self.cache_dem_by            = 'symlink'
-        self.fname_fmt               = {}
         self.platform_list           = []
         self.orbit_direction         = None
         self.relative_orbit_list     = []
         self.calibration_type        = 'sigma'
         self.nb_download_processes   = 1
         self.fname_fmt               = {
+                # Non standard filename format for concatenation
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
-                # 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
-                'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-                }
-        self.fname_fmt_concatenation = self.fname_fmt['concatenation']
-        self.fname_fmt_filtered      = self.fname_fmt['filtered']
+                'filtered' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+        }
+        self.dname_fmt               = {
+                # 'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+        }
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:
@@ -236,7 +236,7 @@ def extent2box(extent):
             float(extent['lonmax']),
             float(extent['latmax']),
             )
-    return shapely.geometry.box(*coords)
+    return geometry.box(*coords)
 
 
 class MockEOProduct:
@@ -246,8 +246,8 @@ class MockEOProduct:
         # TODO: geometry is not correctly set
         product_poly     = file_db.FILES[product_id]['polygon']
         product_geometry = extent2box(polygon2extent(product_poly))
-        self.geometry            = shapely.geometry.shape(product_geometry)
-        self.search_intersection = shapely.geometry.shape(product_geometry)
+        self.geometry            = geometry.shape(product_geometry)
+        self.search_intersection = geometry.shape(product_geometry)
         self.properties = {
                 'id'                 : self._id,
                 'orbitDirection'     : file_db.get_orbit_direction(product_id),
@@ -301,7 +301,6 @@ def given_requets_for_beta(configuration) -> None:
 def given_requets_for_beta_with_default_fname_fmt_concatenation(configuration) -> None:
     logging.debug('Request with default fname_fmt_concatenation')
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
-    configuration.fname_fmt_concatenation = configuration.fname_fmt['concatenation']
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def _declare_known_products_for_download(mocker, product_ids) -> None:

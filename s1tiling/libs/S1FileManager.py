@@ -68,7 +68,7 @@ from .Utils             import (
     get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
-from .configuration     import Configuration
+from .configuration     import Configuration, fname_fmt_concatenation, fname_fmt_filtered
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
 
@@ -194,13 +194,13 @@ def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-loc
         'orbit'             : '*',
         'calibration_type'  : cfg.calibration_type,
     }
-    fname_fmt_concatenation = cfg.fname_fmt_concatenation
-    fname_fmt_filtered      = cfg.fname_fmt_filtered
+    fname_fmt_4concatenation = fname_fmt_concatenation(cfg)
+    fname_fmt_4filtered      = fname_fmt_filtered(cfg)
     for polarisation in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
         # We should use the `Processing.fname_fmt.concatenation` option
-        pat          = fname_fmt_concatenation.format(**keys, polarisation=polarisation)
-        pat_filtered = fname_fmt_filtered.format(**keys, polarisation=polarisation)
+        pat          = fname_fmt_4concatenation.format(**keys, polarisation=polarisation)
+        pat_filtered = fname_fmt_4filtered.format(**keys, polarisation=polarisation)
         found_s2 = fnmatch.filter(s2images, pat)
         found_filt = fnmatch.filter(s2images, pat_filtered)
         found = found_s2 or found_filt
@@ -1117,7 +1117,7 @@ class S1FileManager:
             'tile_name'         : tile_name,
             'calibration_type'  : self.cfg.calibration_type,
         }
-        fname_fmt_concatenation = self.cfg.fname_fmt_concatenation
+        fname_fmt_4concatenation = fname_fmt_concatenation(self.cfg)
         k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
         ident     : Callable[[Dict], str] = lambda ci: ci['product'].name
         get_orbit : Callable[[Dict], int] = lambda ci: ci['relative_orbit']
@@ -1145,7 +1145,7 @@ class S1FileManager:
             keys['flying_unit_code']  = match.groups()[0].lower() if match else "S1?"
             keys['acquisition_stamp'] = f'{eo_date}txxxxxx'
             keys['polarisation']      = '*'
-            s2_product_name = fname_fmt_concatenation.format_map(keys)
+            s2_product_name = fname_fmt_4concatenation.format_map(keys)
             keeps   = []  # Workaround to filter out the current list.
             for ci in s1_products_info:
                 pid   = ident(ci)

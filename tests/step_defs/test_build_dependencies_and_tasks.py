@@ -262,8 +262,8 @@ class Configuration():
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-                }
-        self.fname_fmt_concatenation = self.fname_fmt['concatenation']
+        }
+        self.dname_fmt                         = {}
 
 def isfile(filename, existing_files) -> bool:
     # assert False

@@ -123,3 +123,7 @@ Feature: Test download requests
         Then  All are requested for download
 
 
+    # + scenarios with existing filtered products
+    # > with standard fname_fmt
+    # > with different fname_fmt
+    # > with different dname_fmt

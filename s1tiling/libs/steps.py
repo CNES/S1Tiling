@@ -906,6 +906,7 @@ class _FileProducingStepFactory(StepFactory):
         self.__ram_per_process     = cfg.ram_per_process
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
+        self.__liadir              = cfg.lia_directory
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
     def output_directory(self, meta: Meta) -> str:
@@ -921,7 +922,12 @@ class _FileProducingStepFactory(StepFactory):
         - ``None``, in that case the result will be the same as :func:`tmp_directory`.
           This case will make sense for steps that don't produce required products
         """
-        return str(self.__gen_output_dir).format(**meta)
+        return str(self.__gen_output_dir).format(
+                **meta,
+                out_dir=self.__outdir,
+                tmp_dir=self.__tmpdir,
+                lia_dir=self.__liadir,
+        )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
         """
