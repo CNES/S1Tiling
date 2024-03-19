@@ -361,7 +361,7 @@ def _discard_small_redundant(
 
 def _keep_requested_orbits(
     content_info:           List[Dict],
-    rq_orbit_direction:     str,
+    rq_orbit_direction:     Optional[str],
     rq_relative_orbit_list: List[int],
 ) -> List[Dict]:
     """
@@ -729,7 +729,7 @@ class S1FileManager:
         first_date:                     str,
         last_date:                      str,
         platform_list:                  List[str],
-        orbit_direction:                str,
+        orbit_direction:                Optional[str],
         relative_orbit_list:            List[int],
         polarization:                   str,
         dryrun: bool,
@@ -904,7 +904,7 @@ class S1FileManager:
         tile_out_dir:            str,
         tile_name:               str,
         platform_list:           List[str],
-        orbit_direction:         str,
+        orbit_direction:         Optional[str],
         relative_orbit_list:     List[int],
         polarization:            str,
         cover:                   float,
@@ -981,7 +981,10 @@ class S1FileManager:
         downloaded_products: List[DownloadOutcome] = []
         layer = Layer(self.cfg.output_grid)  # TODO: This could be cached
         for current_tile in layer:
-            tile_name : str = current_tile.GetField('NAME')
+            name = current_tile.GetField('NAME')
+            if not isinstance(name, str):
+                raise AssertionError(f"Invalid data type for current tile NAME field: {name}. `str` was expected")
+            tile_name : str = name
             if tile_name in tile_list:
                 tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
                 latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
