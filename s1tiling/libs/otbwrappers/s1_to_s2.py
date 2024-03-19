@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, fname_fmt_concatenation, fname_fmt_filtered
+from ..configuration import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -810,8 +810,7 @@ class Concatenate(_ConcatenatorFactory):
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
             # This is a required product that shall end-up in outputdir
-            dname_fmt = cfg.dname_fmt.get('concatenation', '{out_dir}/{tile_name}')
-            gen_output_dir=dname_fmt
+            gen_output_dir = dname_fmt_concatenation(cfg)
         else:
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
@@ -1013,7 +1012,7 @@ class SpatialDespeckle(OTBStepFactory):
     # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = fname_fmt_filtered(cfg)
-        dname_fmt = cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
+        dname_fmt = dname_fmt_filtered(cfg)
         super().__init__(cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',

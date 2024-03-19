@@ -323,7 +323,7 @@ def given_all_products_are_available_for_download(mocker, configuration) -> None
 
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_S2_files(mocker, known_files, patterns) -> None:
+def _declare_known_S2_files(known_files, patterns) -> None:
     nb_products = file_db.nb_S2_products
     all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
     files = []
@@ -335,20 +335,51 @@ def _declare_known_S2_files(mocker, known_files, patterns) -> None:
     known_files.extend(files)
 
 @given('All S2 files are known')
-def given_all_S2_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vv', 'vh'])
+def given_all_S2_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vv', 'vh'])
 
 @given('All S2 VV files are known')
-def given_all_S2_VV_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vv'])
+def given_all_S2_VV_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vv'])
 
 @given('All S2 VH files are known')
-def given_all_S2_VH_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vh'])
+def given_all_S2_VH_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vh'])
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known() -> None:
     pass
+
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def _declare_known_filtered_S2_files(known_files, patterns) -> None:
+    nb_products = file_db.nb_S2_products
+    params = {
+            'tmp'        : '',
+            'extra'      : '_filtered',
+            'calibration': '_sigma',
+            'dir'        : f'{file_db.outputdir}/filtered/33NWB',
+            # 'outdir'     : file_db.outputdir,
+    }
+    all_S2 = [
+            file_db.filtered_from_two(
+                idx=idx, polarity=pol, **params,
+            ) for idx in range(nb_products) for pol in ['vh', 'vv']]
+    files = []
+    for pattern in patterns:
+        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    logging.debug('Mocking w/ S2/filtered: %s --> %s', patterns, files)
+    for k in files:
+        logging.debug(' - %s', k)
+    known_files.extend(files)
+
+@given('No filtered S2 files are known')
+def given_no_filtered_S2_files_are_known() -> None:
+    pass
+
+@given('All filtered S2 files are known')
+def given_all_filteredS2_files_are_known(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+
 
 # ======================================================================
 # When steps

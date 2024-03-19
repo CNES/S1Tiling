@@ -61,6 +61,7 @@ Feature: Test download requests
         Given Request on <dates>
         And   No S1 files are known
         And   No S2 files are known
+        # And No filtered S2 files are known
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
@@ -125,5 +126,14 @@ Feature: Test download requests
 
     # + scenarios with existing filtered products
     # > with standard fname_fmt
+    Scenario Outline: Nothing was downloaded, and all filtered products are generated with their standard name
+        Given Request on <dates>
+        And   No S1 files are known
+        And   No S2 files are known
+        And   All filtered S2 files are known
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  None are requested for download
+
     # > with different fname_fmt
     # > with different dname_fmt

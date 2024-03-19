@@ -31,13 +31,13 @@
 
 import logging
 import re
-from typing import Callable, List, Tuple
+from typing import Callable, List, Union, Tuple
 
 from shapely.geometry.base import np
 
 # from .mock_otb import compute_coverage
 
-def tmp_suffix(tmp) -> str:
+def tmp_suffix(tmp: Union[bool,str]) -> str:
     return '.tmp' if tmp else ''
 
 
@@ -473,6 +473,17 @@ class FileDB:
     def concatfile_from_two(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
         crt = self.CONCATS[idx]
         return self._concatfile_for_all(crt, tmp, polarity, calibration)
+
+    def filtered_from_two(self, idx, tmp, extra, polarity, calibration, dir) -> str:
+        crt = self.CONCATS[idx]
+        if tmp:
+            ext = self.extended_compress
+        else:
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}{extra}.tif{ext}'.format(
+                **crt, tmp=tmp_suffix(tmp), calibration=calibration).format(
+                        polarity=polarity, nr="001" if polarity == "vv" else "002"
+                )
 
     def _masktmp_for_all(self, crt, tmp, polarity, calibration) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'

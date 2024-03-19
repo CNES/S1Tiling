@@ -329,7 +329,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.platform_list       = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
-        self.orbit_direction     = accessor.get('DataSource', 'orbit_direction', fallback=None)
+        self.orbit_direction : Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
             accessor.throw("Parameter [orbit_direction] must be either unset or DES, or ASC")
         relative_orbit_list_str  = accessor.get('DataSource', 'relative_orbit_list', fallback='')
@@ -614,7 +614,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
 def fname_fmt_concatenation(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.fnmatch.concatenation`` actual value
+    Helper method to return the ``Processing.fnmatch.concatenation`` actual
+    value, or its default value according to the calibration kind.
     """
     calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
     if calibration_is_done_in_S1:
@@ -631,7 +632,8 @@ def fname_fmt_concatenation(cfg: Configuration) -> str:
 
 def fname_fmt_filtered(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.fnmatch.filtered`` actual value
+    Helper method to return the ``Processing.fnmatch.filtered`` actual value,
+    or its default value according to the calibration kind.
     """
     calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
     if calibration_is_done_in_S1:
@@ -644,4 +646,20 @@ def fname_fmt_filtered(cfg: Configuration) -> str:
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
     fname_fmt = cfg.fname_fmt.get('filtered', fname_fmt)
     return fname_fmt
+
+
+def dname_fmt_concatenation(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dnmatch.concatenation`` actual
+    value, or its default value.
+    """
+    return cfg.dname_fmt.get('concatenation', '{out_dir}/{tile_name}')
+
+
+def dname_fmt_filtered(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dnmatch.filtered`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
 

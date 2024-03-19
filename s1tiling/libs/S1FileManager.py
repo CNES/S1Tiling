@@ -68,7 +68,7 @@ from .Utils             import (
     get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
-from .configuration     import Configuration, fname_fmt_concatenation, fname_fmt_filtered
+from .configuration     import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
 
@@ -879,7 +879,12 @@ class S1FileManager:
         def glob1(pat, *paths) -> List[str]:
             pathname = glob.escape(os.path.join(*paths))
             return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
-        s2images = glob1(s2images_pat, tile_out_dir, tile_name) + glob1(s2images_pat, tile_out_dir, "filtered", tile_name)
+        dname_options = { 'tile_name': tile_name, 'out_dir': tile_out_dir, }
+        s2images = glob1(
+                s2images_pat, dname_fmt_concatenation(self.cfg).format_map(dname_options)
+        ) + glob1(
+                s2images_pat, dname_fmt_filtered(self.cfg).format_map(dname_options)
+        )
         logger.debug(' => S2 products found on %s: %s', tile_name, s2images)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
