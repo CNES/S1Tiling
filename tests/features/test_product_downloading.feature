@@ -126,14 +126,46 @@ Feature: Test download requests
 
     # + scenarios with existing filtered products
     # > with standard fname_fmt
-    Scenario Outline: Nothing was downloaded, and all filtered products are generated with their standard name
+    Scenario Outline: Nothing was downloaded, and all filtered products are generated and expected with their standard name
         Given Request on <dates>
         And   No S1 files are known
         And   No S2 files are known
-        And   All filtered S2 files are known
+        And   All filtered S2 files are known under the default fname_fmt
+        And   fname_fmt.filtered has the default value
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
 
-    # > with different fname_fmt
+    # > with different but consistent fname_fmt
+    Scenario Outline: Nothing was downloaded, and all filtered products are generated and expected with a different but consistent name
+        Given Request on <dates>
+        And   No S1 files are known
+        And   No S2 files are known
+        And   All filtered S2 files are known with a different fname_fmt
+        And   fname_fmt.filtered has a different value
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  None are requested for download
+
+    # > with mismatching fname_fmt
+    Scenario Outline: Nothing was downloaded, and all filtered products are generated with a non standard name, but expected with their standard name
+        Given Request on <dates>
+        And   No S1 files are known
+        And   No S2 files are known
+        And   All filtered S2 files are known with a different fname_fmt
+        And   fname_fmt.filtered has the default value
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  All are requested for download
+
+    Scenario Outline: Nothing was downloaded, and all filtered products are generated with their standard name, but expected with a different name
+        Given Request on <dates>
+        And   No S1 files are known
+        And   No S2 files are known
+        And   All filtered S2 files are known under the default fname_fmt
+        And   fname_fmt.filtered has a different value
+        And   All products are available for download
+        When  Searching which S1 files to download
+        Then  All are requested for download
+
     # > with different dname_fmt

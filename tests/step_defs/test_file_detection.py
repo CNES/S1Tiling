@@ -351,13 +351,13 @@ def given_no_S2_files_are_known() -> None:
     pass
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_filtered_S2_files(known_files, patterns) -> None:
+def _declare_known_filtered_S2_files(known_files, patterns, /, extra=None, outdir=None) -> None:
     nb_products = file_db.nb_S2_products
     params = {
             'tmp'        : '',
-            'extra'      : '_filtered',
+            'extra'      : extra or '_filtered',
             'calibration': '_sigma',
-            'dir'        : f'{file_db.outputdir}/filtered/33NWB',
+            'dir'        : outdir or f'{file_db.outputdir}/filtered/33NWB',
             # 'outdir'     : file_db.outputdir,
     }
     all_S2 = [
@@ -376,9 +376,22 @@ def _declare_known_filtered_S2_files(known_files, patterns) -> None:
 def given_no_filtered_S2_files_are_known() -> None:
     pass
 
-@given('All filtered S2 files are known')
-def given_all_filteredS2_files_are_known(known_files) -> None:
+@given('All filtered S2 files are known under the default fname_fmt')
+def given_all_filteredS2_files_are_known_default_fname_fmt(known_files) -> None:
     _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+
+@given('All filtered S2 files are known with a different fname_fmt')
+def given_all_filteredS2_files_are_known_different_fname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], extra='.FILTERED')
+
+@given("fname_fmt.filtered has the default value")
+def given_a_fname_fmt_filtered_has_the_default_value() -> None:
+    pass
+
+@given("fname_fmt.filtered has a different value")
+def given_a_fname_fmt_filtered_has_a_different_value(configuration) -> None:
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.FILTERED.tif'
+    configuration.fname_fmt['filtered'] = fname_fmt
 
 
 # ======================================================================
