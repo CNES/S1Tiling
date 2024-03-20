@@ -150,7 +150,7 @@ def _find_text(
     :raise RuntimeError: If the node has non value
     :return: The non empty text.
     """
-    node = _find(element, key, context, **kwargs)
+    node = _find(element, key, context, keytext, **kwargs)
     if not node.text:
         kt = keytext or f"{key} node"
         raise RuntimeError(f"Empty {kt} in {context}")
@@ -158,6 +158,7 @@ def _find_text(
 
 
 SAFE = "http://www.esa.int/safe/sentinel-1.0"
+S1   = "http://www.esa.int/safe/sentinel-1.0/sentinel-1"
 
 
 def get_relative_orbit(manifest: Union[str, Path]) -> int:
@@ -168,6 +169,35 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     url = "{http://www.esa.int/safe/sentinel-1.0}"
     key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
     return int(_find_text(root, key, manifest, "relativeOrbitNumber"))
+
+
+def get_orbit_information(manifest: Union[str, Path]) -> Dict:
+    """
+    :return: Orbit information:
+        - absolute orbit number
+        - relative orbit number
+        - orbit direction
+    """
+    ctx_manifest = f"manifest {manifest!r}"
+    prefix_map = {"safe": SAFE, "s1": S1}
+    root = ET.parse(manifest)
+    node_orbit = _find(
+            root,
+            "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
+            ctx_manifest,
+            "orbit reference",
+            namespaces=prefix_map)
+    absolute_orbit  = int(_find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
+    relative_orbit  = int(_find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
+    orbit_direction = _find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
+    k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
+    if orbit_direction not in k_direction_map.keys():
+        raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
+    return {
+            'absolute_orbit' : absolute_orbit,
+            'relative_orbit' : relative_orbit,
+            'orbit_direction': k_direction_map.get(orbit_direction, "???"),
+    }
 
 
 def get_origin(
@@ -413,7 +443,7 @@ def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise RuntimeError(f"Orbit Directiction not found in {manifest!r}")
+        raise RuntimeError(f"Orbit Direction not found in {manifest!r}")
 
 
 def convert_coord(
