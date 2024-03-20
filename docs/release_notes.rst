@@ -33,6 +33,13 @@ v1.1.0 Improvements
   areas, and to speed-up performances
   (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
 
+v1.1.0 Breaking changes
++++++++++++++++++++++++
+
+- ``ACQUISITION_DATETIME`` image metadata is now in UTC format (e.g.
+  ``2020:01:08T04:41:50Z``). In previous versions it used to have the same
+  format as ``TIFFTAG_DATETIME`` (i.e.: ``2020:01:08 04:41:50``)
+
 
 Version 1.0.0
 -------------

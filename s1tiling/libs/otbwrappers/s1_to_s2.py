@@ -202,9 +202,9 @@ class ExtractSentinel1Metadata(StepFactory):
         date = f'{acquisition_time[0:4]}:{acquisition_time[4:6]}:{acquisition_time[6:8]}'
         if acquisition_time[9] == 'x':
             # This case should not happen, here
-            date += ' 00:00:00'
+            date += 'T00:00:00Z'
         else:
-            date += f' {acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}'
+            date += f'T{acquisition_time[9:11]}:{acquisition_time[11:13]}:{acquisition_time[13:15]}Z'
         imd['ACQUISITION_DATETIME'] = date
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
@@ -753,10 +753,10 @@ class _ConcatenatorFactory(OTBStepFactory):
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
             imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
             acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
-            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
+            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
             for idx, pn in enumerate(product_names, start=1):
                 acq_time = Utils.extract_product_start_time(os.path.basename(pn))
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD} {hh}:{mm}:{ss}'.format_map(acq_time) if acq_time else '????'
+                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
 
