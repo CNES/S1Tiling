@@ -167,12 +167,15 @@ class ExtractSentinel1Metadata(StepFactory):
         # TODO: if the manifest is no longer here, we may need to look into the geom instead
         # It'd actually be better
 
+        orbit_information = Utils.get_orbit_information(manifest)
+
         meta['origin_s1_image']  = meta['basename']  # Will be used to remember the reference image
         # meta['rootname']         = os.path.splitext(meta['basename'])[0]
         meta['flying_unit_code'] = Utils.get_platform_from_s1_raster(image)
         meta['polarisation']     = Utils.get_polar_from_s1_raster(image)
-        meta['orbit_direction']  = Utils.get_orbit_direction(manifest)
-        meta['orbit']            = '{:0>3d}'.format(Utils.get_relative_orbit(manifest))
+        meta['orbit_direction']  = orbit_information['orbit_direction']
+        meta['orbit']            = '{:0>3d}'.format(orbit_information['relative_orbit'])
+        meta['absolute_orbit']   = '{:0>5d}'.format(orbit_information['absolute_orbit'])
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 
@@ -187,7 +190,8 @@ class ExtractSentinel1Metadata(StepFactory):
         imd = meta['image_metadata']
         imd['IMAGE_TYPE']            = 'GRD'
         imd['FLYING_UNIT_CODE']      = meta['flying_unit_code']
-        imd['ORBIT']                 = meta['orbit']
+        imd['RELATIVE_ORBIT_NUMBER'] = meta['orbit']
+        imd['ORBIT_NUMBER']          = meta['absolute_orbit']
         imd['ORBIT_DIRECTION']       = meta['orbit_direction']
         imd['POLARIZATION']          = meta['polarisation']
         imd['INPUT_S1_IMAGES']       = manifest_to_product_name(meta['manifest'])
@@ -599,7 +603,15 @@ class _OrthoRectifierFactory(OTBStepFactory):
         imd['ORTHORECTIFIED']             = 'true'
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
         # S1 -> S2 => remove all SAR specific metadata inserted by OTB
-        for kw in ( 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel', 'GreenDisplayChannel', 'BlueDisplayChannel'):
+        meta_to_remove_in_s2 = (
+                'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
+                'GreenDisplayChannel', 'BlueDisplayChannel', 'AbsoluteCalibrationConstant',
+                'AcquisitionStartTime', 'AcquisitionStopTime', 'AcquisitionDate',
+                'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument', 'LineSpacing',
+                'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
+                'Swath',
+        )
+        for kw in meta_to_remove_in_s2:
             imd[kw] = ''
 
     @abstractmethod

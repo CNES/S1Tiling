@@ -70,14 +70,16 @@ Orthorectified S2 tiles
         - (when applies) name of the LIA file used for Normlim calibration
       * - ``NOISE_REMOVED``
         - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
-      * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_NUMER``
+        - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbitDirection}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
         - :samp:`{{polarisation}}`
+      * - ``RELATIVE_ORBIT_NUMER``
+        - :samp:`{{relativeOrbitNumber}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -396,10 +398,6 @@ DEM data projected on S2 tile
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
-      * - ``LineSpacing``
-        - same information
-      * - ``PixelSpacing``
-        - same information
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
       * - ``TIFFTAG_IMAGEDESCRIPTION``

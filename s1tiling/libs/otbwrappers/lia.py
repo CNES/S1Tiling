@@ -192,8 +192,6 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
-        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
         imd['DEM_RESAMPLING_METHOD']      = self.__resampling_method
         # TODO: shall we set "ORTHORECTIFIED = True" ??
         # TODO: DEM_LIST
@@ -278,8 +276,6 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
-        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
