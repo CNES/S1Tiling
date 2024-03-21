@@ -31,7 +31,7 @@
 
 import logging
 import re
-from typing import Callable, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from shapely.geometry.base import np
 
@@ -86,6 +86,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 30704,
                 },
             {
                 'start_time'      : '2020:01:08 04:42:15',
@@ -102,6 +103,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 30704,
             },
             # 20 jan 2020
             {
@@ -119,6 +121,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 30879,
             },
             {
                 'start_time'      : '2020:01:20 04:42:14',
@@ -135,6 +138,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 30879,
             },
             # 02 feb 2020
             {
@@ -152,6 +156,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 31054,
             },
             {
                 'start_time'      : '2020:02:01 04:42:14',
@@ -166,6 +171,7 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 31054,
             },
             ]
     CONCATS = [
@@ -339,10 +345,10 @@ class FileDB:
         return [self.input_file(idx, polarity=pol) for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
 
     def start_time(self, idx) -> str:
-        return self.FILES[idx]['start_time']
+        return self.FILES[idx]['start_time'].replace(' ', 'T')+'Z'
 
     def start_time_for_two(self, idx) -> str:
-        return self.CONCATS[idx]['start_time']
+        return self.CONCATS[idx]['start_time'].replace(' ', 'T')+'Z'
 
     def orbit_time_range(self, id)-> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
         idx = id if isinstance(id, int) else self._find_annotation(id)
@@ -439,8 +445,17 @@ class FileDB:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        dir = self.FILES[idx]['relative_orbit']
-        return dir
+        rel = self.FILES[idx]['relative_orbit']
+        return rel
+
+    def get_orbit_information(self, id) -> Dict:
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        return {
+                'absolute_orbit' : self.FILES[idx]['absolute_orbit'],
+                'relative_orbit' : self.FILES[idx]['relative_orbit'],
+                'orbit_direction': self.FILES[idx]['orbit_direction'],
+        }
 
     def cal_ok(self, idx, tmp, polarity='vv') -> str:
         crt = self.FILES[idx]

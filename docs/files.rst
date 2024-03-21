@@ -70,7 +70,7 @@ Orthorectified S2 tiles
         - (when applies) name of the LIA file used for Normlim calibration
       * - ``NOISE_REMOVED``
         - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
-      * - ``ORBIT_NUMER``
+      * - ``ORBIT_NUMBER``
         - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
         - :samp:`{{orbitDirection}}`
@@ -78,7 +78,7 @@ Orthorectified S2 tiles
         - :samp:`true`
       * - ``POLARIZATION``
         - :samp:`{{polarisation}}`
-      * - ``RELATIVE_ORBIT_NUMER``
+      * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{relativeOrbitNumber}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`

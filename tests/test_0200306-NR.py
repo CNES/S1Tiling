@@ -139,9 +139,9 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
                     ("Comparison of %s against %s failed" % (produced, expected))
             # expected_md = comparable_metadata(expected)
             expected_md = {
-                    'ACQUISITION_DATETIME'       : '2020:01:08 04:41:50',
-                    'ACQUISITION_DATETIME_1'     : '2020:01:08 04:41:50',
-                    'ACQUISITION_DATETIME_2'     : '2020:01:08 04:42:15',
+                    'ACQUISITION_DATETIME'       : '2020:01:08T04:41:50Z',
+                    'ACQUISITION_DATETIME_1'     : '2020:01:08T04:41:50Z',
+                    'ACQUISITION_DATETIME_2'     : '2020:01:08T04:42:15Z',
                     'AREA_OR_POINT'              : 'Area',
                     'CALIBRATION'                : 'sigma',
                     'FLYING_UNIT_CODE'           : 's1a',
@@ -218,11 +218,10 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
                 ("Comparison of %s against %s failed" % (produced, expected))
         # expected_md = comparable_metadata(expected)
         expected_md = {
-                # 'ACQUISITION_DATETIME'       : '2020:01:08 00:00:00',
-                'ACQUISITION_DATETIME'       : '2020:01:08 04:41:50',  # Start point has it
+                'ACQUISITION_DATETIME'       : '2020:01:08T04:41:50Z',  # Start point has it
                 # For now, the start points don't have this...
-                # 'ACQUISITION_DATETIME_1'     : '2020:01:08 04:41:50',
-                # 'ACQUISITION_DATETIME_2'     : '2020:01:08 04:42:15',
+                # 'ACQUISITION_DATETIME_1'     : '2020:01:08T04:41:50Z',
+                # 'ACQUISITION_DATETIME_2'     : '2020:01:08T04:42:15Z',
                 'AREA_OR_POINT'              : 'Area',
                 'CALIBRATION'                : 'sigma',
                 'FLYING_UNIT_CODE'           : 's1a',
@@ -300,6 +299,7 @@ def _declare_know_files(
     mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_information',  lambda manifest : file_db.get_orbit_information(manifest))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
@@ -346,6 +346,7 @@ def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
 def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db, calibration, N, old_IPF=False):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(N):
+        orbit_info = file_db.get_orbit_information(i)
         input_file = file_db.input_file_vv(i)
         # expected_ortho_file = file_db.orthofile(i, False)
 
@@ -367,22 +368,39 @@ def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db,
             'out'        : out_calib,
             }, None,
             {
-                'ACQUISITION_DATETIME' : file_db.start_time(i),
-                'CALIBRATION'          : raw_calibration,
-                'FLYING_UNIT_CODE'     : 's1a',
-                'IMAGE_TYPE'           : 'GRD',
-                'INPUT_S1_IMAGES'      : file_db.product_name(i),
-                'NOISE_REMOVED'        : 'False',
-                'ORBIT'                : '007',
-                'ORBIT_DIRECTION'      : 'DES',
-                'POLARIZATION'         : 'vv',
-                'RedDisplayChannel'    : '',
-                'GreenDisplayChannel'  : '',
-                'BlueDisplayChannel'   : '',
-                'PRF'                  : '',
-                'RadarFrequency'       : '',
-                'SAR'                  : '',
-                'SARCalib*'            : '',
+                'ACQUISITION_DATETIME'        : file_db.start_time(i),
+                'CALIBRATION'                 : raw_calibration,
+                'FLYING_UNIT_CODE'            : 's1a',
+                'IMAGE_TYPE'                  : 'GRD',
+                'INPUT_S1_IMAGES'             : file_db.product_name(i),
+                'NOISE_REMOVED'               : 'False',
+                'RELATIVE_ORBIT_NUMBER'       : '{:0>3d}'.format(orbit_info['relative_orbit']),
+                'ORBIT_NUMBER'                : '{:0>6d}'.format(orbit_info['absolute_orbit']),
+                'ORBIT_DIRECTION'             : 'DES',
+                'POLARIZATION'                : 'vv',
+                'AbsoluteCalibrationConstant' : '',
+                'AcquisitionDate'             : '',
+                'AcquisitionStartTime'        : '',
+                'AcquisitionStopTime'         : '',
+                'AverageSceneHeight'          : '',
+                'BeamMode'                    : '',
+                'BeamSwath'                   : '',
+                'BlueDisplayChannel'          : '',
+                'GreenDisplayChannel'         : '',
+                'Instrument'                  : '',
+                'LineSpacing'                 : '',
+                'Mission'                     : '',
+                'Mode'                        : '',
+                'OrbitDirection'              : '',
+                'OrbitNumber'                 : '',
+                'PRF'                         : '',
+                'PixelSpacing'                : '',
+                'RadarFrequency'              : '',
+                'RedDisplayChannel'           : '',
+                'SAR'                         : '',
+                'SARCalib*'                   : '',
+                'SensorID'                    : '',
+                'Swath'                       : '',
                 })
 
         if True:     #  workaround defect on skipping cutmargin       #old_IPF:
@@ -420,13 +438,29 @@ def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db,
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
-                'RedDisplayChannel'         : '',
-                'GreenDisplayChannel'       : '',
-                'BlueDisplayChannel'        : '',
-                'PRF'                       : '',
-                'RadarFrequency'            : '',
-                'SAR'                       : '',
-                'SARCalib*'                 : '',
+                'AbsoluteCalibrationConstant' : '',
+                'AcquisitionDate'             : '',
+                'AcquisitionStartTime'        : '',
+                'AcquisitionStopTime'         : '',
+                'AverageSceneHeight'          : '',
+                'BeamMode'                    : '',
+                'BeamSwath'                   : '',
+                'BlueDisplayChannel'          : '',
+                'GreenDisplayChannel'         : '',
+                'Instrument'                  : '',
+                'LineSpacing'                 : '',
+                'Mission'                     : '',
+                'Mode'                        : '',
+                'OrbitDirection'              : '',
+                'OrbitNumber'                 : '',
+                'PRF'                         : '',
+                'PixelSpacing'                : '',
+                'RadarFrequency'              : '',
+                'RedDisplayChannel'           : '',
+                'SAR'                         : '',
+                'SARCalib*'                   : '',
+                'SensorID'                    : '',
+                'Swath'                       : '',
                 })
 
     if N == 1:
@@ -503,6 +537,7 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
 def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
     demdir = file_db.demdir
     for idx in range(2):
+        orbit_info        = file_db.get_orbit_information(idx)
         cov               = file_db.dem_coverage(idx)
         exp_dem_names     = sorted(cov)
         exp_out_vrt       = file_db.vrtfile(idx, False)
@@ -525,9 +560,10 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'FLYING_UNIT_CODE'         : 's1a',
                 'IMAGE_TYPE'               : 'GRD',
                 'INPUT_S1_IMAGES'          : file_db.product_name(idx),
-                'ORBIT'                    : '007',
                 'ORBIT_DIRECTION'          : 'DES',
+                'ORBIT_NUMBER'             : '{:0>6d}'.format(orbit_info['absolute_orbit']),
                 'POLARIZATION'             : '',  # <=> removing the key
+                'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(orbit_info['relative_orbit']),
                 'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
             })
 
@@ -597,13 +633,29 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified LIA Sentinel-1A IW GRD',
-                'RedDisplayChannel'         : '',
-                'GreenDisplayChannel'       : '',
-                'BlueDisplayChannel'        : '',
-                'PRF'                       : '',
-                'RadarFrequency'            : '',
-                'SAR'                       : '',
-                'SARCalib*'                 : '',
+                'AbsoluteCalibrationConstant' : '',
+                'AcquisitionDate'             : '',
+                'AcquisitionStartTime'        : '',
+                'AcquisitionStopTime'         : '',
+                'AverageSceneHeight'          : '',
+                'BeamMode'                    : '',
+                'BeamSwath'                   : '',
+                'BlueDisplayChannel'          : '',
+                'GreenDisplayChannel'         : '',
+                'Instrument'                  : '',
+                'LineSpacing'                 : '',
+                'Mission'                     : '',
+                'Mode'                        : '',
+                'OrbitDirection'              : '',
+                'OrbitNumber'                 : '',
+                'PRF'                         : '',
+                'PixelSpacing'                : '',
+                'RadarFrequency'              : '',
+                'RedDisplayChannel'           : '',
+                'SAR'                         : '',
+                'SARCalib*'                   : '',
+                'SensorID'                    : '',
+                'Swath'                       : '',
             })
 
         application_mocker.set_expectations('OrthoRectification', {
@@ -630,13 +682,29 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
-                'RedDisplayChannel'         : '',
-                'GreenDisplayChannel'       : '',
-                'BlueDisplayChannel'        : '',
-                'PRF'                       : '',
-                'RadarFrequency'            : '',
-                'SAR'                       : '',
-                'SARCalib*'                 : '',
+                'AbsoluteCalibrationConstant' : '',
+                'AcquisitionDate'             : '',
+                'AcquisitionStartTime'        : '',
+                'AcquisitionStopTime'         : '',
+                'AverageSceneHeight'          : '',
+                'BeamMode'                    : '',
+                'BeamSwath'                   : '',
+                'BlueDisplayChannel'          : '',
+                'GreenDisplayChannel'         : '',
+                'Instrument'                  : '',
+                'LineSpacing'                 : '',
+                'Mission'                     : '',
+                'Mode'                        : '',
+                'OrbitDirection'              : '',
+                'OrbitNumber'                 : '',
+                'PRF'                         : '',
+                'PixelSpacing'                : '',
+                'RadarFrequency'              : '',
+                'RedDisplayChannel'           : '',
+                'SAR'                         : '',
+                'SARCalib*'                   : '',
+                'SensorID'                    : '',
+                'Swath'                       : '',
             })
 
     # endfor on 2 consecutive images
@@ -706,8 +774,6 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
             ], None, {
                 'S2_TILE_CORRESPONDING_CODE' : '33NWB',
                 'SPATIAL_RESOLUTION'         : f"{spacing}",
-                'LineSpacing'                : f"{spacing}",
-                'PixelSpacing'               : f"{spacing}",
                 'DEM_RESAMPLING_METHOD'      : 'cubic',
                 'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
             }
@@ -726,8 +792,6 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         # 'DEM_LIST'                   : ', '.join(exp_dem_names),
         'S2_TILE_CORRESPONDING_CODE' : '33NWB',
         'SPATIAL_RESOLUTION'         : f"{spacing}",
-        'LineSpacing'                : f"{spacing}",
-        'PixelSpacing'               : f"{spacing}",
         'TIFFTAG_IMAGEDESCRIPTION'   : 'Geoid superimposed on S2 tile',
     })
 
