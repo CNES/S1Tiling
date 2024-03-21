@@ -60,7 +60,7 @@ class CorruptedDataSAFEError(Error):
     """
     An empty data safe has been found and needs to be removed so it can be fetched again.
     """
-    def __init__(self, product: str, details: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, product: str, details: Optional[str], *args, **kwargs) -> None:
         """
         Constructor
         """

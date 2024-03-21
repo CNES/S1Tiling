@@ -174,8 +174,8 @@ class ExtractSentinel1Metadata(StepFactory):
         meta['flying_unit_code'] = Utils.get_platform_from_s1_raster(image)
         meta['polarisation']     = Utils.get_polar_from_s1_raster(image)
         meta['orbit_direction']  = orbit_information['orbit_direction']
-        meta['orbit']            = '{:0>3d}'.format(orbit_information['relative_orbit'])
-        meta['absolute_orbit']   = '{:0>6d}'.format(orbit_information['absolute_orbit'])
+        meta['orbit']            = f"{orbit_information['relative_orbit']:0>3d}"
+        meta['absolute_orbit']   = f"{orbit_information['absolute_orbit']:0>6d}"
         meta['acquisition_time'] = Utils.get_date_from_s1_raster(image)
         meta['acquisition_day']  = re.sub(r"(?<=t)\d+$", lambda m: "x" * len(m.group()), meta['acquisition_time'])
 

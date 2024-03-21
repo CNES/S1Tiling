@@ -467,12 +467,11 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                         out_filename(best_covered_input), best_covered_input['tile_name'], best_covered_input['tile_coverage']
                 )
                 return [inp]
-        else:
-            logger.warning(
-                    "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
-                    best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
-            )
-            return [best_covered_input]
+        logger.warning(
+                "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
+                best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
+        )
+        return [best_covered_input]
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -721,8 +720,9 @@ class _ComputeLIA(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(
-            self, cfg         : Configuration,
+    def __init__(  # pylint: disable=too-many-arguments
+            self,
+            cfg               : Configuration,
             fname_fmt_sin     : str,
             fname_fmt_lia     : str,
             gen_tmp_dir       : str,

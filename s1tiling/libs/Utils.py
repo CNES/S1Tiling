@@ -191,7 +191,7 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
     relative_orbit  = int(_find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
     orbit_direction = _find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
     k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
-    if orbit_direction not in k_direction_map.keys():
+    if orbit_direction not in k_direction_map:
         raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
     return {
             'absolute_orbit' : absolute_orbit,
