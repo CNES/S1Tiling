@@ -969,7 +969,11 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
-        # TODO: Remove insar beta file
+
+        # As of v1.1, when S2 product is marked required iff calibration_is_done_in_S1,
+        # IOW, it's not required in normlim case, and we can safely remove the calibrated β0 file.
+        in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
+        meta['files_to_remove'] = [in_concat_S2]
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
