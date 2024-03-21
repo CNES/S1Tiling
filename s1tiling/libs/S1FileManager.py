@@ -732,7 +732,7 @@ class S1FileManager:
         orbit_direction:                Optional[str],
         relative_orbit_list:            List[int],
         polarization:                   str,
-        dryrun: bool,
+        dryrun:                         bool,
     ) -> SearchResult:
         """
         Process with the call to eodag search.
@@ -1391,8 +1391,10 @@ class S1FileManager:
     def get_processed_filenames(self) -> List[str]:
         """ Read back the list of processed filenames (DEPRECATED)"""
         try:
-            with open(os.path.join(self.cfg.output_preprocess,
-                                   "processed_filenames.txt"), "r") as in_file:
+            with open(
+                    os.path.join(self.cfg.output_preprocess, "processed_filenames.txt"),
+                    "r",
+                    encoding="utf-8")as in_file:
                 return in_file.read().splitlines()
         except (IOError, OSError):
             return []

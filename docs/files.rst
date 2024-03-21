@@ -53,11 +53,11 @@ Orthorectified S2 tiles
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image
+        - time of the second S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
       * - ``FLYING_UNIT_CODE``
@@ -70,14 +70,16 @@ Orthorectified S2 tiles
         - (when applies) name of the LIA file used for Normlim calibration
       * - ``NOISE_REMOVED``
         - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
-      * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_NUMBER``
+        - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbitDirection}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
         - :samp:`{{polarisation}}`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{relativeOrbitNumber}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -212,11 +214,11 @@ Local Incidence Angle map files
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image
+        - time of the second S1 image (in UTC format since v1.1)
       * - ``DATA_TYPE``
         - :samp:`100 * degree(LIA)` / :samp:`SIN(LIA)`
       * - ``FLYING_UNIT_CODE``
@@ -292,7 +294,7 @@ Cut and calibrated S1 images ready for orthorectification
       * - Metadata
         - Value
       * - ``ACQUISITION_DATETIME``
-        - time of the input S1 image
+        - time of the input S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
       * - ``FLYING_UNIT_CODE``
@@ -396,10 +398,6 @@ DEM data projected on S2 tile
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
-      * - ``LineSpacing``
-        - same information
-      * - ``PixelSpacing``
-        - same information
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
       * - ``TIFFTAG_IMAGEDESCRIPTION``
@@ -466,7 +464,7 @@ Ground and sensor position in XYZ ECEF coordinates
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
@@ -528,7 +526,7 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
       * - ``FLYING_UNIT_CODE``

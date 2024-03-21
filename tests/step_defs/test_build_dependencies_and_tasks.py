@@ -566,6 +566,11 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     logging.debug("raster_list: %s" % (raster_list,))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction', return_value='DES')
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  return_value=7)
+    mocker.patch('s1tiling.libs.Utils.get_orbit_information',  lambda manifest : {
+        'orbit_direction': 'DES',
+        'relative_orbit' : 7,
+        'absolute_orbit' : 30704,
+    })
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     dependencies.extend(pipelines._build_dependencies(TILE, raster_list))

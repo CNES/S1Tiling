@@ -85,10 +85,10 @@ def _get_opt(getter: Callable, config_filename: Path, section: str, name: str, *
         return value
     except configparser.NoOptionError as e:
         # Convert the exception type
-        raise exceptions.ConfigurationError(str(e), config_filename)
+        raise exceptions.ConfigurationError(str(e), config_filename) from e
     except ValueError as e:
         # Convert the exception type, and give more context to the error.
-        raise exceptions.ConfigurationError(f"Cannot decode '{name}' option '{section}' section: {e}", config_filename)
+        raise exceptions.ConfigurationError(f"Cannot decode '{name}' option '{section}' section: {e}", config_filename) from e
 
 
 def get_opt(cfg, config_filename: Path, section: str, name: str, **kwargs) -> str:
@@ -196,11 +196,16 @@ class _ConfigAccessor:
         """ Tells whether the configuration has the requested section """
         return self.__config.has_section(section)
 
-    def throw(self, message: str) -> NoReturn:
+    def throw(self, message: str, e : Optional[BaseException] = None) -> NoReturn:
         """
         Raises a :class:`exceptions.ConfigurationError` filles with everything
+
+        :param e: Optional exception that is the direct cause of the exception raised.
         """
-        raise exceptions.ConfigurationError(message, self.config_file)
+        if e:
+            raise exceptions.ConfigurationError(message, self.config_file) from e
+        else:
+            raise exceptions.ConfigurationError(message, self.config_file)
 
     def get(self, section: str, name: str, **kwargs) -> str:
         """ Helper function to report errors while extracting string configuration options """
@@ -407,13 +412,18 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
-        try:
-            tiles_file = accessor.get('Processing', 'tiles_list_in_file')
-            with open(tiles_file, 'r', encoding='utf-8') as tiles_file_handle:
-                tile_list = tiles_file_handle.readlines()
-            self.tile_list: List[str] = [s.rstrip() for s in tile_list]
-            logging.info("The following tiles will be processed: %s", self.tile_list)
-        except Exception:  # pylint: disable=broad-except
+        # IF tiles_list_in_file is set, use the option, and throw if there is an error
+        # ELSE: if unset, then use "tiles" option
+        tiles_file = accessor.get('Processing', 'tiles_list_in_file', fallback=None)
+        if tiles_file:
+            try:
+                with open(tiles_file, 'r', encoding='utf-8') as tiles_file_handle:
+                    tile_list = tiles_file_handle.readlines()
+                self.tile_list: List[str] = [s.rstrip() for s in tile_list]
+                logging.info("The following tiles will be processed: %s", self.tile_list)
+            except BaseException as e:
+                accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
+        else:
             tiles = accessor.get('Processing', 'tiles')
             #: List of S2 tiles to process: See :ref:`[Processing.tiles] <Processing.tiles>`
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]

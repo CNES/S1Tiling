@@ -192,8 +192,6 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
-        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
         imd['DEM_RESAMPLING_METHOD']      = self.__resampling_method
         # TODO: shall we set "ORTHORECTIFIED = True" ??
         # TODO: DEM_LIST
@@ -278,8 +276,6 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['LineSpacing']                = str(self.__out_spatial_res)  # usually set by OrthoRectification
-        imd['PixelSpacing']               = str(self.__out_spatial_res)  # usually set by OrthoRectification
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -471,12 +467,11 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                         out_filename(best_covered_input), best_covered_input['tile_name'], best_covered_input['tile_coverage']
                 )
                 return [inp]
-        else:
-            logger.warning(
-                    "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
-                    best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
-            )
-            return [best_covered_input]
+        logger.warning(
+                "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
+                best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
+        )
+        return [best_covered_input]
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -725,8 +720,9 @@ class _ComputeLIA(OTBStepFactory):
     - input filename
     - output filename
     """
-    def __init__(
-            self, cfg         : Configuration,
+    def __init__(  # pylint: disable=too-many-arguments
+            self,
+            cfg               : Configuration,
             fname_fmt_sin     : str,
             fname_fmt_lia     : str,
             gen_tmp_dir       : str,
@@ -975,7 +971,11 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
-        # TODO: Remove insar beta file
+
+        # As of v1.1, when S2 product is marked required iff calibration_is_done_in_S1,
+        # IOW, it's not required in normlim case, and we can safely remove the calibrated β0 file.
+        in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
+        meta['files_to_remove'] = [in_concat_S2]
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
