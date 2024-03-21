@@ -394,6 +394,23 @@ def given_a_fname_fmt_filtered_has_a_different_value(configuration) -> None:
     configuration.fname_fmt['filtered'] = fname_fmt
 
 
+@given('All filtered S2 files are known in the default dname_fmt')
+def given_all_filteredS2_files_are_known_default_dname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+
+@given('All filtered S2 files are known in a different dname_fmt')
+def given_all_filteredS2_files_are_known_different_dname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], outdir=f'{file_db.outputdir}/33NWB/filters')
+
+@given("dname_fmt.filtered has the default value")
+def given_a_dname_fmt_filtered_has_the_default_value() -> None:
+    pass
+
+@given("dname_fmt.filtered has a different value")
+def given_a_dname_fmt_filtered_has_a_different_value(configuration) -> None:
+    dname_fmt = '{out_dir}/{tile_name}/filters'
+    configuration.dname_fmt['filtered'] = dname_fmt
+
 # ======================================================================
 # When steps
 
@@ -410,15 +427,15 @@ def _search(configuration, image_list, polarisation) -> None:
             image_list.append(im)
 
 @when('VV-VH files are searched')
-def when_searching_VV_VH(configuration, image_list, mocker) -> None:
+def when_searching_VV_VH(configuration, image_list) -> None:
     _search(configuration, image_list, 'VV VH')
 
 @when('VV files are searched')
-def when_searching_VV(configuration, image_list, mocker) -> None:
+def when_searching_VV(configuration, image_list) -> None:
     _search(configuration, image_list, 'VV')
 
 @when('VH files are searched')
-def when_searching_VH(configuration, image_list, mocker) -> None:
+def when_searching_VH(configuration, image_list) -> None:
     _search(configuration, image_list, 'VH')
 
 # ----------------------------------------------------------------------
