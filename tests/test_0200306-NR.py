@@ -230,6 +230,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
                 # 'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 # For now, the start points don't have this...
                 # 'NOISE_REMOVED'              : 'False',
+                'ORBIT_DIRECTION'            : 'DES',
                 'ORBIT_NUMBER'               : '030704',
                 'ORTHORECTIFIED'             : 'true',
                 'POLARIZATION'               : polar,
