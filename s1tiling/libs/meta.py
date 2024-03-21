@@ -37,6 +37,14 @@ from typing import Dict
 Meta          = Dict
 
 
+def append_to(meta: Meta, key: str, value) -> Dict:
+    """
+    Helper function to append to a list that may be empty
+    """
+    meta[key] = meta.get(key, []) + [value]
+    return meta
+
+
 def in_filename(meta: Meta) -> str:
     """
     Helper accessor to access the input filename of a `Step`.
@@ -95,11 +103,11 @@ def product_exists(meta: Meta) -> bool:
         return os.path.isfile(out_filename(meta))
 
 
-def is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
+def accept_as_compatible_input(output_meta: Meta, input_meta: Meta) -> bool:
     """
-    Tells whether ``input_meta`` is a valid input for ``output_meta``
+    Tells whether ``input_meta`` is a valid and compatible input for ``output_meta``
 
-    Uses the optional meta information ``is_compatible`` from ``output_meta``
+    Uses the optional meta information ``accept_as_compatible_input`` from ``output_meta``
     to tell whether they are compatible.
 
     This will be uses for situations where an input file will be used as input
@@ -107,21 +115,21 @@ def is_compatible(output_meta: Meta, input_meta: Meta) -> bool:
     outputs on a S2 tile will rely on the same map of sin(LIA). As such,
     the usual __input -> expected output__ approach cannot work.
     """
-    if 'is_compatible' in output_meta:
-        return output_meta['is_compatible'](input_meta)
+    if 'accept_as_compatible_input' in output_meta:
+        return output_meta['accept_as_compatible_input'](input_meta)
     else:
         return False
 
 
-def is_running_dry(meta: Meta) -> bool:
+def is_running_dry(execution_parameters: Dict) -> bool:
     """
-    Helper function to test whether metadata has ``dryrun`` property set to True.
+    Helper function to test whether execution parameters have ``dryrun`` property set to True.
     """
-    return meta.get('dryrun', False)
+    return execution_parameters.get('dryrun', False)
 
 
-def is_debugging_caches(meta: Meta) -> bool:
+def is_debugging_caches(execution_parameters: Dict) -> bool:
     """
-    Helper function to test whether metadata has ``debug_caches`` property set to True.
+    Helper function to test whether execution parameters have ``debug_caches`` property set to True.
     """
-    return meta.get('debug_caches', False)
+    return execution_parameters.get('debug_caches', False)

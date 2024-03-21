@@ -46,6 +46,7 @@ import shutil
 import tempfile
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from osgeo import ogr
 from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
@@ -62,8 +63,9 @@ import numpy as np
 
 from s1tiling.libs      import exceptions
 from .Utils             import (
-    get_shape, list_dirs, Layer, extract_product_start_time, get_orbit_direction, get_relative_orbit, find_dem_intersecting_poly,
-        get_platform_from_s1_raster
+    Layer,
+    extract_product_start_time, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name,
+    get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
@@ -102,7 +104,7 @@ def product_property(prod: EOProduct, key: str, default=None):
     return res
 
 
-def product_cover(product: EOProduct, geometry: Dict[str, int]) -> float:
+def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
     """
     Compute the coverage of the intersection of the product and the target geometry
     relativelly to the target geometry.
@@ -285,7 +287,7 @@ def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-l
 def _keep_products_with_enough_coverage(
     content_info: List[Dict],
     target_cover: float,
-    current_tile
+    current_tile: ogr.Feature,
 ) -> List[Dict]:
     """
     Helper function that filters the products (/pairs of products) that provide
@@ -456,8 +458,8 @@ def _download_and_extract_one_product(
         # => let's do a quick sanity check
         manifest = os.path.join(raw_directory, prod_id, prod_id+'.SAFE', 'manifest.safe')
         if not os.path.exists(manifest):
-            logger.error('Actually download of %s failed, the expected manifest could not be found (%s)', prod_id, manifest)
-            e = exceptions.CorruptedDataSAFEError(manifest)
+            logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
+            e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
             path = DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
@@ -692,9 +694,9 @@ class S1FileManager:
             logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
             for _, dem_tile_info in dem_tile_infos.items():
-                dem_file         = dem_filename_format.format_map(dem_tile_info)
-                dem_tile_filepath=Path(self.cfg.dem, dem_file)
-                dem_tile_filelink=Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
+                dem_file          = dem_filename_format.format_map(dem_tile_info)
+                dem_tile_filepath = Path(self.cfg.dem, dem_file)
+                dem_tile_filelink = Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
                 dem_tile_filelink.parent.mkdir(parents=True, exist_ok=True)
                 if self.__caching_option == 'symlink':
                     logger.debug('- ln -s %s <-- %s', dem_tile_filepath, dem_tile_filelink)
@@ -730,7 +732,7 @@ class S1FileManager:
         orbit_direction:                str,
         relative_orbit_list:            List[int],
         polarization:                   str,
-        dryrun: bool,
+        dryrun:                         bool,
     ) -> SearchResult:
         """
         Process with the call to eodag search.
@@ -820,7 +822,7 @@ class S1FileManager:
     def _filter_products(  # pylint: disable=too-many-arguments
         self,
         products:     List[EOProduct],
-        extent:       Dict[str, int],
+        extent:       Dict[str, float],
         tile_out_dir: str,
         tile_name:    str,
         polarization: str,
@@ -1231,7 +1233,8 @@ class S1FileManager:
             if l_vv + l_vh + l_hv + l_hh == 0:
                 # There is not a single file that would have been compatible
                 # with what is expected
-                raise exceptions.CorruptedDataSAFEError(manifest)
+                logger.warning("Product associated to %s is corrupted: no VV, VH, HV or HH file found", manifest)
+                raise exceptions.CorruptedDataSAFEError(current_content.name, f"no image files in {safe_dir!r} found")
 
             self.raw_raster_list.append(acquisition)
 
@@ -1349,24 +1352,6 @@ class S1FileManager:
 
         return intersect_raster
 
-    def _get_mgrs_tile_geometry_by_name(self, mgrs_tile_name: str):
-        """
-        This method returns the MGRS tile geometry
-        as OGRGeometry given its identifier
-
-        Args:
-          mgrs_tile_name: MGRS tile identifier
-
-        Returns:
-          The MGRS tile geometry as OGRGeometry or raise ValueError
-        """
-        mgrs_layer = Layer(self.cfg.output_grid)
-
-        for mgrs_tile in mgrs_layer:
-            if mgrs_tile.GetField('NAME') == mgrs_tile_name:
-                return mgrs_tile.GetGeometryRef().Clone()
-        raise ValueError("MGRS tile does not exist", mgrs_tile_name)
-
     def check_dem_coverage(self, tiles_to_process: List[str]) -> Dict[str, Dict]:
         """
         Given a set of MGRS tiles to process, this method
@@ -1379,13 +1364,14 @@ class S1FileManager:
           A list of tuples (DEM tile id, coverage of MGRS tiles).
           Coverage range is [0,1]
         """
-        dem_layer = Layer(self.cfg.dem_db_filepath)
+        dem_layer  = Layer(self.cfg.dem_db_filepath)
+        mgrs_layer = Layer(self.cfg.output_grid)
 
         needed_dem_tiles = {}
 
         for tile in tiles_to_process:
             logger.debug("Check DEM tiles for %s", tile)
-            mgrs_footprint = self._get_mgrs_tile_geometry_by_name(tile)
+            mgrs_footprint = get_mgrs_tile_geometry_by_name(tile, mgrs_layer)
             logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
             dem_tiles = find_dem_intersecting_poly(
                     mgrs_footprint, dem_layer, self.cfg.dem_field_ids, self.cfg.dem_main_field_id)
@@ -1397,8 +1383,10 @@ class S1FileManager:
     def get_processed_filenames(self) -> List[str]:
         """ Read back the list of processed filenames (DEPRECATED)"""
         try:
-            with open(os.path.join(self.cfg.output_preprocess,
-                                   "processed_filenames.txt"), "r") as in_file:
+            with open(
+                    os.path.join(self.cfg.output_preprocess, "processed_filenames.txt"),
+                    "r",
+                    encoding="utf-8")as in_file:
                 return in_file.read().splitlines()
         except (IOError, OSError):
             return []

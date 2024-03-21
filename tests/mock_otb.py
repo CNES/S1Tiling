@@ -29,17 +29,19 @@
 #
 # =========================================================================
 
+from __future__ import annotations
+
 import fnmatch
 import logging
 import os
 import re
-from typing import List, Literal
+from typing import Callable, Dict, List, Literal, Union
 from s1tiling.libs.Utils import get_shape_from_polygon
 from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
-k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz']
+k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz', 'inr', 'inm']
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin']
 
 
@@ -137,23 +139,23 @@ def _as_cmdline_call(d) -> str:
     if isinstance(d, dict):
         return ' '.join(["-%s '%s'" %(k, v) for k,v in d.items()])
     else:
-        return ' '.join(str(i) for i in d)
+        return ' '.join(f"{i!r}" for i in d)
 
 
 class MockOTBApplication:
     """
     Mock-replacement for :class:`otbApplication.Application`
     """
-    def __init__(self, appname, mock_ctx) -> None:
+    def __init__(self, appname: str, mock_ctx: OTBApplicationsMockContext) -> None:
         """
         Constructor that answers to
         # app = otb.Registry.CreateApplication(self.appname)
         """
-        self.__appname      = appname
-        self.__params       = {}
-        self.__pixel_types  = {}
-        self.__metadata     = {}
-        self.__expectations = {}
+        self.__appname      : str = appname
+        self.__params       : Dict = {}
+        self.__pixel_types  : Dict = {}
+        # self.__metadata     : Dict = {}
+        # self.__expectations : Dict = {}
         self.__mock_ctx     = mock_ctx
 
     def __del__(self) -> None:
@@ -161,6 +163,12 @@ class MockOTBApplication:
         destructor
         """
         self.unregister()
+
+    def __str__(self) -> str:
+        return f"MockOTBApplication({self.__appname}) => params: {self.__params}"
+
+    def __repr__(self) -> str:
+        return f"MockOTBApplication({self.__appname}, {self.__mock_ctx})"
 
     def add_unknown_parameter(self, key, value) -> None:
         if key not in self.__params:
@@ -180,9 +188,19 @@ class MockOTBApplication:
         self.__pixel_types[param_out] = pixel_type
 
     def SetParameters(self, parameters) -> None:
+        logging.debug("Setting parameters: %s", parameters)
         self.__params.update(parameters)
 
+    def AddParameterStringList(self, key, lvalues) -> None:
+        if key not in self.__params:
+            self.__params[key] = []
+        elif not isinstance(self.__params, list):
+            self.__params[key] = [self.__params[key]]
+        assert isinstance(self.__params[key], list), f"params[{key}] is a {type(self.__params[key])} : {self.__params[key]}"
+        self.__params[key].append(lvalues)
+
     def SetParameterString(self, key, svalue) -> None:
+        assert isinstance(svalue, str)
         self.__params[key] = svalue
 
     @property
@@ -208,17 +226,23 @@ class MockOTBApplication:
         return [re.sub(r'\?.*$', '', filename) for filename in self.out_filenames]
 
     def execute_and_write_output(self, is_top_level) -> None:
+        assert self.__mock_ctx
         # Simulate app at the start of the pipeline first
         for k in k_input_keys:
-            if k in self.parameters and isinstance(self.parameters[k], MockOTBApplication):
-                logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
-                self.parameters[k].execute_and_write_output(False)
+            if k in self.parameters:
+                parameters = self.parameters[k] if isinstance(self.parameters[k], list) else [self.parameters[k]]
+                for param in parameters:
+                    if isinstance(param, MockOTBApplication):
+                        logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
+                        param.execute_and_write_output(False)
+
             # elif  k in self.parameters:
             #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.__appname, k, type(self.parameters[k]))
         logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.parameters))
         self.__mock_ctx.assert_app_is_expected(self.__appname, self.parameters, self.__pixel_types)
 
     def ExecuteAndWriteOutput(self) -> None:
+        assert self.__mock_ctx
         self.execute_and_write_output(True)
         # register output as a known file from now on
         for filename in self.out_filenames:
@@ -233,7 +257,7 @@ class CommandLine:
     - a dictionary of "-paramname value"
     - or a sequenced list of parameters
     """
-    def __init__(self, exename, parameters) -> None:
+    def __init__(self, exename: Union[Callable, str], parameters: Union[List, Dict]) -> None:
         """
         constructor
         """
@@ -263,7 +287,7 @@ class CommandLine:
         """
         return isinstance(self.__parameters, dict)
 
-    def assert_have_same_keys(self, actual_parameters) -> None:
+    def assert_have_same_keys(self, actual_parameters: Dict) -> None:
         assert isinstance(actual_parameters, dict) and self.is_dict()
         actual_keys   = actual_parameters.keys()
         expected_keys = self.__parameters.keys()
@@ -292,36 +316,39 @@ class OTBApplicationsMockContext:
         """
         constructor
         """
-        self.__applications           = []
-        self.__expectations           = []
-        self.__configuration          = cfg
-        self.__known_files            = dem_files[:]
-        self.__tmp_to_out_map         = tmp_to_out_map
-        self.__last_expected_metadata = {}
+        self.__applications           : List[MockOTBApplication] = []
+        self.__expectations           : List[Dict]               = []
+        self.__configuration                                     = cfg
+        self.__known_files                                       = dem_files[:]
+        self.__tmp_to_out_map                                    = tmp_to_out_map
+        self.__last_expected_metadata                            = {}
+        self.__mismatching_metadata                              = []
 
         self.__known_files.append(cfg.dem_db_filepath)
+        self.__known_files.append(cfg.output_grid)
         mocker.patch('s1tiling.libs.steps.otb.Registry.CreateApplication', lambda a : self.create_application(a))
-        mocker.patch('s1tiling.libs.steps.execute',                        lambda cmdlinelist, dryrun : self.execute_process(cmdlinelist, dryrun))
+        mocker.patch('s1tiling.libs.steps.ExecutableStep._do_execute',     lambda slf, params, dryrun : self.execute_process(slf, params, dryrun))
         mocker.patch('s1tiling.libs.steps.AnyProducerStep._do_execute',    lambda slf, params, dryrun : self.execute_function(slf._action, params, dryrun))
 
     @property
     def known_files(self):
         return self.__known_files
 
-    def tmp_to_out(self, tmp_filename) -> str:
+    def tmp_to_out(self, tmp_filename: str) -> str:
         # Remove queued applications
         parts = tmp_filename.split('|>')
         res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
         return res
 
-    def execute_process(self, cmdlinelist, dryrun) -> None:
+    def execute_process(self, step, params: List, dryrun) -> None:
+        cmdlinelist = [step._exename] + params
         msg = ' '.join([str(p) for p in cmdlinelist])
         logging.info('Mocking execution of: %s', msg)
         self.assert_execution_is_expected(cmdlinelist)
         # It's quite complex to deduce the name of the "out" product for all situation.
         # As so far there is only one executable: gdalbuildvrt and as the output is the
         # first parameter, let's rely on this!
-        file_produced = self.tmp_to_out(cmdlinelist[1])
+        file_produced = self.tmp_to_out(step.out_filename)
         logging.debug('Register new known file %s -> %s', cmdlinelist[1], file_produced)
         self.known_files.append(file_produced)
 
@@ -336,7 +363,7 @@ class OTBApplicationsMockContext:
         logging.debug('Register new known file %s -> %s', params[0], file_produced)
         self.known_files.append(file_produced)
 
-    def create_application(self, appname) -> MockOTBApplication:
+    def create_application(self, appname: str) -> MockOTBApplication:
         logging.info('Creating mocked application: %s', appname)
         app = MockOTBApplication(appname, self)
         self.__applications.append(app)
@@ -345,7 +372,7 @@ class OTBApplicationsMockContext:
     def clear(self) -> None:
         self.__applications = []
 
-    def set_expectations(self, appname, cmdline, pixel_types, metadata) -> None:
+    def set_expectations(self, appname: Union[Callable, str], cmdline: Union[List,Dict], pixel_types, metadata) -> None:
         expectation = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
         logging.debug("Register expectation: %s", expectation)
         if pixel_types:
@@ -371,9 +398,10 @@ class OTBApplicationsMockContext:
                     params[kv] =  params[kv].appname + '|>' + self._update_output_to_final_filename(params[kv].parameters)
                 return params[kv]
 
-    def _update_input_to_root_filename(self, params):
+    def _update_input_to_root_filename(self, params: Union[Dict, List]) -> Union[List[str], str]:
         assert isinstance(params, dict) # of parameters
         in_param_keys = [kv for kv in k_input_keys if kv in params]
+        assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
         for kv in in_param_keys:
             if isinstance(params[kv], MockOTBApplication):
                 updated = self._update_input_to_root_filename(params[kv].parameters)
@@ -386,24 +414,35 @@ class OTBApplicationsMockContext:
                 ps = []
                 for p in params[kv]:
                     if isinstance(p, MockOTBApplication):
-                        p = self._update_input_to_root_filename(p.parameters) + '|>'+params[kv].appname
+                        p = self._update_input_to_root_filename(p.parameters) + '|>'+p.appname
                     ps.append(p)
                     assert isinstance(p, str)
                 params[kv] = ps
                 assert isinstance(params[kv], list) # of str...
             return params[kv]
+        return []
 
-    def assert_these_metadata_are_expected(self, filename, new_metadata) -> None:
+    def assert_these_metadata_are_expected(self, new_metadata: Dict, name: str, filename: str) -> None:
         # Clean some useless/instable metadata
         new_metadata.pop('TIFFTAG_SOFTWARE', None)
         new_metadata.pop('TIFFTAG_DATETIME', None)
-        # assert new_metadata == self.__last_expected_metadata
+        if new_metadata != self.__last_expected_metadata:
+            self.__mismatching_metadata.append({
+                "expected": self.__last_expected_metadata,
+                "actual": new_metadata,
+                "context": f"\nMismatching metadata for {name}",
+            })
+        self.__last_expected_metadata = {}  # Make sure to clear before existing
+
+    def assert_all_metadata_match(self) -> None:
         tc = TestCase()
         tc.maxDiff = None
-        last_expected_metadata = self.__last_expected_metadata
-        self.__last_expected_metadata = {} # Make sure to clear before the assert
-        tc.assertDictEqual(new_metadata , last_expected_metadata)
-        pass
+        for metadata_mismatch in self.__mismatching_metadata:
+            tc.assertDictEqual(
+                    metadata_mismatch["actual"],
+                    metadata_mismatch["expected"],
+                    metadata_mismatch.get("context", ""),
+            )
 
     def assert_app_is_expected(self, appname, params, pixel_types) -> None:
         # Find out what the root input filename is (as we may not have any
@@ -432,9 +471,9 @@ class OTBApplicationsMockContext:
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
         logging.error('NO expectation FOUND for %s %s', appname, _as_cmdline_call(params))
-        assert False, f"Cannot find any matching expectation for\n-> {appname} {_as_cmdline_call(params)}\namong {self._remaining_expectations_as_str(appname)}"
+        assert False, f"Cannot find any matching expectation for\n-> {appname}: {_as_cmdline_call(params)}\namong {self._remaining_expectations_as_str(appname)}"
 
-    def assert_execution_is_expected(self, cmdlinelist) -> None:
+    def assert_execution_is_expected(self, cmdlinelist: List) -> None:
         # self._update_input_to_root_filename(cmdlinelist)
         # self._update_output_to_final_filename(cmdlinelist)
         assert len(cmdlinelist) > 0
@@ -453,7 +492,7 @@ class OTBApplicationsMockContext:
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
         logging.error('Expectation NOT FOUND')
-        assert False, f"Cannot find any matching expectation for\n-> {appname} {_as_cmdline_call(cmdlinelist[1:])}\namong {self._remaining_expectations_as_str(appname)}"
+        assert False, f"Cannot find any matching expectation for\n-> {appname}: {_as_cmdline_call(cmdlinelist[1:])}\namong {self._remaining_expectations_as_str(appname)}"
 
     def assert_all_have_been_executed(self) -> None:
         assert len(self.__expectations) == 0, f"The following applications haven't executed: {self._remaining_expectations_as_str()}"

@@ -487,8 +487,8 @@ You can use this :download:`this template
   * - ``lower_signal_value``
     - Noise removal may set some pixel values to 0.
       However, 0, is currently reserved by S1Tiling chain as a "nodata" value
-      introduced by :ref:`Margin Cutting<cutting>` and :ref:`Orthorectification
-      <orthorectification>`.
+      introduced by :ref:`Margin Cutting<cutting-proc>` and
+      :ref:`Orthorectification <orthorectification-proc>`.
 
       This parameter defines which value to use instead of 0 when :ref:`noise is
       removed <Processing.remove_thermal_noise>`.  By default: 1e-7 will be
@@ -596,10 +596,21 @@ You can use this :download:`this template
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
+      .. _Processing.dem_warp_resampling_method:
+  * - ``dem_warp_resampling_method``
+    - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
+      <lia-files>`.
+      This parameters permits to select the resampling method that
+      :external:std:doc:`gdalwarp <programs/gdalwarp>` will use.
+
+      The possible values are: ``near``, ``bilinear``, ``cubic``,
+      ``cubicspline``, ``lanczos``, ``average``, ``rms``, ``mode``, ``max``,
+      ``min``, ``med``, ``q1``, ``q3`` and ``qum``.
+
       .. _Processing.override_azimuth_cut_threshold_to:
   * - ``override_azimuth_cut_threshold_to``
     - Permits to override the analysis on whether top/bottom lines shall be
-      forced to 0 in :ref:`cutting step <cutting>`. |br|
+      forced to 0 in :ref:`cutting step <cutting-proc>`. |br|
 
       Possible values are:
 

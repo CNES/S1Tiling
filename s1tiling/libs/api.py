@@ -34,6 +34,7 @@ Submodule that defines all API related functions and classes.
 """
 
 import logging
+import logging.config
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
@@ -52,12 +53,19 @@ from . import Utils
 from .configuration import Configuration
 from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence, StepFactory, AbstractStep
 from .otbwrappers import (
+        # Main S1 -> S2 Step Factories
         ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
-        CutBorders, OrthoRectify, Concatenate, BuildBorderMask,
-        SmoothBorderMask, AgglomerateDEM, SARDEMProjection,
-        SARCartesianMeanEstimation, ComputeNormals, ComputeLIA, filter_LIA,
-        OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage,
-        ApplyLIACalibration, SpatialDespeckle)
+        CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
+        # LIA relate Step Factories
+        AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
+        SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        ComputeLIAOnS2, filter_LIA, ComputeNormalsOnS2,
+        ApplyLIACalibration,
+        # Deprecated LIA related Step Factories
+        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
+        ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
+        # Filter Step Factories
+        SpatialDespeckle)
 from .outcome import Outcome
 
 
@@ -95,19 +103,18 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
     # and and download all tiles
 
     if all_requested:
-        if cfg.download and "ALL" in cfg.roi_by_tiles:
-            raise exceptions.ConfigurationError("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
-                    + " Change either value or deactivate download instead")
-        else:
-            tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
-            logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
-                    100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
+        # Check already done in the configuration object
+        assert not(cfg.download and "ALL" in cfg.roi_by_tiles), \
+            "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
+        tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
+        logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
+                100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict]:
+def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str,Dict]]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
@@ -138,7 +145,7 @@ def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileM
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
-    return tiles_to_process_checked, needed_dem_tiles
+    return tiles_to_process_checked, needed_dem_tiles, dem_tiles_check
 
 
 def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
@@ -281,28 +288,26 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     """
     Execute the tasks in parallel through Dask.
     """
-    for product, how in dsk.items():
-        logger.debug('- task: %s <-- %s', product, _how2str(how))
-
     if debug_tasks:
         SimpleComputationGraph().simple_graph(
                 dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
     logger.info('Start S1 -> S2 transformations for %s', tile_name)
     nb_tries = 2
-    for run_attemp in range(1, nb_tries+1):
+    for run_attempt in range(1, nb_tries+1):
         try:
+            logger.debug("  Execute tasks, attempt #%s", run_attempt)
             results = client.get(dsk, required_products)
             return results
         except KilledWorker as e:
             logger.critical('%s', dir(e))
             logger.exception("Worker %s has been killed when processing %s on %s tile: (%s). Workers will be restarted: %s/%s",
-                    e.last_worker.name, e.task, tile_name, e, run_attemp, nb_tries)
+                    e.last_worker.name, e.task, tile_name, e, run_attempt, nb_tries)
             # TODO: don't overwrite previous logs
             # And we'll need to use the synchronous=False parameter to be able to check
             # successful executions but then, how do we clean up futures and all??
             client.restart()
             # Update the list of remaining tasks
-            if run_attemp < nb_tries:
+            if run_attempt < nb_tries:
                 dsk, required_products = pipelines.generate_tasks(tile_name,
                         intersect_raster_list, do_watch_ram=do_watch_ram)
             else:
@@ -310,7 +315,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     return []
 
 
-def process_one_tile(  # pylint: disable=too-many-arguments
+def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,
@@ -354,9 +359,12 @@ def process_one_tile(  # pylint: disable=too-many-arguments
         logger.info("No intersection with tile %s", tile_name)
         return []
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram=do_watch_ram)
+    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
     logger.debug('######################################################################')
-    logger.debug('Summary of tasks related to S1 -> S2 transformations of %s', tile_name)
+    logger.debug('Summary of %s tasks related to S1 -> S2 transformations of %s', len(dsk), tile_name)
+    for product, how in dsk.items():
+        logger.debug('- task: %s <-- %s', product, _how2str(how))
+
     if debug_otb:
         return _execute_tasks_debug(dsk, tile_name)
     else:
@@ -376,7 +384,7 @@ def read_config(config_opt: Union[str,Configuration]) -> Configuration:
         return config_opt
 
 
-def _extend_config(config, extra_opts: Dict, overwrite: bool = False):
+def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = False) -> Configuration:
     """
     Adds attributes to configuration object.
 
@@ -423,7 +431,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         if len(tiles_to_process) == 0:
             raise exceptions.NoS2TileError()
 
-        tiles_to_process_checked, needed_dem_tiles = check_tiles_to_process(
+        tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
                 tiles_to_process, s1_file_manager)
 
         logger.info("%s images to process on %s tiles",
@@ -448,6 +456,8 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         config.tmp_dem_dir = s1_file_manager.tmpdemdir(needed_dem_tiles, config.dem_filename_format)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
+        config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
+
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
@@ -491,31 +501,108 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         )
 
 
+def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM',
+            inputs={'insar': 'basename'})
+
+    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
+            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline([ComputeNormalsOnS1, ComputeLIAOnS1],                     'Normals|LIA', is_name_incremental=True,
+            inputs={'xyz': xyz})
+
+    # "inputs" parameter doesn't need to be specified in the following pipeline declarations
+    # but we still use it for clarity!
+    ortho_deg       = pipelines.register_pipeline(
+            [filter_LIA('LIA'), OrthoRectifyLIA],
+            'OrthoLIA',
+            inputs={'in': lia},
+            is_name_incremental=True)
+    concat_deg      = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatLIA',
+            inputs={'in': ortho_deg})
+    pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectLIA',
+            inputs={'in': concat_deg},
+            product_required=produce_angles)
+
+    ortho_sin       = pipelines.register_pipeline(
+            [filter_LIA('sin_LIA'), OrthoRectifyLIA],
+            'OrthoSinLIA',
+            inputs={'in': lia},
+            is_name_incremental=True)
+    concat_sin      = pipelines.register_pipeline(
+            [ConcatenateLIA],
+            'ConcatSinLIA',
+            inputs={'in': ortho_sin})
+    best_concat_sin = pipelines.register_pipeline(
+            [SelectBestCoverage],
+            'SelectSinLIA',
+            inputs={'in': concat_sin},
+            product_required=True)
+
+    return best_concat_sin
+
+
 def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
-    dem = pipelines.register_pipeline([AgglomerateDEM], 'AgglomerateDEM',
-            inputs={'insar': 'basename'})
-    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': dem})
-    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
-            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormals, ComputeLIA],                     'Normals|LIA', is_name_incremental=True,
-            inputs={'xyz': xyz})
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'tilename': 'tilename'},
+    )
 
-    # "inputs" parameter doesn't need to be specified in the following pipeline declarations
-    # but we still use it for clarity!
-    ortho           = pipelines.register_pipeline([filter_LIA('LIA'), OrthoRectifyLIA],        'OrthoLIA',  inputs={'in': lia}, is_name_incremental=True)
-    concat          = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatLIA', inputs={'in': ortho})
-    pipelines.register_pipeline([SelectBestCoverage],                                          'SelectLIA', inputs={'in': concat}, product_required=produce_angles)
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
 
-    ortho_sin       = pipelines.register_pipeline([filter_LIA('sin_LIA'), OrthoRectifyLIA],    'OrthoSinLIA',  inputs={'in': lia}, is_name_incremental=True)
-    concat_sin      = pipelines.register_pipeline([ConcatenateLIA],                            'ConcatSinLIA', inputs={'in': ortho_sin})
-    best_concat_sin = pipelines.register_pipeline([SelectBestCoverage],                        'SelectSinLIA', inputs={'in': concat_sin}, product_required=True)
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
 
-    return best_concat_sin
+    # Notes:
+    # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
+    #   normals production AND LIA production: indeed the XYZ, and satposXYZ
+    #   data needs to be reused several times, and in-memory pipeline can't
+    #   support that (yet?)
+    # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
+    #   all meta are available later on to filter on the coverage.
+    # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
+    #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
+    sar = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata],
+            inputs={'inrawsar': 'basename'}
+    )
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEM],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'insar': sar, 'inheight': s2_height},
+    )
+
+    # Always generate sin(LIA). If LIA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_LIA step
+    lia = pipelines.register_pipeline(
+            [ComputeNormalsOnS2, ComputeLIAOnS2],
+            'ComputeLIAOnS2',
+            is_name_incremental=True,
+            inputs={'xyz': xyz},
+            product_required=True,
+    )
+    return lia
 
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
@@ -529,7 +616,8 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         debug_caches            : bool = False,
         watch_ram               : bool = False,
         debug_tasks             : bool = False,
-        cache_before_ortho      : bool = False
+        cache_before_ortho      : bool = False,
+        lia_process                    = None,
 ) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
@@ -618,7 +706,11 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         else:
             need_to_keep_non_filtered_products = True
 
-        concat_S2 = pipelines.register_pipeline(concat_seq, product_required=calibration_is_done_in_S1, is_name_incremental=True)
+        concat_S2 = pipelines.register_pipeline(
+                concat_seq,
+                product_required=calibration_is_done_in_S1,
+                is_name_incremental=True
+        )
         last_product_S2 = concat_S2
 
         required_workspaces = [WorkspaceKinds.TILE]
@@ -632,9 +724,20 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             else:
                 need_to_keep_non_filtered_products = True
 
-            concat_sin = register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+            LIA_registration = lia_process or register_LIA_pipelines
+            lias = LIA_registration(pipelines, config.produce_lia_map)
+
+            # This steps helps forwarding sin(LIA) (only) to the next step
+            # that corrects the β° with sin(LIA) map.
+            sin_LIA = pipelines.register_pipeline(
+                    [filter_LIA('sin_LIA')],
+                    'SelectSinLIA',
+                    is_name_incremental=True,
+                    inputs={'in': lias},
+            )
+            # TODO: Merge filter_LIA in apply_LIA_seq!
             apply_LIA = pipelines.register_pipeline(apply_LIA_seq, product_required=True,
-                    inputs={'sin_LIA': concat_sin, 'concat_S2': concat_S2}, is_name_incremental=True)
+                    inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2}, is_name_incremental=True)
             last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
 
@@ -665,6 +768,86 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
     )
+
+
+def s1_process_lia_v0(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str,Configuration],
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
+    generates Local Incidence Angle Maps on S2 geometry.
+
+    It performs the following steps:
+
+    1. Determine the S1 products to process
+        Given a list of S2 tiles, we first determine the day that'll the best
+        coverage of each S2 tile in terms of S1 products.
+
+        In case there is no single day that gives the best coverage for all
+        S2 tiles, we try to determine the best solution that minimizes the
+        number of S1 products to download and process.
+    2. Process these S1 products
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_LIA_pipelines_v0(pipelines, produce_angles=config.produce_lia_map)
+        required_workspaces = [WorkspaceKinds.LIA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )
+
 
 
 def s1_process_lia(  # pylint: disable=too-many-arguments

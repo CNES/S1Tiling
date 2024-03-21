@@ -39,13 +39,17 @@ from pathlib import Path
 import re
 import sys
 from timeit import default_timer as timer
-from typing import Any, Callable, Dict, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
-from osgeo import ogr
+from osgeo import ogr, osr
 import osgeo  # To test __version__
-from osgeo import osr
+import numpy as np
 
 from .S1DateAcquisition import S1DateAcquisition
+
+
+Polygon = Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]]
+
 
 EXTENSION_TO_DRIVER_MAP = {
     '.gpkg': 'GPKG',
@@ -54,21 +58,6 @@ EXTENSION_TO_DRIVER_MAP = {
 
 
 logger = logging.getLogger("s1tiling.utils")
-
-
-def flatten_stringlist(itr):
-    """
-    Flatten a list of lists.
-    But don't decompose string.
-    """
-    if type(itr) in (str,bytes):
-        yield itr
-    else:
-        for x in itr:
-            try:
-                yield from flatten_stringlist(x)
-            except TypeError:
-                yield x
 
 
 class Layer:
@@ -113,6 +102,65 @@ class Layer:
         return self.__layer.GetSpatialRef()
 
 
+# ======================================================================
+## Technical helpers
+
+def _find(
+        element: Union[ET.Element, ET.ElementTree],
+        key    : str,
+        context: Union[str, Path],
+        keytext: Optional[str]=None,
+        **kwargs
+) -> ET.Element:
+    """
+    Helper function that finds an XML tag within a node.
+
+    :param element: node/tree where the search is done
+    :param key:     key that identifies the tag name to search
+    :param context: extra information used to report where search failures happen
+    :param keytext: text to use instead of ``key`` to report a missing key
+    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :raise RuntimeError: If the requested ``key`` isn't found.
+    :return: The non null node.
+    """
+    node = element.find(key, **kwargs)
+    if node is None:
+        kt = keytext or f"{key} node"
+        raise RuntimeError(f"Cannot find {kt} in {context}")
+    return node
+
+
+def _find_text(
+        element: Union[ET.Element, ET.ElementTree],
+        key    : str,
+        context: Union[str, Path],
+        keytext: Optional[str]=None,
+        **kwargs
+) -> str:
+    """
+    Helper function that finds and returns the text contained in an XML tag
+    within a node.
+
+    :param element: node/tree where the search is done
+    :param key:     key that identifies the tag name to search
+    :param context: extra information used to report where search failures happen
+    :param keytext: text to use instead of ``key`` to report a missing key
+    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :raise RuntimeError: If the requested ``key`` isn't found.
+    :raise RuntimeError: If the node has non value
+    :return: The non empty text.
+    """
+    node = _find(element, key, context, keytext, **kwargs)
+    if not node.text:
+        kt = keytext or f"{key} node"
+        raise RuntimeError(f"Empty {kt} in {context}")
+    return node.text
+
+
+SAFE = "http://www.esa.int/safe/sentinel-1.0"
+S1   = "http://www.esa.int/safe/sentinel-1.0/sentinel-1"
+
+
 def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
     Returns the relative orbit number of the product.
@@ -120,10 +168,36 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     root = ET.parse(manifest)
     url = "{http://www.esa.int/safe/sentinel-1.0}"
     key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
-    ron = root.find(key)
-    if ron is None or ron.text is None:
-        raise RuntimeError(f"No relativeOrbitNumber key found in {manifest}")
-    return int(ron.text)
+    return int(_find_text(root, key, manifest, "relativeOrbitNumber"))
+
+
+def get_orbit_information(manifest: Union[str, Path]) -> Dict:
+    """
+    :return: Orbit information:
+        - absolute orbit number
+        - relative orbit number
+        - orbit direction
+    """
+    ctx_manifest = f"manifest {manifest!r}"
+    prefix_map = {"safe": SAFE, "s1": S1}
+    root = ET.parse(manifest)
+    node_orbit = _find(
+            root,
+            "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
+            ctx_manifest,
+            "orbit reference",
+            namespaces=prefix_map)
+    absolute_orbit  = int(_find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
+    relative_orbit  = int(_find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
+    orbit_direction = _find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
+    k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
+    if orbit_direction not in k_direction_map:
+        raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
+    return {
+            'absolute_orbit' : absolute_orbit,
+            'relative_orbit' : relative_orbit,
+            'orbit_direction': k_direction_map.get(orbit_direction, "???"),
+    }
 
 
 def get_origin(
@@ -137,12 +211,14 @@ def get_origin(
     Returns:
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
-    prefix_map = {"safe": "http://www.esa.int/safe/sentinel-1.0"}
+    prefix_map = {"safe": SAFE}
     root = ET.parse(manifest)
-    node_footprint = root.find("metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
-              prefix_map)
-    if node_footprint is None:
-        raise RuntimeError(f"Cannot find coordinates in manifest {manifest!r}")
+    node_footprint = _find(
+            root,
+            "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
+            f"manifest {manifest!r}",
+            "coordinates",
+            namespaces=prefix_map)
     srsName = node_footprint.attrib['srsName']
     srsName = re.sub(r"http://www.opengis.net/gml/srs/(epsg).xml#(\d+)", r"\1:\2", srsName)
 
@@ -169,7 +245,7 @@ def get_origin(
 
 
 def get_shape_from_polygon(
-    polygon: Union[Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]], List[Tuple[float,float]]]
+    polygon: Union[Polygon, List[Tuple[float,float]]]
 ) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
@@ -213,9 +289,28 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
         manifest = s1image.get_manifest()
 
     logger.debug("Manifest: %s", manifest)
-    assert manifest.exists()
+    assert manifest.exists(), f"Manifest {manifest!r} doesn't exist!"
     poly = get_shape(manifest)
     return poly
+
+
+def get_s1image_orbit_time_range(
+        annotation_file: Union[Path,str]
+) -> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
+    """
+    Returns the start and stop time of the orbit information contained in the S1 product.
+    """
+    if not os.path.isfile(annotation_file):
+        raise RuntimeError(f"{annotation_file!r} is not a valid file")
+    root = ET.parse(annotation_file)
+    # Start/Stop times
+    header = _find(root, 'adsHeader', annotation_file)
+    start_time = np.datetime64(_find_text(header, 'startTime', annotation_file), "ns")
+    stop_time  = np.datetime64(_find_text(header, 'stopTime',  annotation_file), "ns")
+    # Azimuth times
+    t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
+    azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
+    return start_time, stop_time, azimuth_times[0], azimuth_times[-1]
 
 
 def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
@@ -310,8 +405,24 @@ def find_dem_intersecting_raster(
     assert os.path.isfile(dem_db_filepath)
     dem_layer = Layer(dem_db_filepath)
 
-    logger.info("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
+    logger.debug("Shape of %s: %s/%s", os.path.basename(s1image), poly, poly.GetSpatialReference().GetName())
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
+
+
+def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Layer]) -> ogr.Geometry:
+    """
+    This method returns the MGRS tile geometry as OGRGeometry given its identifier
+
+    :param mgrs_tile_name: MGRS tile identifier
+    :param mgrs_db:        Database (or its filename) storing the MGRS tile information.
+    :return:  The MGRS tile geometry as OGRGeometry or raise ValueError
+    """
+    mgrs_layer = Layer(mgrs_db) if isinstance(mgrs_db, str) else mgrs_db
+
+    for mgrs_tile in mgrs_layer:
+        if mgrs_tile.GetField('NAME') == mgrs_tile_name:
+            return mgrs_tile.GetGeometryRef().Clone()
+    raise ValueError("MGRS tile does not exist", mgrs_tile_name)
 
 
 def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:
@@ -332,7 +443,7 @@ def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise RuntimeError(f"Orbit Directiction not found in {manifest!r}")
+        raise RuntimeError(f"Orbit Direction not found in {manifest!r}")
 
 
 def convert_coord(
@@ -436,6 +547,45 @@ def get_platform_from_s1_raster(path_to_raster: str) -> str:
     return path_to_raster.split("/")[-1].split("-")[0]
 
 
+# ======================================================================
+## Technical helpers
+
+class _PartialFormatHelper(dict):
+    """
+    Helper class that return missing ``{key}`` as themselves
+    """
+    def __missing__(self, key:str) ->str:
+        return "{" + key + "}"
+
+
+def partial_format(format_str: str, **kwargs) -> str:
+    """
+    Permits to apply partial formatting to format string.
+
+    Example:
+    --------
+    >>> s = "{ab}_bla_{cd}"
+    >>> partial_format(s, ab="TOTO")
+    'tot_bla_{cd}'
+    """
+    return format_str.format_map(_PartialFormatHelper(**kwargs))
+
+
+def flatten_stringlist(itr) -> Generator[str, None, None]:
+    """
+    Flatten a list of lists.
+    But don't decompose string.
+    """
+    if type(itr) in (str,bytes):
+        yield itr
+    else:
+        for x in itr:
+            try:
+                yield from flatten_stringlist(x)
+            except TypeError:
+                yield x
+
+
 class ExecutionTimer:
     """Context manager to help measure execution times
 
@@ -443,9 +593,10 @@ class ExecutionTimer:
     with ExecutionTimer("the code", True) as t:
         Code_to_measure()
     """
-    def __init__(self, text, do_measure) -> None:
+    def __init__(self, text, do_measure, log_level=None) -> None:
         self._text       = text
         self._do_measure = do_measure
+        self._log_level  = log_level or logging.INFO
 
     def __enter__(self) -> "ExecutionTimer":
         self._start = timer()  # pylint: disable=attribute-defined-outside-init
@@ -454,7 +605,7 @@ class ExecutionTimer:
     def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         if self._do_measure:
             end = timer()
-            logger.info("%s took %ssec", self._text, end - self._start)
+            logger.log(self._log_level, "%s took %ssec", self._text, end - self._start)
         return False
 
 
@@ -595,7 +746,7 @@ class TopologicalSorter:
         else:
             self.__successors        = self.__successors_direct
 
-    def depth(self, start_nodes: Union[List, Set, KeysView]) -> List:
+    def depth(self, start_nodes: Union[List, Set, KeysView]) -> Iterator:
         """
         Depth-first topological sorting method
         """

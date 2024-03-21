@@ -30,7 +30,10 @@
 # =========================================================================
 
 import logging
-from typing import List, Tuple
+import re
+from typing import Callable, Dict, List, Tuple
+
+from shapely.geometry.base import np
 
 # from .mock_otb import compute_coverage
 
@@ -56,11 +59,23 @@ class FileDB:
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
             'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
-            }
+            'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
+            'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
+            'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
+            'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
+            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+            'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
+            # TODO: add fmt for orbit direction/number
+            'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
+            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+    }
     FILES = [
             # 08 jan 2020
             {
                 'start_time'      : '2020:01:08 04:41:50',
+                'stop_time'       : '2020:01:08 04:42:15',
+                'orbit_start'     : '2020:01:08 00:00:00',
+                'orbit_stop'      : '2020:01:08 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
@@ -71,9 +86,13 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
+                'absolute_orbit'  : 30704,
                 },
             {
                 'start_time'      : '2020:01:08 04:42:15',
+                'stop_time'       : '2020:01:08 04:42:40',
+                'orbit_start'     : '2020:01:08 00:00:00',
+                'orbit_stop'      : '2020:01:08 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
@@ -84,10 +103,14 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+                'absolute_orbit'  : 30704,
+            },
             # 20 jan 2020
             {
                 'start_time'      : '2020:01:20 04:41:49',
+                'stop_time'       : '2020:01:20 04:42:14',
+                'orbit_start'     : '2020:01:20 00:00:00',
+                'orbit_stop'      : '2020:01:20 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
@@ -98,9 +121,13 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+                'absolute_orbit'  : 30879,
+            },
             {
                 'start_time'      : '2020:01:20 04:42:14',
+                'stop_time'       : '2020:01:20 04:42:39',
+                'orbit_start'     : '2020:01:20 00:00:00',
+                'orbit_stop'      : '2020:01:20 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
@@ -111,10 +138,14 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+                'absolute_orbit'  : 30879,
+            },
             # 02 feb 2020
             {
                 'start_time'      : '2020:02:01 04:41:49',
+                'stop_time'       : '2020:02:01 04:42:14',
+                'orbit_start'     : '2020:02:01 00:00:00',
+                'orbit_stop'      : '2020:02:01 23:59:59',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
@@ -125,9 +156,11 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+                'absolute_orbit'  : 31054,
+            },
             {
                 'start_time'      : '2020:02:01 04:42:14',
+                'stop_time'       : '2020:02:01 04:42:39',
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
@@ -138,7 +171,8 @@ class FileDB:
                 'srsname'         : 'epsg:4326',
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
-                },
+                'absolute_orbit'  : 31054,
+            },
             ]
     CONCATS = [
             # 08 jan 2020
@@ -148,7 +182,7 @@ class FileDB:
                 'start_time'  : '2020:01:08 04:41:50',
                 'first_date'  : '2020-01-01',
                 'last_date'   : '2020-01-10',
-                },
+            },
             # 20 jan 2020
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
@@ -156,7 +190,7 @@ class FileDB:
                 'start_time'  : '2020:01:20 04:41:49',
                 'first_date'  : '2020-01-10',
                 'last_date'   : '2020-01-21',
-                },
+            },
             # 02 feb 2020
             {
                 's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
@@ -164,18 +198,28 @@ class FileDB:
                 'start_time'  : '2020:02:01 04:41:49',
                 'first_date'  : '2020-02-01',
                 'last_date'   : '2020-02-05',
-                },
-            ]
-    TILE = '33NWB'
-    extended_geom_compress = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
-    extended_compress      = '?&gdal:co:COMPRESS=DEFLATE'
+            },
+    ]
+    # TILE = '33NWB'
+    TILE_DATA = {
+            '33NWB': {
+                'extent' : {'xmin': 499979.99999484676,
+                            'ymin': 90240.0000009411,
+                            'xmax': 609779.9999948468,
+                            'ymax': 200040.0000009411,
+                            'epsg': 32633},
+                'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
+            },
+    }
+    extended_geom_compress      = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
+    extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
+    extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
 
     def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, demdir, geoid_file) -> None:
         self.__input_dir  = inputdir
         self.__tmp_dir    = tmpdir
         self.__output_dir = outputdir
         self.__lia_dir    = liadir
-        self.__tmp_dir    = tmpdir
         self.__tile       = tile
         self.__dem_dir    = demdir
         self.__GeoidFile  = geoid_file
@@ -186,40 +230,50 @@ class FileDB:
         self.nb_S1_products = NFiles
         self.nb_S2_products = NConcats
 
-        names_to_map = [
+        names_to_map : List[Tuple[Callable, int]] = [
                 # function_reference,               [indices...]
-                [self.cal_ok,                       NFiles],
-                [self.ortho_ready,                  NFiles],
-                [self.orthofile,                    NFiles],
-                [self.concatfile_from_one,          NFiles],
-                [self.concatfile_from_two,          NConcats],
-                [self.masktmp_from_one,             NFiles],
-                [self.masktmp_from_two,             NConcats],
-                [self.maskfile_from_one,            NFiles],
-                [self.maskfile_from_two,            NConcats],
+                (self.cal_ok,                       NFiles),
+                (self.ortho_ready,                  NFiles),
+                (self.orthofile,                    NFiles),
+                (self.concatfile_from_one,          NFiles),
+                (self.concatfile_from_two,          NConcats),
+                (self.masktmp_from_one,             NFiles),
+                (self.masktmp_from_two,             NConcats),
+                (self.maskfile_from_one,            NFiles),
+                (self.maskfile_from_two,            NConcats),
 
-                [self.vrtfile,                      NFiles],
-                [self.sardemprojfile,               NFiles],
-                [self.xyzfile,                      NFiles],
-                [self.normalsfile,                  NFiles],
-                [self.LIAfile,                      NFiles],
-                [self.sinLIAfile,                   NFiles],
-                [self.orthoLIAfile,                 NFiles],
-                [self.orthosinLIAfile,              NFiles],
-                [self.concatLIAfile_from_two,       NConcats],
-                [self.concatsinLIAfile_from_two,    NConcats],
-                [self.sigma0_normlim_file_from_one, NFiles],
-                [self.sigma0_normlim_file_from_two, NConcats],
-                ]
-        names_to_map_for_beta_calib = [
-                [self.orthofile,                    NFiles],
-                [self.concatfile_from_one,          NFiles],
-                [self.concatfile_from_two,          NConcats],
-                [self.masktmp_from_one,             NFiles],
-                [self.masktmp_from_two,             NConcats],
-                [self.maskfile_from_one,            NFiles],
-                [self.maskfile_from_two,            NConcats],
-                ]
+                (self.vrtfile,                      NFiles),
+                (self.sardemprojfile,               NFiles),
+                (self.xyzfile,                      NFiles),
+                (self.normalsfile,                  NFiles),
+                (self.LIAfile,                      NFiles),
+                (self.sinLIAfile,                   NFiles),
+                (self.orthoLIAfile,                 NFiles),
+                (self.orthosinLIAfile,              NFiles),
+                (self.concatLIAfile_from_two,       NConcats),
+                (self.concatsinLIAfile_from_two,    NConcats),
+                (self.sigma0_normlim_file_from_one, NFiles),
+                (self.sigma0_normlim_file_from_two, NConcats),
+        ]
+        names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
+                (self.orthofile,                    NFiles),
+                (self.concatfile_from_one,          NFiles),
+                (self.concatfile_from_two,          NConcats),
+                (self.masktmp_from_one,             NFiles),
+                (self.masktmp_from_two,             NConcats),
+                (self.maskfile_from_one,            NFiles),
+                (self.maskfile_from_two,            NConcats),
+        ]
+        names_to_map_no_idx : List[Tuple[Callable, int]] = [
+                (self.vrtfile_on_s2,                NConcats),
+                (self.demfile_on_s2,                NConcats),
+                (self.geoidfile_on_s2,              NConcats),
+                (self.height_on_s2,                 NConcats),
+                (self.xyz_on_s2,                    NConcats),
+                (self.normals_on_s2,                NConcats),
+                (self.deglia_on_s2,                 NConcats),
+                (self.sinlia_on_s2,                 NConcats),
+        ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
             for idx in range(nb):
@@ -228,6 +282,10 @@ class FileDB:
         for func, nb in names_to_map_for_beta_calib:
             for idx in range(nb):
                 self.__tmp_to_out_map[func(idx, True, calibration='_beta')] = func(idx, False, calibration='_beta')
+        # mapping when there is no idx.
+        for func, nb in names_to_map_no_idx:
+            self.__tmp_to_out_map[func(True)] = func(False)
+
         # for idx in range(NFiles):
         #     self.__tmp_to_out_map[self.orthofile(idx, True, calibration='_beta')] = self.orthofile(idx, False, calibration='_beta')
         #     self.__tmp_to_out_map[self.concatfile_from_one(idx, True, calibration='_beta')] = self.concatfile_from_one(idx, False, calibration='_beta')
@@ -241,30 +299,27 @@ class FileDB:
 
     @property
     def inputdir(self):
-        """
-        Property inputdir
-        """
+        """ Property inputdir """
         return self.__input_dir
 
     @property
     def outputdir(self):
-        """
-        Property outputdir
-        """
+        """ Property outputdir """
         return self.__output_dir
 
     @property
     def demdir(self):
-        """
-        Property demdir
-        """
+        """ Property demdir """
         return self.__dem_dir
 
     @property
+    def tmpdir(self):
+        """ Property tmpdir """
+        return self.__tmp_dir
+
+    @property
     def dem_files(self) -> List[str]:
-        """
-        Return list of all DEM files.
-        """
+        """ Return list of all DEM files.  """
         dem_tiles = []
         for idx in range(len(self.FILES)):
             dem_tiles.extend(self.dem_coverage(idx))
@@ -273,9 +328,7 @@ class FileDB:
 
     @property
     def GeoidFile(self):
-        """
-        Property GeoidFile
-        """
+        """ Property GeoidFile """
         return self.__GeoidFile
 
     def all_products(self) -> List[str]:
@@ -284,15 +337,35 @@ class FileDB:
     def all_files(self) -> List[str]:
         return [self.input_file(idx) for idx in range(len(self.FILES))]
 
+    def all_annotations(self) -> List[str]:
+        return [self.annotation_file(idx) for idx in range(len(self.FILES))]
+
     def all_vvvh_files(self) -> List[str]:
         # return [f'{idx} {pol}' for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
         return [self.input_file(idx, polarity=pol) for idx in range(len(self.FILES)) for pol in ['vv', 'vh']]
 
     def start_time(self, idx) -> str:
-        return self.FILES[idx]['start_time']
+        return self.FILES[idx]['start_time'].replace(' ', 'T')+'Z'
 
     def start_time_for_two(self, idx) -> str:
-        return self.CONCATS[idx]['start_time']
+        return self.CONCATS[idx]['start_time'].replace(' ', 'T')+'Z'
+
+    def orbit_time_range(self, id)-> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
+        idx = id if isinstance(id, int) else self._find_annotation(id)
+        file = self.FILES[idx]
+        def to_datetime(s :str) -> np.datetime64:
+            k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
+            match = k_date_re.match(s)
+            assert match, f"Cann decode {s!r} as a date"
+            YYYY, MM, DD, hh, mm, ss = match.groups()
+            return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
+
+        return (
+                to_datetime(file['start_time']),
+                to_datetime(file['stop_time' ]),
+                to_datetime(file['orbit_start']),
+                to_datetime(file['orbit_stop'])
+        )
 
     def product_name(self, idx) -> str:
         s1dir  = self.FILES[idx]['s1dir']
@@ -306,8 +379,13 @@ class FileDB:
         crt    = self.FILES[idx]
         s1dir  = crt['s1dir']
         s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
-        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["cal_ok"]}'.format(**crt, tmp=tmp_suffix(tmp))
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+
+    def annotation_file(self, idx, polarity='vv') -> str:
+        crt    = self.FILES[idx]
+        s1dir  = crt['s1dir']
+        s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/annotation/{s1file}'.replace('.tiff', '.xml')
 
     def input_file_vv(self, idx) -> str:
         assert idx < 6
@@ -319,16 +397,16 @@ class FileDB:
                 }
         return origins[tile_name]
 
-    def raster_vv(self, idx) -> dict:
-        S2_tile_origin = self.tile_origins(self.TILE)
-        s1dir  = self.FILES[idx]['s1dir']
-        coverage = compute_coverage(FILES[idx]['polygon'], S2_tile_origin)
-        logging.debug("coverage of %s by %s = %s", self.TILE, s1dir, coverage)
-        return {
-                'raster': S1DateAcquisition(f'{self.safe_dir(idx)}/manifest.safe', [self.input_file_vv(idx)]),
-                'tile_origin': S2_tile_origin,
-                'tile_coverage': coverage
-                }
+    # def raster_vv(self, idx) -> dict:
+    #     S2_tile_origin = self.tile_origins(self.TILE)
+    #     s1dir  = self.FILES[idx]['s1dir']
+    #     coverage = compute_coverage(self.FILES[idx]['polygon'], S2_tile_origin)
+    #     logging.debug("coverage of %s by %s = %s", self.TILE, s1dir, coverage)
+    #     return {
+    #             'raster': S1DateAcquisition(f'{self.safe_dir(idx)}/manifest.safe', [self.input_file_vv(idx)]),
+    #             'tile_origin': S2_tile_origin,
+    #             'tile_coverage': coverage
+    #             }
 
     def _find_image(self, manifest_path) -> int:
         manifest_path = str(manifest_path)  # manifest_path is either a str or a PosixPath
@@ -336,6 +414,13 @@ class FileDB:
             if self.FILES[idx]['s1dir'] in manifest_path:
                 return idx
         raise AssertionError(f'{manifest_path} cannot be found in input list {[f["s1dir"] for f in self.FILES]}')
+
+    def _find_annotation(self, annotation_file) -> int:
+        annotation_file = str(annotation_file)  # manifest_path is either a str or a PosixPath
+        for idx in range(len(self.FILES)):
+            if self.annotation_file(idx) in annotation_file:
+                return idx
+        raise AssertionError(f'{annotation_file} cannot be found in input list {[f["annotation_file"] for f in self.FILES]}')
 
     def get_origin(self, id) -> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float], str]:
         """
@@ -360,8 +445,17 @@ class FileDB:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        dir = self.FILES[idx]['relative_orbit']
-        return dir
+        rel = self.FILES[idx]['relative_orbit']
+        return rel
+
+    def get_orbit_information(self, id) -> Dict:
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        return {
+                'absolute_orbit' : self.FILES[idx]['absolute_orbit'],
+                'relative_orbit' : self.FILES[idx]['relative_orbit'],
+                'orbit_direction': self.FILES[idx]['orbit_direction'],
+        }
 
     def cal_ok(self, idx, tmp, polarity='vv') -> str:
         crt = self.FILES[idx]
@@ -436,11 +530,13 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def LIAfile(self, idx, tmp) -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -479,6 +575,54 @@ class FileDB:
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+    def dems_on_s2(self) -> List[str]:
+        return sorted(self.TILE_DATA[self.__tile]['dems'])
+
+    def vrtfile_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/TMP_DEM'  # TODO: don't hardcode tmpdemdir
+        return f'{dir}/{self.FILE_FMTS["vrt_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+        # return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt_on_s2"]}'.format(**crt, tmp=tmp_suffix(tmp))
+
+    def demfile_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["dem_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def geoidfile_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["geoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def height_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["height_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def xyz_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["xyz_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def normals_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def deglia_on_s2(self, tmp: bool) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2'
+            ext = self.extended_compress_predictor
+        else:
+            dir = f'{self.__lia_dir}'
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def sinlia_on_s2(self, tmp: bool) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2'
+            ext = self.extended_compress_predictor
+        else:
+            dir = f'{self.__lia_dir}'
+            ext = ''
+        # ext = self.extended_compress_predictor if compress else ''
+        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+        # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

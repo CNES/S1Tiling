@@ -37,10 +37,11 @@ import shutil
 import re
 import datetime
 from abc import ABC, abstractmethod
+import fnmatch
 import logging
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, List, NoReturn, Optional, Tuple, Union
+from typing import Callable, Dict, List, NoReturn, Optional, Set, Tuple, Union
 
 from osgeo import gdal
 import otbApplication as otb
@@ -256,7 +257,13 @@ class _ProducerStep(AbstractStep):
         """
         return tmp_filename(self.meta)
 
-    def execute_and_write_output(self, parameters) -> None:
+    @property
+    def pipeline_name(self):
+        """ Generate a name for the associated pipeline """
+        return '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+
+
+    def execute_and_write_output(self, parameters, execution_parameters: Dict) -> None:
         """
         Actually produce the expected output. The how is still a variation point
         that'll get decided in :func:`_do_execute` specializations.
@@ -265,22 +272,22 @@ class _ProducerStep(AbstractStep):
         On successful execution, the output will be renamed to match its
         expected final name.
         """
-        dryrun = is_running_dry(self.meta)
+        dryrun = is_running_dry(execution_parameters)
         logger.debug("_ProducerStep: %s (%s)", self, self.meta)
         do_measure = True  # TODO
-        pipeline_name = '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+        pipeline_name = self.pipeline_name
         if files_exist(self.out_filename):
             # This is a dirty failsafe, instead of analysing at the last
             # moment, it's be better to have a clear idea of all dependencies
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure):
+        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure, logging.DEBUG):
+            self._do_execute(parameters, dryrun)
+            self._write_image_metadata(dryrun)
             if not dryrun:
                 # TODO: catch execute failure, and report it!
                 # logger.info("START %s", pipeline_name)
-                self._do_execute(parameters, dryrun)
-                self._write_image_metadata()
                 commit_execution(self.tmp_filename, self.out_filename)
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
@@ -289,7 +296,7 @@ class _ProducerStep(AbstractStep):
                 # are passed around between around Factories and Steps.
                 logger.debug("Execute post-hook for %s", self.out_filename)
                 self._do_call_hook(hook)
-        self._clean_cache()
+        self._clean_cache(dryrun, is_debugging_caches(execution_parameters))
         self.meta['pipe'] = [self.out_filename]
 
     @abstractmethod
@@ -309,7 +316,7 @@ class _ProducerStep(AbstractStep):
         """
         hook(self.meta)
 
-    def _clean_cache(self) -> None:
+    def _clean_cache(self, dryrun: bool, debug_caches: bool) -> None:
         """
         Takes care or removing intermediary files once we know they are no
         longer required like the orthorectified subtiles once the
@@ -318,22 +325,24 @@ class _ProducerStep(AbstractStep):
         if 'files_to_remove' in self.meta :
             files = self.meta['files_to_remove']
             # All possible geom files that may exist
-            geoms = [re.sub(re_tiff, '.geom', fn) for fn in files]
-            # All geaoms that do actually exist
+            geoms = [re.sub(re_tiff, '.geom', fn) for fn in files if '.tif' in files]
+            # All geoms that do actually exist
             geoms = [fn for fn in geoms if os.path.isfile(fn)]
             files = files + geoms
-            if is_debugging_caches(self.meta):
+            if debug_caches:
                 logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
-                logger.debug('Cleaning intermediary files: %s', files)
-                if not is_running_dry(self.meta):
+                logger.debug('Cleaning intermediary files: %s used for  %s', files, self.out_filename)
+                if not dryrun:
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
 
-    def _write_image_metadata(self) -> None:
+    def _write_image_metadata(self, dryrun: bool) -> None:
         """
         Update Image metadata (with GDAL API).
         Fetch the new content in ``meta['image_metadata']``
+
+        .. precondition:: Call from non dryrun mode only
         """
         img_meta = self.meta.get('image_metadata', {})
         # fullpath = out_filename(self.meta)
@@ -341,28 +350,53 @@ class _ProducerStep(AbstractStep):
         if not img_meta:
             logger.debug('No metadata to update in %s', fullpath)
             return
-        if is_running_dry(self.meta):
-            logger.debug("Don't set metadata in %s (dry-run)", fullpath)
-            return
+
+        def do_log(fullpath, img_meta) -> None:
+            logger.debug('(dryrun) Set metadata in %s', fullpath)
+            for (kw, val) in img_meta.items():
+                logger.debug('(dryrun)  - %s -> %s', kw, val)
+            logger.debug('(dryrun) Metadata Set! (%s)', fullpath)
+
         def do_write(fullpath, img_meta) -> None:
             logger.debug('Set metadata in %s', fullpath)
+            if not img_meta:
+                return  # Nothing to update
+
             dst = gdal.Open(fullpath, gdal.GA_Update)
             assert dst
+            all_metadata = dst.GetMetadata()
+            def set_or_del(key: str, val:str):
+                if val:
+                    all_metadata[key] = val
+                else:
+                    all_metadata.pop(key, None)
+
 
             for (kw, val) in img_meta.items():
                 assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                 logger.debug(' - %s -> %s', kw, val)
-                dst.SetMetadataItem(kw, val)
+                if kw.endswith('*'):
+                    if not val:  # Expected scenario: we clear the keys.*
+                        all_metadata = {m:all_metadata[m] for m in all_metadata if not fnmatch.fnmatch(m, kw)}
+                    else:        # Unlikely scenario: new & same value for all
+                        updated_kws = {m:val for m in all_metadata if fnmatch.fnmatch(m, kw)}
+                        all_metadata.update(updated_kws)
+                else:
+                    set_or_del(kw, val)
+
+            dst.SetMetadata(all_metadata)
             dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
             del dst
             logger.debug('Metadata Set! (%s)', fullpath)
+
+        do_apply = do_log if dryrun else do_write
         if isinstance(fullpath, list):
             # Case of applications that produce several files like ComputeLIA
             for fp in fullpath:
                 # TODO: how to specialize DESCRIPTION for each output image
-                do_write(fp, img_meta)
+                do_apply(fp, img_meta)
         else:
-            do_write(fullpath, img_meta)
+            do_apply(fullpath, img_meta)
 
 
 class AnyProducerStep(_ProducerStep):
@@ -482,7 +516,7 @@ class StepFactory(ABC):
     See: :ref:`Existing processings`
     """
     def __init__(self, name: str, *unused_argv, **kwargs) -> None:
-        assert name
+        assert isinstance(name, str), f"{self.__class__.__name__} name is a {name.__class__.__name__}, not a string -> {name!r}"
         self._name               = name
         self.__image_description = kwargs.get('image_description', None)
         # logger.debug("new StepFactory(%s)", name)
@@ -492,7 +526,7 @@ class StepFactory(ABC):
         """
         Step Name property.
         """
-        assert isinstance(self._name, str)
+        assert isinstance(self._name, str), f"Step name is a {self._name.__class__.__name__}, not a string -> {self._name!r}"
         return self._name
 
     @property
@@ -506,9 +540,10 @@ class StepFactory(ABC):
         """
         Abstract method used to test whether a :class:`StepFactory` has all
         its external requirements fulfilled. For instance,
-        :class:`OTBStepFactory`'s will check their related OTB application can be executed.
+        :class:`OTBStepFactory`'s will check their related OTB application can
+        be executed.
 
-        :return: ``None`` if  requirements are fulfilled.
+        :return: ``None`` if requirements are fulfilled.
         :return: A message indicating what is missing otherwise, and some
                  context how to fix it.
         """
@@ -537,9 +572,10 @@ class StepFactory(ABC):
         :func:`build_step_output_filename()`, and possibly moved into
         :func:`_FileProducingStepFactory.output_directory()` if this is a final product.
         """
+        # TODO: Move to _ProducerStep ?
         pass
 
-    def update_filename_meta(self, meta: Meta) -> Dict:  # to be overridden
+    def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
         information for the current factory regarding tasks analysis.
@@ -558,26 +594,30 @@ class StepFactory(ABC):
         It's possible to inject some other metadata (that could be used from
         :func:`_get_canonical_input()` for instance) thanks to
         :func:`_update_filename_meta_pre_hook()`.
+
+        This method is not meant to be overridden. Instead it implements the
+        `template method` design pattern, and expects the customization to
+        be done through the specialization of the hooks:
+
+        - :func:`_update_filename_meta_pre_hook()`,
+        - :func:`_update_filename_meta_post_hook()`.
+
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
         meta['in_filename']        = out_filename(meta)
         meta['out_filename']       = self.build_step_output_filename(meta)
-        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
-        def check_product(meta) -> bool:
+        def check_product(meta: Meta) -> bool:
             filename        = out_filename(meta)
             exist_file_name = os.path.isfile(filename)
-            logger.debug('Checking %s product: %s => %s',
-                    self.__class__.__name__,
-                    filename, '∃' if exist_file_name else '∅')
+            logger.debug('Checking %s product: %s => %s', self.__class__.__name__, filename, '∃' if exist_file_name else '∅')
             return exist_file_name
         meta['does_product_exist'] = lambda : check_product(meta)
-        # meta['does_product_exist'] = lambda : os.path.isfile(out_filename(meta))
-        meta.pop('task_name',           None)
-        meta.pop('task_basename',       None)
-        meta.pop('update_out_filename', None)
-        meta.pop('is_compatible',       None)
+        meta.pop('task_name',                  None)
+        meta.pop('task_basename',              None)
+        meta.pop('update_out_filename',        None)
+        meta.pop('accept_as_compatible_input', None)
         # for k in list(meta.keys()):  # Remove all entries associated to reduce_* keys
         #     if k.startswith('reduce_'):
         #         del meta[k]
@@ -612,7 +652,9 @@ class StepFactory(ABC):
         information for the current factory regarding :class:`Step` instanciation.
         """
         meta.pop('out_extended_filename_complement', None)
-        return self.update_filename_meta(meta)
+        meta = self.update_filename_meta(meta)  # copy on-the-fly
+        meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
+        return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:  # pylint: disable=unused-argument
         """
@@ -627,7 +669,7 @@ class StepFactory(ABC):
         if self.image_description:
             imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,
-                    flying_unit_code_short=meta['flying_unit_code'][1:].upper())
+                    flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -635,7 +677,7 @@ class StepFactory(ABC):
         products seen in the pipeline.
 
         This method will need to be overridden in classes like
-        :class:`ComputeLIA` in order to fetch N-1 "xyz" input.
+        :class:`_ComputeLIA` in order to fetch N-1 "xyz" input.
 
         Postcondition:
             :``_check_input_step_type(result)`` is True
@@ -664,7 +706,11 @@ class StepFactory(ABC):
             keys = set().union(*(input.keys() for input in inputs))
             raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
-    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> AbstractStep:
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> AbstractStep:
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` steps.
@@ -692,10 +738,10 @@ class StepFactory(ABC):
         input_step = self._get_canonical_input(inputs)
         meta       = self.complete_meta(input_step.meta, inputs)
         self.update_image_metadata(meta, inputs) # Needs to be done after complete_meta!
-        return self._do_create_actual_step(in_memory, input_step, meta)
+        return self._do_create_actual_step(execution_parameters, input_step, meta)
 
     def _do_create_actual_step(  # pylint: disable=unused-argument
-            self, in_memory: bool, input_step: AbstractStep, meta: Meta
+            self, execution_parameters: Dict, input_step: AbstractStep, meta: Meta
     ) -> AbstractStep:
         """
         Generic variation point for the exact step creation.
@@ -729,7 +775,7 @@ class StoreStep(_ProducerStep):
         files = as_list(self.tmp_filename)
         assert self._app
         for po, tmp in zip(p_out, files):
-            assert isinstance(po, str), f"String expected for param_out={po}"
+            assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
             self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
 
@@ -741,6 +787,8 @@ class StoreStep(_ProducerStep):
         :meta public:
         """
         assert self._app
+        if dryrun:
+            return
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
             # For OTB application execution, redirect stdout/stderr messages to s1tiling.OTB
             self._set_out_parameters()
@@ -834,8 +882,10 @@ class _FileProducingStepFactory(StepFactory):
     :func:`create_step` is kind of *abstract* at this point.
     """
     def __init__(
-        self, cfg: Configuration,
-        gen_tmp_dir: str, gen_output_dir, gen_output_filename,
+        self, cfg          : Configuration,
+        gen_tmp_dir        : str,
+        gen_output_dir     : Optional[str],
+        gen_output_filename: OutputFilenameGenerator,
         *argv, **kwargs
     ) -> None:
         """
@@ -1023,7 +1073,12 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         pass
 
-    def _do_create_actual_step(self, in_memory: bool, input_step: AbstractStep, meta: Meta) -> AbstractStep:
+    def _do_create_actual_step(
+            self,
+            execution_parameters: Dict,
+            input_step: AbstractStep,
+            meta: Meta
+    ) -> AbstractStep:
         """
         Instanciates the step related to the current :class:`StepFactory`,
         that consumes results from the previous `input` step.
@@ -1047,11 +1102,11 @@ class OTBStepFactory(_FileProducingStepFactory):
 
         parameters = self.parameters(meta)
         # Otherwise: step with an OTB application...
-        if is_running_dry(meta):
+        if is_running_dry(execution_parameters):
             logger.warning('DRY RUN mode: ignore step and OTB Application creation')
             lg_from = input_step.out_filename if input_step.is_first_step else 'app'
             parameters = self.parameters(meta)
-            logger.debug('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
+            logger.info('Register app: %s (from %s) %s', self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
             meta['param_out'] = self.param_out
             return Step('FAKEAPP', **meta)
         with Utils.RedirectStdToLogger(logging.getLogger('s1tiling.OTB')):
@@ -1059,6 +1114,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             app = otb.Registry.CreateApplication(self.appname)
             if not app:
                 raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
+            left_over_parameters : Set[str] = set()
             if input_step.is_first_step:
                 if not files_exist(input_step.out_filename):
                     logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input_step.out_filename)
@@ -1071,12 +1127,21 @@ class OTBStepFactory(_FileProducingStepFactory):
                 assert isinstance(self.param_in, str), f"String expected for {self.param_in}"
                 assert isinstance(input_step.param_out, str), f"String expected for {self.param_out}"
                 app.ConnectImage(self.param_in, input_step.app, input_step.param_out)
-                this_step_is_in_memory = in_memory and not input_step.shall_store
+                this_step_is_in_memory = execution_parameters.get('in_memory', True) and not input_step.shall_store
                 # logger.debug("Chaining %s in memory: %s", self.appname, this_step_is_in_memory)
                 app.PropagateConnectMode(this_step_is_in_memory)
                 if this_step_is_in_memory:
                     # When this is not a store step, we need to clear the input parameters
-                    # from its list, otherwise some OTB applications may comply
+                    # from its list, otherwise some OTB applications may complain
+                    in_parameters = parameters[self.param_in]
+                    if isinstance(in_parameters, list):
+                        # However, if the input is a list, and previous app provide only a subset of
+                        # the piped inputs => We still need a AddImageToInputImageList
+                        crt_in_parameter_set   = set(in_parameters)
+                        prv_out_parameter_set  = {input_step.out_filename} # TODO what if it was a list?
+                        params_piped_in_memory = crt_in_parameter_set & prv_out_parameter_set
+                        left_over_parameters   = crt_in_parameter_set - params_piped_in_memory
+
                     del parameters[self.param_in]
                 lg_from = 'app'
 
@@ -1087,6 +1152,10 @@ class OTBStepFactory(_FileProducingStepFactory):
                     self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
             try:
                 app.SetParameters(parameters)
+
+                for input_param in left_over_parameters:
+                    logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
+                    app.AddParameterStringList(self.param_in, input_param)
             except Exception:
                 logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
                 raise
@@ -1144,7 +1213,12 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         self._exename              = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
-    def _do_create_actual_step(self, in_memory: bool, input_step: AbstractStep, meta: Meta) -> ExecutableStep:
+    def _do_create_actual_step(
+            self,
+            execution_parameters: Dict,
+            input_step: AbstractStep,
+            meta: Meta
+    ) -> ExecutableStep:
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
@@ -1154,7 +1228,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         logger.debug("Directly execute %s step", self.name)
         res        = ExecutableStep(self._exename, **meta)
         parameters = self.parameters(meta)
-        res.execute_and_write_output(parameters)
+        res.execute_and_write_output(parameters, execution_parameters)
         return res
 
 
@@ -1184,7 +1258,12 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         self._action = action
         logger.debug("new AnyProducerStepFactory(%s)", self.name)
 
-    def _do_create_actual_step(self, in_memory: bool, input_step: AbstractStep, meta: Meta) -> AnyProducerStep:
+    def _do_create_actual_step(
+            self,
+            execution_parameters: Dict,
+            input_step: AbstractStep,
+            meta: Meta
+    ) -> AnyProducerStep:
         """
         This Step creation method does more than just creating the step.
         It also executes immediately the external process.
@@ -1194,7 +1273,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         logger.debug("Directly execute %s step", self.name)
         res        = AnyProducerStep(self._action, **meta)
         parameters = self.parameters(meta)
-        res.execute_and_write_output(parameters)
+        res.execute_and_write_output(parameters, execution_parameters)
         return res
 
 
@@ -1210,7 +1289,11 @@ class Store(StepFactory):
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
         # logger.debug('Creating Store Factory: %s', appname)
 
-    def create_step(self, in_memory: bool, previous_steps: List[InputList]) -> Union[AbstractStep, StoreStep]:
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> Union[AbstractStep, StoreStep]:
         """
         Specializes :func:`StepFactory.create_step` to trigger
         :func:`StoreStep.execute_and_write_output` on the last step that
@@ -1236,12 +1319,12 @@ class Store(StepFactory):
         assert isinstance(input_step, Step)
         res = StoreStep(input_step)
         try:
-            res.execute_and_write_output(None)  # Parameters have already been set for OTB applications
+            res.execute_and_write_output(None, execution_parameters)  # Parameters have already been set for OTB applications
         finally:
             # logger.debug("Collecting memory!")
             # Collect memory now!
-            res.release_app()
-            for inps in previous_steps:
+            res.release_app()  # <- StoreStep._app = None
+            for inps in reversed(previous_steps):  # delete all /*OTB*/Step._app
                 for inp in inps:
                     for _, step in inp.items():
                         step.release_app()

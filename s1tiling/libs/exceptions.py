@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2017-2024 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -33,7 +33,7 @@
 This module defines S1Tiling specific exception classes.
 """
 
-from typing import List, Set, Union
+from typing import List, Optional, Set, Union
 from pathlib import Path
 
 
@@ -48,11 +48,11 @@ class ConfigurationError(Error):
     """
     Generic error for configuration file errors.
     """
-    def __init__(self, message: str, *args, configFile: Union[str,Path]="", **kwargs) -> None:
+    def __init__(self, message: str, configFile: Union[str,Path], *args, **kwargs) -> None:
         """
         Constructor
         """
-        super().__init__(f"{message}\nPlease fix the configuration file '{configFile}'.",
+        super().__init__(f"{message}\nPlease fix the configuration file {str(configFile)!r}.",
                          *args, **kwargs)
 
 
@@ -60,18 +60,20 @@ class CorruptedDataSAFEError(Error):
     """
     An empty data safe has been found and needs to be removed so it can be fetched again.
     """
-    def __init__(self, manifest, *args, **kwargs) -> None:
+    def __init__(self, product: str, details: Optional[str], *args, **kwargs) -> None:
         """
         Constructor
         """
-        super().__init__(f"Problem with {manifest}.\nPlease remove the raw data for {manifest} SAFE file.",
-                         *args, **kwargs)
-        self.manifest = manifest
+        extra = details or "no manifest, or image files"
+        super().__init__(
+                f"Product {product!r} appears to be corrupted ({extra}).\nPlease remove the raw data for {product!r} SAFE file.",
+                *args, **kwargs)
+        self.product = product
 
     def __reduce__(self):
         # __reduce__ is required as this error will be pickled from subprocess
         # when transported in the :class:`Outcome` object.
-        return (CorruptedDataSAFEError, (self.manifest, ))
+        return (CorruptedDataSAFEError, (self.product, ))
 
 
 class DownloadS1FileError(Error):
@@ -174,3 +176,11 @@ class MissingApplication(Error):
         for ctx in contexts:
             message.append(f" --> {ctx}")
         super().__init__("\n".join(message), *args, **kwargs)
+
+
+class NotCompatibleInput(Error):
+    """
+    Exception used to report input of incompatible type.
+    For instance DEM+geoid on S2 tile is not compatible with ExtractSentinel1Metadata.
+    """
+    pass

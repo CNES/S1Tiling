@@ -87,7 +87,7 @@ setup(
         "objgraph", # leaks
         # "packaging", # version
         "pympler", # leaks
-        "pyyaml",
+        "pyyaml>=5.1",
         # Any way to require OTB ?
         ],
     extras_require={

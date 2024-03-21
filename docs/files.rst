@@ -53,11 +53,11 @@ Orthorectified S2 tiles
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image
+        - time of the second S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
       * - ``FLYING_UNIT_CODE``
@@ -70,14 +70,16 @@ Orthorectified S2 tiles
         - (when applies) name of the LIA file used for Normlim calibration
       * - ``NOISE_REMOVED``
         - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
-      * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_NUMBER``
+        - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbitDirection}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
         - :samp:`{{polarisation}}`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{relativeOrbitNumber}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -212,11 +214,11 @@ Local Incidence Angle map files
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image
+        - time of the second S1 image (in UTC format since v1.1)
       * - ``DATA_TYPE``
         - :samp:`100 * degree(LIA)` / :samp:`SIN(LIA)`
       * - ``FLYING_UNIT_CODE``
@@ -260,7 +262,7 @@ several runs to shorten processing times when resuming after an interruption.
 
 Cut and calibrated S1 images ready for orthorectification
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-:Content: S1 images :ref:`calibrated <calibration>` and :ref:`cut <cutting>`.
+:Content: S1 images :ref:`calibrated <calibration-proc>` and :ref:`cut <cutting-proc>`.
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
@@ -292,7 +294,7 @@ Cut and calibrated S1 images ready for orthorectification
       * - Metadata
         - Value
       * - ``ACQUISITION_DATETIME``
-        - time of the input S1 image
+        - time of the input S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
       * - ``FLYING_UNIT_CODE``
@@ -355,15 +357,77 @@ DEM VRT files
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
-:File name: :samp:`DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+:File name:
+
+    - :samp:`DEM-s1{tilename}.tif`
+    - or deprecated: :samp:`DEM-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
 
 :File name format:
 
-    ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
+    - ``fname_fmt.dem_s2_agglomeration`` = :samp:`DEM_{{tile_name}}.vrt`
+    - or deprecated: ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
 
 :Format: VRT
 
 :Metadata: No metadata is added by S1Tiling to these files.
+
+:Cleanup: These files are cleaned automatically (since new workflow from v1.1).
+
+
+.. _DEM_on_S2-files:
+
+DEM data projected on S2 tile
++++++++++++++++++++++++++++++
+
+:Content:          DEM information projected on S2 tile according to
+                   :ref:`project_dem_to_s2-proc`
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`DEM_projected_on_{{tilename}}.tiff`
+:File name format: ``fname_fmt.dem_on_s2`` = :samp:`DEM_projected_on_{{tile_name}}.tiff`
+:Format:           Float32 GeoTIFF, uncompressed.
+:Metadata:         The following metadata are added at this step:
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+      * - ``S2_TILE_CORRESPONDING_CODE``
+        - :samp:`{{tilename}}`
+      * - ``SPATIAL_RESOLUTION``
+        - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
+      * - ``DEM_LIST``
+        - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`Warped DEM to S2 tile`
+
+:Cleanup: These files are cleaned automatically.
+
+.. _height_on_S2-files:
+
+Height (DEM+Geoid) projected on S2 tile
++++++++++++++++++++++++++++++++++++++++
+
+:Content:          Height information (DEM + Geoid combined) projected on S2
+                   tile according to :ref:`project_geoid_to_s2-proc` and
+                   :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`DEM+GEOID_projected_on_{{tilename}}.tiff`
+:File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
+:Format:           Float32 GeoTIFF, uncompressed.
+:Metadata:         The following metadata changed from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`DEM + GEOID height info projected on S2 tile`
 
 :Cleanup:
 
@@ -371,10 +435,67 @@ DEM VRT files
        These files still **need** to be cleaned manually. This should change
        eventually, or it may be conditionned to an option.
 
+
+.. _ground_and_sat_S2-files:
+
+Ground and sensor position in XYZ ECEF coordinates
+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+:Content:          Six bands 64 bits float image that contains ground pixel
+                   coordinates and associated sensor position coordinates
+                   expressed as XYZ cartesian pixels in `ECEF
+                   <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
+                   spatial reference.
+                   The image footprint matches the associated S2 tile.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+:Format:           Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
+                   ZCartesian. SensorXCartesian, SensorXCartesian,
+                   SensorZCartesian
+:Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``ACQUISITION_DATETIME``
+        - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_LIST``
+        - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``FLYING_UNIT_CODE``
+        - :samp:`s1{{a|b}}`
+      * - ``IMAGE_TYPE``
+        - :samp:`GRD`
+      * - ``INPUT_S1_IMAGES``
+        - List of the input Sentinel-1 images used to generate this product
+      * - ``ORBIT``
+        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbitdirection}}`
+      * - ``PRJ.DIRECTIONTOSCANDEMC``
+        - Range direction for DEM scan.
+      * - ``PRJ.DIRECTIONTOSCANDEML``
+        - Azimuth direction for DEM scan.
+      * - ``PRJ.GAIN``
+        - Gain value
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`XYZ ground and satellite positions on S2 tile`
+
+:Cleanup: These files are cleaned automatically.
+
+
+Deprecated temporary files
+--------------------------
+
 .. _S1_on_dem-files:
 
-Files of S1 coordinates projected on DEM geometry
-+++++++++++++++++++++++++++++++++++++++++++++++++
+Files of S1 coordinates projected on DEM geometry (deprecated)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the :ref:`Virtual DEM <dem-vrt-files>` geometry. Their
           values contain the XYZ cartesian coordinates of the pixel and the
@@ -405,7 +526,7 @@ Files of S1 coordinates projected on DEM geometry
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image
+        - time of the first S1 image (in UTC format since v1.1)
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
@@ -435,8 +556,8 @@ Files of S1 coordinates projected on DEM geometry
 
 .. _xyz-files:
 
-Files of XYZ cartesian coordinates in S1 geometry
-+++++++++++++++++++++++++++++++++++++++++++++++++
+Files of XYZ cartesian coordinates in S1 geometry (deprecated)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
           values contain the XYZ cartesian coordinates of the pixel.
@@ -483,8 +604,8 @@ Files of XYZ cartesian coordinates in S1 geometry
 
 .. _lia-s1-files:
 
-Local Incidence Angle map files in S1 geometry
-++++++++++++++++++++++++++++++++++++++++++++++
+Local Incidence Angle map files in S1 geometry (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content:
 
@@ -534,8 +655,8 @@ Local Incidence Angle map files in S1 geometry
 
 .. _lia-s2-half-files:
 
-Half Local Incidence Angle map files -- pre-concatenation.
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content:
 

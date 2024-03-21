@@ -6,19 +6,39 @@ Release notes
 Version 1.1.0
 -------------
 
+This version integrates 3 main improvements:
+
+- it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
+- it supports OTB 8 applications (while staying backward compatible with OTB
+  7.4.2),
+- it improves the quality of LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
+
 v1.1.0 Improvements
 +++++++++++++++++++
 
 - Add support for OTB 8 applications
-  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_).
+  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_)
+  -- contributed by CS Group FRANCE.
 - Improve API (separate CLI from computing functions)
-  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_).
+  (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_) --
+  contributed by CS Group FRANCE.
 - Support DEM files from other origins (Copernicus...). Their footprints,
   organization on disk... need to be deduced from a DEM database.
-  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_).
+  (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_) --
+  contributed by CS Group FRANCE.
 - Support DEM databases in any spatial reference (they are not restricted to
   WGS84 anymore)
-  (`#146 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/146>`_).
+  (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
+- Change LIA workflow in order to minimize occurrences of artefacts in rugged
+  areas, and to speed-up performances
+  (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
+
+v1.1.0 Breaking changes
++++++++++++++++++++++++
+
+- ``ACQUISITION_DATETIME`` image metadata is now in UTC format (e.g.
+  ``2020:01:08T04:41:50Z``). In previous versions it used to have the same
+  format as ``TIFFTAG_DATETIME`` (i.e.: ``2020:01:08 04:41:50``)
 
 
 Version 1.0.0
@@ -52,8 +72,8 @@ v1.0.0 Improvements
   `#133 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/133>`_.
 
 - Null values obtained after the optional *denoising* done during the
-  :ref:`calibration <calibration>` wil be set to a :ref:`minimal signal value
-  <Processing.lower_signal_value>` > 0. The objective is to keep 0 as the
+  :ref:`calibration <calibration-proc>` wil be set to a :ref:`minimal signal
+  value <Processing.lower_signal_value>` > 0. The objective is to keep 0 as the
   *nodata* value.
   (`#87 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/87>`_).
 
@@ -232,7 +252,7 @@ v0.2 Optimizations
     - This reduces stress on IO that often are a bottleneck on clusters
 
 - Dedicated and optimized OTB applications have been written for :ref:`cutting
-  <cutting>`  and :ref:`calibration <calibration>`
+  <cutting-proc>`  and :ref:`calibration <calibration-proc>`
 - Execute only the processes that are needed to produce the requested products
 - Parallelization is done with dask
   (`#11 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/11>`_)

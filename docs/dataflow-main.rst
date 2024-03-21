@@ -25,12 +25,16 @@ For each S2 tile,
 
 2. Then, for each polarisation,
 
-   1. It :ref:`calibrates <calibration>`, :ref:`cuts <cutting>` and
-      :ref:`orthorectifies <orthorectification>` all the S1 images onto the S2
-      grid
-   2. It :ref:`superposes (concatenates) <concatenation>` the orthorectified
-      images into a single S2 tile.
-   3. It :ref:`builds masks <mask-generation>`, :ref:`if required <Mask.generate_border_mask>`
+   1. It :ref:`calibrates <calibration-proc>`, :ref:`cuts <cutting-proc>` and
+      :ref:`orthorectifies <orthorectification-proc>` all the S1 images onto
+      the S2 grid
+   2. It :ref:`superposes (concatenates) <concatenation-proc>` the
+      orthorectified images into a single S2 tile.
+   3. It :ref:`filters <filter-proc>` the orthorectified images.
+   4. It :ref:`builds masks <mask_generation-proc>`, :ref:`if required
+      <Mask.generate_border_mask>`
+
+
 
 
 .. index:: parallelization
@@ -46,15 +50,15 @@ In the following processing of 33NWB and 33NWC from 2020-01-01 to 2020-01-10,
 only two S2 images are generated. It's done by processing in parallel (but in
 any order compatible with the dependencies represented in the graph),
 
-- the S1 image inputs (first column) by :ref:`calibrating <calibration>` and
-  :ref:`cutting <cutting>` them to obtain...
+- the S1 image inputs (first column) by :ref:`calibrating <calibration-proc>`
+  and :ref:`cutting <cutting-proc>` them to obtain...
 - the :ref:`orthoready files <orthoready-files>` (second column), which are in
   turn :ref:`orthorectified <orthorectification>` to obtain...
 - the :ref:`orthorectified files <orthorectified-files>` (third column), which
   are in turn :ref:`concatenated <concatenation>` to obtain...
 - the :ref:`final S2 products <full-S2-tiles>` (fourth column),
 - :ref:`border masks <mask-files>`  can in turn be :ref:`generated
-  <mask-generation>` from them -- not represented on the graph.
+  <mask_generation-proc>` from them -- not represented on the graph.
 
 .. graphviz::
     :name: graph_S1Processing
@@ -154,14 +158,14 @@ exist, it's created on the fly.
 
 
 
-.. _calibration:
+.. _calibration-proc:
 .. index:: SAR Calibration
 
 SAR Calibration
 +++++++++++++++
 
 :Input:          An original :ref:`input S1 image <paths.s1_images>`
-:Output:         None: chained in memory with :ref:`cutting <cutting>`
+:Output:         None: chained in memory with :ref:`cutting <cutting-proc>`
 :OTBApplication: :external:std:doc:`OTB SARCalibration application
                  <Applications/app_SARCalibration>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.Calibrate`
@@ -172,8 +176,8 @@ The type of calibration is controlled with :ref:`[Processing].calibration
 :ref:`if required <Processing.remove_thermal_noise>`.
 
 .. note:: At the end of this step, no file is produced as calibration is piped
-   in memory with :ref:`cutting <cutting>` to produce :ref:`orthorectification
-   ready images <orthoready-files>`
+   in memory with :ref:`cutting <cutting-proc>` to produce
+   :ref:`orthorectification ready images <orthoready-files>`
 
 .. note:: An extra artificial step is realized just after calibration to
    replace null values produced by denoising with a :ref:`minimal signal value
@@ -181,16 +185,16 @@ The type of calibration is controlled with :ref:`[Processing].calibration
    way as the *no data* value.
 
 
-.. _cutting:
+.. _cutting-proc:
 .. index:: Margin cutting
 
 Margins cutting
 +++++++++++++++
 
 :Input:          None: chained in memory from :ref:`SAR Calibration
-                 <calibration>`
+                 <calibration-proc>`
 :Output:         - Either chained in memory with :ref:`orthorectification
-                   <orthorectification>`
+                   <orthorectification-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
 :OTBApplication: :external:std:doc:`OTB ResetMargin application
                  <Applications/app_ResetMargin>`
@@ -224,12 +228,13 @@ these products in memory can be disabled by passing ``--cache-before-ortho`` to
 program:`S1Processor`.
 
 
+.. _orthorectification-proc:
 .. index:: Orthorectification
 
 Orthorectification
 ++++++++++++++++++
 
-:Input:          - Either chained in memory from :ref:`cutting <cutting>`
+:Input:          - Either chained in memory from :ref:`cutting <cutting-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
 :Output:         :ref:`orthorectified S1 images <orthorectified-files>`
 :OTBApplication: :external:std:doc:`OTB OrthoRectification application
@@ -249,6 +254,7 @@ It uses the following parameters from the request configuration file:
 - :ref:`[Paths].geoid_file <paths.geoid_file>`
 
 
+.. _concatenation-proc:
 .. index:: Concatenation
 
 Concatenation
@@ -287,7 +293,7 @@ This step produces the main product of S1 Tiling: the :ref:`final S2 tiles
            :align: left
 
 
-.. _mask-generation:
+.. _mask_generation-proc:
 .. index:: Border mask generation
 
 Border mask generation
@@ -306,8 +312,8 @@ If :ref:`requested <Mask.generate_border_mask>`, :ref:`border masks
 
 The actual generation is done in two steps:
 
-1. :external:std:doc:`OTB BandMath application <Applications/app_BandMath>` is used to
-   generate border masks by saturating non-zero data to 1's.
+1. :external:std:doc:`OTB BandMath application <Applications/app_BandMath>` is
+   used to generate border masks by saturating non-zero data to 1's.
 2. :external:std:doc:`OTB BinaryMorphologicalOperation application
    <Applications/app_BinaryMorphologicalOperation>` is used to smooth border
    masks with a ball of 5x5 radius used for *opening*.

@@ -38,11 +38,12 @@ import copy
 from string import Formatter
 import logging
 import logging.handlers
+import logging.config
 # import multiprocessing
 import os
 from pathlib import Path
 import re
-from typing import Callable, Dict, List, Optional, TypeVar
+from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
 import yaml
 
 from s1tiling.libs import exceptions
@@ -53,18 +54,15 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
-def load_log_config(cfgpaths: List[Path]) -> Dict:
+def _load_log_config(cfgpaths: Path) -> Dict:
     """
     Take care of loading a log configuration file expressed in YAML
     """
-    with open(cfgpaths[0], 'r', encoding='UTF-8') as stream:
+    with open(cfgpaths, 'r', encoding='UTF-8') as stream:
         # FullLoader requires yaml 5.1
         # And it SHALL be used, see https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-        if hasattr(yaml, 'FullLoader'):
-            config = yaml.load(stream, Loader=yaml.FullLoader)
-        else:
-            print("WARNING - upgrade pyyaml to version 5.1 at least!!")
-            config = yaml.load(stream)
+        assert hasattr(yaml, 'FullLoader'), "Please upgrade pyyaml to version 5.1+"
+        config = yaml.load(stream, Loader=yaml.FullLoader)
     return config
 
 
@@ -122,7 +120,12 @@ def getboolean_opt(cfg, config_filename: Path, section: str, name: str, **kwargs
 
 
 # Helper functions related to logs
-def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
+def add_missing(dst: List[str], entry: str):
+    """ Add entry to list if not already there """
+    if entry not in dst:
+        dst.append(entry)
+
+def _init_logger(mode, paths: List[Path]) -> Tuple[Optional[Dict], Optional[Path]]:
     """
     Initializes logging service.
     """
@@ -137,7 +140,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
     # print("verbose: ", verbose)
     # print("log2files: ", log2files)
     if cfgpaths:
-        config = load_log_config(cfgpaths)
+        config = _load_log_config(cfgpaths[0])
         if verbose:
             # Control the maximum global verbosity level
             config["root"]["level"] = "DEBUG"
@@ -146,8 +149,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             config["handlers"]["console"]["level"] = "DEBUG"
         if log2files:
             for handler in ["file", "important"]:
-                if handler not in config["root"]["handlers"]:
-                    config["root"]["handlers"] += [handler]
+                add_missing(config["root"]["handlers"], handler)
             if verbose:
                 config["handlers"]["file"]["level"] = "DEBUG"
         # Update all filenames with debug mode info.
@@ -164,7 +166,7 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             if 'filename' in cfg and '{kind}' in cfg['filename']:
                 cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
-        return config
+        return config, cfgpaths[0]
     else:
         # This situation should not happen
         if verbose:
@@ -172,42 +174,114 @@ def _init_logger(mode, paths: List[Path]) -> Optional[Dict]:
             # os.environ["OTB_LOGGER_LEVEL"]="DEBUG"
         else:
             logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-        return None
+        return None, None
+
+
+class _ConfigAccessor:
+    """
+    Helper class to access options and return high level error messages
+    """
+    def __init__(
+            self, config, configFile: Path
+    ) -> None:
+        self.__config = config
+        self.__config_file = configFile
+
+    @property
+    def config_file(self):
+        """ Property config_file """
+        return self.__config_file
+
+    def has_section(self, section: str) -> bool:
+        """ Tells whether the configuration has the requested section """
+        return self.__config.has_section(section)
+
+    def throw(self, message: str) -> NoReturn:
+        """
+        Raises a :class:`exceptions.ConfigurationError` filles with everything
+        """
+        raise exceptions.ConfigurationError(message, self.config_file)
+
+    def get(self, section: str, name: str, **kwargs) -> str:
+        """ Helper function to report errors while extracting string configuration options """
+        return get_opt(self.__config, self.config_file, section, name, **kwargs)
+
+    def getint(self, section: str, name: str, **kwargs) -> int:
+        """ Helper function to report errors while extracting int configuration options """
+        return getint_opt(self.__config, self.config_file, section, name, **kwargs)
+
+    def getfloat(self, section: str, name: str, **kwargs) -> float:
+        """ Helper function to report errors while extracting floatting point configuration options """
+        return getfloat_opt(self.__config, self.config_file, section, name, **kwargs)
+
+    def getboolean(self, section: str, name: str, **kwargs) -> bool:
+        """ Helper function to report errors while extracting boolean configuration options """
+        return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
 
 
 # The configuration decoding specific to S1Tiling application
 class Configuration():  # pylint: disable=too-many-instance-attributes
     """This class handles the parameters from the cfg file"""
-    def __init__(  # pylint: disable=too-many-locals
-            self, configFile, do_show_configuration=True
+    def __init__(
+            self, config_file : Union[str, Path], do_show_configuration=True
     ) -> None:
-        config = configparser.ConfigParser(os.environ)
-        config.read(configFile)
+        #: Cache of DEM information covering S2 tiles
+        self.__dems_by_s2_tiles : Dict[str, Dict] = {}
 
-        # Logs
-        #: Logging mode
-        self.Mode = get_opt(config, configFile, 'Processing', 'mode', fallback=None)
-        self.__log_config : Optional[Dict] = None
-        if self.Mode is not None:
-            self.init_logger(Path(configFile).parent.absolute())
+        config = configparser.ConfigParser(os.environ)
+        config.read(config_file)
+
+        accessor = _ConfigAccessor(config, Path(config_file))
+
+        # Load configuration by topics
+        self.__init_log(accessor)
+        self.__init_paths(accessor)
+        self.__init_data_source(accessor)
+        self.__init_mask(accessor)
+        self.__init_processing(accessor)
+        self.__init_filtering(accessor)
+        self.__init_fname_fmt(accessor)
 
         # Other options
+        #: Type of images handled
+        self.type_image         = "GRD"
+
+        # Extra checks
+        all_requested = self.tile_list[0] == "ALL"
+        if all_requested and self.download and "ALL" in self.roi_by_tiles:
+            accessor.throw("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
+                    + " Change either value or deactivate download instead")
+
+        if do_show_configuration:
+            self.show_configuration()
+
+    # ----------------------------------------------------------------------
+    def __init_log(self, accessor: _ConfigAccessor) -> None:
+        # Logs
+        #: Logging mode
+        self.Mode = accessor.get('Processing', 'mode', fallback=None)
+        self.__log_config : Optional[Dict] = None
+        if self.Mode is not None:
+            self.init_logger(accessor.config_file.parent.absolute())
+
+    # ----------------------------------------------------------------------
+    def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
-        self.output_preprocess   = get_opt(config, configFile, 'Paths', 'output')
+        self.output_preprocess   = accessor.get('Paths', 'output')
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory       = get_opt(config, configFile, 'Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.lia_directory       = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
-        self.raw_directory       = get_opt(config, configFile, 'Paths', 's1_images')
+        self.raw_directory       = accessor.get('Paths', 's1_images')
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
-        self.dem                 = get_opt(config, configFile, 'Paths', 'dem_dir', fallback='') or get_opt(config, configFile, 'Paths', 'srtm')
-        dem_database             = get_opt(config, configFile, 'Paths', 'dem_database', fallback='')
+        self.dem                 = accessor.get('Paths', 'dem_dir', fallback='') or accessor.get('Paths', 'srtm')
+        dem_database             = accessor.get('Paths', 'dem_database', fallback='')
         # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
         #: Path to the internal DEM tiles database: automatically set
         self._DEMShapefile       = Path(dem_database or resource_dir / 'shapefile' / 'srtm_tiles.gpkg')
         #: Filename format string to locate the DEM file associated to an *identifier*: See :ref:`[PATHS.dem_format] <paths.dem_format>`
-        self.dem_filename_format = get_opt(config, configFile, 'Paths', 'dem_format', fallback='{id}.hgt')
+        self.dem_filename_format = accessor.get('Paths', 'dem_format', fallback='{id}.hgt')
         # List of keys/ids to extract from DEM database ; deduced from the keys
         # used in the filename format; see https://stackoverflow.com/a/22830468/15934
         #: List of keys/ids to extract from DEM DB
@@ -219,131 +293,157 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         # logger.debug('Using %s as DEM tile main id for name', main_id)
 
         #: Where tmp files are produced: See :ref:`[PATHS.tmp] <paths.tmp>`
-        self.tmpdir              = get_opt(config, configFile, 'Paths', 'tmp')
+        self.tmpdir              = accessor.get('Paths', 'tmp')
         if not os.path.isdir(self.tmpdir) and not os.path.isdir(os.path.dirname(self.tmpdir)):
             # Even if tmpdir doesn't exist we should still be able to create it
-            raise exceptions.ConfigurationError(f"tmpdir={self.tmpdir} is not a valid path", configFile)
+            accessor.throw(f"tmpdir={self.tmpdir} is not a valid path")
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
-        self.GeoidFile           = get_opt(config, configFile, 'Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
+        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
         #: Path to directory of temp DEMs
         self.tmp_dem_dir: str    = ""
 
-        if config.has_section('PEPS'):
-            raise exceptions.ConfigurationError(
-                    'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!', configFile)
+    # ----------------------------------------------------------------------
+    def __init_data_source(self, accessor: _ConfigAccessor) -> None:
+        if accessor.has_section('PEPS'):
+            accessor.throw(
+                    'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
-        self.eodag_config               = get_opt(config, configFile, 'DataSource', 'eodag_config', fallback=None) or \
-                                          get_opt(config, configFile, 'DataSource', 'eodagConfig',  fallback=None)
+        self.eodag_config        = accessor.get('DataSource', 'eodag_config', fallback=None) or \
+                                   accessor.get('DataSource', 'eodagConfig',  fallback=None)
         #: Boolean flag that enables/disables download of S1 input images: :ref:`[DataSource.download] <DataSource.download>`
-        self.download                  = getboolean_opt(config, configFile, 'DataSource', 'download')
+        self.download            = accessor.getboolean('DataSource', 'download')
         #: Region Of Interest to download: See :ref:`[DataSource.roi_by_tiles] <DataSource.roi_by_tiles>`
-        self.roi_by_tiles              = get_opt(config, configFile, 'DataSource', 'roi_by_tiles')
+        self.roi_by_tiles        = accessor.get('DataSource', 'roi_by_tiles')
         #: Start date: :ref:`[DataSource.first_date] <DataSource.first_date>`
-        self.first_date                = get_opt(config, configFile, 'DataSource', 'first_date')
+        self.first_date          = accessor.get('DataSource', 'first_date')
         #: End date: :ref:`[DataSource.last_date] <DataSource.last_date>`
-        self.last_date                 = get_opt(config, configFile, 'DataSource', 'last_date')
+        self.last_date           = accessor.get('DataSource', 'last_date')
 
-        platform_list_str              = get_opt(config, configFile, 'DataSource', 'platform_list', fallback='')
-        platform_list                  = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
-        unsupported_platforms          = [p for p in platform_list if p and not p.startswith("S1")]
+        platform_list_str        = accessor.get('DataSource', 'platform_list', fallback='')
+        platform_list            = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
+        unsupported_platforms    = [p for p in platform_list if p and not p.startswith("S1")]
         if unsupported_platforms:
-            raise exceptions.ConfigurationError(f"Non supported requested platforms: {', '.join(unsupported_platforms)}", configFile)
+            accessor.throw(f"Non supported requested platforms: {', '.join(unsupported_platforms)}")
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
-        self.platform_list             = platform_list
+        self.platform_list       = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
-        self.orbit_direction           = get_opt(config, configFile, 'DataSource', 'orbit_direction', fallback=None)
+        self.orbit_direction     = accessor.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
-            raise exceptions.ConfigurationError("Parameter [orbit_direction] must be either unset or DES, or ASC", configFile)
-        relative_orbit_list_str        = get_opt(config, configFile, 'DataSource', 'relative_orbit_list', fallback='')
+            accessor.throw("Parameter [orbit_direction] must be either unset or DES, or ASC")
+        relative_orbit_list_str  = accessor.get('DataSource', 'relative_orbit_list', fallback='')
         #: Filter to restrict relative orbits: See :ref:`[DataSource.relative_orbit_list] <DataSource.relative_orbit_list>`
-        self.relative_orbit_list       = [int(o) for o in re.findall(r'\d+', relative_orbit_list_str)]
+        self.relative_orbit_list = [int(o) for o in re.findall(r'\d+', relative_orbit_list_str)]
         #: Filter to polarisation: See :ref:`[DataSource.polarisation] <DataSource.polarisation>`
-        self.polarisation              = get_opt(config, configFile, 'DataSource', 'polarisation')
-        if   self.polarisation == 'VV-VH':
-            self.polarisation = 'VV VH'
-        elif self.polarisation == 'HH-HV':
-            self.polarisation = 'HH HV'
+        self.polarisation        = accessor.get('DataSource', 'polarisation')
+        if   self.polarisation   == 'VV-VH':
+            self.polarisation    = 'VV VH'
+        elif self.polarisation   == 'HH-HV':
+            self.polarisation    = 'HH HV'
         elif self.polarisation not in ['VV', 'VH', 'HH', 'HV']:
-            raise exceptions.ConfigurationError("Parameter [polarisation] must be either HH-HV, VV-VH, HH, HV, VV or VH", configFile)
+            accessor.throw("Parameter [polarisation] must be either HH-HV, VV-VH, HH, HV, VV or VH")
 
         # 0 => no filter
         #: Filter to ensure minimum S2 tile coverage by S1 input products: :ref:`[DataSource.tile_to_product_overlap_ratio] <DataSource.tile_to_product_overlap_ratio>`
-        self.tile_to_product_overlap_ratio = getint_opt(config, configFile, 'DataSource', 'tile_to_product_overlap_ratio', fallback=0)
+        self.tile_to_product_overlap_ratio = accessor.getint('DataSource', 'tile_to_product_overlap_ratio', fallback=0)
         if self.tile_to_product_overlap_ratio > 100:
-            raise exceptions.ConfigurationError("Parameter [tile_to_product_overlap_ratio] must be a percentage in [1, 100]", configFile)
+            accessor.throw("Parameter [tile_to_product_overlap_ratio] must be a percentage in [1, 100]")
 
         if self.download:
             #: Number of downloads that can be done in parallel: :ref:`[DataSource.nb_parallel_downloads] <DataSource.nb_parallel_downloads>`
-            self.nb_download_processes = getint_opt(config, configFile, 'DataSource', 'nb_parallel_downloads', fallback=1)
+            self.nb_download_processes = accessor.getint('DataSource', 'nb_parallel_downloads', fallback=1)
 
-        #: Type of images handled
-        self.type_image         = "GRD"
+    # ----------------------------------------------------------------------
+    def __init_mask(self, accessor: _ConfigAccessor) -> None:
         #: Shall we generate mask products? :ref:`[Mask.generate_border_mask] <Mask.generate_border_mask>`
-        self.mask_cond          = getboolean_opt(config, configFile, 'Mask', 'generate_border_mask')
+        self.mask_cond = accessor.getboolean('Mask', 'generate_border_mask')
 
-        #:Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
-        self.cache_dem_by       = get_opt(config, configFile, 'Processing', 'cache_dem_by', fallback='symlink')
+    # ----------------------------------------------------------------------
+    def __init_processing(self, accessor: _ConfigAccessor) -> None:
+        #: Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
+        self.cache_dem_by         = accessor.get('Processing', 'cache_dem_by', fallback='symlink')
         if self.cache_dem_by not in ['symlink', 'copy']:
-            raise exceptions.ConfigurationError(
-                    f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'", configFile)
+            accessor.throw(
+                    f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
 
+        # - - - - - - - - - -[ Cut margins
+        try:
+            self.override_azimuth_cut_threshold_to : Optional[bool] = accessor.getboolean(
+                    'Processing', 'override_azimuth_cut_threshold_to')
+        except Exception:  # pylint: disable=broad-except
+            # We cannot use "fallback=None" to handle ": None" w/ getboolean()
+            #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
+            self.override_azimuth_cut_threshold_to = None
+
+        # - - - - - - - - - -[ Calibration
         #: SAR Calibration applied: See :ref:`[Processing.calibration] <Processing.calibration>`
-        self.calibration_type   = get_opt(config, configFile, 'Processing', 'calibration')
+        self.calibration_type     = accessor.get('Processing', 'calibration')
         #: Shall we remove thermal noise: :ref:`[Processing.remove_thermal_noise] <Processing.remove_thermal_noise>`
-        self.removethermalnoise = getboolean_opt(config, configFile, 'Processing', 'remove_thermal_noise')
+        self.removethermalnoise   = accessor.getboolean('Processing', 'remove_thermal_noise')
         if self.removethermalnoise and otb_version() < '7.4.0':
             raise exceptions.InvalidOTBVersionError(
                 f"OTB {otb_version()} does not support noise removal. "
-                f"Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '{configFile}'")
+                f"Please upgrade OTB to version 7.4.0 or disable 'remove_thermal_noise' in '{accessor.config_file}'")
 
         #: Minimal signal value to set after on "denoised" pixels: See :ref:`[Processing.lower_signal_value] <Processing.lower_signal_value>`
-        self.lower_signal_value = getfloat_opt(config, configFile, 'Processing', 'lower_signal_value', fallback=1e-7)
+        self.lower_signal_value   = accessor.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
-            raise exceptions.ConfigurationError(
-                "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.", configFile)
+            accessor.throw(
+                "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
 
+        # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
-        self.out_spatial_res    = getfloat_opt(config, configFile, 'Processing', 'output_spatial_resolution')
-
-
-        #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
-        self.output_grid        = get_opt(config, configFile, 'Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
-        if not os.path.isfile(self.output_grid):
-            raise exceptions.ConfigurationError(f"output_grid={self.output_grid} is not a valid path", configFile)
+        self.out_spatial_res      = accessor.getfloat('Processing', 'output_spatial_resolution')
 
         #: Grid spacing (in meters) for the interpolator in the orthorectification: See :ref:`[Processing.orthorectification_gridspacing] <Processing.orthorectification_gridspacing>`
-        self.grid_spacing         = getfloat_opt(config, configFile, 'Processing', 'orthorectification_gridspacing')
+        self.grid_spacing         = accessor.getfloat('Processing', 'orthorectification_gridspacing')
         #: Orthorectification interpolation methode: See :ref:`[Processing.orthorectification_interpolation_method] <Processing.orthorectification_interpolation_method>`
-        self.interpolation_method = get_opt(config, configFile, 'Processing', 'orthorectification_interpolation_method', fallback='nn')
+        self.interpolation_method = accessor.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
+
+        # - - - - - - - - - -[ Tiles
+        #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
+        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
+        if not os.path.isfile(self.output_grid):
+            accessor.throw(f"output_grid={self.output_grid} is not a valid path")
+
         try:
-            tiles_file = get_opt(config, configFile, 'Processing', 'tiles_list_in_file')
+            tiles_file = accessor.get('Processing', 'tiles_list_in_file')
             with open(tiles_file, 'r', encoding='utf-8') as tiles_file_handle:
                 tile_list = tiles_file_handle.readlines()
             self.tile_list: List[str] = [s.rstrip() for s in tile_list]
             logging.info("The following tiles will be processed: %s", self.tile_list)
         except Exception:  # pylint: disable=broad-except
-            tiles = get_opt(config, configFile, 'Processing', 'tiles')
+            tiles = accessor.get('Processing', 'tiles')
             #: List of S2 tiles to process: See :ref:`[Processing.tiles] <Processing.tiles>`
             self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
 
+        # - - - - - - - - - -[ Parallelization & RAM
         #: Number of tasks executed in parallel: See :ref:`[Processing.nb_parallel_processes] <Processing.nb_parallel_processes>`
-        self.nb_procs                      = getint_opt(config, configFile, 'Processing', 'nb_parallel_processes')
+        self.nb_procs             = accessor.getint('Processing', 'nb_parallel_processes')
         #: RAM allocated to OTB applications: See :ref:`[Processing.ram_per_process] <Processing.ram_per_process>`
-        self.ram_per_process               = getint_opt(config, configFile, 'Processing', 'ram_per_process')
+        self.ram_per_process      = accessor.getint('Processing', 'ram_per_process')
         #: Number of threads allocated to each OTB application: See :ref:`[Processing.nb_otb_threads] <Processing.nb_otb_threads>`
-        self.OTBThreads                    = getint_opt(config, configFile, 'Processing', 'nb_otb_threads')
+        self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
 
+        # - - - - - - - - - -[ LIA
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
-        self.produce_lia_map               = getboolean_opt(config, configFile, 'Processing', 'produce_lia_map', fallback=False)
+        self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
 
+        #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for LIA computation purposes
+        resamplings = ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'rms', 'mode', 'max', 'min', 'med', 'q1', 'q3', 'qum']
+        self.dem_warp_resampling_method = accessor.get('Processing', 'dem_warp_resampling_method', fallback="cubic")
+        if self.dem_warp_resampling_method not in resamplings:
+            accessor.throw(f"{self.dem_warp_resampling_method} is an invalid choice for `dem_warp_resampling_method`. Choose one among {resamplings}")
+
+    # ----------------------------------------------------------------------
+    def __init_filtering(self, accessor: _ConfigAccessor) -> None:
         #: Despeckle filter to apply, if any: See :ref:`[Filtering.filter] <Filtering.filter>`
-        self.filter = get_opt(config, configFile, 'Filtering', 'filter', fallback='').lower()
+        self.filter = accessor.get('Filtering', 'filter', fallback='').lower()
         if self.filter and self.filter == 'none':
             self.filter = ''
         if self.filter:
             #: Shall we keep non-filtered products? See :ref:`[Filtering.keep_non_filtered_products] <Filtering.keep_non_filtered_products>`
-            self.keep_non_filtered_products = getboolean_opt(config, configFile, 'Filtering', 'keep_non_filtered_products')
+            self.keep_non_filtered_products = accessor.getboolean('Filtering', 'keep_non_filtered_products')
             # if generate_border_mask, override this value
             if self.mask_cond:
                 logging.warning('As masks are produced, Filtering.keep_non_filtered_products value will be ignored')
@@ -351,91 +451,90 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
             #: Dictionary of filter options: {'rad': :ref:`[Filtering.window_radius] <Filtering.window_radius>`, 'deramp': :ref:`[Filtering.deramp] <Filtering.deramp>`, 'nblooks': :ref:`[Filtering.nblooks] <Filtering.nblooks>`}
             self.filter_options : Dict = {
-                    'rad': getint_opt(config, configFile, 'Filtering', 'window_radius')
+                    'rad': accessor.getint('Filtering', 'window_radius')
             }
             if self.filter == 'frost':
-                self.filter_options['deramp']  = getfloat_opt(config, configFile, 'Filtering', 'deramp')
+                self.filter_options['deramp']  = accessor.getfloat('Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:
-                self.filter_options['nblooks'] = getfloat_opt(config, configFile, 'Filtering', 'nblooks')
+                self.filter_options['nblooks'] = accessor.getfloat('Filtering', 'nblooks')
             else:
-                raise exceptions.ConfigurationError(
-                    f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan", configFile)
+                accessor.throw(
+                    f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
 
-        try:
-            self.override_azimuth_cut_threshold_to : Optional[bool] = getboolean_opt(
-                    config, configFile, 'Processing', 'override_azimuth_cut_threshold_to')
-        except Exception:  # pylint: disable=broad-except
-            # We cannot use "fallback=None" to handle ": None" w/ getboolean()
-            #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
-            self.override_azimuth_cut_threshold_to = None
-
+    # ----------------------------------------------------------------------
+    def __init_fname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
-        fname_fmt_keys = ['calibration', 'correct_denoising', 'cut_borders',
-                'orthorectification', 'concatenation', 'dem_s1_agglomeration',
-                's1_on_dem', 'xyz', 'normals', 's1_lia', 's1_sin_lia',
-                'lia_orthorectification', 'lia_concatenation', 'lia_product',
-                's2_lia_corrected', 'filtered']
+        fname_fmt_keys = [
+                'calibration', 'correct_denoising', 'cut_borders',
+                'orthorectification', 'concatenation', 'filtered',
+                'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
+                'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+                # Keys to deprecated workflow
+                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
+                'lia_orthorectification', 'lia_concatenation',
+        ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
-            fmt = get_opt(config, configFile, 'Processing', f'fname_fmt.{key}', fallback=None)
+            fmt = accessor.get('Processing', f'fname_fmt.{key}', fallback=None)
             # Default value is defined in associated StepFactories
             if fmt:
                 self.fname_fmt[key] = fmt
 
-        if do_show_configuration:
-            self.show_configuration()
-
-    def show_configuration(self) -> None:
+    # ----------------------------------------------------------------------
+    def show_configuration(self) -> None:  # pylint: disable=too-many-statements
         """
         Displays the configuration
         """
         logging.debug("Running S1Tiling %s with:", s1tiling_version)
         logging.debug("[Paths]")
-        logging.debug("- geoid_file                     : %s",     self.GeoidFile)
-        logging.debug("- s1_images                      : %s",     self.raw_directory)
-        logging.debug("- output                         : %s",     self.output_preprocess)
-        logging.debug("- LIA                            : %s",     self.lia_directory)
-        logging.debug("- dem directory                  : %s",     self.dem)
-        logging.debug("- dem filename format            : %s",     self.dem_filename_format)
-        logging.debug("- dem field ids (from shapefile) : %s",     self.dem_field_ids)
-        logging.debug("- main ID for DEM names deduced  : %s",     self.dem_main_field_id)
-        logging.debug("- tmp                            : %s",     self.tmpdir)
+        logging.debug("- geoid_file                       : %s",     self.GeoidFile)
+        logging.debug("- s1_images                        : %s",     self.raw_directory)
+        logging.debug("- output                           : %s",     self.output_preprocess)
+        logging.debug("- LIA                              : %s",     self.lia_directory)
+        logging.debug("- dem directory                    : %s",     self.dem)
+        logging.debug("- dem filename format              : %s",     self.dem_filename_format)
+        logging.debug("- dem field ids (from shapefile)   : %s",     self.dem_field_ids)
+        logging.debug("- main ID for DEM names deduced    : %s",     self.dem_main_field_id)
+        logging.debug("- tmp                              : %s",     self.tmpdir)
         logging.debug("[DataSource]")
-        logging.debug("- download                       : %s",     self.download)
-        logging.debug("- first_date                     : %s",     self.first_date)
-        logging.debug("- last_date                      : %s",     self.last_date)
-        logging.debug("- platform_list                  : %s",     self.platform_list)
-        logging.debug("- polarisation                   : %s",     self.polarisation)
-        logging.debug("- orbit_direction                : %s",     self.orbit_direction)
-        logging.debug("- relative_orbit_list            : %s",     self.relative_orbit_list)
-        logging.debug("- tile_to_product_overlap_ratio  : %s%%",   self.tile_to_product_overlap_ratio)
-        logging.debug("- roi_by_tiles                   : %s",     self.roi_by_tiles)
+        logging.debug("- download                         : %s",     self.download)
+        logging.debug("- first_date                       : %s",     self.first_date)
+        logging.debug("- last_date                        : %s",     self.last_date)
+        logging.debug("- platform_list                    : %s",     self.platform_list)
+        logging.debug("- polarisation                     : %s",     self.polarisation)
+        logging.debug("- orbit_direction                  : %s",     self.orbit_direction)
+        logging.debug("- relative_orbit_list              : %s",     self.relative_orbit_list)
+        logging.debug("- tile_to_product_overlap_ratio    : %s%%",   self.tile_to_product_overlap_ratio)
+        logging.debug("- roi_by_tiles                     : %s",     self.roi_by_tiles)
         if self.download:
-            logging.debug("- nb_parallel_downloads          : %s", self.nb_download_processes)
+            logging.debug("- nb_parallel_downloads            : %s", self.nb_download_processes)
         logging.debug("[Processing]")
-        logging.debug("- calibration                    : %s",     self.calibration_type)
-        logging.debug("- mode                           : %s",     self.Mode)
-        logging.debug("- nb_otb_threads                 : %s",     self.OTBThreads)
-        logging.debug("- nb_parallel_processes          : %s",     self.nb_procs)
-        logging.debug("- orthorectification_gridspacing : %s",     self.grid_spacing)
-        logging.debug("- output_spatial_resolution      : %s",     self.out_spatial_res)
-        logging.debug("- ram_per_process                : %s",     self.ram_per_process)
-        logging.debug("- remove_thermal_noise           : %s",     self.removethermalnoise)
-        logging.debug("- dem_shapefile                  : %s",     self._DEMShapefile)
-        logging.debug("- tiles                          : %s",     self.tile_list)
-        logging.debug("- tiles_shapefile                : %s",     self.output_grid)
-        logging.debug("- produce LIA° map               : %s",     self.produce_lia_map)
+        logging.debug("- calibration                      : %s",     self.calibration_type)
+        logging.debug("- mode                             : %s",     self.Mode)
+        logging.debug("- nb_otb_threads                   : %s",     self.OTBThreads)
+        logging.debug("- nb_parallel_processes            : %s",     self.nb_procs)
+        logging.debug("- orthorectification interpolation : %s",     self.interpolation_method)
+        logging.debug("- orthorectification_gridspacing   : %s",     self.grid_spacing)
+        logging.debug("- output_spatial_resolution        : %s",     self.out_spatial_res)
+        logging.debug("- ram_per_process                  : %s",     self.ram_per_process)
+        logging.debug("- remove_thermal_noise             : %s",     self.removethermalnoise)
+        logging.debug("- dem_shapefile                    : %s",     self._DEMShapefile)
+        logging.debug("- tiles                            : %s",     self.tile_list)
+        logging.debug("- tiles_shapefile                  : %s",     self.output_grid)
+        logging.debug("- produce LIA° map                 : %s",     self.produce_lia_map)
+        logging.debug("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
+        logging.debug("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.debug("[Mask]")
-        logging.debug("- generate_border_mask           : %s",     self.mask_cond)
+        logging.debug("- generate_border_mask             : %s",     self.mask_cond)
         logging.debug("[Filter]")
-        logging.debug("- Speckle filtering method       : %s",     self.filter or "none")
+        logging.debug("- Speckle filtering method         : %s",     self.filter or "none")
         if self.filter:
-            logging.debug("- Keeping previous products      : %s",     self.keep_non_filtered_products)
-            logging.debug("- Window radius                  : %s",     self.filter_options['rad'])
+            logging.debug("- Keeping previous products        : %s", self.keep_non_filtered_products)
+            logging.debug("- Window radius                    : %s", self.filter_options['rad'])
             if   self.filter in ['lee', 'gammamap', 'kuan']:
-                logging.debug("- nblooks                        : %s",     self.filter_options['nblooks'])
+                logging.debug("- nblooks                          : %s", self.filter_options['nblooks'])
             elif self.filter in ['frost']:
-                logging.debug("- deramp                         : %s",     self.filter_options['deramp'])
+                logging.debug("- deramp                           : %s", self.filter_options['deramp'])
 
         logging.debug('File formats')
         for k, fmt in self.fname_fmt.items():
@@ -443,16 +542,18 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
     def init_logger(self, config_log_dir: Path, mode=None) -> None:
         """
-        Deported logger initialization function for project that use their own
+        Deported logger initialization function for projects that use their own
         logger, and S1Tiling through its API only.
 
         :param mode: Option to override logging mode, if not found/expected in
                      the configuration file.
         """
         if not self.__log_config:
-            self.__log_config = _init_logger(self.Mode, [config_log_dir])
+            # pylint: disable=attribute-defined-outside-init
+            self.__log_config, config_file = _init_logger(self.Mode, [config_log_dir])
             self.Mode = mode or self.Mode
             assert self.Mode, "Please set a valid logging mode!"
+            logging.debug("S1 tiling configuration initialized from '%s'", config_file)
             # self.log_queue = multiprocessing.Queue()
             # self.log_queue_listener = logging.handlers.QueueListener(self.log_queue)
             if "debug" in self.Mode and self.__log_config and self.__log_config['loggers']['s1tiling.OTB']['level'] == 'DEBUG':
@@ -460,6 +561,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 # is debug as well.
                 os.environ["OTB_LOGGER_LEVEL"] = "DEBUG"
 
+    # ======================================================================
     @property
     def log_config(self):
         """
@@ -508,3 +610,19 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
         return fname_fmt
+
+    # ======================================================================
+    # Things stored for later use
+    def register_dems_related_to_S2_tiles(self, dems_by_s2_tiles: Dict[str, Dict]) -> None:
+        """
+        Workaround that helps caching DEM related information for later use.
+        """
+        self.__dems_by_s2_tiles = dems_by_s2_tiles
+
+    def get_dems_covering_s2_tile(self, tile_name: str) -> Dict:
+        """
+        Retrieve the DEM associated to the specified S2 tile.
+        """
+        if tile_name not in self.__dems_by_s2_tiles:
+            raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
+        return self.__dems_by_s2_tiles[tile_name]
