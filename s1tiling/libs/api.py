@@ -344,7 +344,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
             s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
             # download_images will have updated the list of know products
     except RuntimeError as e:
-        logger.debug('Cannot download S1 images associated to %s: %s', tile_name, e)
+        logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
         return [Outcome(e)]
 
     except BaseException as e:

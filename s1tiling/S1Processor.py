@@ -77,7 +77,7 @@ def cli_execute(processing, *args, **kwargs):
     Factorize code common to all S1Tiling CLI entry points (exception
     translation into exit codes...)
     """
-    # situation = processing(*args, **kwargs)
+    trace_errors = kwargs.pop('trace_errors', False)
     try:
         situation = processing(*args, **kwargs)
         # logger.debug('nominal exit: %s', situation.code)
@@ -86,8 +86,8 @@ def cli_execute(processing, *args, **kwargs):
         # Logger object won't always exist at this time (like in configuration
         # errors) hence we may use click report mechanism instead.
         if logger:
-            logger.critical(e)
-            # logger.exception(e)
+            logger.critical(e, exc_info=trace_errors)
+            # logger.exception(e) # <=> exc_info=True
         else:
             click.echo(f"Error: {e}", err=True)
         return translate_exception_into_exit_code(e)
@@ -124,6 +124,11 @@ def cli_execute(processing, *args, **kwargs):
         help="If download fails, wait time in minutes between two download tries (default: 2 mins)"
         )
 @click.option(
+        "--trace-errors",
+        is_flag=True,
+        help="Display error full traceback, if any",
+)
+@click.option(
         "--dryrun",
         is_flag=True,
         help="Display the processing shall would be realized, but none is done.")
@@ -144,18 +149,11 @@ def cli_execute(processing, *args, **kwargs):
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run(  # pylint: disable=too-many-arguments
-        searched_items_per_page,
-        nb_max_search_retries,
-        dryrun,
-        debug_caches,
-        debug_otb,
-        watch_ram,
-        debug_tasks,
-        cache_before_ortho,
+def run(
         config_filename,
         eodag_download_wait,
-        eodag_download_timeout
+        eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process
 ) -> NoReturn:
     """
     This function is used as entry point to create console scripts with setuptools.
@@ -165,14 +163,8 @@ def run(  # pylint: disable=too-many-arguments
                 s1_process,
                 config_filename,
                 dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                nb_max_search_retries=nb_max_search_retries,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks,
-                cache_before_ortho=cache_before_ortho))
+                **kwargs
+            ))
 
 # ======================================================================
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -198,6 +190,11 @@ def run(  # pylint: disable=too-many-arguments
         help="If download fails, wait time in minutes between two download tries"
 )
 @click.option(
+        "--trace-errors",
+        is_flag=True,
+        help="Display error full traceback, if any",
+)
+@click.option(
         "--dryrun",
         is_flag=True,
         help="Display the processing shall would be realized, but none is done.")
@@ -218,17 +215,11 @@ def run(  # pylint: disable=too-many-arguments
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia(  # pylint: disable=too-many-arguments
-        searched_items_per_page,
-        nb_max_search_retries,
-        dryrun,
-        debug_otb,
-        debug_caches,
-        watch_ram,
-        debug_tasks,
+def run_lia(
         config_filename,
         eodag_download_wait,
-        eodag_download_timeout
+        eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
 ) -> NoReturn:
     """
     This function is used as entry point to create console scripts with setuptools.
@@ -238,13 +229,8 @@ def run_lia(  # pylint: disable=too-many-arguments
                 s1_process_lia,
                 config_filename,
                 dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                searched_items_per_page=searched_items_per_page,
-                nb_max_search_retries=nb_max_search_retries,
-                dryrun=dryrun,
-                debug_otb=debug_otb,
-                debug_caches=debug_caches,
-                watch_ram=watch_ram,
-                debug_tasks=debug_tasks))
+                **kwargs
+            ))
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
