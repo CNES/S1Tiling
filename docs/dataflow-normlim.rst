@@ -135,6 +135,7 @@ LIA specific processings
          DEM_on_S2     [label="DEM projected on 33NWB",        fillcolor=palegoldenrod];
          heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      fillcolor=palegoldenrod];
          xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", fillcolor=palegoldenrod];
+         normals_on_S2 [label="ground normals on 33NWB",       fillcolor=palegoldenrod];
 
          nwb_lia       [label="sin(LIA) on 33NWB",             fillcolor="gold" ]
 
@@ -152,6 +153,8 @@ LIA specific processings
 
          heights_on_S2 -> xyz_d1_t1;
          raw_d1_t1t2   -> xyz_d1_t1;
+         xyz_d1_t1     -> normals_on_S2;
+         normals_on_S2 -> nwb_lia;
          xyz_d1_t1     -> nwb_lia;
 
          nwb_lia   -> mult_d1;
