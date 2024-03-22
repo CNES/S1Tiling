@@ -15,8 +15,8 @@ How to add a new processing?
 ----------------------------
 
 This is done by deriving from :class:`StepFactory
-<s1tiling.libs.otbpipeline.StepFactory>`, or from :class:`OTBStepFactory
-<s1tiling.libs.otbpipeline.OTBStepFactory>`. You'll find many examples in the
+<s1tiling.libs.steps.StepFactory>`, or from :class:`OTBStepFactory
+<s1tiling.libs.steps.OTBStepFactory>`. You'll find many examples in the
 default :ref:`step factories <Existing Processings>`.
 
 The important points are to decide:
@@ -32,7 +32,7 @@ The important points are to decide:
 
 - What would be the name of the result files? |br|
   Override :func:`build_step_output_filename()
-  <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>` with the
+  <s1tiling.libs.steps.StepFactory.build_step_output_filename>` with the
   answer.
 
   .. note::
@@ -44,14 +44,14 @@ The important points are to decide:
 
 - Which configuration options would be needed? |br|
   Copy them from the constructor that will be passed the
-  :class:`s1tiling.libs.configuration.Configure` object.
+  :class:`s1tiling.libs.configuration.Configuration` object.
 - What meta information should be filled-in? |br|
   This should be done in :func:`complete_meta()
-  <s1tiling.libs.otbpipeline.StepFactory.complete_meta>`. |br|
+  <s1tiling.libs.steps.StepFactory.complete_meta>`. |br|
   Meta information can be used:
 
   - immediately by other methods like :func:`parameters()
-    <s1tiling.libs.otbpipeline.StepFactory.parameters>`,
+    <s1tiling.libs.steps._FileProducingStepFactory.parameters>`,
   - or by later steps in the pipeline.
 - If there is an OTB application behind the step -- which should be the case
   for most processing steps.
@@ -60,7 +60,7 @@ In case the step relates to an OTB application:
 
 - What parameters shall be sent to the OTB application? |br|
   Return the information from :func:`parameters()
-  <s1tiling.libs.otbpipeline.StepFactory.parameters>`.
+  <s1tiling.libs.steps._FileProducingStepFactory.parameters>`.
 - What are the parameters expected by the OTB application from the images that
   could be passed in-memory? |br|
   The default are ``"in"`` and ``"out"`` but could be overridden in the
@@ -74,21 +74,21 @@ In case the step relates to an OTB application:
 .. note::
 
     Most of the time, inheriting of :class:`OTBStepFactory
-    <s1tiling.libs.otbpipeline.OTBStepFactory>` is the best choice. Still, it's
+    <s1tiling.libs.steps.OTBStepFactory>` is the best choice. Still, it's
     possible to take over and to manually answer the following questions:
 
     - What would be the name of the temporary files while they are being produced? |br|
       Return the information from :func:`build_step_output_tmp_filename()
-      <s1tiling.libs.otbpipeline.StepFactory.build_step_output_tmp_filename>`,
+      <s1tiling.libs.steps.StepFactory.build_step_output_tmp_filename>`,
     - Where the product should be produced? |br|
       Return the information from :func:`output_directory()
-      <s1tiling.libs.otbpipeline.StepFactory.output_directory>` -- this is
+      <s1tiling.libs.steps._FileProducingStepFactory.output_directory>` -- this is
       typically used from :func:`build_step_output_filename()
-      <s1tiling.libs.otbpipeline.StepFactory.build_step_output_filename>`.
+      <s1tiling.libs.steps.StepFactory.build_step_output_filename>`.
 
 Technically all other methods from :class:`StepFactory
-<s1tiling.libs.otbpipeline.StepFactory>` could be overridden. For instance,
-:func:`create_step() <s1tiling.libs.otbpipeline.StepFactory.create_step>` could
+<s1tiling.libs.steps.StepFactory>` could be overridden. For instance,
+:func:`create_step() <s1tiling.libs.steps.StepFactory.create_step>` could
 be overridden to change the type of :ref:`Steps` instantiated.
 
 Release a new version
