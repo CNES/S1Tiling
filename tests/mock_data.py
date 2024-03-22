@@ -87,7 +87,8 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 30704,
-                },
+                'orbit'           : '007',
+            },
             {
                 'start_time'      : '2020:01:08 04:42:15',
                 'stop_time'       : '2020:01:08 04:42:40',
@@ -104,6 +105,7 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 30704,
+                'orbit'           : '007',
             },
             # 20 jan 2020
             {
@@ -122,6 +124,7 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 30879,
+                'orbit'           : '007',
             },
             {
                 'start_time'      : '2020:01:20 04:42:14',
@@ -139,6 +142,7 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 30879,
+                'orbit'           : '007',
             },
             # 02 feb 2020
             {
@@ -157,6 +161,7 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 31054,
+                'orbit'           : '007',
             },
             {
                 'start_time'      : '2020:02:01 04:42:14',
@@ -172,6 +177,7 @@ class FileDB:
                 'orbit_direction' : 'DES',
                 'relative_orbit'  : 7,
                 'absolute_orbit'  : 31054,
+                'orbit'           : '007',
             },
             ]
     CONCATS = [
@@ -182,6 +188,7 @@ class FileDB:
                 'start_time'  : '2020:01:08 04:41:50',
                 'first_date'  : '2020-01-01',
                 'last_date'   : '2020-01-10',
+                'orbit'       : '007',
             },
             # 20 jan 2020
             {
@@ -190,6 +197,7 @@ class FileDB:
                 'start_time'  : '2020:01:20 04:41:49',
                 'first_date'  : '2020-01-10',
                 'last_date'   : '2020-01-21',
+                'orbit'       : '007',
             },
             # 02 feb 2020
             {
@@ -198,6 +206,7 @@ class FileDB:
                 'start_time'  : '2020:02:01 04:41:49',
                 'first_date'  : '2020-02-01',
                 'last_date'   : '2020-02-05',
+                'orbit'       : '007',
             },
     ]
     # TILE = '33NWB'
@@ -215,14 +224,20 @@ class FileDB:
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
 
-    def __init__(self, inputdir, tmpdir, outputdir, liadir, tile, demdir, geoid_file) -> None:
-        self.__input_dir  = inputdir
-        self.__tmp_dir    = tmpdir
-        self.__output_dir = outputdir
-        self.__lia_dir    = liadir
-        self.__tile       = tile
-        self.__dem_dir    = demdir
-        self.__GeoidFile  = geoid_file
+    def __init__(
+            self,
+            inputdir, tmpdir, outputdir, liadir,
+            tile, demdir, geoid_file,
+            dname_fmt_concatenation=None,
+    ) -> None:
+        self.__input_dir               = inputdir
+        self.__tmp_dir                 = tmpdir
+        self.__output_dir              = outputdir
+        self.__lia_dir                 = liadir
+        self.__tile                    = tile
+        self.__dem_dir                 = demdir
+        self.__GeoidFile               = geoid_file
+        self.__dname_fmt_concatenation = dname_fmt_concatenation
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
@@ -476,12 +491,22 @@ class FileDB:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         else:
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
-            dir = f'{self.__output_dir}/{self.__tile}'
+            # dir = f'{self.__output_dir}/{self.__tile}'
+            dir = self.__dname_fmt_concatenation or '{out_dir}/{tile_name}'
         if tmp:
             ext = self.extended_compress
         else:
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
+        assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
+        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+                **crt,
+                tmp=tmp_suffix(tmp),
+                calibration=calibration,
+                out_dir=self.__output_dir,
+                tile_name=self.__tile,
+        ).format(
+                polarity=polarity, nr="001" if polarity == "vv" else "002"
+        )
     def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
         return self._concatfile_for_all(crt, tmp, polarity, calibration)

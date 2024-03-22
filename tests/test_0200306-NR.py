@@ -40,7 +40,7 @@ from typing import List
 import otbApplication as otb
 
 import pytest
-from unittest.mock import patch
+# from unittest.mock import patch
 
 # import pytest_check
 from .helpers import otb_compare, comparable_metadata
@@ -855,7 +855,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     })
 
 
-def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
 
@@ -874,10 +874,15 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+    configuration.dname_fmt['concatenation'] = '{out_dir}/orbit-{orbit}'
     configuration.show_configuration()
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(
+            inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(),
+            tile, demdir, configuration.GeoidFile,
+            dname_fmt_concatenation=configuration.dname_fmt['concatenation'],
+    )
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -907,7 +912,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
@@ -1006,7 +1011,7 @@ def test_33NWB_202001_lia_mocked(
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1074,7 +1079,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
