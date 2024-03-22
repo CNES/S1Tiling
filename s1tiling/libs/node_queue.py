@@ -38,6 +38,7 @@ T = TypeVar("T")
 
 logger = logging.getLogger('s1tiling.node_queue')
 
+
 class node_queue(Iterable[T]):
     """
     Defines a mutable list where elements can be appended while iterating on the list.

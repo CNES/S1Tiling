@@ -65,7 +65,8 @@ k_exit_table : Dict[Type[BaseException], int] = {
         exceptions.MissingGeoidError     : MISSING_GEOID,
         exceptions.InvalidOTBVersionError: CONFIG_ERROR,
         exceptions.MissingApplication    : MISSING_APP,
-        }
+}
+
 
 def translate_exception_into_exit_code(exception: BaseException) -> int:
     """

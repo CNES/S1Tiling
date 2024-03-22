@@ -80,8 +80,9 @@ logger = logging.getLogger('s1tiling.filemanager')
 # Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
 EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
-EODAG_DEFAULT_SEARCH_MAX_RETRIES    =  5  #: If search fails on timeout, number of retries attempted
+EODAG_DEFAULT_SEARCH_MAX_RETRIES    = 5   #: If search fails on timeout, number of retries attempted
 EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
+
 
 class WorkspaceKinds(Enum):
     """
@@ -236,9 +237,9 @@ def filter_images_or_ortho(kind, all_images: List[str]) -> List[str]:
 def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-locals
     products:     Union[List[EOProduct], List[Dict]],  # EOProduct or content_info
     target_cover: float,
-    ident:        Callable[[Union[EOProduct,Dict]], str],
-    get_cover:    Callable[[Union[EOProduct,Dict]], float],
-    get_orbit:    Callable[[Union[EOProduct,Dict]], int],
+    ident:        Callable[[Union[EOProduct, Dict]], str],
+    get_cover:    Callable[[Union[EOProduct, Dict]], float],
+    get_orbit:    Callable[[Union[EOProduct, Dict]], int],
 ) -> Union[List[EOProduct], List[Dict]]:
     """
     Associate products of the same date and orbit into pairs (at most),
@@ -327,7 +328,7 @@ def _keep_products_with_enough_coverage(
 
 def _discard_small_redundant(
     products: Union[List[EOProduct], List[os.DirEntry]],
-    ident:    Callable[[Union[EOProduct,os.DirEntry]], str],
+    ident:    Callable[[Union[EOProduct, os.DirEntry]], str],
 ) -> Union[List[EOProduct], List[os.DirEntry]]:
     """
     Sometimes there are several S1 product with the same start date, but a different end-date.
@@ -441,10 +442,10 @@ def _download_and_extract_one_product(
     try:
         path = DownloadOutcome(
                 dag.download(
-                    product,           # EODAG will clear this variable
-                    extract=True,      # Let's eodag do the job
-                    wait=dl_wait,      # Wait time in minutes between two download tries
-                    timeout=dl_timeout # Maximum time in mins before stop retrying to download (default=20’)
+                    product,            # EODAG will clear this variable
+                    extract=True,       # Let's eodag do the job
+                    wait=dl_wait,       # Wait time in minutes between two download tries
+                    timeout=dl_timeout  # Maximum time in mins before stop retrying to download (default=20’)
                 ),
                 product)
         logging.debug(ok_msg)
@@ -456,7 +457,7 @@ def _download_and_extract_one_product(
                 pass
         # eodag may say the product is correctly downloaded while it failed to do so
         # => let's do a quick sanity check
-        manifest = os.path.join(raw_directory, prod_id, prod_id+'.SAFE', 'manifest.safe')
+        manifest = os.path.join(raw_directory, prod_id, f'{prod_id}.SAFE', 'manifest.safe')
         if not os.path.exists(manifest):
             logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
             e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
@@ -780,8 +781,8 @@ class S1FileManager:
             if len(page_products) < self.__searched_items_per_page:
                 break
         logger.debug("%s remote S1 products found: %s", len(products), products)
-        ##for p in products:
-        ##    logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
+        ## for p in products:
+        ##     logger.debug("%s --> %s -- %s", p, p.provider, p.properties)
 
         # Filter relative_orbits -- if it could not be done earlier in the search() request.
         if len(relative_orbit_list) > 1:
@@ -856,7 +857,6 @@ class S1FileManager:
             #         minimum_overlap=cover, geometry=extent)
             logger.debug("%s remote S1 product(s) found and filtered (cover >= %s): %s", len(products), cover, products)
 
-
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
         # self._refresh_s1_product_list()  # No need: as it has been done at startup, and after download
@@ -876,6 +876,7 @@ class S1FileManager:
         polarizations = polarization.lower().split(' ')
         s2images_pat = f's1?_{tile_name}_*.tif'
         logger.debug('Search %s for %s on disk in %s(/filtered)/%s', s2images_pat, polarizations, tile_out_dir, tile_name)
+
         def glob1(pat, *paths) -> List[str]:
             pathname = glob.escape(os.path.join(*paths))
             return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
@@ -946,7 +947,7 @@ class S1FileManager:
             # Actually, in that special case we could almost detect there is nothing to do
             return []
         if dryrun:
-            paths = [p.as_dict()['id'] for p in products] # TODO: return real name
+            paths = [p.as_dict()['id'] for p in products]  # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
@@ -959,8 +960,8 @@ class S1FileManager:
 
     def download_images(
         self,
-        dryrun: bool=False,
-        tiles:  Optional[List[str]]=None
+        dryrun: bool                = False,
+        tiles:  Optional[List[str]] = None
     ) -> None:
         """ This method downloads the required images if download is True"""
         if not self.cfg.download:
@@ -1028,7 +1029,7 @@ class S1FileManager:
             logger.debug('Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
         self.__download_failures.extend(failed_products)
 
-    def _refresh_s1_product_list(self, new_products: Optional[List[EOProduct]]=None) -> None:
+    def _refresh_s1_product_list(self, new_products: Optional[List[EOProduct]] = None) -> None:
         """
         Scan all the available products and filter them according to:
         - platform requirements
@@ -1052,6 +1053,7 @@ class S1FileManager:
             # logger.debug('dirs found: %s', content)
             # If the directory appear directly
             content0 = content
+
             def in_new_products(d: os.DirEntry) -> bool:
                 return d.path in new_products
             content = list(filter(in_new_products, content0))
@@ -1072,6 +1074,7 @@ class S1FileManager:
         content = [d for d in content if self.is_product_in_time_range(d.name)]
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
+
         def ident(d: os.DirEntry) -> str:
             # assert isinstance(d, os.DirEntry), f"Expecting a DirEntry, got: {type(d)!r}"
             return d.name
@@ -1279,7 +1282,7 @@ class S1FileManager:
         layer = Layer(self.cfg.output_grid)
 
         for current_tile in layer:
-            #logger.debug("%s", current_tile.GetField('NAME'))
+            # logger.debug("%s", current_tile.GetField('NAME'))
             if current_tile.GetField('NAME') == tile_name_field:
                 return True
         return False

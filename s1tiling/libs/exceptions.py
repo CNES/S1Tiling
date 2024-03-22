@@ -48,7 +48,7 @@ class ConfigurationError(Error):
     """
     Generic error for configuration file errors.
     """
-    def __init__(self, message: str, configFile: Union[str,Path], *args, **kwargs) -> None:
+    def __init__(self, message: str, configFile: Union[str, Path], *args, **kwargs) -> None:
         """
         Constructor
         """

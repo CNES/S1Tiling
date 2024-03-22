@@ -71,6 +71,7 @@ from s1tiling.libs.S1FileManager import (
 )
 logger = logging.getLogger('s1tiling.processor')
 
+
 # ======================================================================
 def cli_execute(processing, *args, **kwargs):
     """
@@ -166,6 +167,7 @@ def run(
                 **kwargs
             ))
 
+
 # ======================================================================
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
@@ -231,6 +233,7 @@ def run_lia(
                 dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 **kwargs
             ))
+
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422

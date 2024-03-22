@@ -45,7 +45,7 @@ from typing import Dict, List, Optional, Set, Tuple, Type, Union
 # memory leaks
 from distributed import get_worker
 import objgraph
-from pympler import tracker # , muppy
+from pympler import tracker  # , muppy
 # from memory_profiler import profile
 
 from .                  import Utils
@@ -62,7 +62,7 @@ from .steps             import (
         AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
         files_exist,
 )
-from ..__meta__         import __version__
+# from ..__meta__         import __version__
 
 logger = logging.getLogger('s1tiling.pipeline')
 
@@ -85,8 +85,8 @@ class Pipeline:
         self,
         execution_parameters: Dict,
         do_watch_ram:         bool,
-        name:                 Optional[str]=None,
-        output:               Optional[str]=None
+        name:                 Optional[str] = None,
+        output:               Optional[str] = None
     ) -> None:
         self.__pipeline             : List[StepFactory] = []
         self.__execution_parameters = execution_parameters
@@ -192,7 +192,7 @@ class Pipeline:
         assert self.__inputs
         logger.debug("INPUTS: %s", self.__inputs)
         tested_files = list(Utils.flatten_stringlist(
-            [v.out_filename for inp in self.__inputs for _,v in inp.items()]))
+            [v.out_filename for inp in self.__inputs for _, v in inp.items()]))
         logger.debug("Testing whether input files exist: %s", tested_files)
         missing_inputs = list(filterfalse(files_exist, tested_files))
         if len(missing_inputs) > 0 and not is_running_dry(self.__execution_parameters):
@@ -337,7 +337,7 @@ class PipelineDescription:
         Property sources
         """
         # logger.debug("SOURCES(%s) = %s", self.name, self.__inputs)
-        res = [(val if isinstance(val, str) else val.name) for (_,val) in self.__inputs.items()]
+        res = [(val if isinstance(val, str) else val.name) for (_, val) in self.__inputs.items()]
         return res
 
     @property
@@ -378,7 +378,6 @@ class PipelineDescription:
         if need_OTB_store:
             pipeline.push(Store('noappname'))
         return pipeline
-
 
     def __repr__(self) -> str:
         res = f'PipelineDescription: {self.name} ## Sources: {self.sources}'
@@ -524,7 +523,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
     Unlike :func:`fetch_input_data`, this flavor is able to dig in inputs from
     all levels to find the requested one.
     """
-    data : Dict[str, List] = {k:[] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
+    data : Dict[str, List] = {k: [] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
     # for inputs in all_inputs:
     for _, inputs in enumerate(all_inputs):
         for inp in inputs:
@@ -536,6 +535,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
         assert len(i) == 1, f"Only {len(i)} input(s) found instead of 1. Found: {i!r}"
         res[k] = i[0]
     return res
+
 
 def _update_out_filename(updated_meta, with_meta) -> None:
     """
@@ -568,6 +568,7 @@ def _register_new_input_and_update_out_filename(
         _update_out_filename(new_task_meta, task_inputs)  # Required for concatenation dates handling
         logger.debug('    ...to %s', new_task_meta)
         logger.debug("  Next inputs: %s", [get_task_name(ni) for ni in outputs])
+
         def simplified_task_name(meta: Meta) -> str:
             tn = get_task_name(meta)
             return tn[0] if isinstance(tn, list) else tn
@@ -689,7 +690,7 @@ class PipelineDescriptionSequence:
                     # For the moment, just keep the first, and use product
                     # selection pattern as in filter_LIA().
                     if isinstance(expected_taskname, list):
-                        expected_taskname = expected_taskname[0] # TODO: see comment above
+                        expected_taskname = expected_taskname[0]  # TODO: see comment above
 
                     # We cannot analyse early whether a task product is already
                     # there as some product have names that depend on all
@@ -766,7 +767,7 @@ class PipelineDescriptionSequence:
         previous :                        Dict,
         task_names_to_output_files_table: Dict,
         do_watch_ram:                     bool
-    ) -> Dict[str, Union[Tuple,"FirstStep"]]:  # Dict of FirstStep or Tuple parameter for execute4dask
+    ) -> Dict[str, Union[Tuple, "FirstStep"]]:  # Dict of FirstStep or Tuple parameter for execute4dask
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -774,7 +775,7 @@ class PipelineDescriptionSequence:
         - "pipeline": reference to the :class:`PipelineDescription`
         - "inputs": list of the inputs (metadata)
         """
-        tasks : Dict[str, Union[Tuple,FirstStep]] = {}
+        tasks : Dict[str, Union[Tuple, FirstStep]] = {}
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
         logger.debug('Building all tasks')
@@ -786,6 +787,7 @@ class PipelineDescriptionSequence:
             base_task_name = to_dask_key(task_name)
             task_inputs    = previous[task_name].inputs
             pipeline_descr = previous[task_name].pipeline
+
             def first(files: Union[str, List[str]]) -> str:
                 return str(files[0]) if isinstance(files, list) else str(files)
             input_task_keys = [to_dask_key(first(tn))
@@ -815,7 +817,7 @@ class PipelineDescriptionSequence:
                     register_task(tasks, to_dask_key(tn), FirstStep(**t))
         return tasks
 
-    def _check_static_task_requirements(self, tasks: Dict[str, Union[Tuple,"FirstStep"]]) -> None:
+    def _check_static_task_requirements(self, tasks: Dict[str, Union[Tuple, "FirstStep"]]) -> None:
         """
         Check all tasks have their requirement fulfilled for being generated.
         Typically that the related applications are installed and can be

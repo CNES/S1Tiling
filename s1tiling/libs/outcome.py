@@ -148,7 +148,7 @@ class PipelineOutcome(Outcome[Value, File], Generic[Value, File]):
                 msg += f' {errored_files} could not be produced: '
             else:
                 msg += ': '
-            msg +=  f'{self.error()}'
+            msg += f'{self.error()}'
             return msg
 
 

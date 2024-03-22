@@ -38,7 +38,7 @@ class SimpleComputationGraph:
     def simple_graph(self,
                      x: Dict,
                      filename='simple_computation_graph',
-                     format : Optional[str]=None):
+                     format : Optional[str] = None):
 
         if hasattr(x, 'dask'):
             dsk = x.__dask_optimize__(x.dask, x.__dask_keys__())

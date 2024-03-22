@@ -43,6 +43,7 @@ import sys
 from typing import NoReturn
 from osgeo import ogr
 
+
 def _die(message: str) -> NoReturn:
     print(message, file=sys.stderr)
     sys.exit(127)
@@ -103,7 +104,7 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
 
             for field_name in fields_to_copy:
                 output_feature.SetField(field_name, feature.GetField(field_name))
-            CellID=feature.GetField("GeoCellID")
+            CellID = feature.GetField("GeoCellID")
             print(CellID)
             latitudeID  = CellID[0:3]
             longitudeID = CellID[3:]
@@ -122,6 +123,7 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
     output_ds = None
     print(f"{list(columns_to_keep)} columns selected and written with success\n-> {output_file}")
 
+
 # Chemin vers le fichier GPKG d'entrée
 input_file = "/work/scratch/data/koleckt/s1tiling-dev/s1tiling/s1tiling/resources/generate-gpkg/GEO1988-CopernicusDEM-RP-002_GridFile_I4.0_ESA.gpkg"
 
@@ -133,6 +135,3 @@ columns_to_keep = {"GeoCellID"}
 
 # Appeler la fonction pour conserver les colonnes sélectionnées
 select_columns(input_file, output_file, columns_to_keep)
-
-
-

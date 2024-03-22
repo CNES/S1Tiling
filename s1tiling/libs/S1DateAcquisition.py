@@ -31,9 +31,10 @@
 from pathlib import Path
 from typing import Any, Dict, List
 
+
 class S1DateAcquisition:
     """This class handles the list of images for one S1 product"""
-    def __init__(self, manifest: Path, image_filenames_list: List[str], product_info: Dict[str,Any]) -> None:
+    def __init__(self, manifest: Path, image_filenames_list: List[str], product_info: Dict[str, Any]) -> None:
         self.manifest             = manifest
         self.image_filenames_list = image_filenames_list
         self.product_info         = product_info

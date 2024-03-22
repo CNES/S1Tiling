@@ -48,7 +48,7 @@ import numpy as np
 from .S1DateAcquisition import S1DateAcquisition
 
 
-Polygon = Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float]]
+Polygon = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]
 
 
 EXTENSION_TO_DRIVER_MAP = {
@@ -64,7 +64,7 @@ class Layer:
     """
     Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid, driver_name: Optional[str]=None) -> None:
+    def __init__(self, grid, driver_name: Optional[str] = None) -> None:
         if not driver_name:
             _, ext = os.path.splitext(grid)
             driver_name = EXTENSION_TO_DRIVER_MAP.get(ext, "ESRI Shapefile")
@@ -109,7 +109,7 @@ def _find(
         element: Union[ET.Element, ET.ElementTree],
         key    : str,
         context: Union[str, Path],
-        keytext: Optional[str]=None,
+        keytext: Optional[str] = None,
         **kwargs
 ) -> ET.Element:
     """
@@ -134,7 +134,7 @@ def _find_text(
         element: Union[ET.Element, ET.ElementTree],
         key    : str,
         context: Union[str, Path],
-        keytext: Optional[str]=None,
+        keytext: Optional[str] = None,
         **kwargs
 ) -> str:
     """
@@ -202,7 +202,7 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
 
 def get_origin(
         manifest: Union[str, Path]
-) -> Tuple[Tuple[float,float], Tuple[float,float], Tuple[float,float], Tuple[float,float], str]:
+) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float], str]:
     """Parse the coordinate of the origin in the manifest file to return its footprint.
 
     Args:
@@ -245,7 +245,7 @@ def get_origin(
 
 
 def get_shape_from_polygon(
-    polygon: Union[Polygon, List[Tuple[float,float]]]
+    polygon: Union[Polygon, List[Tuple[float, float]]]
 ) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
@@ -279,6 +279,7 @@ def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     shape.AssignSpatialReference(sr)
     return shape
 
+
 def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     """
     Return shape of the ``s1image`` as a polygon
@@ -295,7 +296,7 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
 
 
 def get_s1image_orbit_time_range(
-        annotation_file: Union[Path,str]
+        annotation_file: Union[Path, str]
 ) -> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
     """
     Returns the start and stop time of the orbit information contained in the S1 product.
@@ -346,7 +347,7 @@ def find_dem_intersecting_poly(
     dem_layer:     Layer,
     dem_field_ids: List[str],
     main_id:       str
-) -> Dict[str,Any]:
+) -> Dict[str, Any]:
     """
     Searches the DEM tiles that intersect the specifid polygon
 
@@ -492,6 +493,7 @@ def convert_coord(
 
 _k_prod_re = re.compile(r'S1._IW_...._...._(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*')
 
+
 def extract_product_start_time(product_name : str) -> Optional[Dict[str, str]]:
     """
     Extracts product start time from its name.
@@ -554,7 +556,7 @@ class _PartialFormatHelper(dict):
     """
     Helper class that return missing ``{key}`` as themselves
     """
-    def __missing__(self, key:str) ->str:
+    def __missing__(self, key: str) -> str:
         return "{" + key + "}"
 
 
@@ -576,7 +578,7 @@ def flatten_stringlist(itr) -> Generator[str, None, None]:
     Flatten a list of lists.
     But don't decompose string.
     """
-    if type(itr) in (str,bytes):
+    if type(itr) in (str, bytes):
         yield itr
     else:
         for x in itr:
@@ -735,7 +737,7 @@ class TopologicalSorter:
     """
     Depth-first topological_sort implementation
     """
-    def __init__(self, dag: Dict, fetch_successor_function: Optional[Callable]=None) -> None:
+    def __init__(self, dag: Dict, fetch_successor_function: Optional[Callable] = None) -> None:
         """
         constructor
         """
@@ -768,21 +770,21 @@ class TopologicalSorter:
         for node in start_nodes:
             visited = visited_nodes.get(node, 0)
             if   visited == 1:
-                continue # done
+                continue  # done
             elif visited == 2:
                 raise ValueError(f"Tsort: cyclic graph detected {node}")
-            visited_nodes[node] = 2 # visiting
+            visited_nodes[node] = 2  # visiting
             succs = self.__successors(node)
             try:
                 self.__recursive_depth_first(succs, results, visited_nodes)
             except ValueError as e:
                 # raise e.'>'.node
                 raise e
-            visited_nodes[node] = 1 # visited
+            visited_nodes[node] = 1  # visited
             results.append(node)
 
 
-def tsort(dag: Dict, start_nodes: Union[List, Set, KeysView], fetch_successor_function: Optional[Callable]=None):
+def tsort(dag: Dict, start_nodes: Union[List, Set, KeysView], fetch_successor_function: Optional[Callable] = None):
     """
     Topological sorting function (depth-first)
 

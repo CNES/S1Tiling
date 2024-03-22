@@ -42,7 +42,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Un
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 
-from s1tiling.libs.vis import SimpleComputationGraph # Graphs
+from s1tiling.libs.vis import SimpleComputationGraph  # Graphs
 from .S1FileManager import (
         S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -71,7 +71,8 @@ from .outcome import Outcome
 
 logger = logging.getLogger('s1tiling.api')
 
-def remove_files(files: List[Union[str,Path]], what: str) -> None:
+
+def remove_files(files: List[Union[str, Path]], what: str) -> None:
     """
     Removes the files from the disk
     """
@@ -104,7 +105,7 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
 
     if all_requested:
         # Check already done in the configuration object
-        assert not(cfg.download and "ALL" in cfg.roi_by_tiles), \
+        assert not (cfg.download and "ALL" in cfg.roi_by_tiles), \
             "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
         tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
         logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
@@ -114,7 +115,7 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager)
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str,Dict]]:
+def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str, Dict]]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
@@ -242,7 +243,7 @@ class DaskContext:
         return self.__client
 
 
-def _how2str(how: Union[Tuple,AbstractStep]) -> str:
+def _how2str(how: Union[Tuple, AbstractStep]) -> str:
     """
     Make task definition from logger friendly
     """
@@ -293,7 +294,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
                 dsk, filename=f'tasks-{tile_idx+1}-{tile_name}.svg')
     logger.info('Start S1 -> S2 transformations for %s', tile_name)
     nb_tries = 2
-    for run_attempt in range(1, nb_tries+1):
+    for run_attempt in range(1, nb_tries + 1):
         try:
             logger.debug("  Execute tasks, attempt #%s", run_attempt)
             results = client.get(dsk, required_products)
@@ -323,10 +324,10 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     pipelines:               PipelineDescriptionSequence,
     client:                  Optional[Client],
     required_workspaces:     List[WorkspaceKinds],
-    debug_otb:               bool=False,
-    dryrun:                  bool=False,
-    do_watch_ram:            bool=False,
-    debug_tasks:             bool=False
+    debug_otb:               bool = False,
+    dryrun:                  bool = False,
+    do_watch_ram:            bool = False,
+    debug_tasks:             bool = False
 ) -> List:
     """
     Process one S2 tile.
@@ -373,7 +374,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
                 required_products, client, pipelines, do_watch_ram, debug_tasks)
 
 
-def read_config(config_opt: Union[str,Configuration]) -> Configuration:
+def read_config(config_opt: Union[str, Configuration]) -> Configuration:
     """
     The config_opt can be either the configuration filename or an already initialized configuration
     object
@@ -397,7 +398,7 @@ def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = Fa
 
 
 def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
-    config_opt             : Union[str,Configuration],
+    config_opt             : Union[str, Configuration],
     pipeline_builder,
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
@@ -457,7 +458,6 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
-
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
@@ -606,7 +606,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
 
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
-        config_opt              : Union[str,Configuration],
+        config_opt              : Union[str, Configuration],
         dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -771,7 +771,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str,Configuration],
+        config_opt             : Union[str, Configuration],
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -849,9 +849,8 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     )
 
 
-
 def s1_process_lia(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str,Configuration],
+        config_opt             : Union[str, Configuration],
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
