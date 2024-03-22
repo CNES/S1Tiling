@@ -636,7 +636,7 @@ You can use this :download:`this template
       If you change any, make sure to not introduce ambiguity by removing a
       field that would be used to distinguish two unrelated products.
 
-      Available fields comme from :func:`internal metadata <s1tiling.libs.otbpipeline.StepFactory.complete_meta>`. The main
+      Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`. The main
       ones of interest are:
 
       .. list-table::
@@ -712,26 +712,67 @@ You can use this :download:`this template
   * - ``fname_fmt.concatenation``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
       for β°, σ° and γ° calibrations.
-      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
+      
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
 
       .. _Processing.fname_fmt.lia_corrected:
   * - ``fname_fmt.s2_lia_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when NORMLIM calibrated.
-      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
+      
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
 
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
-      :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+      
+      Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
     - File format pattern for :ref:`filtered files <filtered-files>`
-      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
+      
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
       for β°, σ° and γ° calibrations,
-      :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
+      
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
 
+      .. _Processing.dname_fmt:
+  * - ``dname_fmt.*``
+    - Set of directory format templates that permits to override the default
+      directories where products are generated.
+
+      The directory formats can only be overridden for final products.
+
+      Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`.
+      See the list provided for :ref:`fname_fmt.* <processing.fname_fmt>`.
+      +out_dir, tmp_dir, lia_dir
+
+      .. _Processing.dname_fmt.concatenation:
+  * - ``dname_fmt.concatenation``
+    - Directory format pattern for :ref:`concatenation products <full-S2-tiles>`,
+      for β°, σ° and γ° calibrations.
+      
+      Default value: :samp:`{{out_dir}}/{{tile_name}}`
+
+      .. _Processing.dname_fmt.lia_corrected:
+  * - ``dname_fmt.s2_lia_corrected``
+    - Directory format pattern for :ref:`concatenation products <full-S2-tiles>`
+      when NORMLIM calibrated.
+
+      Default value: :samp:`{{out_dir}}/{{tile_name}}`
+
+      .. _Processing.dname_fmt.lia_product:
+  * - ``dname_fmt.lia_product``
+    - Directory format pattern for LIA and sin(LIA) files
+
+      Default value: :samp:`{{lia_dir}}`
+
+      .. _Processing.dname_fmt.filtered:
+  * - ``dname_fmt.filtered``
+    - Directory format pattern for :ref:`filtered files <filtered-files>`
+
+      Default value: :samp:`{{out_dir}}/filtered/{{tile_name}}`
 
 .. _Filtering:
 

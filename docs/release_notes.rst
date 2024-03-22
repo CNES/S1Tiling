@@ -32,6 +32,9 @@ v1.1.0 Improvements
 - Change LIA workflow in order to minimize occurrences of artefacts in rugged
   areas, and to speed-up performances
   (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
+- Product output directory can be configured through :ref:`dname_fmt.*
+  <processing.dname_fmt>` options
+  (`#148 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/148>`_).
 
 v1.1.0 Breaking changes
 +++++++++++++++++++++++
