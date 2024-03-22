@@ -65,7 +65,7 @@ OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
 ExeParameters = List[str]
 
 
-def ram(r) -> Union[int,str]:
+def ram(r) -> Union[int, str]:
     """
     The expected type for the RAM parameter in OTB application changes between OTB 7.x and OTB 8.0.
     This function provides an abstraction that takes care of the exact type expected.
@@ -141,7 +141,7 @@ def commit_execution(tmp_fn, out_fn) -> None:
     assert os.path.isfile(out_fn)
 
 
-def files_exist(files: Union[str,List[str]]) -> bool:
+def files_exist(files: Union[str, List[str]]) -> bool:
     """
     Checks whether a single file, or all files from a list, exist.
     """
@@ -262,7 +262,6 @@ class _ProducerStep(AbstractStep):
         """ Generate a name for the associated pipeline """
         return '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
 
-
     def execute_and_write_output(self, parameters, execution_parameters: Dict) -> None:
         """
         Actually produce the expected output. The how is still a variation point
@@ -365,21 +364,21 @@ class _ProducerStep(AbstractStep):
             dst = gdal.Open(fullpath, gdal.GA_Update)
             assert dst
             all_metadata = dst.GetMetadata()
-            def set_or_del(key: str, val:str):
+
+            def set_or_del(key: str, val: str):
                 if val:
                     all_metadata[key] = val
                 else:
                     all_metadata.pop(key, None)
-
 
             for (kw, val) in img_meta.items():
                 assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                 logger.debug(' - %s -> %s', kw, val)
                 if kw.endswith('*'):
                     if not val:  # Expected scenario: we clear the keys.*
-                        all_metadata = {m:all_metadata[m] for m in all_metadata if not fnmatch.fnmatch(m, kw)}
+                        all_metadata = {m: all_metadata[m] for m in all_metadata if not fnmatch.fnmatch(m, kw)}
                     else:        # Unlikely scenario: new & same value for all
-                        updated_kws = {m:val for m in all_metadata if fnmatch.fnmatch(m, kw)}
+                        updated_kws = {m: val for m in all_metadata if fnmatch.fnmatch(m, kw)}
                         all_metadata.update(updated_kws)
                 else:
                     set_or_del(kw, val)
@@ -442,7 +441,7 @@ class ExecutableStep(_ProducerStep):
 
         :meta public:
         """
-        execute([self._exename]+ parameters, dryrun)
+        execute([self._exename] + parameters, dryrun)
 
 
 class Step(AbstractStep):
@@ -608,6 +607,7 @@ class StepFactory(ABC):
         meta['in_filename']        = out_filename(meta)
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
+
         def check_product(meta: Meta) -> bool:
             filename        = out_filename(meta)
             exist_file_name = os.path.isfile(filename)
@@ -665,7 +665,7 @@ class StepFactory(ABC):
             meta['image_metadata'] = {}
         imd = meta['image_metadata']
         imd['TIFFTAG_DATETIME'] = str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))
-        imd['TIFFTAG_SOFTWARE'] = 'S1 Tiling v'+__version__
+        imd['TIFFTAG_SOFTWARE'] = f'S1 Tiling v{__version__}'
         if self.image_description:
             imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,
@@ -737,7 +737,7 @@ class StepFactory(ABC):
         inputs     = self._get_inputs(previous_steps)
         input_step = self._get_canonical_input(inputs)
         meta       = self.complete_meta(input_step.meta, inputs)
-        self.update_image_metadata(meta, inputs) # Needs to be done after complete_meta!
+        self.update_image_metadata(meta, inputs)  # Needs to be done after complete_meta!
         return self._do_create_actual_step(execution_parameters, input_step, meta)
 
     def _do_create_actual_step(  # pylint: disable=unused-argument
@@ -945,6 +945,7 @@ class _FileProducingStepFactory(StepFactory):
         policies`.
         """
         filename = self._get_nominal_output_basename(meta)
+
         def in_dir(fn: str) -> str:
             # in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
             return os.path.join(self.output_directory(meta), fn)
@@ -973,6 +974,7 @@ class _FileProducingStepFactory(StepFactory):
         will automatically insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
+
         def add_tmp(fn: str) -> str:
             return os.path.join(self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
         if isinstance(filename, str):
@@ -1144,7 +1146,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                         # However, if the input is a list, and previous app provide only a subset of
                         # the piped inputs => We still need a AddImageToInputImageList
                         crt_in_parameter_set   = set(in_parameters)
-                        prv_out_parameter_set  = {input_step.out_filename} # TODO what if it was a list?
+                        prv_out_parameter_set  = {input_step.out_filename}  # TODO what if it was a list?
                         params_piped_in_memory = crt_in_parameter_set & prv_out_parameter_set
                         left_over_parameters   = crt_in_parameter_set - params_piped_in_memory
 

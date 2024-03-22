@@ -67,7 +67,6 @@ from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
 from ..configuration import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
-from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
@@ -331,12 +330,13 @@ class AnalyseBorders(StepFactory):
                 'threshold.x'      : cut_overlap_range,
                 'threshold.y.start': thr_y_s,
                 'threshold.y.end'  : thr_y_e,
-                'skip'             : thr_x==0 and thr_y_s==0 and thr_y_e==0,
+                'skip'             : thr_x == 0 and thr_y_s == 0 and thr_y_e == 0,
                 }
         return meta
 
 
 k_calib_convert = {'normlim' : 'beta'}
+
 
 class Calibrate(OTBStepFactory):
     """
@@ -361,7 +361,7 @@ class Calibrate(OTBStepFactory):
         """
         Constructor
         """
-        self.cfg=cfg
+        self.cfg  = cfg
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
         super().__init__(cfg,
@@ -747,7 +747,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        inp = self._get_canonical_input(all_inputs) # input_metas in FirstStep, MergeStep
+        inp = self._get_canonical_input(all_inputs)  # input_metas in FirstStep, MergeStep
         assert isinstance(inp, (FirstStep, MergeStep))
         if len(inp.input_metas) >= 2:
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
@@ -825,7 +825,7 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = dname_fmt_concatenation(cfg)
         else:
             # This is a temporary product that shall end-up in tmpdir
-            gen_output_dir = None # use gen_tmp_dir
+            gen_output_dir = None  # use gen_tmp_dir
         fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')

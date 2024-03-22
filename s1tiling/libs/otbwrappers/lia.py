@@ -67,7 +67,6 @@ from .s1_to_s2       import (
 )
 from ..              import Utils
 from ..configuration import Configuration
-from ...__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
 
@@ -92,8 +91,8 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, cfg.tmp_dem_dir),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                    name="AgglomerateDEMOnS2",
-                    action=AgglomerateDEMOnS2.agglomerate,
+                name="AgglomerateDEMOnS2",
+                action=AgglomerateDEMOnS2.agglomerate,
                 *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         # TODO: Use the dems stored in cache!
@@ -213,7 +212,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         nodata = meta.get('nodata', -32768)
         parameters = [
                 "-wm", str(self.ram_per_process),
-                "-multi", "-wo", f"{self.__nb_threads}", # It's already quite fast...
+                "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
                 "-ot", "Float32",
@@ -284,11 +283,11 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         """
         in_s2_dem = in_filename(meta)
         return {
-                'ram'           : ram(self.ram_per_process),
-                'inr'           : in_s2_dem, # Reference input is the DEM projected on S2
-                'inm'           : self.__GeoidFile,
-                'interpolator'  : self.__interpolation_method, # TODO: add parameter
-                'interpolator.bco.radius' : 2, # 2 is the default value for bco
+                'ram'                     : ram(self.ram_per_process),
+                'inr'                     : in_s2_dem,  # Reference input is the DEM projected on S2
+                'inm'                     : self.__GeoidFile,
+                'interpolator'            : self.__interpolation_method,  # TODO: add parameter
+                'interpolator.bco.radius' : 2,  # 2 is the default value for bco
         }
 
 
@@ -915,7 +914,7 @@ def filter_LIA(LIA_kind: str) -> Type[_FilterLIAStepFactory]:
     """
     # We return a new class
     return type(
-            "Filter_"+LIA_kind,     # Class name
+            f"Filter_{LIA_kind}",      # Class name
             (_FilterLIAStepFactory,),  # Parent
             { '_LIA_kind': LIA_kind}
     )
@@ -1087,7 +1086,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -1176,7 +1175,7 @@ class SARDEMProjection(OTBStepFactory):
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -1308,7 +1307,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
@@ -1604,7 +1603,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
         # Round coverage at 3 digits as tile footprint has a very limited precision
         coverage = round(coverage, 3)
-        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
+        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage * 100)
         meta['tile_coverage'] = coverage
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
@@ -1643,7 +1642,7 @@ class SelectBestCoverage(_FileProducingStepFactory):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt = cfg.fname_fmt.get('lia_product', fname_fmt)
-        dname_fmt = cfg.dname_fmt.get('lia_product','{lia_dir}')
+        dname_fmt = cfg.dname_fmt.get('lia_product', '{lia_dir}')
         super().__init__(
                 cfg,
                 name='SelectBestCoverage',

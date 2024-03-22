@@ -54,6 +54,7 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
+
 def _load_log_config(cfgpaths: Path) -> Dict:
     """
     Take care of loading a log configuration file expressed in YAML
@@ -69,6 +70,7 @@ def _load_log_config(cfgpaths: Path) -> Dict:
 # Helper functions for extracting configuration options
 
 Opt = TypeVar('Opt', int, float, bool)
+
 
 def _get_opt(getter: Callable, config_filename: Path, section: str, name: str, **kwargs):
     """
@@ -124,6 +126,7 @@ def add_missing(dst: List[str], entry: str):
     """ Add entry to list if not already there """
     if entry not in dst:
         dst.append(entry)
+
 
 def _init_logger(mode, paths: List[Path]) -> Tuple[Optional[Dict], Optional[Path]]:
     """
@@ -304,7 +307,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             # Even if tmpdir doesn't exist we should still be able to create it
             accessor.throw(f"tmpdir={self.tmpdir} is not a valid path")
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
-        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
+        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.grd'))
         #: Path to directory of temp DEMs
         self.tmp_dem_dir: str    = ""
 
@@ -408,7 +411,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Tiles
         #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
-        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
+        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
@@ -421,7 +424,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                     tile_list = tiles_file_handle.readlines()
                 self.tile_list: List[str] = [s.rstrip() for s in tile_list]
                 logging.info("The following tiles will be processed: %s", self.tile_list)
-            except BaseException as e:
+            except Exception as e:
                 accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
         else:
             tiles = accessor.get('Processing', 'tiles')
@@ -672,4 +675,3 @@ def dname_fmt_filtered(cfg: Configuration) -> str:
     or its default value.
     """
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
-
