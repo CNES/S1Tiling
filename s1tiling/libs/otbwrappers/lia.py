@@ -95,7 +95,6 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
                 action=AgglomerateDEMOnS2.agglomerate,
                 *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
-        # TODO: Use the dems stored in cache!
         self.__dem_dir             = cfg.tmp_dem_dir
         self.__dem_filename_format = cfg.dem_filename_format
 
@@ -735,15 +734,18 @@ class _ComputeLIA(OTBStepFactory):
             # Anyway, their production is always done in output_dir!
             fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_lia))
             param_out.append('out.lia')
-        super().__init__(cfg,
+        extended_filename = cfg.extended_filename.get("lia_product", "?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3")
+        super().__init__(
+                cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
-                # In-memory connected to in.normals
-                param_in='in.normals', param_out=param_out,
+                param_in='in.normals',  # In-memory connected to in.normals
+                param_out=param_out,
                 gen_tmp_dir=gen_tmp_dir,
                 gen_output_dir=gen_output_dir,
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 image_description=image_description,
-                )
+                extended_filename=extended_filename,
+        )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -766,7 +768,6 @@ class _ComputeLIA(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3"
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
@@ -838,7 +839,7 @@ class ComputeLIAOnS2(_ComputeLIA):
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
-        dname_fmt = cfg.dname_fmt.get('LIA', '{lia_dir}')
+        dname_fmt = cfg.dname_fmt.get('lia_product', '{lia_dir}')
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
@@ -952,6 +953,7 @@ class ApplyLIACalibration(OTBStepFactory):
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
         fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
         dname_fmt = cfg.dname_fmt.get('s2_lia_corrected', '{out_dir}/{tile_name}')
+        extended_filename = cfg.extended_filename.get("s2_lia_corrected", "?&gdal:co:COMPRESS=DEFLATE")
         super().__init__(
                 cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
@@ -959,6 +961,7 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
+                extended_filename=extended_filename,
         )
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -967,7 +970,6 @@ class ApplyLIACalibration(OTBStepFactory):
         DEFLATE.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
 

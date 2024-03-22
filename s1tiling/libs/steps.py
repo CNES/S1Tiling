@@ -1013,11 +1013,14 @@ class OTBStepFactory(_FileProducingStepFactory):
     :class:`OTBStepFactory`.
     """
     def __init__(  # pylint: disable=too-many-arguments
-        self,
-        cfg: Configuration,
-        appname: str,
-        gen_tmp_dir, gen_output_dir, gen_output_filename,
-        *argv, **kwargs
+            self,
+            cfg: Configuration,
+            appname: str,
+            gen_tmp_dir        : str,
+            gen_output_dir     : Optional[str],
+            gen_output_filename: OutputFilenameGenerator,
+            extended_filename  : Optional[str] = None,
+            *argv, **kwargs
     ) -> None:
         """
         Constructor.
@@ -1026,8 +1029,14 @@ class OTBStepFactory(_FileProducingStepFactory):
             :func:`_FileProducingStepFactory.__init__`
 
         Parameters:
-            :param_in:  Flag used by the default OTB application for the input file (default: "in")
-            :param_out: Flag used by the default OTB application for the ouput file (default: "out")
+            :cfg:                 Request configuration for current S1Tiling session
+            :appname:             Name of the OTB application
+            :gen_tmp_dir:         Dirname format for the tempory product
+            :gen_output_dir:      Optional Dirname format for the final product -- ``None`` if not required.
+            :gen_output_filename: Ouput filename generator.
+            :extended_filename:   Optional extra :external:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
+            :param_in:            Flag used by the default OTB application for the input file (default: "in")
+            :param_out:           Flag used by the default OTB application for the ouput file (default: "out")
         """
         super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
         # is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
@@ -1040,6 +1049,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         # param_out is always used.
         assert isinstance(self.param_out, (str, list)), f"String or list expected for {appname} param_out={self.param_out}"
         self._appname              = appname
+        self._extended_filename    = extended_filename
         logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
 
     @property
@@ -1072,6 +1082,22 @@ class OTBStepFactory(_FileProducingStepFactory):
         Default is likely to be "out", whie some applications use "io.out".
         """
         return self._out
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Propagates the optional :external:std:doc:`extended filename
+        <ExtendedFilenames>` set in the construtor to the step meta data.
+
+        .. note::
+
+            :func:`StepFactory.complete_meta()` already takes care of clearing
+            any residual ``out_extended_filename_complement`` metadata from
+            previous steps
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        if self._extended_filename:
+            meta['out_extended_filename_complement'] = self._extended_filename
+        return meta
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """

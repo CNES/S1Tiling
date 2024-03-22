@@ -101,9 +101,9 @@ class Configuration():
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
         self.cache_dem_by            = 'symlink'
-        self.platform_list           = []
+        self.platform_list           : List[str] = []
         self.orbit_direction         = None
-        self.relative_orbit_list     = []
+        self.relative_orbit_list     : List[int] = []
         self.calibration_type        = 'sigma'
         self.nb_download_processes   = 1
         self.fname_fmt               = {
@@ -111,9 +111,8 @@ class Configuration():
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
                 'filtered' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         }
-        self.dname_fmt               = {
-                # 'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-        }
+        self.dname_fmt               = {}
+        self.extended_filename       = {}
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:

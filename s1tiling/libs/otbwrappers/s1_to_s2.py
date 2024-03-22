@@ -564,14 +564,16 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
+        extended_filename = cfg.extended_filename.get("concatenation", "?&writegeom=false&gdal:co:COMPRESS=DEFLATE")
         super().__init__(
                 cfg,
                 appname='OrthoRectification', name='OrthoRectification',
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_dir=None,  # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description=image_description,
+                extended_filename=extended_filename,
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -589,7 +591,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
         information found in the current S1 image filename.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
 
         # Some workaround when ortho is not sequenced along with calibration
         meta['calibration_type'] = self.__calibration_type
@@ -707,21 +708,20 @@ class _ConcatenatorFactory(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
+        extended_filename = cfg.extended_filename.get("concatenation", "?&gdal:co:COMPRESS=DEFLATE")
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
             appname='Synthetize',
             name='Concatenation',
             param_in='il',
             param_out='out',
+            extended_filename=extended_filename,
             *args, **kwargs
         )
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Precompute output basename from the input file(s).
-        Makes sure the :external:doc:`Synthetize OTB application
-        <Applications/app_Synthetize>` would compress its result file,
-        through extended filename.
 
         In concatenation case, the task_name needs to be overridden to stay
         unique and common to all inputs.
@@ -729,7 +729,6 @@ class _ConcatenatorFactory(OTBStepFactory):
         Also, inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         in_file = in_filename(meta)
@@ -1025,7 +1024,9 @@ class SpatialDespeckle(OTBStepFactory):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = fname_fmt_filtered(cfg)
         dname_fmt = dname_fmt_filtered(cfg)
-        super().__init__(cfg,
+        extended_filename = cfg.extended_filename.get("filtered", "?&gdal:co:COMPRESS=DEFLATE")
+        super().__init__(
+                cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
@@ -1033,7 +1034,8 @@ class SpatialDespeckle(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
-                )
+                extended_filename=extended_filename,
+        )
         self.__filter  = cfg.filter
         self.__rad     = cfg.filter_options.get('rad', 0)
         self.__nblooks = cfg.filter_options.get('nblooks', 0)
@@ -1064,15 +1066,6 @@ class SpatialDespeckle(OTBStepFactory):
         """
         # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
         meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs, and set compression method to
-        DEFLATE.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """

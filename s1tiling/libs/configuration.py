@@ -250,6 +250,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.__init_filtering(accessor)
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
+        self.__init_extended_filename(accessor)
 
         # Other options
         #: Type of images handled
@@ -507,6 +508,20 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             # Default value is defined in associated StepFactories
             if fmt:
                 self.dname_fmt[key] = fmt
+
+    # ----------------------------------------------------------------------
+    def __init_extended_filename(self, accessor: _ConfigAccessor) -> None:
+        # Permit to override default file name formats
+        extended_filename_keys = [
+                'concatenation', 'filtered',
+                's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+        ]
+        self.extended_filename = {}
+        for key in extended_filename_keys:
+            fmt = accessor.get('Processing', f'extended_filename.{key}', fallback=None)
+            # Default value is defined in associated StepFactories
+            if fmt:
+                self.extended_filename[key] = fmt
 
     # ----------------------------------------------------------------------
     def show_configuration(self) -> None:  # pylint: disable=too-many-statements
