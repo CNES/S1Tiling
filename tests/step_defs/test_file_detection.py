@@ -36,7 +36,7 @@ import os
 from typing import Dict, List, Set
 from eodag.api.search_result import SearchResult
 
-import shapely
+from shapely import geometry
 
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
@@ -101,19 +101,19 @@ class Configuration():
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
         self.cache_dem_by            = 'symlink'
-        self.fname_fmt               = {}
         self.platform_list           = []
         self.orbit_direction         = None
         self.relative_orbit_list     = []
         self.calibration_type        = 'sigma'
         self.nb_download_processes   = 1
         self.fname_fmt               = {
+                # Non standard filename format for concatenation
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
-                # 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
-                'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-                }
-        self.fname_fmt_concatenation = self.fname_fmt['concatenation']
-        self.fname_fmt_filtered      = self.fname_fmt['filtered']
+                'filtered' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+        }
+        self.dname_fmt               = {
+                # 'filtered' : 'filtered/{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+        }
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:
@@ -236,7 +236,7 @@ def extent2box(extent):
             float(extent['lonmax']),
             float(extent['latmax']),
             )
-    return shapely.geometry.box(*coords)
+    return geometry.box(*coords)
 
 
 class MockEOProduct:
@@ -246,8 +246,8 @@ class MockEOProduct:
         # TODO: geometry is not correctly set
         product_poly     = file_db.FILES[product_id]['polygon']
         product_geometry = extent2box(polygon2extent(product_poly))
-        self.geometry            = shapely.geometry.shape(product_geometry)
-        self.search_intersection = shapely.geometry.shape(product_geometry)
+        self.geometry            = geometry.shape(product_geometry)
+        self.search_intersection = geometry.shape(product_geometry)
         self.properties = {
                 'id'                 : self._id,
                 'orbitDirection'     : file_db.get_orbit_direction(product_id),
@@ -301,7 +301,6 @@ def given_requets_for_beta(configuration) -> None:
 def given_requets_for_beta_with_default_fname_fmt_concatenation(configuration) -> None:
     logging.debug('Request with default fname_fmt_concatenation')
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
-    configuration.fname_fmt_concatenation = configuration.fname_fmt['concatenation']
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def _declare_known_products_for_download(mocker, product_ids) -> None:
@@ -324,7 +323,7 @@ def given_all_products_are_available_for_download(mocker, configuration) -> None
 
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_S2_files(mocker, known_files, patterns) -> None:
+def _declare_known_S2_files(known_files, patterns) -> None:
     nb_products = file_db.nb_S2_products
     all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
     files = []
@@ -336,20 +335,81 @@ def _declare_known_S2_files(mocker, known_files, patterns) -> None:
     known_files.extend(files)
 
 @given('All S2 files are known')
-def given_all_S2_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vv', 'vh'])
+def given_all_S2_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vv', 'vh'])
 
 @given('All S2 VV files are known')
-def given_all_S2_VV_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vv'])
+def given_all_S2_VV_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vv'])
 
 @given('All S2 VH files are known')
-def given_all_S2_VH_files_are_known(mocker, known_files) -> None:
-    _declare_known_S2_files(mocker, known_files, ['vh'])
+def given_all_S2_VH_files_are_known(known_files) -> None:
+    _declare_known_S2_files(known_files, ['vh'])
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known() -> None:
     pass
+
+#  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def _declare_known_filtered_S2_files(known_files, patterns, /, extra=None, outdir=None) -> None:
+    nb_products = file_db.nb_S2_products
+    params = {
+            'tmp'        : '',
+            'extra'      : extra or '_filtered',
+            'calibration': '_sigma',
+            'dir'        : outdir or f'{file_db.outputdir}/filtered/33NWB',
+            # 'outdir'     : file_db.outputdir,
+    }
+    all_S2 = [
+            file_db.filtered_from_two(
+                idx=idx, polarity=pol, **params,
+            ) for idx in range(nb_products) for pol in ['vh', 'vv']]
+    files = []
+    for pattern in patterns:
+        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    logging.debug('Mocking w/ S2/filtered: %s --> %s', patterns, files)
+    for k in files:
+        logging.debug(' - %s', k)
+    known_files.extend(files)
+
+@given('No filtered S2 files are known')
+def given_no_filtered_S2_files_are_known() -> None:
+    pass
+
+@given('All filtered S2 files are known under the default fname_fmt')
+def given_all_filteredS2_files_are_known_default_fname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+
+@given('All filtered S2 files are known with a different fname_fmt')
+def given_all_filteredS2_files_are_known_different_fname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], extra='.FILTERED')
+
+@given("fname_fmt.filtered has the default value")
+def given_a_fname_fmt_filtered_has_the_default_value() -> None:
+    pass
+
+@given("fname_fmt.filtered has a different value")
+def given_a_fname_fmt_filtered_has_a_different_value(configuration) -> None:
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.FILTERED.tif'
+    configuration.fname_fmt['filtered'] = fname_fmt
+
+
+@given('All filtered S2 files are known in the default dname_fmt')
+def given_all_filteredS2_files_are_known_default_dname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+
+@given('All filtered S2 files are known in a different dname_fmt')
+def given_all_filteredS2_files_are_known_different_dname_fmt(known_files) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], outdir=f'{file_db.outputdir}/33NWB/filters')
+
+@given("dname_fmt.filtered has the default value")
+def given_a_dname_fmt_filtered_has_the_default_value() -> None:
+    pass
+
+@given("dname_fmt.filtered has a different value")
+def given_a_dname_fmt_filtered_has_a_different_value(configuration) -> None:
+    dname_fmt = '{out_dir}/{tile_name}/filters'
+    configuration.dname_fmt['filtered'] = dname_fmt
 
 # ======================================================================
 # When steps
@@ -367,15 +427,15 @@ def _search(configuration, image_list, polarisation) -> None:
             image_list.append(im)
 
 @when('VV-VH files are searched')
-def when_searching_VV_VH(configuration, image_list, mocker) -> None:
+def when_searching_VV_VH(configuration, image_list) -> None:
     _search(configuration, image_list, 'VV VH')
 
 @when('VV files are searched')
-def when_searching_VV(configuration, image_list, mocker) -> None:
+def when_searching_VV(configuration, image_list) -> None:
     _search(configuration, image_list, 'VV')
 
 @when('VH files are searched')
-def when_searching_VH(configuration, image_list, mocker) -> None:
+def when_searching_VH(configuration, image_list) -> None:
     _search(configuration, image_list, 'VH')
 
 # ----------------------------------------------------------------------

@@ -68,7 +68,7 @@ from .Utils             import (
     get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
-from .configuration     import Configuration
+from .configuration     import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
 
@@ -194,13 +194,13 @@ def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-loc
         'orbit'             : '*',
         'calibration_type'  : cfg.calibration_type,
     }
-    fname_fmt_concatenation = cfg.fname_fmt_concatenation
-    fname_fmt_filtered      = cfg.fname_fmt_filtered
+    fname_fmt_4concatenation = fname_fmt_concatenation(cfg)
+    fname_fmt_4filtered      = fname_fmt_filtered(cfg)
     for polarisation in polarizations:
         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
         # We should use the `Processing.fname_fmt.concatenation` option
-        pat          = fname_fmt_concatenation.format(**keys, polarisation=polarisation)
-        pat_filtered = fname_fmt_filtered.format(**keys, polarisation=polarisation)
+        pat          = fname_fmt_4concatenation.format(**keys, polarisation=polarisation)
+        pat_filtered = fname_fmt_4filtered.format(**keys, polarisation=polarisation)
         found_s2 = fnmatch.filter(s2images, pat)
         found_filt = fnmatch.filter(s2images, pat_filtered)
         found = found_s2 or found_filt
@@ -361,7 +361,7 @@ def _discard_small_redundant(
 
 def _keep_requested_orbits(
     content_info:           List[Dict],
-    rq_orbit_direction:     str,
+    rq_orbit_direction:     Optional[str],
     rq_relative_orbit_list: List[int],
 ) -> List[Dict]:
     """
@@ -729,7 +729,7 @@ class S1FileManager:
         first_date:                     str,
         last_date:                      str,
         platform_list:                  List[str],
-        orbit_direction:                str,
+        orbit_direction:                Optional[str],
         relative_orbit_list:            List[int],
         polarization:                   str,
         dryrun:                         bool,
@@ -879,7 +879,12 @@ class S1FileManager:
         def glob1(pat, *paths) -> List[str]:
             pathname = glob.escape(os.path.join(*paths))
             return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
-        s2images = glob1(s2images_pat, tile_out_dir, tile_name) + glob1(s2images_pat, tile_out_dir, "filtered", tile_name)
+        dname_options = { 'tile_name': tile_name, 'out_dir': tile_out_dir, }
+        s2images = glob1(
+                s2images_pat, dname_fmt_concatenation(self.cfg).format_map(dname_options)
+        ) + glob1(
+                s2images_pat, dname_fmt_filtered(self.cfg).format_map(dname_options)
+        )
         logger.debug(' => S2 products found on %s: %s', tile_name, s2images)
         products = [p for p in products
                 if does_final_product_need_to_be_generated_for(
@@ -899,7 +904,7 @@ class S1FileManager:
         tile_out_dir:            str,
         tile_name:               str,
         platform_list:           List[str],
-        orbit_direction:         str,
+        orbit_direction:         Optional[str],
         relative_orbit_list:     List[int],
         polarization:            str,
         cover:                   float,
@@ -976,7 +981,10 @@ class S1FileManager:
         downloaded_products: List[DownloadOutcome] = []
         layer = Layer(self.cfg.output_grid)  # TODO: This could be cached
         for current_tile in layer:
-            tile_name : str = current_tile.GetField('NAME')
+            name = current_tile.GetField('NAME')
+            if not isinstance(name, str):
+                raise AssertionError(f"Invalid data type for current tile NAME field: {name}. `str` was expected")
+            tile_name : str = name
             if tile_name in tile_list:
                 tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
                 latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
@@ -1117,7 +1125,7 @@ class S1FileManager:
             'tile_name'         : tile_name,
             'calibration_type'  : self.cfg.calibration_type,
         }
-        fname_fmt_concatenation = self.cfg.fname_fmt_concatenation
+        fname_fmt_4concatenation = fname_fmt_concatenation(self.cfg)
         k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
         ident     : Callable[[Dict], str] = lambda ci: ci['product'].name
         get_orbit : Callable[[Dict], int] = lambda ci: ci['relative_orbit']
@@ -1145,7 +1153,7 @@ class S1FileManager:
             keys['flying_unit_code']  = match.groups()[0].lower() if match else "S1?"
             keys['acquisition_stamp'] = f'{eo_date}txxxxxx'
             keys['polarisation']      = '*'
-            s2_product_name = fname_fmt_concatenation.format_map(keys)
+            s2_product_name = fname_fmt_4concatenation.format_map(keys)
             keeps   = []  # Workaround to filter out the current list.
             for ci in s1_products_info:
                 pid   = ident(ci)

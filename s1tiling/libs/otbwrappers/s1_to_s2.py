@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration
+from ..configuration import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -363,7 +363,7 @@ class Calibrate(OTBStepFactory):
         """
         self.cfg=cfg
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
-        fname_fmt = cfg.fname_fmt.get('calibration') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
         super().__init__(cfg,
                 appname='SARCalibration',
                 name='Calibration',
@@ -436,7 +436,7 @@ class CorrectDenoising(OTBStepFactory):
         Constructor.
         """
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
-        fname_fmt = cfg.fname_fmt.get('correct_denoising') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('correct_denoising', fname_fmt)
         super().__init__(cfg,
                 appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -492,7 +492,7 @@ class CutBorders(OTBStepFactory):
         Constructor.
         """
         fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
-        fname_fmt = cfg.fname_fmt.get('cut_borders') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
         super().__init__(cfg,
                 appname='ResetMargin', name='BorderCutting',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -682,7 +682,7 @@ class OrthoRectify(_OrthoRectifierFactory):
         Extract and cache configuration options.
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}_{calibration_type}.tif'
-        fname_fmt = cfg.fname_fmt.get('orthorectification') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('orthorectification', fname_fmt)
         super().__init__(cfg, fname_fmt,
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 )
@@ -822,19 +822,20 @@ class Concatenate(_ConcatenatorFactory):
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
             # This is a required product that shall end-up in outputdir
-            gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}')
+            gen_output_dir = dname_fmt_concatenation(cfg)
         else:
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
-        fname_fmt = cfg.fname_fmt_concatenation
+        fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
-        self.__tname_fmt = cfg.fname_fmt_concatenation.replace('{acquisition_stamp}', '{acquisition_day}')
-        super().__init__(cfg,
+        self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
+        super().__init__(
+                cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=gen_output_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
-                )
+        )
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
         """
@@ -953,11 +954,12 @@ class SmoothBorderMask(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
+        dname_fmt = cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
         super().__init__(cfg,
                 appname='BinaryMorphologicalOperation', name='SmoothBorderMask',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_dir=dname_fmt,
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
                 )
@@ -1021,14 +1023,14 @@ class SpatialDespeckle(OTBStepFactory):
     # - recognize 2 compatibles inputs and change the output filename in consequence
     # - start from the renamed file (instead of expecting to be chained in-memory) when there is only one input.
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = cfg.fname_fmt_filtered
+        fname_fmt = fname_fmt_filtered(cfg)
+        dname_fmt = dname_fmt_filtered(cfg)
         super().__init__(cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                # TODO: Offer an option to choose output directory name scheme
                 # TODO: synchronize with S1FileManager.ensure_tile_workspaces_exist()
-                gen_output_dir=os.path.join(cfg.output_preprocess, 'filtered', '{tile_name}'),
+                gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
                 )

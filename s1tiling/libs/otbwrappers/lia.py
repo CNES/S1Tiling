@@ -85,7 +85,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         constructor
         """
         fname_fmt = 'DEM_{tile_name}.vrt'
-        fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('dem_s2_agglomeration', fname_fmt)
         super().__init__(  # type: ignore # mypy issue 4335
                 cfg,
                 # Because VRT links temporary files, it must not be reused in case of a crash => use tmp_dem_dir
@@ -159,7 +159,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'DEM_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('dem_on_s2') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('dem_on_s2', fname_fmt)
         super().__init__(
                 cfg,
                 exename='gdalwarp', name='ProjectDEMToS2Tile',
@@ -253,7 +253,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'GEOID_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('geoid_on_s2') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('geoid_on_s2', fname_fmt)
         super().__init__(
                 cfg,
                 param_in="inr", param_out="out",
@@ -313,7 +313,7 @@ class SumAllHeights(OTBStepFactory):
         Constructor.
         """
         fname_fmt = 'DEM+GEOID_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('height_on_s2') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('height_on_s2', fname_fmt)
         super().__init__(
                 cfg,
                 appname='BandMath', name='SumAllHeights', param_in='il', param_out='out',
@@ -423,7 +423,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
-        fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2', fname_fmt)
         super().__init__(
                 cfg,
                 appname='SARDEMProjection2', name='SARDEMProjection',
@@ -693,7 +693,7 @@ class ComputeNormalsOnS2(_ComputeNormals):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'Normals_on_{tile_name}'
-        fname_fmt = cfg.fname_fmt.get('normals_on_s2') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('normals_on_s2', fname_fmt)
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
@@ -836,13 +836,14 @@ class ComputeLIAOnS2(_ComputeLIA):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt0 = cfg.fname_fmt.get('lia_product') or fname_fmt0
+        fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
+        dname_fmt = cfg.dname_fmt.get('LIA', '{lia_dir}')
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
-                gen_output_dir=cfg.lia_directory,
+                gen_output_dir=dname_fmt,
                 fname_fmt_lia=fname_fmt_lia,
                 fname_fmt_sin=fname_fmt_sin,
                 image_description='LIA on S2 grid',
@@ -950,12 +951,13 @@ class ApplyLIACalibration(OTBStepFactory):
         Constructor.
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
-        fname_fmt = cfg.fname_fmt.get('s2_lia_corrected') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
+        dname_fmt = cfg.dname_fmt.get('s2_lia_corrected', '{out_dir}/{tile_name}')
         super().__init__(
                 cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=os.path.join(cfg.output_preprocess, '{tile_name}'),
+                gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
@@ -1050,7 +1052,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         constructor
         """
         fname_fmt = 'DEM_{polarless_rootname}.vrt'
-        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration', fname_fmt)
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -1149,7 +1151,7 @@ class SARDEMProjection(OTBStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
-        fname_fmt = cfg.fname_fmt.get('s1_on_dem') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('s1_on_dem', fname_fmt)
         super().__init__(
                 cfg,
                 appname='SARDEMProjection2', name='SARDEMProjection',
@@ -1285,7 +1287,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'XYZ_{polarless_basename}'
-        fname_fmt = cfg.fname_fmt.get('xyz') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('xyz', fname_fmt)
         super().__init__(
                 cfg,
                 appname='SARCartesianMeanEstimation2', name='SARCartesianMeanEstimation',
@@ -1424,7 +1426,7 @@ class ComputeNormalsOnS1(_ComputeNormals):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'Normals_{polarless_basename}'
-        fname_fmt = cfg.fname_fmt.get('normals_on_s1') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('normals_on_s1', fname_fmt)
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -1454,8 +1456,8 @@ class ComputeLIAOnS1(_ComputeLIA):
     - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt_lia = cfg.fname_fmt.get('s1_lia')     or 'LIA_{polarless_basename}'
-        fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia') or 'sin_LIA_{polarless_basename}'
+        fname_fmt_lia = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}')
+        fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia', 'sin_LIA_{polarless_basename}')
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
@@ -1494,7 +1496,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         Extract and cache configuration options.
         """
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
-        fname_fmt = cfg.fname_fmt.get('lia_orthorectification') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('lia_orthorectification', fname_fmt)
         super().__init__(
                 cfg,
                 fname_fmt,
@@ -1551,7 +1553,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
-        fname_fmt = cfg.fname_fmt.get('lia_concatenation') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('lia_concatenation', fname_fmt)
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
@@ -1640,12 +1642,13 @@ class SelectBestCoverage(_FileProducingStepFactory):
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt = cfg.fname_fmt.get('lia_product') or fname_fmt
+        fname_fmt = cfg.fname_fmt.get('lia_product', fname_fmt)
+        dname_fmt = cfg.dname_fmt.get('lia_product','{lia_dir}')
         super().__init__(
                 cfg,
                 name='SelectBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=cfg.lia_directory,
+                gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
         )
 

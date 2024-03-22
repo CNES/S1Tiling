@@ -246,6 +246,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.__init_processing(accessor)
         self.__init_filtering(accessor)
         self.__init_fname_fmt(accessor)
+        self.__init_dname_fmt(accessor)
 
         # Other options
         #: Type of images handled
@@ -333,7 +334,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.platform_list       = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
-        self.orbit_direction     = accessor.get('DataSource', 'orbit_direction', fallback=None)
+        self.orbit_direction : Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
             accessor.throw("Parameter [orbit_direction] must be either unset or DES, or ASC")
         relative_orbit_list_str  = accessor.get('DataSource', 'relative_orbit_list', fallback='')
@@ -491,6 +492,20 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 self.fname_fmt[key] = fmt
 
     # ----------------------------------------------------------------------
+    def __init_dname_fmt(self, accessor: _ConfigAccessor) -> None:
+        # Permit to override default file name formats
+        dname_fmt_keys = [
+                'concatenation', 'filtered',
+                's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+        ]
+        self.dname_fmt = {}
+        for key in dname_fmt_keys:
+            fmt = accessor.get('Processing', f'dname_fmt.{key}', fallback=None)
+            # Default value is defined in associated StepFactories
+            if fmt:
+                self.dname_fmt[key] = fmt
+
+    # ----------------------------------------------------------------------
     def show_configuration(self) -> None:  # pylint: disable=too-many-statements
         """
         Displays the configuration
@@ -546,7 +561,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             elif self.filter in ['frost']:
                 logging.debug("- deramp                           : %s", self.filter_options['deramp'])
 
-        logging.debug('File formats')
+        logging.debug('Output directories:')
+        for k, fmt in self.dname_fmt.items():
+            logging.debug(' - %s --> %s', k, fmt)
+        logging.debug('Filename formats:')
         for k, fmt in self.fname_fmt.items():
             logging.debug(' - %s --> %s', k, fmt)
 
@@ -587,40 +605,6 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         """
         return str(self._DEMShapefile)
 
-    @property
-    def fname_fmt_concatenation(self) -> str:
-        """
-        Helper method to return the ``Processing.fnmatch.concatenation`` actual value
-        """
-        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
-        if calibration_is_done_in_S1:
-            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
-            # Legacy mode: the default final filename won't contain the calibration_type
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
-        else:
-            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
-            # Let the default force the "beta" calibration_type in the filename
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-        fname_fmt = self.fname_fmt.get('concatenation') or fname_fmt
-        return fname_fmt
-
-    @property
-    def fname_fmt_filtered(self) -> str:
-        """
-        Helper method to return the ``Processing.fnmatch.filtered`` actual value
-        """
-        calibration_is_done_in_S1 = self.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
-        if calibration_is_done_in_S1:
-            # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
-            # Legacy mode: the default final filename won't contain the calibration_type
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif'
-        else:
-            # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
-            # Let the default force the "beta" calibration_type in the filename
-            fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
-        fname_fmt = self.fname_fmt.get('filtered') or fname_fmt
-        return fname_fmt
-
     # ======================================================================
     # Things stored for later use
     def register_dems_related_to_S2_tiles(self, dems_by_s2_tiles: Dict[str, Dict]) -> None:
@@ -636,3 +620,56 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if tile_name not in self.__dems_by_s2_tiles:
             raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
         return self.__dems_by_s2_tiles[tile_name]
+
+
+def fname_fmt_concatenation(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.fnmatch.concatenation`` actual
+    value, or its default value according to the calibration kind.
+    """
+    calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+    if calibration_is_done_in_S1:
+        # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+        # Legacy mode: the default final filename won't contain the calibration_type
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+    else:
+        # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+        # Let the default force the "beta" calibration_type in the filename
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+    fname_fmt = cfg.fname_fmt.get('concatenation', fname_fmt)
+    return fname_fmt
+
+
+def fname_fmt_filtered(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.fnmatch.filtered`` actual value,
+    or its default value according to the calibration kind.
+    """
+    calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
+    if calibration_is_done_in_S1:
+        # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
+        # Legacy mode: the default final filename won't contain the calibration_type
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif'
+    else:
+        # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
+        # Let the default force the "beta" calibration_type in the filename
+        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+    fname_fmt = cfg.fname_fmt.get('filtered', fname_fmt)
+    return fname_fmt
+
+
+def dname_fmt_concatenation(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dnmatch.concatenation`` actual
+    value, or its default value.
+    """
+    return cfg.dname_fmt.get('concatenation', '{out_dir}/{tile_name}')
+
+
+def dname_fmt_filtered(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dnmatch.filtered`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
+
