@@ -712,29 +712,29 @@ You can use this :download:`this template
   * - ``fname_fmt.concatenation``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
       for β°, σ° and γ° calibrations.
-      
+
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
 
       .. _Processing.fname_fmt.lia_corrected:
   * - ``fname_fmt.s2_lia_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when NORMLIM calibrated.
-      
+
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
 
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
-      
+
       Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
     - File format pattern for :ref:`filtered files <filtered-files>`
-      
+
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
       for β°, σ° and γ° calibrations,
-      
+
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
 
       .. _Processing.dname_fmt:
@@ -745,34 +745,92 @@ You can use this :download:`this template
       The directory formats can only be overridden for final products.
 
       Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`.
-      See the list provided for :ref:`fname_fmt.* <processing.fname_fmt>`.
-      +out_dir, tmp_dir, lia_dir
+      See the list provided for :ref:`fname_fmt.* <processing.fname_fmt>`, to
+      which three other options are added:
 
-      .. _Processing.dname_fmt.concatenation:
-  * - ``dname_fmt.concatenation``
-    - Directory format pattern for :ref:`concatenation products <full-S2-tiles>`,
-      for β°, σ° and γ° calibrations.
-      
-      Default value: :samp:`{{out_dir}}/{{tile_name}}`
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
 
-      .. _Processing.dname_fmt.lia_corrected:
-  * - ``dname_fmt.s2_lia_corrected``
-    - Directory format pattern for :ref:`concatenation products <full-S2-tiles>`
-      when NORMLIM calibrated.
+        * - Field
+          - Reference to
 
-      Default value: :samp:`{{out_dir}}/{{tile_name}}`
+        * - :samp:`{{out_dir}}`
+          - :ref:`[PATHS].output <paths.output>`
+        * - :samp:`{{tmp_dir}}`
+          - :ref:`[PATHS].tmp <paths.tmp>`
+        * - :samp:`{{lia_dir}}`
+          - :ref:`[PATHS].lia <paths.lia>`
 
-      .. _Processing.dname_fmt.lia_product:
-  * - ``dname_fmt.lia_product``
-    - Directory format pattern for LIA and sin(LIA) files
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
 
-      Default value: :samp:`{{lia_dir}}`
+        * - Products from
+          - Option ``dname_fmt.?``
+          - Default value
 
-      .. _Processing.dname_fmt.filtered:
-  * - ``dname_fmt.filtered``
-    - Directory format pattern for :ref:`filtered files <filtered-files>`
+            .. _Processing.dname_fmt.concatenation:
+        * - :ref:`(β°/σ°/γ°) Concatenation <full-S2-tiles>`
+          - ``.concatenation``
+          - :samp:`{{out_dir}}/{{tile_name}}`
 
-      Default value: :samp:`{{out_dir}}/filtered/{{tile_name}}`
+            .. _Processing.dname_fmt.s2_lia_corrected:
+        * - :ref:`(NORMLIM) Concatenation <full-S2-tiles>`
+          - ``.s2_lia_corrected``
+          - :samp:`{{out_dir}}/{{tile_name}}`
+
+            .. _Processing.dname_fmt.lia_product:
+        * - :ref:`LIA and sin(LIA) <lia-files>`
+          - ``.lia_product``
+          - :samp:`{{lia_dir}}`
+
+            .. _Processing.dname_fmt.filtered:
+        * - :ref:`Filtering <filtered-files>`
+          - ``.filtered``
+          - :samp:`{{out_dir}}/filtered/{{tile_name}}`
+
+      .. _Processing.extended_filename:
+  * - ``extended_filename.*``
+    - Set of extra :external:std:doc:`Extended Filename options
+      <ExtendedFilenames>` to use when generating final products.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Products from
+          - Option ``extended_filename.?``
+          - Default value
+
+            .. _Processing.extended_filename.orthorectification:
+        * - Orthorectification
+          - ``.orthorectification``
+          - ``?&writegeom=false&gdal:co:COMPRESS=DEFLATE``
+
+            .. _Processing.extended_filename.concatenation:
+        * - :ref:`(β°/σ°/γ°) Concatenation <full-S2-tiles>`
+          - ``.concatenation``
+          - ``?gdal:co:COMPRESS=DEFLATE``
+
+            .. _Processing.extended_filename.s2_lia_corrected:
+        * - :ref:`(NORMLIM) Concatenation <full-S2-tiles>`
+          - ``.s2_lia_corrected``
+          - ``?&gdal:co:COMPRESS=DEFLATE``
+
+            .. _Processing.extended_filename.filtered:
+        * - :ref:`Filtering <filtered-files>`
+          - ``.filtered``
+          - ``?gdal:co:COMPRESS=DEFLATE``
+
+            .. _Processing.extended_filename.lia_product:
+        * - :ref:`LIA and sin(LIA) <lia-files>`
+          - ``.lia_product``
+          - ``?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
 
 .. _Filtering:
 

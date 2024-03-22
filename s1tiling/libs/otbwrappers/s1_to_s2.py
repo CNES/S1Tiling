@@ -211,7 +211,7 @@ class ExtractSentinel1Metadata(StepFactory):
         Helper function to retrieve the canonical input associated to a list of inputs.
 
         :class:`ExtractSentinel1Metadata` can be used either in usual S1Tiling
-        orthorectofication scenario, or in LIA Map generation scenarios.
+        orthorectification scenario, or in LIA Map generation scenarios.
         In the first case only a single and unnamed input is expected. In LIA
         case, several named inputs are expected, and the canonical input is
         named "insar" in :func:s1tiling.s1_process_lia` pipeline builder.
@@ -564,7 +564,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        extended_filename = cfg.extended_filename.get("concatenation", "?&writegeom=false&gdal:co:COMPRESS=DEFLATE")
+        extended_filename = cfg.extended_filename.get("orthorectification", "?&writegeom=false&gdal:co:COMPRESS=DEFLATE")
         super().__init__(
                 cfg,
                 appname='OrthoRectification', name='OrthoRectification',
