@@ -228,16 +228,16 @@ class FileDB:
             self,
             inputdir, tmpdir, outputdir, liadir,
             tile, demdir, geoid_file,
-            dname_fmt_concatenation=None,
+            dname_fmt_tiled=None,
     ) -> None:
-        self.__input_dir               = inputdir
-        self.__tmp_dir                 = tmpdir
-        self.__output_dir              = outputdir
-        self.__lia_dir                 = liadir
-        self.__tile                    = tile
-        self.__dem_dir                 = demdir
-        self.__GeoidFile               = geoid_file
-        self.__dname_fmt_concatenation = dname_fmt_concatenation
+        self.__input_dir       = inputdir
+        self.__tmp_dir         = tmpdir
+        self.__output_dir      = outputdir
+        self.__lia_dir         = liadir
+        self.__tile            = tile
+        self.__dem_dir         = demdir
+        self.__GeoidFile       = geoid_file
+        self.__dname_fmt_tiled = dname_fmt_tiled
 
         NFiles   = len(self.FILES)
         NConcats = len(self.CONCATS)
@@ -492,7 +492,7 @@ class FileDB:
         else:
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
             # dir = f'{self.__output_dir}/{self.__tile}'
-            dir = self.__dname_fmt_concatenation or '{out_dir}/{tile_name}'
+            dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
         if tmp:
             ext = self.extended_compress
         else:

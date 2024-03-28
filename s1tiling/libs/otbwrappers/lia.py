@@ -952,7 +952,7 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
         fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
-        dname_fmt = cfg.dname_fmt.get('s2_lia_corrected', '{out_dir}/{tile_name}')
+        dname_fmt = cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
         super().__init__(
                 cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',

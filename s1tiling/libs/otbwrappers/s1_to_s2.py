@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_concatenation, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+from ..configuration import Configuration, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -822,7 +822,7 @@ class Concatenate(_ConcatenatorFactory):
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
         if calibration_is_done_in_S1:
             # This is a required product that shall end-up in outputdir
-            gen_output_dir = dname_fmt_concatenation(cfg)
+            gen_output_dir = dname_fmt_tiled(cfg)
         else:
             # This is a temporary product that shall end-up in tmpdir
             gen_output_dir = None # use gen_tmp_dir
