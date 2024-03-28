@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -954,7 +954,7 @@ class SmoothBorderMask(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
-        dname_fmt = cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
+        dname_fmt = dname_fmt_mask(cfg)
         super().__init__(cfg,
                 appname='BinaryMorphologicalOperation', name='SmoothBorderMask',
                 param_in='in', param_out='out',
@@ -1000,6 +1000,7 @@ class SpatialDespeckle(OTBStepFactory):
 
     - `ram_per_process`
     - `fname_fmt_filtered`
+    - `dname_fmt_filtered`
     - `filter`:  the name of the filter method
     - `rad`:     the filter windows radius
     - `nblooks`: the number of looks
@@ -1029,7 +1030,6 @@ class SpatialDespeckle(OTBStepFactory):
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                # TODO: synchronize with S1FileManager.ensure_tile_workspaces_exist()
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',

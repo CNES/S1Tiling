@@ -888,7 +888,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-    configuration.dname_fmt['tiled']         = '{out_dir}/orbit-{orbit}'
+    configuration.dname_fmt['tiled']         = '{out_dir}/{tile_name}/filt'
     configuration.show_configuration()
     logging.info("Full mocked test")
 

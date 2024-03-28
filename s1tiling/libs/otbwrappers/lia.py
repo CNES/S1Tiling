@@ -66,7 +66,7 @@ from .s1_to_s2       import (
         s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
 )
 from ..              import Utils
-from ..configuration import Configuration
+from ..configuration import Configuration, dname_fmt_lia_product, dname_fmt_tiled
 from ...__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
@@ -833,13 +833,14 @@ class ComputeLIAOnS2(_ComputeLIA):
     - input filename
     - output filename
     - `fname_fmt`  -- optional key: `lia_product`
+    - `dname_fmt`  -- optional key: `lia_product`
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
-        dname_fmt = cfg.dname_fmt.get('LIA', '{lia_dir}')
+        dname_fmt = dname_fmt_lia_product(cfg)
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
@@ -944,6 +945,7 @@ class ApplyLIACalibration(OTBStepFactory):
     - orbit
     - acquisition_stamp
     - `fname_fmt`  -- optional key: `s2_lia_corrected`
+    - `dname_fmt`  -- optional key: `tiled`
     """
 
     def __init__(self, cfg: Configuration) -> None:
@@ -952,7 +954,7 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
         fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
-        dname_fmt = cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
+        dname_fmt = dname_fmt_tiled(cfg)
         super().__init__(
                 cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
@@ -1639,11 +1641,12 @@ class SelectBestCoverage(_FileProducingStepFactory):
     - `orbit_direction`
     - `orbit`
     - `fname_fmt`  -- optional key: `lia_product`
+    - `dname_fmt`  -- optional key: `lia_product`
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt = cfg.fname_fmt.get('lia_product', fname_fmt)
-        dname_fmt = cfg.dname_fmt.get('lia_product','{lia_dir}')
+        dname_fmt = dname_fmt_lia_product(cfg)
         super().__init__(
                 cfg,
                 name='SelectBestCoverage',
