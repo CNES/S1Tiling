@@ -609,7 +609,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'AcquisitionStartTime', 'AcquisitionStopTime', 'AcquisitionDate',
                 'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument', 'LineSpacing',
                 'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
-                'Swath',
+                'Swath', 'NumberOfLines', 'NumberOfColumns',
         )
         for kw in meta_to_remove_in_s2:
             imd[kw] = ''
@@ -769,7 +769,7 @@ class _ConcatenatorFactory(OTBStepFactory):
                 'ram'              : ram(self.ram_per_process),
                 self.param_in      : in_filename(meta),
                 # self.param_out     : out_filename(meta),
-                }
+        }
 
     def create_step(
             self,
