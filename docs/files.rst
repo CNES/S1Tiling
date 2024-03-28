@@ -24,7 +24,11 @@ Orthorectified S2 tiles
 :Content: Complete final product: concatenated orthorectified S1 images on S2
           grid
 
-:Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/`
+:Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
+
+:Directory format: :samp:`{{out_dir}}/{{tile_name}}`, see
+                   :ref:`[Processing].dname_fmt.tiled
+                   <Processing.dname_fmt.tiled>`
 
 :File name:
 
@@ -101,7 +105,11 @@ Mask files
 
     .. todo:: Thierry?
 
-:Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/`
+:Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
+
+:Directory format: :samp:`{{out_dir}}/{{tile_name}}`, see
+                   :ref:`[Processing].dname_fmt.mask
+                   <Processing.dname_fmt.mask>`
 
 :File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
             `_BorderMask` appended
@@ -132,7 +140,12 @@ Filtered files
 
     .. todo:: Thierry?
 
-:Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/`
+:Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/` by
+             default
+
+:Directory format: :samp:`{{out_dir}}/filtered/{{tile_name}}`, see
+                   :ref:`[Processing].dname_fmt.filtered
+                   <Processing.dname_fmt.filtered>`
 
 :File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
             `_filtered` appended
@@ -190,7 +203,11 @@ Local Incidence Angle map files
     The values have been orthorectified on the Sentinel-2 tile from a pair of
     :ref:`LIA maps computed on S1 images <lia-s1-files>`.
 
-:Directory:  :ref:`%(output_lia)/ <paths.lia>`
+:Directory:  :ref:`%(output_lia)/ <paths.lia>` by default
+
+:Directory format: :samp:`{{lia_dir}}`, see
+                   :ref:`[Processing].dname_fmt.lia_product
+                   <Processing.dname_fmt.lia_product>`
 
 :File names:
 
