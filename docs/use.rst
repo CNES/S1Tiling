@@ -744,9 +744,7 @@ You can use this :download:`this template
 
       The directory formats can only be overridden for final products.
 
-      Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`.
-      See the list provided for :ref:`fname_fmt.* <processing.fname_fmt>`, to
-      which three other options are added:
+      The only fields available are:
 
       .. list-table::
         :widths: auto
@@ -756,6 +754,8 @@ You can use this :download:`this template
         * - Field
           - Reference to
 
+        * - :samp:`{{tile_name}}`
+          - Name of the related tile.
         * - :samp:`{{out_dir}}`
           - :ref:`[PATHS].output <paths.output>`
         * - :samp:`{{tmp_dir}}`
@@ -772,18 +772,18 @@ You can use this :download:`this template
           - Option ``dname_fmt.?``
           - Default value
 
-            .. _Processing.dname_fmt.concatenation:
-        * - :ref:`(β°/σ°/γ°) Concatenation <full-S2-tiles>`
-          - ``.concatenation``
+            .. _Processing.dname_fmt.tiled:
+        * - :ref:`(β°/σ°/γ°/NORMLIM) Final tiled product <full-S2-tiles>`
+          - ``.tiled``
           - :samp:`{{out_dir}}/{{tile_name}}`
 
-            .. _Processing.dname_fmt.s2_lia_corrected:
-        * - :ref:`(NORMLIM) Concatenation <full-S2-tiles>`
-          - ``.s2_lia_corrected``
+            .. _Processing.dname_fmt.mask:
+        * - :ref:`Masks <mask-files>`
+          - ``.mask``
           - :samp:`{{out_dir}}/{{tile_name}}`
 
             .. _Processing.dname_fmt.lia_product:
-        * - :ref:`LIA and sin(LIA) <lia-files>`
+        * - :ref:`degree(LIA) and sin(LIA) <lia-files>`
           - ``.lia_product``
           - :samp:`{{lia_dir}}`
 
@@ -830,7 +830,6 @@ You can use this :download:`this template
         * - :ref:`LIA and sin(LIA) <lia-files>`
           - ``.lia_product``
           - ``?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
-
 
 .. _Filtering:
 

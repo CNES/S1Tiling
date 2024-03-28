@@ -40,6 +40,8 @@ from typing import List
 import otbApplication as otb
 
 import pytest
+
+from s1tiling.libs.otbtools import otb_version
 # from unittest.mock import patch
 
 # import pytest_check
@@ -123,6 +125,8 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
     #         '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
     #         ]
     baseline_path = baselinedir / 'expected'
+    if otb_version() >= '8.0.0':
+        baseline_path = baseline_path / 'otb8'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     logging.info("Full test")
     EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram)
@@ -194,6 +198,8 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
             '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
             ]
     baseline_path = baselinedir / 'expected'
+    if otb_version() >= '8.0.0':
+        baseline_path = baseline_path / 'otb8'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
 
     logging.info("Mask only test")
@@ -221,15 +227,15 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
         expected_md = {
                 'ACQUISITION_DATETIME'       : '2020:01:08T04:41:50Z',  # Start point has it
                 # For now, the start points don't have this...
-                # 'ACQUISITION_DATETIME_1'     : '2020:01:08T04:41:50Z',
-                # 'ACQUISITION_DATETIME_2'     : '2020:01:08T04:42:15Z',
+                'ACQUISITION_DATETIME_1'     : '2020:01:08T04:41:50Z',
+                'ACQUISITION_DATETIME_2'     : '2020:01:08T04:42:15Z',
                 'AREA_OR_POINT'              : 'Area',
                 'CALIBRATION'                : 'sigma',
                 'FLYING_UNIT_CODE'           : 's1a',
                 'IMAGE_TYPE'                 : 'GRD',
-                # 'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+                'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 # For now, the start points don't have this...
-                # 'NOISE_REMOVED'              : 'False',
+                'NOISE_REMOVED'              : 'False',
                 'ORBIT_DIRECTION'            : 'DES',
                 'ORBIT_NUMBER'               : '030704',
                 'ORTHORECTIFIED'             : 'true',
@@ -393,6 +399,8 @@ def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db,
                 'LineSpacing'                 : '',
                 'Mission'                     : '',
                 'Mode'                        : '',
+                'NumberOfColumns'             : '',
+                'NumberOfLines'               : '',
                 'OrbitDirection'              : '',
                 'OrbitNumber'                 : '',
                 'PRF'                         : '',
@@ -453,6 +461,8 @@ def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db,
                 'LineSpacing'                 : '',
                 'Mission'                     : '',
                 'Mode'                        : '',
+                'NumberOfColumns'             : '',
+                'NumberOfLines'               : '',
                 'OrbitDirection'              : '',
                 'OrbitNumber'                 : '',
                 'PRF'                         : '',
@@ -648,6 +658,8 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'LineSpacing'                 : '',
                 'Mission'                     : '',
                 'Mode'                        : '',
+                'NumberOfColumns'             : '',
+                'NumberOfLines'               : '',
                 'OrbitDirection'              : '',
                 'OrbitNumber'                 : '',
                 'PRF'                         : '',
@@ -697,6 +709,8 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'LineSpacing'                 : '',
                 'Mission'                     : '',
                 'Mode'                        : '',
+                'NumberOfColumns'             : '',
+                'NumberOfLines'               : '',
                 'OrbitDirection'              : '',
                 'OrbitNumber'                 : '',
                 'PRF'                         : '',
@@ -874,14 +888,14 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
-    configuration.dname_fmt['concatenation'] = '{out_dir}/orbit-{orbit}'
+    configuration.dname_fmt['tiled']         = '{out_dir}/{tile_name}/filt'
     configuration.show_configuration()
     logging.info("Full mocked test")
 
     file_db = FileDB(
             inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(),
             tile, demdir, configuration.GeoidFile,
-            dname_fmt_concatenation=configuration.dname_fmt['concatenation'],
+            dname_fmt_tiled=configuration.dname_fmt['tiled'],
     )
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
