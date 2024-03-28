@@ -495,8 +495,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_dname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         dname_fmt_keys = [
-                'concatenation', 'filtered',
-                's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+                'tiled', 'filtered', 'mask',
+                's1_lia',  's1_sin_lia', 'lia_product',
         ]
         self.dname_fmt = {}
         for key in dname_fmt_keys:
@@ -658,18 +658,33 @@ def fname_fmt_filtered(cfg: Configuration) -> str:
     return fname_fmt
 
 
-def dname_fmt_concatenation(cfg: Configuration) -> str:
+def dname_fmt_tiled(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dnmatch.concatenation`` actual
+    Helper method to return the ``Processing.dname.tiled`` actual
     value, or its default value.
     """
-    return cfg.dname_fmt.get('concatenation', '{out_dir}/{tile_name}')
+    return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
+
+
+def dname_fmt_mask(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dname.mask`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
 
 
 def dname_fmt_filtered(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dnmatch.filtered`` actual value,
+    Helper method to return the ``Processing.dname.filtered`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
 
+
+def dname_fmt_lia_product(cfg: Configuration) -> str:
+    """
+    Helper method to return the ``Processing.dname.lia_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('lia_product', '{lia_dir}')

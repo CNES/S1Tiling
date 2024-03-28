@@ -745,6 +745,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         if config.mask_cond:
             pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',
                     product_required=True, inputs={'in': last_product_S2})
+            required_workspaces.append(WorkspaceKinds.MASK)
 
         # Despeckle in non-inmemory case
         if config.filter:
