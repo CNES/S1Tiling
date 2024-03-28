@@ -60,13 +60,16 @@ def comparable_metadata(image):
     md = ds.GetMetadata()
     del ds
 
-    md.pop('TIFFTAG_DATETIME',  None)
-    md.pop('PROCESSED_DATETIME', None)
-    md.pop('TileHintX', None)
-    md.pop('TileHintY', None)
+    md.pop('DataType', None)
+    md.pop('FACILITY_IDENTIFIER', None)
     md.pop('METADATATYPE', None)
     md.pop('OTB_VERSION', None)
-    md.pop('DataType', None)
+    md.pop('PROCESSED_DATETIME', None)
+    md.pop('ProductType', None)
+    md.pop('ProductionDate', None)
+    md.pop('TIFFTAG_DATETIME',  None)
+    md.pop('TileHintX', None)
+    md.pop('TileHintY', None)
 
     if 'TIFFTAG_SOFTWARE' in md:
         # logging.error('PERFECT')
