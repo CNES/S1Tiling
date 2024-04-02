@@ -773,11 +773,17 @@ class StoreStep(_ProducerStep):
         """
         p_out = as_list(self._out)
         files = as_list(self.tmp_filename)
+        assert len(p_out) == len(files), f"Mismatching number of files parameters and ouput files: {p_out} VS {files}"
         assert self._app
-        for po, tmp in zip(p_out, files):
+        nb = len(files)
+        ef_meta = out_extended_filename_complement(self.meta)
+        extended_filenames = ef_meta if isinstance(ef_meta, list) else nb * [ef_meta]
+        assert len(extended_filenames) == nb, f"Mismatching number of files parameters and ouput files+EF: {p_out} VS {files} VS {ef_meta}"
+        for po, tmp, ef in zip(p_out, files, extended_filenames):
             assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            self._app.SetParameterString(po, tmp + out_extended_filename_complement(self.meta))
+            logger.debug(" - set ouput param: %s = %s + %s", po, tmp, ef)
+            self._app.SetParameterString(po, tmp + ef)
 
     def _do_execute(self, parameters, dryrun: bool) -> None:
         """
@@ -1019,7 +1025,8 @@ class OTBStepFactory(_FileProducingStepFactory):
             gen_tmp_dir        : str,
             gen_output_dir     : Optional[str],
             gen_output_filename: OutputFilenameGenerator,
-            extended_filename  : Optional[str] = None,
+            extended_filename  : Optional[Union[str, List[str]]] = None,
+            pixel_type         : Optional[Union[str, List[str]]] = None,
             *argv, **kwargs
     ) -> None:
         """
@@ -1050,6 +1057,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         assert isinstance(self.param_out, (str, list)), f"String or list expected for {appname} param_out={self.param_out}"
         self._appname              = appname
         self._extended_filename    = extended_filename
+        self._pixel_type           = pixel_type
         logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
 
     @property

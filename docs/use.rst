@@ -792,10 +792,12 @@ You can use this :download:`this template
           - ``.filtered``
           - :samp:`{{out_dir}}/filtered/{{tile_name}}`
 
-      .. _Processing.extended_filename:
-  * - ``extended_filename.*``
-    - Set of extra :external:std:doc:`Extended Filename options
-      <ExtendedFilenames>` to use when generating final products.
+      .. _Processing.creation_options:
+  * - ``creation_options.*``
+    - Set of extra options to create certain products. Creation options take a
+      first and optional pixel type (``uint8``, ``float64``...) and a list of
+      `GDAL creation options
+      <https://gdal.org/drivers/raster/gtiff.html#creation-options>`_.
 
       .. list-table::
         :widths: auto
@@ -803,33 +805,34 @@ You can use this :download:`this template
         :stub-columns: 1
 
         * - Products from
-          - Option ``extended_filename.?``
+          - Option ``creation_options.?``
           - Default value
 
-            .. _Processing.extended_filename.orthorectification:
-        * - Orthorectification
-          - ``.orthorectification``
-          - ``?&writegeom=false&gdal:co:COMPRESS=DEFLATE``
+            .. _Processing.creation_options.tiled:
+        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
+            <full-S2-tiles>`...
+          - ``.tiled``
+          - ``COMPRESS=DEFLATE``
 
-            .. _Processing.extended_filename.concatenation:
-        * - :ref:`(β°/σ°/γ°) Concatenation <full-S2-tiles>`
-          - ``.concatenation``
-          - ``?gdal:co:COMPRESS=DEFLATE``
-
-            .. _Processing.extended_filename.s2_lia_corrected:
-        * - :ref:`(NORMLIM) Concatenation <full-S2-tiles>`
-          - ``.s2_lia_corrected``
-          - ``?&gdal:co:COMPRESS=DEFLATE``
-
-            .. _Processing.extended_filename.filtered:
+            .. _Processing.creation_options.filtered:
         * - :ref:`Filtering <filtered-files>`
           - ``.filtered``
-          - ``?gdal:co:COMPRESS=DEFLATE``
+          - ``COMPRESS=DEFLATE``
 
-            .. _Processing.extended_filename.lia_product:
-        * - :ref:`LIA and sin(LIA) <lia-files>`
-          - ``.lia_product``
-          - ``?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+            .. _Processing.creation_options.mask:
+        * - :ref:`Masks <mask-files>`
+          - ``.mask``
+          - ``COMPRESS=DEFLATE``
+
+            .. _Processing.creation_options.lia_deg:
+        * - :ref:`LIA (in degrees * 100) <lia-files>`
+          - ``.lia_deg``
+          - ``uint16 COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.lia_sin:
+        * - :ref:`sin(LIA) <lia-files>`
+          - ``.lia_sin``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
 .. _Filtering:
 

@@ -66,7 +66,9 @@ from .s1_to_s2       import (
         s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
 )
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_lia_product, dname_fmt_tiled
+from ..configuration import (
+        Configuration, dname_fmt_lia_product, dname_fmt_tiled, extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled, pixel_type
+)
 from ...__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
@@ -728,14 +730,17 @@ class _ComputeLIA(OTBStepFactory):
             gen_output_dir    : Optional[str],
             image_description : str,
     ) -> None:
-        fname_fmt = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
-        param_out = ['out.sin']
+        fname_fmt          = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
+        param_out          = ['out.sin']
+        extended_filenames = [ extended_filename_lia_sin(cfg) ]
+        pixel_types        = [ pixel_type(cfg, 'lia_sin') ]
         if cfg.produce_lia_map:
             # We always produce out.sin, and optionally we produce out.lia.
             # Anyway, their production is always done in output_dir!
             fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_lia))
             param_out.append('out.lia')
-        extended_filename = cfg.extended_filename.get("lia_product", "?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3")
+            extended_filenames.append(extended_filename_lia_degree(cfg))
+            pixel_types.append(pixel_type(cfg, 'lia_deg', 'uint16'))
         super().__init__(
                 cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
@@ -745,7 +750,8 @@ class _ComputeLIA(OTBStepFactory):
                 gen_output_dir=gen_output_dir,
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 image_description=image_description,
-                extended_filename=extended_filename,
+                extended_filename=extended_filenames,
+                pixel_type=pixel_types,
         )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
@@ -956,7 +962,6 @@ class ApplyLIACalibration(OTBStepFactory):
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
         fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
         dname_fmt = dname_fmt_tiled(cfg)
-        extended_filename = cfg.extended_filename.get("s2_lia_corrected", "?&gdal:co:COMPRESS=DEFLATE")
         super().__init__(
                 cfg,
                 appname='BandMath', name='ApplyLIACalibration', param_in='il', param_out='out',
@@ -964,7 +969,8 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename,
+                extended_filename=extended_filename_tiled(cfg),
+                pixel_type=pixel_type(cfg, 'tiled'),
         )
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:

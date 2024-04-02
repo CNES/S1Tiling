@@ -264,7 +264,7 @@ class Configuration():
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
         }
         self.dname_fmt                         = {}
-        self.extended_filename                 = {}
+        self.creation_options                  = {}
 
 def isfile(filename, existing_files) -> bool:
     # assert False

@@ -112,7 +112,7 @@ class Configuration():
                 'filtered' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         }
         self.dname_fmt               = {}
-        self.extended_filename       = {}
+        self.creation_options        = {}
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:

@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, extended_filename_filtered, extended_filename_tiled, fname_fmt_concatenation, fname_fmt_filtered, pixel_type
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -565,7 +565,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        extended_filename = cfg.extended_filename.get("orthorectification", "?&writegeom=false&gdal:co:COMPRESS=DEFLATE")
+        extended_filename = extended_filename_tiled(cfg)
+        if otb_version() < '8.0.0':
+            extended_filename += '&writegeom=false'
         super().__init__(
                 cfg,
                 appname='OrthoRectification', name='OrthoRectification',
@@ -575,6 +577,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description=image_description,
                 extended_filename=extended_filename,
+                pixel_type=pixel_type(cfg, 'tiled'),
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -709,14 +712,14 @@ class _ConcatenatorFactory(OTBStepFactory):
     - output filename
     """
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
-        extended_filename = cfg.extended_filename.get("concatenation", "?&gdal:co:COMPRESS=DEFLATE")
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
             appname='Synthetize',
             name='Concatenation',
             param_in='il',
             param_out='out',
-            extended_filename=extended_filename,
+            extended_filename=extended_filename_tiled(cfg),
+            pixel_type=pixel_type(cfg, 'tiled'),
             *args, **kwargs
         )
 
@@ -1026,7 +1029,6 @@ class SpatialDespeckle(OTBStepFactory):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = fname_fmt_filtered(cfg)
         dname_fmt = dname_fmt_filtered(cfg)
-        extended_filename = cfg.extended_filename.get("filtered", "?&gdal:co:COMPRESS=DEFLATE")
         super().__init__(
                 cfg,
                 appname='Despeckle', name='Despeckle',
@@ -1035,7 +1037,8 @@ class SpatialDespeckle(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
-                extended_filename=extended_filename,
+                extended_filename=extended_filename_filtered(cfg),
+                pixel_type=pixel_type(cfg, 'filtered'),
         )
         self.__filter  = cfg.filter
         self.__rad     = cfg.filter_options.get('rad', 0)
