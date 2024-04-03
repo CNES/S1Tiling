@@ -913,19 +913,15 @@ class BuildBorderMask(OTBStepFactory):
         """
         Constructor.
         """
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
+                pixel_type=pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
         )
-
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force the output pixel type to ``UINT8``.
-        """
-        app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -965,14 +961,9 @@ class SmoothBorderMask(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
                 extended_filename=extended_filename_mask(cfg),
+                pixel_type=pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
         )
-
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force the output pixel type to ``UINT8``.
-        """
-        app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1054,12 +1045,6 @@ class SpatialDespeckle(OTBStepFactory):
         assert (self.__filter not in ['frost']) or (self.__deramp != 0.) \
                 , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
         assert (self.__nblooks != 0.) != (self.__deramp != 0.)
-
-    # def set_output_pixel_type(self, app, meta: Meta):
-    #     """
-    #     Force the output pixel type to ``UINT8``.
-    #     """
-    #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """

@@ -47,7 +47,7 @@ from osgeo import gdal
 import otbApplication as otb
 
 from .              import Utils
-from .configuration import Configuration
+from .configuration import Configuration, pixel_type
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
         Meta, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
@@ -1026,7 +1026,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             gen_output_dir     : Optional[str],
             gen_output_filename: OutputFilenameGenerator,
             extended_filename  : Optional[Union[str, List[str]]] = None,
-            pixel_type         : Optional[Union[str, List[str]]] = None,
+            pixel_type         : Optional[Union[int, List[int]]] = None,
             *argv, **kwargs
     ) -> None:
         """
@@ -1058,7 +1058,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         self._appname              = appname
         self._extended_filename    = extended_filename
         self._pixel_type           = pixel_type
-        logger.debug("new OTBStepFactory(%s) -> app=%s", self.name, appname)
+        logger.debug("new OTBStepFactory(%s) -> app=%s // pt=%s", self.name, appname, pixel_type)
 
     @property
     def appname(self) -> str:
@@ -1110,10 +1110,19 @@ class OTBStepFactory(_FileProducingStepFactory):
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Permits to have steps force the output pixel data.
-        Does nothing by default.
-        Override this method to change the output pixel type.
         """
-        pass
+        def do_set(name: str, ptype: Optional[int]) -> None:
+            if ptype is not None:
+                assert app
+                app.SetParameterOutputImagePixelType(name, ptype)
+
+        if isinstance(self.param_out, list):
+            assert isinstance(self._pixel_type, list)
+            assert len(self.param_out) == len(self._pixel_type)
+            for name, ptype in zip(self.param_out, self._pixel_type):
+                do_set(name, ptype)
+        elif isinstance(self._pixel_type, int):
+            do_set(self.param_out, self._pixel_type)
 
     def _do_create_actual_step(
             self,

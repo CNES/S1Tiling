@@ -614,7 +614,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
             'nodata'          : -32768,
-            }, None,
+            }, {'out.lia': otb.ImagePixelType_uint16},
             {
                 # TODO: 2 files to test!!!
                 # 'DATA_TYPE'                : 'sin(LIA)',
@@ -862,7 +862,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'out.lia'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
         'nodata'          : -32768,
-    }, None, {
+    }, {'out.lia': otb.ImagePixelType_uint16}, {
         # TODO: 2 files to test!!!
         # 'DATA_TYPE'                : 'sin(LIA)',
         'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',

@@ -1539,9 +1539,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         imd['DATA_TYPE'] = types[kind]
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
-
         """
-        Force LIA output pixel type to ``INT8``.
+        Force LIA output pixel type to ``INT16``.
         """
         if meta.get('LIA_kind', '') == 'LIA':
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
@@ -1619,7 +1618,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
-        Force LIA output pixel type to ``INT8``.
+        Force LIA output pixel type to ``INT16``.
         """
         if meta.get('LIA_kind', '') == 'LIA':
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
