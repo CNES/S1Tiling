@@ -43,8 +43,8 @@ import logging.config
 import os
 from pathlib import Path
 import re
-from typing import Any, Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
-from otbApplication import *
+from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
+import otbApplication as otb
 import yaml
 
 from s1tiling.libs import exceptions
@@ -56,17 +56,17 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
 PIXEL_TYPES = {
-        'uint8'   : ImagePixelType_uint8,
-        'int16'   : ImagePixelType_int16,
-        'uint16'  : ImagePixelType_uint16,
-        'int32'   : ImagePixelType_int32,
-        'uint32'  : ImagePixelType_uint32,
-        'float'   : ImagePixelType_float,
-        'double'  : ImagePixelType_double,
-        'cint16'  : ImagePixelType_cint16,
-        'cint32'  : ImagePixelType_cint32,
-        'cfloat'  : ImagePixelType_cfloat,
-        'cdouble' : ImagePixelType_cdouble,
+        'uint8'   : otb.ImagePixelType_uint8,
+        'int16'   : otb.ImagePixelType_int16,
+        'uint16'  : otb.ImagePixelType_uint16,
+        'int32'   : otb.ImagePixelType_int32,
+        'uint32'  : otb.ImagePixelType_uint32,
+        'float'   : otb.ImagePixelType_float,
+        'double'  : otb.ImagePixelType_double,
+        'cint16'  : otb.ImagePixelType_cint16,
+        'cint32'  : otb.ImagePixelType_cint32,
+        'cfloat'  : otb.ImagePixelType_cfloat,
+        'cdouble' : otb.ImagePixelType_cdouble,
 }
 
 
@@ -539,7 +539,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 l_cos = [x for x in SPLIT_PATTERN.split(s_cos) if x]
                 cos = {}
                 if l_cos[0] in PIXEL_TYPES:
-                    cos['pixel_type'] = l_cos[0] # OTB_pixel_type
+                    cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
                     cos['gdal_options'] = l_cos[1:]
                 else:
                     cos['gdal_options'] = l_cos[0:]
@@ -741,6 +741,9 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
 
 
 def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
+    """
+    Helper function that returns the chosen pixel type in the configuration.
+    """
     cos = cfg.creation_options.get(product, {})
     assert (not default) or default in PIXEL_TYPES, f"Invalid default pixel_type {default!r} for {product!r}"
     return PIXEL_TYPES.get(cos.get('pixel_type', default), None)
@@ -801,5 +804,3 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
-
-

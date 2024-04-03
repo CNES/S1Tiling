@@ -43,7 +43,6 @@ from typing import Dict, List, Union
 
 import numpy as np
 from osgeo import gdal
-import otbApplication as otb
 
 from ..file_naming   import (
         ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
@@ -66,8 +65,13 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, extended_filename_filtered, extended_filename_mask, extended_filename_tiled, fname_fmt_concatenation, fname_fmt_filtered, pixel_type
-from ...__meta__     import __version__
+from ..configuration import (
+        Configuration,
+        dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
+        extended_filename_filtered, extended_filename_mask, extended_filename_tiled,
+        fname_fmt_concatenation, fname_fmt_filtered,
+        pixel_type,
+)
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
@@ -318,7 +322,6 @@ class AnalyseBorders(StepFactory):
             crop2 = self.__override_azimuth_cut_threshold_to
 
         del ds_reader
-        ds_reader = None
 
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
@@ -494,12 +497,13 @@ class CutBorders(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
         fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='ResetMargin', name='BorderCutting',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                )
+        )
 
     # def create_step(self, execution_parameters: Dict, previous_steps: List[InputList]):
     #     """

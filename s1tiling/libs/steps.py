@@ -47,7 +47,7 @@ from osgeo import gdal
 import otbApplication as otb
 
 from .              import Utils
-from .configuration import Configuration, pixel_type
+from .configuration import Configuration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
         Meta, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
@@ -1020,14 +1020,15 @@ class OTBStepFactory(_FileProducingStepFactory):
     """
     def __init__(  # pylint: disable=too-many-arguments
             self,
-            cfg: Configuration,
-            appname: str,
+            cfg                : Configuration,
+            appname            : str,
             gen_tmp_dir        : str,
             gen_output_dir     : Optional[str],
             gen_output_filename: OutputFilenameGenerator,
             extended_filename  : Optional[Union[str, List[str]]] = None,
             pixel_type         : Optional[Union[int, List[int]]] = None,
-            *argv, **kwargs
+            # *argv,  # param_in/_out, name, image_description
+            **kwargs
     ) -> None:
         """
         Constructor.
@@ -1045,7 +1046,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             :param_in:            Flag used by the default OTB application for the input file (default: "in")
             :param_out:           Flag used by the default OTB application for the ouput file (default: "out")
         """
-        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, **kwargs)
         # is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
         # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
 

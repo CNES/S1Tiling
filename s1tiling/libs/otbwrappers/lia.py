@@ -67,9 +67,11 @@ from .s1_to_s2       import (
 )
 from ..              import Utils
 from ..configuration import (
-        Configuration, dname_fmt_lia_product, dname_fmt_tiled, extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled, pixel_type
+        Configuration,
+        dname_fmt_lia_product, dname_fmt_tiled,
+        extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled,
+        pixel_type,
 )
-from ...__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
 
