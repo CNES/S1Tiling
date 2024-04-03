@@ -822,7 +822,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.mask:
         * - :ref:`Masks <mask-files>`
           - ``.mask``
-          - ``COMPRESS=DEFLATE``
+          - ``uint8 COMPRESS=DEFLATE``
 
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`
