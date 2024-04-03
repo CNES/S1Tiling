@@ -516,10 +516,7 @@ class FileDB:
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
-        if tmp:
-            ext = self.extended_compress
-        else:
-            ext = ''
+        ext = self.extended_compress if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
         return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
                 **crt,
@@ -539,10 +536,7 @@ class FileDB:
 
     def filtered_from_two(self, idx, tmp, extra, polarity, calibration, dir) -> str:
         crt = self.CONCATS[idx]
-        if tmp:
-            ext = self.extended_compress
-        else:
-            ext = ''
+        ext = self.extended_compress if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthofile"]}{extra}.tif{ext}'.format(
                 **crt, tmp=tmp_suffix(tmp), calibration=calibration).format(
                         polarity=polarity, nr="001" if polarity == "vv" else "002"
@@ -561,9 +555,11 @@ class FileDB:
     def _maskfile_for_all(self, crt, tmp, polarity, calibration) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+            ext = self.extended_compress
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["border_mask"]}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["border_mask"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
     def maskfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
         return self._maskfile_for_all(crt, tmp, polarity, calibration)

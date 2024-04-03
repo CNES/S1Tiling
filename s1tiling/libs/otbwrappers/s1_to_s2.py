@@ -66,7 +66,7 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, extended_filename_filtered, extended_filename_tiled, fname_fmt_concatenation, fname_fmt_filtered, pixel_type
+from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, extended_filename_filtered, extended_filename_mask, extended_filename_tiled, fname_fmt_concatenation, fname_fmt_filtered, pixel_type
 from ...__meta__     import __version__
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
@@ -919,7 +919,7 @@ class BuildBorderMask(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
-                )
+        )
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
@@ -964,8 +964,9 @@ class SmoothBorderMask(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=dname_fmt,
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+                extended_filename=extended_filename_mask(cfg),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
-                )
+        )
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
