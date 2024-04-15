@@ -792,6 +792,48 @@ You can use this :download:`this template
           - ``.filtered``
           - :samp:`{{out_dir}}/filtered/{{tile_name}}`
 
+      .. _Processing.creation_options:
+  * - ``creation_options.*``
+    - Set of extra options to create certain products. Creation options take a
+      first and optional pixel type (``uint8``, ``float64``...) and a list of
+      `GDAL creation options
+      <https://gdal.org/drivers/raster/gtiff.html#creation-options>`_.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Products from
+          - Option ``creation_options.?``
+          - Default value
+
+            .. _Processing.creation_options.tiled:
+        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
+            <full-S2-tiles>`...
+          - ``.tiled``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.filtered:
+        * - :ref:`Filtering <filtered-files>`
+          - ``.filtered``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.mask:
+        * - :ref:`Masks <mask-files>`
+          - ``.mask``
+          - ``uint8 COMPRESS=DEFLATE``
+
+            .. _Processing.creation_options.lia_deg:
+        * - :ref:`LIA (in degrees * 100) <lia-files>`
+          - ``.lia_deg``
+          - ``uint16 COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.lia_sin:
+        * - :ref:`sin(LIA) <lia-files>`
+          - ``.lia_sin``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
 .. _Filtering:
 
 ``[Filtering]`` section

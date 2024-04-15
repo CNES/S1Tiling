@@ -68,7 +68,9 @@ from .Utils             import (
     get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
-from .configuration     import Configuration, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+from .configuration     import (
+        Configuration, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+)
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
 

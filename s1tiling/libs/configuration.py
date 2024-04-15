@@ -44,6 +44,7 @@ import os
 from pathlib import Path
 import re
 from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
+import otbApplication as otb
 import yaml
 
 from s1tiling.libs import exceptions
@@ -53,6 +54,21 @@ from ..__meta__ import __version__ as s1tiling_version
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
+
+PIXEL_TYPES = {
+        'uint8'   : otb.ImagePixelType_uint8,
+        'int16'   : otb.ImagePixelType_int16,
+        'uint16'  : otb.ImagePixelType_uint16,
+        'int32'   : otb.ImagePixelType_int32,
+        'uint32'  : otb.ImagePixelType_uint32,
+        'float'   : otb.ImagePixelType_float,
+        'double'  : otb.ImagePixelType_double,
+        'cint16'  : otb.ImagePixelType_cint16,
+        'cint32'  : otb.ImagePixelType_cint32,
+        'cfloat'  : otb.ImagePixelType_cfloat,
+        'cdouble' : otb.ImagePixelType_cdouble,
+}
+
 
 def _load_log_config(cfgpaths: Path) -> Dict:
     """
@@ -69,6 +85,7 @@ def _load_log_config(cfgpaths: Path) -> Dict:
 # Helper functions for extracting configuration options
 
 Opt = TypeVar('Opt', int, float, bool)
+
 
 def _get_opt(getter: Callable, config_filename: Path, section: str, name: str, **kwargs):
     """
@@ -124,6 +141,7 @@ def add_missing(dst: List[str], entry: str):
     """ Add entry to list if not already there """
     if entry not in dst:
         dst.append(entry)
+
 
 def _init_logger(mode, paths: List[Path]) -> Tuple[Optional[Dict], Optional[Path]]:
     """
@@ -247,6 +265,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.__init_filtering(accessor)
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
+        self.__init_creation_options(accessor)
 
         # Other options
         #: Type of images handled
@@ -304,7 +323,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             # Even if tmpdir doesn't exist we should still be able to create it
             accessor.throw(f"tmpdir={self.tmpdir} is not a valid path")
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
-        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir/'Geoid/egm96.grd'))
+        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.grd'))
         #: Path to directory of temp DEMs
         self.tmp_dem_dir: str    = ""
 
@@ -408,7 +427,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Tiles
         #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
-        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir/'shapefile/Features.shp'))
+        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
@@ -421,7 +440,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                     tile_list = tiles_file_handle.readlines()
                 self.tile_list: List[str] = [s.rstrip() for s in tile_list]
                 logging.info("The following tiles will be processed: %s", self.tile_list)
-            except BaseException as e:
+            except Exception as e:
                 accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
         else:
             tiles = accessor.get('Processing', 'tiles')
@@ -487,7 +506,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.fname_fmt = {}
         for key in fname_fmt_keys:
             fmt = accessor.get('Processing', f'fname_fmt.{key}', fallback=None)
-            # Default value is defined in associated StepFactories
+            # Default values are defined in associated StepFactories, or below
             if fmt:
                 self.fname_fmt[key] = fmt
 
@@ -501,9 +520,37 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.dname_fmt = {}
         for key in dname_fmt_keys:
             fmt = accessor.get('Processing', f'dname_fmt.{key}', fallback=None)
-            # Default value is defined in associated StepFactories
+            # Default values are defined below
             if fmt:
                 self.dname_fmt[key] = fmt
+
+    # ----------------------------------------------------------------------
+    def __init_creation_options(self, accessor: _ConfigAccessor) -> None:
+        # Permit to override default file name formats
+        creation_options_keys = [
+                'tiled', 'filtered', 'mask',
+                's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin',
+        ]
+        self.creation_options = {}
+        for key in creation_options_keys:
+            s_cos = accessor.get('Processing', f'creation_options.{key}', fallback=None)
+            # Default value is defined in associated StepFactories
+            if s_cos:
+                l_cos = [x for x in SPLIT_PATTERN.split(s_cos) if x]
+                cos = {}
+                if l_cos[0] in PIXEL_TYPES:
+                    cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
+                    cos['gdal_options'] = l_cos[1:]
+                else:
+                    cos['gdal_options'] = l_cos[0:]
+                for co in cos['gdal_options']:
+                    KEY_PATTERN = re.compile(r'[A-Z]+=')
+                    if not KEY_PATTERN.match(co):
+                        # The only validation used is UPPERCASE=value
+                        # We don't check against a list that may change over time. In that case the error will be caught later.
+                        accessor.throw(f"{co} is not a valid GDAL creation option for {key}. Expected syntax is `<OPTIONNAME>=<value>`")
+
+                self.creation_options[key] = cos
 
     # ----------------------------------------------------------------------
     def show_configuration(self) -> None:  # pylint: disable=too-many-statements
@@ -567,6 +614,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.debug('Filename formats:')
         for k, fmt in self.fname_fmt.items():
             logging.debug(' - %s --> %s', k, fmt)
+        logging.debug('Creation options:')
+        for k, fmt in self.creation_options.items():
+            logging.debug(' - %s --> %s', k, fmt)
 
     def init_logger(self, config_log_dir: Path, mode=None) -> None:
         """
@@ -624,7 +674,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
 def fname_fmt_concatenation(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.fnmatch.concatenation`` actual
+    Helper function that returns the ``Processing.fnmatch.concatenation`` actual
     value, or its default value according to the calibration kind.
     """
     calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
@@ -642,7 +692,7 @@ def fname_fmt_concatenation(cfg: Configuration) -> str:
 
 def fname_fmt_filtered(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.fnmatch.filtered`` actual value,
+    Helper function that returns the ``Processing.fnmatch.filtered`` actual value,
     or its default value according to the calibration kind.
     """
     calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
@@ -660,7 +710,7 @@ def fname_fmt_filtered(cfg: Configuration) -> str:
 
 def dname_fmt_tiled(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dname.tiled`` actual
+    Helper function that returns the ``Processing.dname.tiled`` actual
     value, or its default value.
     """
     return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
@@ -668,7 +718,7 @@ def dname_fmt_tiled(cfg: Configuration) -> str:
 
 def dname_fmt_mask(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dname.mask`` actual value,
+    Helper function that returns the ``Processing.dname.mask`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
@@ -676,7 +726,7 @@ def dname_fmt_mask(cfg: Configuration) -> str:
 
 def dname_fmt_filtered(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dname.filtered`` actual value,
+    Helper function that returns the ``Processing.dname.filtered`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
@@ -684,7 +734,73 @@ def dname_fmt_filtered(cfg: Configuration) -> str:
 
 def dname_fmt_lia_product(cfg: Configuration) -> str:
     """
-    Helper method to return the ``Processing.dname.lia_product`` actual value,
+    Helper function that returns the ``Processing.dname.lia_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
+
+
+def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
+    """
+    Helper function that returns the chosen pixel type in the configuration.
+    """
+    cos = cfg.creation_options.get(product, {})
+    assert (not default) or default in PIXEL_TYPES, f"Invalid default pixel_type {default!r} for {product!r}"
+    return PIXEL_TYPES.get(cos.get('pixel_type', default), None)
+
+
+def _extended_filename(cfg: Configuration, product: str, default: List[str]) -> str:
+    """
+    Internal helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
+
+    This function takes care of fetching the right information and of
+    reformatting it as an `extended filename option`.
+    """
+    cos = cfg.creation_options.get(product, {})
+    gdal_options = cos.get('gdal_options', default)
+    return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options])
+
+
+def extended_filename_tiled(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
+    products.
+    """
+    return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def extended_filename_filtered(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
+    products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def extended_filename_mask(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for masks.
+    """
+    return _extended_filename(cfg, 'mask', ['COMPRESS=DEFLATE'])
+
+
+def extended_filename_lia_degree(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
+    in degrees (*100) products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def extended_filename_lia_sin(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(LIA)
+    products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
