@@ -768,7 +768,7 @@ def extended_filename_tiled(cfg: Configuration) -> str:
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
     products.
     """
-    return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE'])
+    return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
 def extended_filename_filtered(cfg: Configuration) -> str:
@@ -777,7 +777,7 @@ def extended_filename_filtered(cfg: Configuration) -> str:
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
     products.
     """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
 def extended_filename_mask(cfg: Configuration) -> str:

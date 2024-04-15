@@ -812,12 +812,12 @@ You can use this :download:`this template
         * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
             <full-S2-tiles>`...
           - ``.tiled``
-          - ``COMPRESS=DEFLATE``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
             .. _Processing.creation_options.filtered:
         * - :ref:`Filtering <filtered-files>`
           - ``.filtered``
-          - ``COMPRESS=DEFLATE``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
             .. _Processing.creation_options.mask:
         * - :ref:`Masks <mask-files>`
