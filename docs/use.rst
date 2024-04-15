@@ -228,6 +228,10 @@ In order to use other DEM inputs, we need:
    - :file:`{{Product30}}.tif`  for Copernicus 90m DEM files, using
      ``Product30`` key from the GPKG file.
 
+4. Make sure to use a Geoid file compatible with the chosen DEM. For instance
+   S1Tiling is shipped with EGM96 Geoid with is compatible with SRTM.
+   On the other hand, Copernicus DEM is related to EGM2008 (a.k.a EGM08)
+
 .. _request-config-file:
 
 .. index:: Request configuration file
