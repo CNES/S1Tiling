@@ -222,11 +222,11 @@ class FileDB:
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
             },
     }
-    extended_geom_compress      = '?&gdal:co:COMPRESS=DEFLATE'
-    if otb_version() < "8.0.0":
-        extended_geom_compress += '&writegeom=false'
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
+    extended_geom_compress      = extended_compress_predictor
+    if otb_version() < "8.0.0":
+        extended_geom_compress += '&writegeom=false'
 
     def __init__(
             self,
@@ -516,7 +516,7 @@ class FileDB:
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
         return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
                 **crt,
@@ -536,7 +536,7 @@ class FileDB:
 
     def filtered_from_two(self, idx, tmp, extra, polarity, calibration, dir) -> str:
         crt = self.CONCATS[idx]
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthofile"]}{extra}.tif{ext}'.format(
                 **crt, tmp=tmp_suffix(tmp), calibration=calibration).format(
                         polarity=polarity, nr="001" if polarity == "vv" else "002"
@@ -605,7 +605,7 @@ class FileDB:
 
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -616,7 +616,7 @@ class FileDB:
 
     def _concatsinLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatsinLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -682,7 +682,7 @@ class FileDB:
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-            ext = self.extended_compress
+            ext = self.extended_compress_predictor
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
