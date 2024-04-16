@@ -254,6 +254,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         config = configparser.ConfigParser(os.environ)
         config.read(config_file)
 
+        self.__config_file = config_file
         accessor = _ConfigAccessor(config, Path(config_file))
 
         # Load configuration by topics
@@ -558,6 +559,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         Displays the configuration
         """
         logging.info("Running S1Tiling %s with:", s1tiling_version)
+        logging.info("From request file: %s", self.__config_file or "(some string)")
         logging.info("[Paths]")
         logging.info("- geoid_file                       : %s",     self.GeoidFile)
         logging.info("- s1_images                        : %s",     self.raw_directory)
