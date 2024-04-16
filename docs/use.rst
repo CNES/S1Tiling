@@ -228,6 +228,10 @@ In order to use other DEM inputs, we need:
    - :file:`{{Product30}}.tif`  for Copernicus 90m DEM files, using
      ``Product30`` key from the GPKG file.
 
+4. Make sure to use a Geoid file compatible with the chosen DEM. For instance
+   S1Tiling is shipped with EGM96 Geoid with is compatible with SRTM.
+   On the other hand, Copernicus DEM is related to EGM2008 (a.k.a EGM08)
+
 .. _request-config-file:
 
 .. index:: Request configuration file
@@ -791,6 +795,48 @@ You can use this :download:`this template
         * - :ref:`Filtering <filtered-files>`
           - ``.filtered``
           - :samp:`{{out_dir}}/filtered/{{tile_name}}`
+
+      .. _Processing.creation_options:
+  * - ``creation_options.*``
+    - Set of extra options to create certain products. Creation options take a
+      first and optional pixel type (``uint8``, ``float64``...) and a list of
+      `GDAL creation options
+      <https://gdal.org/drivers/raster/gtiff.html#creation-options>`_.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Products from
+          - Option ``creation_options.?``
+          - Default value
+
+            .. _Processing.creation_options.tiled:
+        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
+            <full-S2-tiles>`...
+          - ``.tiled``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.filtered:
+        * - :ref:`Filtering <filtered-files>`
+          - ``.filtered``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.mask:
+        * - :ref:`Masks <mask-files>`
+          - ``.mask``
+          - ``uint8 COMPRESS=DEFLATE``
+
+            .. _Processing.creation_options.lia_deg:
+        * - :ref:`LIA (in degrees * 100) <lia-files>`
+          - ``.lia_deg``
+          - ``uint16 COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.lia_sin:
+        * - :ref:`sin(LIA) <lia-files>`
+          - ``.lia_sin``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
 .. _Filtering:
 

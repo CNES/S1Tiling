@@ -185,6 +185,7 @@ class MockOTBApplication:
         pass
 
     def SetParameterOutputImagePixelType(self, param_out, pixel_type) -> None:
+        logging.debug("Setting pixel_types[%s] <- %s // (%s) %s", param_out, pixel_type, self.__appname, id(self))
         self.__pixel_types[param_out] = pixel_type
 
     def SetParameters(self, parameters) -> None:
@@ -239,6 +240,7 @@ class MockOTBApplication:
             # elif  k in self.parameters:
             #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.__appname, k, type(self.parameters[k]))
         logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.parameters))
+        logging.debug("pixel type(%s): %s // %s", self.__appname, self.__pixel_types, id(self))
         self.__mock_ctx.assert_app_is_expected(self.__appname, self.parameters, self.__pixel_types)
 
     def ExecuteAndWriteOutput(self) -> None:

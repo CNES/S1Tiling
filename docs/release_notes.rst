@@ -35,6 +35,9 @@ v1.1.0 Improvements
 - Product output directory can be configured through :ref:`dname_fmt.*
   <processing.dname_fmt>` options
   (`#148 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/148>`_).
+- Product encoding/compression options can be configured through
+  :ref:`creation_options.* <Processing.creation_options>` options
+  (`#66 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/66>`_).
 
 v1.1.0 Breaking changes
 +++++++++++++++++++++++

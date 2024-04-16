@@ -260,8 +260,8 @@ def _execute_tasks_debug(dsk: Dict, tile_name: str) -> List:
     """
     tasks = list(Utils.tsort(dsk, dsk.keys(),
         lambda dasktask_data : [] if isinstance(dasktask_data, FirstStep) else dasktask_data[2])
-        )
-    logger.debug('%s tasks', len(tasks))
+    )
+    logger.debug('Debug execution of %s tasks', len(tasks))
     for product in reversed(tasks):
         how = dsk[product]
         logger.debug('- task: %s <-- %s', product, _how2str(how))

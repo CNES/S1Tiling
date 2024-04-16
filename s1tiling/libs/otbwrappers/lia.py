@@ -66,8 +66,12 @@ from .s1_to_s2       import (
         s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
 )
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_lia_product, dname_fmt_tiled
-from ...__meta__     import __version__
+from ..configuration import (
+        Configuration,
+        dname_fmt_lia_product, dname_fmt_tiled,
+        extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled,
+        pixel_type,
+)
 
 logger = logging.getLogger('s1tiling.wrappers.lia')
 
@@ -92,11 +96,10 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, cfg.tmp_dem_dir),
                 gen_output_dir=None,      # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                    name="AgglomerateDEMOnS2",
-                    action=AgglomerateDEMOnS2.agglomerate,
+                name="AgglomerateDEMOnS2",
+                action=AgglomerateDEMOnS2.agglomerate,
                 *args, **kwargs)
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
-        # TODO: Use the dems stored in cache!
         self.__dem_dir             = cfg.tmp_dem_dir
         self.__dem_filename_format = cfg.dem_filename_format
 
@@ -213,7 +216,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         nodata = meta.get('nodata', -32768)
         parameters = [
                 "-wm", str(self.ram_per_process),
-                "-multi", "-wo", f"{self.__nb_threads}", # It's already quite fast...
+                "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
                 "-ot", "Float32",
@@ -284,11 +287,11 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         """
         in_s2_dem = in_filename(meta)
         return {
-                'ram'           : ram(self.ram_per_process),
-                'inr'           : in_s2_dem, # Reference input is the DEM projected on S2
-                'inm'           : self.__GeoidFile,
-                'interpolator'  : self.__interpolation_method, # TODO: add parameter
-                'interpolator.bco.radius' : 2, # 2 is the default value for bco
+                'ram'                     : ram(self.ram_per_process),
+                'inr'                     : in_s2_dem,  # Reference input is the DEM projected on S2
+                'inm'                     : self.__GeoidFile,
+                'interpolator'            : self.__interpolation_method,  # TODO: add parameter
+                'interpolator.bco.radius' : 2,  # 2 is the default value for bco
         }
 
 
@@ -729,22 +732,29 @@ class _ComputeLIA(OTBStepFactory):
             gen_output_dir    : Optional[str],
             image_description : str,
     ) -> None:
-        fname_fmt = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
-        param_out = ['out.sin']
+        fname_fmt          = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
+        param_out          = ['out.sin']
+        extended_filenames = [ extended_filename_lia_sin(cfg) ]
+        pixel_types        = [ pixel_type(cfg, 'lia_sin') ]
         if cfg.produce_lia_map:
             # We always produce out.sin, and optionally we produce out.lia.
             # Anyway, their production is always done in output_dir!
             fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_lia))
             param_out.append('out.lia')
-        super().__init__(cfg,
+            extended_filenames.append(extended_filename_lia_degree(cfg))
+            pixel_types.append(pixel_type(cfg, 'lia_deg', 'uint16'))
+        super().__init__(
+                cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
-                # In-memory connected to in.normals
-                param_in='in.normals', param_out=param_out,
+                param_in='in.normals',  # In-memory connected to in.normals
+                param_out=param_out,
                 gen_tmp_dir=gen_tmp_dir,
                 gen_output_dir=gen_output_dir,
                 gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
                 image_description=image_description,
-                )
+                extended_filename=extended_filenames,
+                pixel_type=pixel_types,
+        )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -767,7 +777,6 @@ class _ComputeLIA(OTBStepFactory):
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3"
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
@@ -916,7 +925,7 @@ def filter_LIA(LIA_kind: str) -> Type[_FilterLIAStepFactory]:
     """
     # We return a new class
     return type(
-            "Filter_"+LIA_kind,     # Class name
+            f"Filter_{LIA_kind}",      # Class name
             (_FilterLIAStepFactory,),  # Parent
             { '_LIA_kind': LIA_kind}
     )
@@ -962,6 +971,8 @@ class ApplyLIACalibration(OTBStepFactory):
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Sigma0 Normlim Calibrated Sentinel-{flying_unit_code_short} IW GRD',
+                extended_filename=extended_filename_tiled(cfg),
+                pixel_type=pixel_type(cfg, 'tiled'),
         )
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -970,7 +981,6 @@ class ApplyLIACalibration(OTBStepFactory):
         DEFLATE.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'Normlim'  # Update meta from now on
 
@@ -1089,7 +1099,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
         meta['polarless_rootname'] = rootname
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -1178,7 +1188,7 @@ class SARDEMProjection(OTBStepFactory):
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -1310,7 +1320,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
         else:
             meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]] # TODO!!!
+        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
@@ -1531,9 +1541,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         imd['DATA_TYPE'] = types[kind]
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
-
         """
-        Force LIA output pixel type to ``INT8``.
+        Force LIA output pixel type to ``INT16``.
         """
         if meta.get('LIA_kind', '') == 'LIA':
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
@@ -1606,12 +1615,12 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
         # Round coverage at 3 digits as tile footprint has a very limited precision
         coverage = round(coverage, 3)
-        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage*100)
+        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage * 100)
         meta['tile_coverage'] = coverage
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
-        Force LIA output pixel type to ``INT8``.
+        Force LIA output pixel type to ``INT16``.
         """
         if meta.get('LIA_kind', '') == 'LIA':
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)

@@ -43,7 +43,6 @@ from typing import Dict, List, Union
 
 import numpy as np
 from osgeo import gdal
-import otbApplication as otb
 
 from ..file_naming   import (
         ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
@@ -66,8 +65,13 @@ from ..otbpipeline import (
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
-from ..configuration import Configuration, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
-from ...__meta__     import __version__
+from ..configuration import (
+        Configuration,
+        dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
+        extended_filename_filtered, extended_filename_mask, extended_filename_tiled,
+        fname_fmt_concatenation, fname_fmt_filtered,
+        pixel_type,
+)
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
@@ -212,7 +216,7 @@ class ExtractSentinel1Metadata(StepFactory):
         Helper function to retrieve the canonical input associated to a list of inputs.
 
         :class:`ExtractSentinel1Metadata` can be used either in usual S1Tiling
-        orthorectofication scenario, or in LIA Map generation scenarios.
+        orthorectification scenario, or in LIA Map generation scenarios.
         In the first case only a single and unnamed input is expected. In LIA
         case, several named inputs are expected, and the canonical input is
         named "insar" in :func:s1tiling.s1_process_lia` pipeline builder.
@@ -318,7 +322,6 @@ class AnalyseBorders(StepFactory):
             crop2 = self.__override_azimuth_cut_threshold_to
 
         del ds_reader
-        ds_reader = None
 
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
@@ -331,12 +334,13 @@ class AnalyseBorders(StepFactory):
                 'threshold.x'      : cut_overlap_range,
                 'threshold.y.start': thr_y_s,
                 'threshold.y.end'  : thr_y_e,
-                'skip'             : thr_x==0 and thr_y_s==0 and thr_y_e==0,
+                'skip'             : thr_x == 0 and thr_y_s == 0 and thr_y_e == 0,
                 }
         return meta
 
 
 k_calib_convert = {'normlim' : 'beta'}
+
 
 class Calibrate(OTBStepFactory):
     """
@@ -361,7 +365,7 @@ class Calibrate(OTBStepFactory):
         """
         Constructor
         """
-        self.cfg=cfg
+        self.cfg  = cfg
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
         super().__init__(cfg,
@@ -493,12 +497,13 @@ class CutBorders(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
         fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='ResetMargin', name='BorderCutting',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                )
+        )
 
     # def create_step(self, execution_parameters: Dict, previous_steps: List[InputList]):
     #     """
@@ -564,14 +569,19 @@ class _OrthoRectifierFactory(OTBStepFactory):
         Constructor.
         Extract and cache configuration options.
         """
+        extended_filename = extended_filename_tiled(cfg)
+        if otb_version() < '8.0.0':
+            extended_filename += '&writegeom=false'
         super().__init__(
                 cfg,
                 appname='OrthoRectification', name='OrthoRectification',
                 param_in='io.in', param_out='io.out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,      # Use gen_tmp_dir,
+                gen_output_dir=None,  # Use gen_tmp_dir,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description=image_description,
+                extended_filename=extended_filename,
+                pixel_type=pixel_type(cfg, 'tiled'),
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = cfg.GeoidFile
@@ -589,7 +599,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
         information found in the current S1 image filename.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&writegeom=false&gdal:co:COMPRESS=DEFLATE"
 
         # Some workaround when ortho is not sequenced along with calibration
         meta['calibration_type'] = self.__calibration_type
@@ -713,15 +722,14 @@ class _ConcatenatorFactory(OTBStepFactory):
             name='Concatenation',
             param_in='il',
             param_out='out',
+            extended_filename=extended_filename_tiled(cfg),
+            pixel_type=pixel_type(cfg, 'tiled'),
             *args, **kwargs
         )
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Precompute output basename from the input file(s).
-        Makes sure the :external:doc:`Synthetize OTB application
-        <Applications/app_Synthetize>` would compress its result file,
-        through extended filename.
 
         In concatenation case, the task_name needs to be overridden to stay
         unique and common to all inputs.
@@ -729,7 +737,6 @@ class _ConcatenatorFactory(OTBStepFactory):
         Also, inject files to remove
         """
         meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
 
         # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
         in_file = in_filename(meta)
@@ -747,7 +754,7 @@ class _ConcatenatorFactory(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        inp = self._get_canonical_input(all_inputs) # input_metas in FirstStep, MergeStep
+        inp = self._get_canonical_input(all_inputs)  # input_metas in FirstStep, MergeStep
         assert isinstance(inp, (FirstStep, MergeStep))
         if len(inp.input_metas) >= 2:
             product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
@@ -825,7 +832,7 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = dname_fmt_tiled(cfg)
         else:
             # This is a temporary product that shall end-up in tmpdir
-            gen_output_dir = None # use gen_tmp_dir
+            gen_output_dir = None  # use gen_tmp_dir
         fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
@@ -910,19 +917,15 @@ class BuildBorderMask(OTBStepFactory):
         """
         Constructor.
         """
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
+                pixel_type=pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
-                )
-
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force the output pixel type to ``UINT8``.
-        """
-        app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+        )
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -961,14 +964,10 @@ class SmoothBorderMask(OTBStepFactory):
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=dname_fmt,
                 gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+                extended_filename=extended_filename_mask(cfg),
+                pixel_type=pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
-                )
-
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force the output pixel type to ``UINT8``.
-        """
-        app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
+        )
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1026,14 +1025,17 @@ class SpatialDespeckle(OTBStepFactory):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = fname_fmt_filtered(cfg)
         dname_fmt = dname_fmt_filtered(cfg)
-        super().__init__(cfg,
+        super().__init__(
+                cfg,
                 appname='Despeckle', name='Despeckle',
                 param_in='in', param_out='out',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=dname_fmt,
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
-                )
+                extended_filename=extended_filename_filtered(cfg),
+                pixel_type=pixel_type(cfg, 'filtered'),
+        )
         self.__filter  = cfg.filter
         self.__rad     = cfg.filter_options.get('rad', 0)
         self.__nblooks = cfg.filter_options.get('nblooks', 0)
@@ -1048,12 +1050,6 @@ class SpatialDespeckle(OTBStepFactory):
                 , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
         assert (self.__nblooks != 0.) != (self.__deramp != 0.)
 
-    # def set_output_pixel_type(self, app, meta: Meta):
-    #     """
-    #     Force the output pixel type to ``UINT8``.
-    #     """
-    #     app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_uint8)
-
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Register ``accept_as_compatible_input`` hook for
@@ -1064,15 +1060,6 @@ class SpatialDespeckle(OTBStepFactory):
         """
         # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
         meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs, and set compression method to
-        DEFLATE.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['out_extended_filename_complement'] = "?&gdal:co:COMPRESS=DEFLATE"
-        return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """

@@ -44,7 +44,11 @@ Orthorectified S2 tiles
     - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`, see :ref:`[Processing].fname_fmt.concatenation <Processing.fname_fmt.concatenation>`
     - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`, see :ref:`[Processing].fname_fmt.lia_corrected <Processing.fname_fmt.lia_corrected>`
 
-:Format: Float32 GeoTIFF, deflate compressed
+:Product encoding:
+
+    - defaults to Float32 GeoTIFF, deflate compressed
+    - defined in :ref:`[Processing].creation_options.tiled
+      <processing.creation_options.tiled>`
 
 :Metadata: The following metadata is added to the origin S1 images
 
@@ -114,7 +118,12 @@ Mask files
 :File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
             `_BorderMask` appended
 
-:Format: Byte GeoTIFF, deflate compressed
+:Product encoding:
+
+    - defaults to Byte GeoTIFF, deflate compressed
+    - defined in :ref:`[Processing].creation_options.mask
+      <processing.creation_options.mask>`
+
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -155,7 +164,12 @@ Filtered files
     - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`, see :ref:`[Processing].fname_fmt.filtered <Processing.fname_fmt.filtered>`
     - or,  :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif`
 
-:Format: Float32 GeoTIFF, deflate compressed
+:Product encoding:
+
+    - defaults to Float32 GeoTIFF, deflate compressed
+    - defined in :ref:`[Processing].creation_options.filtered
+      <processing.creation_options.filtered>`
+
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -218,7 +232,14 @@ Local Incidence Angle map files
 
     :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
-:Format: Float32 (and Int16) GeoTIFF, deflate compressed
+:Product encoding:
+
+    - defaults to Float32 (/Uint16) GeoTIFF, deflate compressed
+    - defined in :ref:`[Processing].creation_options.lia_sin
+      <processing.creation_options.lia_sin>`
+      (/:ref:`[Processing].creation_options.lia_deg
+      <processing.creation_options.lia_deg>`)
+
 
 :Metadata: The following metadata is added to the origin S1 images
 
@@ -299,7 +320,7 @@ Cut and calibrated S1 images ready for orthorectification
 
     ``fname_fmt.cut_borders`` = :samp:`{{rootname}}_{{calibration_type}}_OrthoReady.tiff`
 
-:Format: Float32 GeoTIFF, uncompressed.
+:Product encoding: Float32 GeoTIFF, uncompressed.
 
 :Metadata: The following metadata are added at this step:
 
@@ -356,7 +377,7 @@ Orthorectified S1 images
 
     ``fname_fmt.orthorectification`` = :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}_{{calibration_type}}.tif`
 
-:Format: Float32 GeoTIFF, deflate compressed
+:Product encoding: Float32 GeoTIFF, deflate compressed
 
 :Metadata: The metadata listed for :ref:`the S2 tile product <full-S2-tiles>`
            are actually produced at this step.
@@ -384,7 +405,7 @@ DEM VRT files
     - ``fname_fmt.dem_s2_agglomeration`` = :samp:`DEM_{{tile_name}}.vrt`
     - or deprecated: ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
 
-:Format: VRT
+:Product encoding: VRT
 
 :Metadata: No metadata is added by S1Tiling to these files.
 
@@ -401,7 +422,7 @@ DEM data projected on S2 tile
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`DEM_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.dem_on_s2`` = :samp:`DEM_projected_on_{{tile_name}}.tiff`
-:Format:           Float32 GeoTIFF, uncompressed.
+:Product encoding: Float32 GeoTIFF, uncompressed.
 :Metadata:         The following metadata are added at this step:
 
     .. list-table::
@@ -433,7 +454,7 @@ Height (DEM+Geoid) projected on S2 tile
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`DEM+GEOID_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
-:Format:           Float32 GeoTIFF, uncompressed.
+:Product encoding: Float32 GeoTIFF, uncompressed.
 :Metadata:         The following metadata changed from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
 
     .. list-table::
@@ -467,7 +488,7 @@ Ground and sensor position in XYZ ECEF coordinates
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 :File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
 :File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
-:Format:           Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
+:Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian
 :Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
@@ -529,8 +550,9 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
 
     ``fname_fmt.s1_on_dem`` = :samp:`S1_on_DEM_{{polarless_basename}}`
 
-:Format: Float32 GeoTIFF, 7 bands: C (colunm into SAR image), L (line into SAR
-         image), Z and Y, XCartesian, YCartesian, ZCartesian.
+:Product encoding: Float32 GeoTIFF, 7 bands: C (colunm into SAR image), L (line
+                   into SAR image), Z and Y, XCartesian, YCartesian,
+                   ZCartesian.
 
 :Metadata: The following metadata is added to the origin S1 images
 
@@ -592,7 +614,7 @@ Files of XYZ cartesian coordinates in S1 geometry (deprecated)
 
     ``fname_fmt.xyz`` = :samp:`XYZ_{{polarless_basename}}`
 
-:Format: Float32 GeoTIFF, 4 bands: XCartesian, YCartesian, ZCartesian, and ???
+:Product encoding: Float32 GeoTIFF, 4 bands: XCartesian, YCartesian, ZCartesian, and ???
 
 :Metadata: The following metadata changed from the :ref:`SARDEMProjected images <S1_on_dem-files>`
 
@@ -649,7 +671,7 @@ Local Incidence Angle map files in S1 geometry (deprecated)
     - ``fname_fmt.s1_lia`` = :samp:`LIA_{{polarless_basename}}`
     - ``fname_fmt.s1_sin_lia`` = :samp:`sin_LIA_{{polarless_basename}}`
 
-:Format: Float32 GeoTIFF
+:Product encoding: Float32 GeoTIFF
 
 :Metadata: The following metadata is changed the :ref:`XYZ estimated coordinates <xyz-files>`
 
@@ -696,7 +718,7 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
 
     ``fname_fmt.lia_orthorectification`` = :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}.tif`
 
-:Format: Float32 (and Int16) GeoTIFF, deflate compressed
+:Product encoding: Float32 (and Int16) GeoTIFF, deflate compressed
 
 :Metadata: The following metadata is changed from the :ref:`un-orthorectified LIA maps <lia-s1-files>`
 

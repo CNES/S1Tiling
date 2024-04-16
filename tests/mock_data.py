@@ -35,6 +35,8 @@ from typing import Callable, Dict, List, Union, Tuple
 
 from shapely.geometry.base import np
 
+from s1tiling.libs.otbtools import otb_version
+
 # from .mock_otb import compute_coverage
 
 def tmp_suffix(tmp: Union[bool,str]) -> str:
@@ -153,7 +155,7 @@ class FileDB:
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
-                's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149-{nr}',
+                's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200201t044149',
                 'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
                 'polygon'         : [(1.137385, 14.233961), (0.661111, 16.461193), (2.173392, 16.775606), (2.645215, 14.54579), (1.137385, 14.233961)],
@@ -169,7 +171,7 @@ class FileDB:
                 's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
                 's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
                 's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
-                's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149-{nr}',
+                's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149',
                 's2_polarless'    : 's1a_33NWB_DES_007_20200201t044214',
                 'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
                 'polygon'         : [(-0.370053, 13.91733), (-0.850965, 16.1439), (0.661021, 16.461174), (1.137389, 14.233503), (-0.370053, 13.91733)],
@@ -220,9 +222,11 @@ class FileDB:
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
             },
     }
-    extended_geom_compress      = '?&writegeom=false&gdal:co:COMPRESS=DEFLATE'
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
+    extended_geom_compress      = extended_compress_predictor
+    if otb_version() < "8.0.0":
+        extended_geom_compress += '&writegeom=false'
 
     def __init__(
             self,
@@ -245,12 +249,16 @@ class FileDB:
         self.nb_S1_products = NFiles
         self.nb_S2_products = NConcats
 
+        # Lists used to fill known_files from the tmp filename actually generated
+        # (because S1Tiling produces tmp files that are eventually renamed and moved)
         names_to_map : List[Tuple[Callable, int]] = [
                 # function_reference,               [indices...]
-                (self.cal_ok,                       NFiles),
-                (self.ortho_ready,                  NFiles),
+                # cal_ok and orthoready have {nr} and {polarity} => can't be used to fill in known_files
+                # (self.cal_ok,                       NFiles),
+                # (self.ortho_ready,                  NFiles),
                 (self.orthofile,                    NFiles),
-                (self.concatfile_from_one,          NFiles),
+                # concatfile_from_one messes up known_files => disable
+                # (self.concatfile_from_one,          NFiles),
                 (self.concatfile_from_two,          NConcats),
                 (self.masktmp_from_one,             NFiles),
                 (self.masktmp_from_two,             NConcats),
@@ -272,7 +280,7 @@ class FileDB:
         ]
         names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
                 (self.orthofile,                    NFiles),
-                (self.concatfile_from_one,          NFiles),
+                # (self.concatfile_from_one,          NFiles),
                 (self.concatfile_from_two,          NConcats),
                 (self.masktmp_from_one,             NFiles),
                 (self.masktmp_from_two,             NConcats),
@@ -292,14 +300,29 @@ class FileDB:
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
             for idx in range(nb):
-                self.__tmp_to_out_map[func(idx, True)] = func(idx, False)
+                tmp = func(idx, True)
+                assert tmp not in self.__tmp_to_out_map
+                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                self.__tmp_to_out_map[tmp] = func(idx, False)
+                # logging.debug("func=%s, idx=%s => in=%s ==> ~out=%s", func.__name__, idx, tmp, func(idx, False))
         # coded beta-calibration cases...
         for func, nb in names_to_map_for_beta_calib:
             for idx in range(nb):
-                self.__tmp_to_out_map[func(idx, True, calibration='_beta')] = func(idx, False, calibration='_beta')
+                tmp = func(idx, True, calibration='_beta')
+                assert tmp not in self.__tmp_to_out_map
+                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_beta')
         # mapping when there is no idx.
         for func, nb in names_to_map_no_idx:
-            self.__tmp_to_out_map[func(True)] = func(False)
+            tmp = func(True)
+            assert tmp not in self.__tmp_to_out_map
+            assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+            self.__tmp_to_out_map[tmp] = func(False)
+
+        # # Trace the mappings
+        # logging.debug("TMP to OUT mappings")
+        # for t, o in self.__tmp_to_out_map.items():
+        #     logging.debug(" %s --> %s", t, o)
 
         # for idx in range(NFiles):
         #     self.__tmp_to_out_map[self.orthofile(idx, True, calibration='_beta')] = self.orthofile(idx, False, calibration='_beta')
@@ -493,10 +516,7 @@ class FileDB:
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
-        if tmp:
-            ext = self.extended_compress
-        else:
-            ext = ''
+        ext = self.extended_compress_predictor if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
         return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
                 **crt,
@@ -516,10 +536,7 @@ class FileDB:
 
     def filtered_from_two(self, idx, tmp, extra, polarity, calibration, dir) -> str:
         crt = self.CONCATS[idx]
-        if tmp:
-            ext = self.extended_compress
-        else:
-            ext = ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthofile"]}{extra}.tif{ext}'.format(
                 **crt, tmp=tmp_suffix(tmp), calibration=calibration).format(
                         polarity=polarity, nr="001" if polarity == "vv" else "002"
@@ -538,9 +555,11 @@ class FileDB:
     def _maskfile_for_all(self, crt, tmp, polarity, calibration) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+            ext = self.extended_compress
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["border_mask"]}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["border_mask"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
     def maskfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
         return self._maskfile_for_all(crt, tmp, polarity, calibration)
@@ -586,7 +605,7 @@ class FileDB:
 
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -597,7 +616,7 @@ class FileDB:
 
     def _concatsinLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        ext = self.extended_compress if tmp else ''
+        ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatsinLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -663,7 +682,7 @@ class FileDB:
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-            ext = self.extended_compress
+            ext = self.extended_compress_predictor
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
