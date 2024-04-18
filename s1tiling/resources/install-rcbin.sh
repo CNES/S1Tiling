@@ -2,7 +2,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2024 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -59,6 +59,7 @@ py_ver_for_otb[8.1.1]="3.11"
 py_ver_for_otb[8.1.2]="3.11"
 py_ver_for_otb[8.1.3]="3.11"
 py_ver_for_otb[8.2.0]="3.11"
+py_ver_for_otb[9.0.0]="3.12"
 
 # s1tiling_version=1.0.0rc2
 # git_node=develop
@@ -124,12 +125,37 @@ function _die()
    exit 127
 }
 
+# ==[ _dirname_n <N> <PATH>  {{{2
+function _dirname_n()
+{
+    local nb="$1"
+    local left
+    left=$((nb - 1))
+    local path="$2"
+    [ ${nb} -le 0 ] && echo "${path}" || _dirname_n ${left} "$(dirname "${path}")"
+}
+
 # ==[ _execute               {{{2
 # If $noexec is defined to 1, the execution is "dry" and does nothing.
 function _execute()
 {
     _verbose "$@"
     [ "${noexec:-0}" = "1" ] || "$@"
+}
+
+# _filter_array              {{{2
+# remove all occurrences of pattern from array elements
+# $1:  pattern
+# $2+: array to filter
+function _filter_array()
+{
+    declare -a res
+    local pat=$1
+    shift
+    for e in "$@"; do
+        [[ "${e}" != "${pat}" ]] && res+=("$e")
+    done
+    echo "${res[@]}"
 }
 
 # ==[ _has_executable        {{{2
@@ -155,6 +181,13 @@ function _is_set()
 function _is_true()
 {
     _is_set $1 && [[ $1 -eq 1 ]]
+}
+
+# ==[ _is_unset              {{{2
+function _is_unset()
+{
+    # [[ ! -v $1 ]] # with bash 4.2+, work with empty arrays
+    [[ -z ${!1+x} ]] # doesn't work with empty arrays
 }
 
 # ==[ _search_array          {{{2
@@ -208,13 +241,17 @@ trap _restore_colors EXIT
 ## ======[ Parse parameters {{{1
 
 usage() {
-    echo "USAGE: $0 [OPTIONS] <OTB-X.X.X-Linux64.run> <s1tiling source directory>"
+    [ -z "$1" ] || echo
+    echo "USAGE: $0 [OPTIONS] PACKAGES... <s1tiling source directory>"
     echo
+    echo "  PACKAGES:              <OTB-X.X.X-Linux64.run>      for OTB <= v8"
+    echo "  PACKAGES:              <OTB-X.X.X-Linux*.tar.gz>... for OTB >= v9"
     echo "  -c|--clean             remove previous conda environment & OTB binaries"
     echo "  -p|--python <version>  override default python version for this OTB version"
+    echo "  -n|--dryrun            display what would have been executed by this installation script"
     [ -z "$1" ] || {
         echo
-        echo "$1"
+        echo "${_colors[red]}Error:${_colors[reset]} $1"
         exit 127
     }
 }
@@ -225,6 +262,7 @@ if [ $# -lt 2 ] ; then
 fi
 
 declare -a args
+declare -a archives # OTB 9
 do_clean=0
 py_version=
 while [ $# -gt 0 ] ; do
@@ -237,30 +275,73 @@ while [ $# -gt 0 ] ; do
             [ $# -gt 1 ] || _die "Cannot read python version"
             py_version=$1
             ;;
+        -n|--dryrun)
+            noexec=1
+            ;;
+        *.run)
+            # Expecting otb < v9
+            run_script="$1"
+            [ -f "${run_script}" ]                       || usage "Non existant OTB binaries (${run_script})"
+            [[ "${run_script}" =~ OTB-.*-Linux64.*run ]] || usage "Invalid OTB binaries (${run_script})"
+            run_script_name="$(basename "${run_script}" ".run")"
+            ;;
+        *.tar.gz)
+            # Expecting otb >= v9
+            [ -f "$1" ]                                  || usage "Non existant OTB binary archive ($1)"
+            [[ "$1" =~ OTB-.*-Linux.*.tar.gz ]]          || usage "Invalid OTB binary archive ($1)"
+            archives+=("$1")
+            ;;
         *)
             args+=("$1")
     esac
     shift
 done
 
-run_script="${args[0]}"
-run_script_name="$(basename "${run_script}" ".run")"
+# Analyse binary packages to extract
+# Exacty one shall be set!
+if  _is_set run_script && _is_set archives ; then
+    usage "Only one source of OTB binary archive to extract can been specified"
+elif _is_set run_script ; then
+    _verbose "Extraction will be done from RUN script: ${run_script}"
+    prefix_root="$(dirname "$(readlink -f "${run_script}")")"
+    otb_version=$(_extract_OTB_version "${run_script_name}")
+    sources="${run_script_name}.run"
+elif _is_set archives ; then
+    _verbose "Extraction will be done from archives: ${archives[@]}"
+    declare -a versions=()
+    declare -a prefixes=()
+    for archive in "${archives[@]}" ; do
+        otb_version=$(_extract_OTB_version "${archive}")
+        # _verbose "Version found: ${otb_version}"
+        versions+=("${otb_version}")
+        prefix_root="$(dirname "$(readlink -f "${archive}")")"
+        prefixes+=("${prefix_root}")
+    done
+    versions=($(_filter_array "${otb_version}" "${versions[@]}"))
+    # _verbose "unmatched versions: ${versions[@]}"
+    _is_unset versions || usage "Mismatching versions found: ${otb_version} != ${versions[0]}"
+    prefixes=($(_filter_array "${prefix_root}" "${prefixes[@]}"))
+    _is_unset prefixes || usage "Mismatching archives directories found: ${prefix_root} != ${prefixes[0]}"
 
-s1tiling_src_dir="${args[1]}"
+    # Let's suppose OTB 9 usual pattern. We may need to change this pattern
+    # with future versions
+    sources="${archives[@]}"
+    run_script_name="OTB-${otb_version}-Linux"
+else
+    usage "No OTB binary archive to extract has been specified"
+fi
 
-[ -f "${run_script}" ]                       || usage "Error: Non existant OTB binaries (${run_script})"
-[[ "${run_script}" =~ OTB-.*-Linux64.*run ]] || usage "Error: Invalid OTB binaries (${run_script})"
+s1tiling_src_dir="${args[0]}"
 
-[ -d "${s1tiling_src_dir}" ] || usage "Error: Non existant S1Tiling source directory (${s1tiling_src_dir})"
-[ -d "${s1tiling_src_dir}/s1tiling" ] || usage "Error: Invalid S1Tiling source directory (${s1tiling_src_dir})"
-[ -f "${s1tiling_src_dir}/setup.py" ] || usage "Error: Invalid S1Tiling source directory (${s1tiling_src_dir})"
 
-prefix_root="$(dirname "$(readlink -f "${run_script}")")"
+[ -d "${s1tiling_src_dir}" ]          || usage "Non existant S1Tiling source directory (${s1tiling_src_dir})"
+[ -d "${s1tiling_src_dir}/s1tiling" ] || usage "Invalid S1Tiling source directory (${s1tiling_src_dir})"
+[ -f "${s1tiling_src_dir}/setup.py" ] || usage "Invalid S1Tiling source directory (${s1tiling_src_dir})"
+
 s1tiling_fulldir="$(readlink -f "${s1tiling_src_dir}" )"
 module_paths=($(_split_path "${MODULEPATH}"))
 module_root="$(_search_array "${HOME}" "${module_paths[@]}")"
 
-otb_version=$(_extract_OTB_version "${run_script_name}")
 otb_ver2=$(_version_Mm "${otb_version}" ".")
 py_version=${py_version:-${py_ver_for_otb[${otb_version}]}}
 
@@ -280,6 +361,10 @@ echo "OTB_DIR:          ${otb_prefix}"
 echo "Conda environment ${env_name}"
 echo "Module root:      ${module_root}"
 echo "Module name:      ${mod_name}"
+echo "Binary sources:   ${sources}"
+
+ml conda
+# type conda
 
 _ask_Yes_no "${_colors[cyan]}Continue?" || exit 0
 echo -en "${_colors[reset]}"
@@ -303,7 +388,7 @@ fi
 _execute conda create -n "${env_name}" python==${py_version}
 
 _verbose conda activate "${env_name}"
-conda activate "${env_name}" || _die "Cannot activate ${env_name}"
+[ "${noexec:-0}" = "1" ] || conda activate "${env_name}" || _die "Cannot activate ${env_name}"
 
 _execute python --version
 
@@ -311,17 +396,28 @@ _execute cd "${prefix_root}" || _die "Can't cd to installation base directory ${
 
 # ==[ Prepare the virtual env
 _execute python -m pip install --upgrade pip                || _die "Can't upgrade pip"
-_execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
+# _execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
+_execute python -m pip install --upgrade setuptools         || _die "Can't upgrade setuptools to v57.5.0"
 _execute python -m pip --no-cache-dir install numpy         || _die "Can't install numpy from scratch"
 
 # ==[ Extract OTB binaries
+# TODO: support the extra installation of new Modules (OTB 9+)
 [ -d "${otb_prefix}" ] \
-    && echo ">> ${run_script_name}.run already extracted into '${otb_prefix}'..."  \
-    || { 
-    _execute bash "${run_script_name}.run" --nox11 --target "${otb_basename_prefix}"
-    _execute cd "${otb_basename_prefix}"
-    # # Inject ${CMAKE_PREFIX_PATH}/lib into LD_LIBRARY_PATH 
+    && echo ">> ${sources} already extracted into '${otb_prefix}'..."  \
+    || {
+    if _is_set run_script ; then
+        _execute bash "${run_script_name}.run" --nox11 --target "${otb_basename_prefix}"
+    else
+        for archive in "${archives[@]}" ; do
+            _execute tar xf "${archive}" --one-top-level="${otb_prefix}"
+        done
+    fi
+    _execute cd "${otb_basename_prefix}" || _die "Cannot cd to ${otb_basename_prefix}"
+    # gvim otbenv.profile
+    # _ask_Yes_no "Let's wait..."
+    # # Inject ${CMAKE_PREFIX_PATH}/lib into LD_LIBRARY_PATH
     # _execute patch -p1 --ignore-whitespace < "${current_dir}/OTB-env.patch"
+    echo "" >> "otbenv.profile"  # Add missing EOL at EOF
     echo "# LD_LIBRARY_PATH patch for s1tiling" >> "otbenv.profile"
     echo 'export LD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> "otbenv.profile" \
     # Make sure to compile with new C++ ABI with OTB 7.4.2
@@ -329,7 +425,7 @@ _execute python -m pip --no-cache-dir install numpy         || _die "Can't insta
 }   || _die "Cannot extract OTB binaries"
 
 _verbose source "${otb_prefix}/otbenv.profile"
-source "${otb_prefix}/otbenv.profile" || _die "Cannot source OTB env"
+[ "${noexec:-0}" = "1" ] || source "${otb_prefix}/otbenv.profile" || _die "Cannot source OTB env"
 
 _execute ctest -VV -S "${otb_prefix}/share/otb/swig/build_wrapping.cmake" -VV \
     || _die "Cannnot recompile OTB bindings for Python ${py_version}"
@@ -358,7 +454,7 @@ function _test_gdal_gpkg
     _verbose "gdalinfo --formats | grep -qi gpkg"
     gdalinfo --formats | grep -qi gpkg
 }
-_test_gdal_gpkg || _die "GDAL lacks GPKG support"
+[ "${noexec:-0}" = "1" ] || _test_gdal_gpkg || _die "GDAL lacks GPKG support"
 
 # ==[ Install S1Tiling
 _execute cd "${s1tiling_fulldir}"
@@ -367,9 +463,15 @@ _execute python -m pip install -e .[dev,docs]
 
 # ==[ And create the modulefile!
 if _has_executable module ; then
+    # Python binding directory may change from one release to the other
+    [ -d "${otb_prefix}/lib/python" ]  && _pypath="lib/python" || _pypath="lib/otb/python"
+    # Detect where conda is really installed
+    _conda_pkg="$(_dirname_n 2 "${CONDA_EXE}")"
+
+    [ -d "${module_root}/s1tiling" ] || _execute mkdir "${module_root}/s1tiling"
     export module_file="${module_root}/${mod_name}.lua"
     _verbose "Create modulefile: ${module_file}"
-    cat > "${module_file}" << EOF
+    [ "${noexec:-0}" = "1" ] || cat > "${module_file}" << EOF
 -- -*- lua -*-
 -- Aide du module accessible avec la commande module help
 help(
@@ -392,7 +494,7 @@ local installation  = "$(date)"
 local pkgName   = myModuleName()
 -- TODO: extract reldeb from pkgName
 local pkg       = "${otb_prefix}"
-local conda_pkg = pathJoin(home,"local","miniconda3")
+local conda_pkg = "${_conda_pkg}"
 
 -- Information du module accessible avec la commande module whatis
 whatis("Nom     : "..nom)
@@ -405,7 +507,7 @@ setenv("GDAL_DATA",pathJoin(pkg,"share/gdal"))
 setenv("PROJ_LIB", pathJoin(pkg,"share/proj"))
 setenv('GDAL_DRIVER_PATH', 'disable')
 prepend_path("CPATH",pathJoin(pkg,"include"))
-prepend_path("PYTHONPATH",pathJoin(pkg,"lib/python"))
+prepend_path("PYTHONPATH",pathJoin(pkg,"${_pypath}"))
 setenv("CMAKE_PREFIX_PATH",pathJoin(pkg, "lib/cmake/OTB-${otb_ver2}"))
 
 setenv("OTB_HOME",pkg)
@@ -436,12 +538,12 @@ EOF
     # we should unload otbenv.profile for the test... but it's not possible...
     _execute conda deactivate
     _verbose module load "${mod_name}"
-    module load "${mod_name}" || _die "Cannot load ${mod_name}"
+    [ "${noexec:-0}" = "1" ] || module load "${mod_name}" || _die "Cannot load ${mod_name}"
 else
     _verbose source "${otb_prefix}/otbenv.profile"
-    source "${otb_prefix}/otbenv.profile" || _die "Cannot source OTB env"
+    [ "${noexec:-0}" = "1" ] || source "${otb_prefix}/otbenv.profile" || _die "Cannot source OTB env"
     _verbose conda activate "${env_name}"
-    conda activate "${env_name}" || _die "Cannot activate ${env_name}"
+    [ "${noexec:-0}" = "1" ] || conda activate "${env_name}" || _die "Cannot activate ${env_name}"
 fi
 
 _execute S1Processor --version      || _die "S1Tiling isn't properly installed"
