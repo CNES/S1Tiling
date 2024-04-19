@@ -266,7 +266,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="Geoid superimposed on S2 tile",
         )
-        self.__GeoidFile            = cfg.GeoidFile
+        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
         self.__interpolation_method = cfg.interpolation_method
         self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
 

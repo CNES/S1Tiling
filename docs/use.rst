@@ -462,14 +462,18 @@ You can use this :download:`this template
 
       .. _Processing.cache_dem_by:
   * - ``cache_dem_by``
-    - Tells whether DEM files are copied in a temporary directory, or if
-      symbolic links are to be created.
+    - Tells whether DEM and Geoid files are copied in a temporary directory, or
+      if symbolic links are to be created.
 
       For performance reasons with OTB 7.X, it's better to regroup the minimal
       subset of the DEM files required for processing. Symbolic links work
       fine most of the time, however if the files are on a remote shared
       filesystem (GPFS, NAS...), performances will be degraded. In those cases,
       it's better to copy the required DEM files on a local filesystem.
+
+      :ref:`Geoid file <paths.geoid_file>` will be also copied (or symlinked),
+      but in :samp:`{{tmp}}/geoid/`. It won't be removed automatically.  You
+      can also do it manually before running S1Tiling.
 
       Two values are supported for this option: ``copy`` and ``symlink``.
       (default: ``symlink``).
