@@ -584,7 +584,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 pixel_type=pixel_type(cfg, 'tiled'),
         )
         self.__out_spatial_res      = cfg.out_spatial_res
-        self.__GeoidFile            = cfg.GeoidFile
+        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        # assert os.path.isfile(self.__GeoidFile), f"{self.__GeoidFile} doesn't exist"
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_dem_dir          = cfg.tmp_dem_dir
