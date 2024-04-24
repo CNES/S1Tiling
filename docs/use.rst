@@ -109,12 +109,11 @@ S1Tiling will then automatically take care of:
    and it will likely end up corrupted.
 
 .. note::
-   This scenario requires `DiapOTB
-   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   This scenario requires `NORMLIM σ0
    <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
-   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
-   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
-   Eventually both will be guaranteed in S1Tiling docker images.
+   At the moment, NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
 
 
 .. _scenario.S1LIAMap:
@@ -142,12 +141,11 @@ masking....
    LIA maps are perfect products to be stored and reused.
 
 .. note::
-   This scenario requires `DiapOTB
-   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   This scenario requires `NORMLIM σ0
    <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
-   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
-   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
-   Eventually both will be guaranteed in S1Tiling docker images.
+   At the moment, NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
 
 .. note::
    To run :program:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
