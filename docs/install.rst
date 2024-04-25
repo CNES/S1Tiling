@@ -15,12 +15,14 @@ Manual installation with pip
 OTB & GDAL dependency
 +++++++++++++++++++++
 
-S1 Tiling depends on OTB 7.3+, or OTB 8.1.1+, but we recommend the latest, `OTB
-7.4.1 <https://www.orfeo-toolbox.org/CookBook-7.4/>`_ at the time, or `OTB
-8.1.1 <https://www.orfeo-toolbox.org/CookBook-8.1.1/>`_
+S1 Tiling depends on OTB 7.3+, or OTB 8.1.1+, but we recommend the latest,
+which at the moment is `OTB 9.0.0
+<https://www.orfeo-toolbox.org/CookBook-9.0/>`_. Or if you really need you can
+use `OTB 7.4.2 <https://www.orfeo-toolbox.org/CookBook-7.4/>`_.
+
 First install OTB on your platform. See the `related documentation
-<https://www.orfeo-toolbox.org/CookBook-7.4/Installation.html>`_ to install OTB
-on your system..
+<https://www.orfeo-toolbox.org/CookBook-9.0/Installation.html>`_ to install OTB
+on your system. Things has changed between versions 8.x and 9.x.
 
 Then, you'll also need a version of GDAL which is compatible with your OTB
 version.
@@ -32,9 +34,9 @@ version.
     :download:`gdal-config <../s1tiling/resources/gdal-config>` into the
     ``bin/`` directory where you've extracted OTB. This will permit :samp:`pip
     install gdal=={vernum}` to work correctly.
-  - You'll also have to **patch** :file:`otbenv.profile` to **insert** OTB ``lib/``
-    directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will permit
-    ``python3 -c 'from osgeo import gdal'`` to work correctly.
+  - You'll also have to **patch** :file:`otbenv.profile` to **insert** OTB
+    ``lib/`` directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will
+    permit ``python3 -c 'from osgeo import gdal'`` to work correctly.
 
         .. code-block:: bash
 
@@ -59,7 +61,7 @@ version.
         .. code-block:: bash
 
             # Example, on TREX:
-            module load otb/7.4.2-Python3.8.4
+            module load otb/9.0.0-python3.8
 
         .. note::
 
@@ -76,19 +78,17 @@ version.
 Possible conflicts on Python version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`eodag <https://github.com/CS-SI/eodag>`_ requires ``xarray`` which in turn
-requires at least Python 3.6 while default OTB 7.4 binaries are built with
-Python 3.5.  This means you'll likely need to recompile OTB Python bindings as
-described in:
+The Python version you have chosen may not match exactly the version used to
+generate Python bindings of the version of OTB you have selected.
+This means you'll likely need to recompile OTB Python bindings as described in:
 https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bindings
 
 
 .. code-block:: bash
 
-    cd OTB-7.4.2-Linux64
+    cd OTB-9.0.0-Linux64
     source otbenv.profile
-    # Load module on TREX
-    module load gcc
+    # require g++, cmake
     ctest3 -S share/otb/swig/build_wrapping.cmake -VV
 
 Conflicts between rasterio default wheel and OTB binaries
@@ -96,15 +96,17 @@ Conflicts between rasterio default wheel and OTB binaries
 
 .. note::
    **TL;DR** In the case you install **other programs alongside S1Tiling** in
-   the same environment, then use :program:`pip` with ``--no-binary rasterio``
-   parameter.
+   the same environment, and that programs depend on ``rasterio``, then use
+   :program:`pip` with ``--no-binary rasterio`` parameter.
 
    The current version of S1Tiling doesn't depend on any package that requires
    ``rasterio``, and thus ``pip install s1tiling`` is enough.
 
 
 The following paragraph applies **only** in case you install other Python
-programs alongside S1Tiling in the same environment.
+programs alongside S1Tiling in the same environment. And the wheels of these
+programs have hardcoded the version of GDAL they depend upon, like this is the
+case with ``rasterio``.
 
 We had found a compatibility issue between OTB and default rasterio packaging.
 The kind that produces:
@@ -151,7 +153,7 @@ Then you can install S1 Tiling thanks to `pip`.
     cd myS1TilingEnv
     source bin/activate
     # b- or a conda virtual environment
-    conda create -n myS1TilingEnv python==3.7.2
+    conda create -n myS1TilingEnv python==3.10
     conda activate myS1TilingEnv
 
     # Then, upgrade pip and setuptools in your virtual environment
@@ -223,7 +225,7 @@ care of installating S1Tiling on Linux machines
 
     -
         - Creates a conda environment for the selected python version (3.8 by
-          default),
+          default with OTB 7.x, 3.11 w/ OTB 8.x, and 3.12 w/ OTB 9.x),
         - Extracts the OTB binary release in the directory where the
           ``OTB-M.m.p-Linux64.run`` file is,
         - Patches ``UseOTB.cmake`` if need be (in case of C++ ABI mismatch in
@@ -241,6 +243,12 @@ care of installating S1Tiling on Linux machines
             environement manually if you don't use `Lmod
             <https://lmod.readthedocs.io/en/latest/?badge=latest>`_.
 
+         .. note::
+            You will still need to install `LIA extra applications
+            <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ in
+            order to :ref:`produce LIA maps <scenario.s1liamap>`, or to apply
+            :ref:`σ° NORMLIM calibration <scenario.s1processorlia>`.
+
 Extra packages
 ++++++++++++++
 
@@ -255,12 +263,12 @@ Using S1Tiling with a docker
 ----------------------------
 
 As the installation of S1Tiling could be tedious, versions ready to be used are
-provided as Ubuntu 20.04 dockers.
+provided as Ubuntu dockers.
 
 You can browse the full list of available dockers in `S1Tiling registry
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry>`_.
 Their naming scheme is
-:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb7.4.2`,
+:samp:`registry.orfeo-toolbox.org/s1-tiling/s1tiling:{{version}}-ubuntu-otb{{otbversion}}`,
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
@@ -269,10 +277,11 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0
+    # or
     docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2
 
 or even directly used with
-
 
 .. code-block:: bash
 
@@ -280,7 +289,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0 \
         /data/MyS1ToS2.cfg
 
 .. note::

@@ -307,7 +307,7 @@ Cut and calibrated S1 images ready for orthorectification
 :File name: The same as the origin S1 file with ``_OrthoReady`` appended.
 
       .. note::
-            An accompanying OTB ``.geom`` file is also generated.
+            An accompanying OTB ``.geom`` file was also generated with OTB 7.
 
       Example:
 
