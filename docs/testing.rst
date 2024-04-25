@@ -57,7 +57,17 @@ There are two ways to obtain the baseline:
 Running the tests
 -----------------
 
-S1 Tiling tests depend on pytest. You can see all the supported options with:
+S1 Tiling tests depend on pytest.
+
+I usually execute the tests with:
+
+.. code:: bash
+
+    SRTM_DIR=/path/to/MNT/SRTM_30_hgt pytest --cov=s1tiling --baselinedir=/path/to/tests/20200306-NR/baseline/ \
+         -k 'not execute_OTB' -vvv --log-cli-level=DEBUG -o log_cli=true --capture=no --junitxml=report.xml \
+         --ram 2048 2>&1 | less -R
+
+You can see all the supported options with:
 
 .. code:: bash
 
