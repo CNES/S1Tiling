@@ -796,7 +796,7 @@ def extended_filename_lia_degree(cfg: Configuration) -> str:
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
     """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
 def extended_filename_lia_sin(cfg: Configuration) -> str:

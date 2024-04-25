@@ -833,7 +833,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`
           - ``.lia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+          - ``uint16 COMPRESS=DEFLATE&gdal``
 
             .. _Processing.creation_options.lia_sin:
         * - :ref:`sin(LIA) <lia-files>`
