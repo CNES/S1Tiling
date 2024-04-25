@@ -120,7 +120,7 @@ _execute cd "${prefix_root}"
 _verbose ml "otb/${otb_ver}-${python_ml_dep}"
 ml "otb/${otb_ver}-${python_ml_dep}" || _die "Can't load module otb/${otb_ver}-${python_ml_dep}"
 # Override  libcrypto overriden by OTB, if need be.
-# NB: this may cause latter troubles with libgdal...
+# NB: this may cause later troubles with libgdal...
 cmake --version || LD_LIBRARY_PATH="/usr/lib:/usr/lib64:${LD_LIBRARY_PATH}"
 cmake --version || _die "Can't execute CMake..."
 
