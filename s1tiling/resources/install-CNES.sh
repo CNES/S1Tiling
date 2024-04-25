@@ -31,17 +31,17 @@
 
 ## ======[ Globals {{{1
 # ==[ Constant parameters {{{2
-# s1tiling_version=1.0.0rc3
+# s1tiling_version=1.0.0
 # otb_ver=7.4.2
-# git_node=develop
-s1tiling_version=1.1.0beta
-otb_ver=8.1.2
-git_node=develop_worldcereal
+s1tiling_version=1.1.0rc0
+otb_ver=9.0.0
+# otb_ver=8.1.2
+git_node=develop
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
 # if TREX:
-python_ml_dep=python3.8.4
+python_ml_dep=python3.8
 
 repo_url=https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git
 
@@ -119,8 +119,9 @@ _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'
 _execute cd "${prefix_root}"
 _verbose ml "otb/${otb_ver}-${python_ml_dep}"
 ml "otb/${otb_ver}-${python_ml_dep}" || _die "Can't load module otb/${otb_ver}-${python_ml_dep}"
-# Override  libcrypto override by OTB
-LD_LIBRARY_PATH="/usr/lib:/usr/lib64:${LD_LIBRARY_PATH}"
+# Override  libcrypto overriden by OTB, if need be.
+# NB: this may cause latter troubles with libgdal...
+cmake --version || LD_LIBRARY_PATH="/usr/lib:/usr/lib64:${LD_LIBRARY_PATH}"
 cmake --version || _die "Can't execute CMake..."
 
 [ -f "${env}/bin/activate" ] || _execute python -m venv --copies "${env}" || _die "Can't create virtual environment '${env}'"
@@ -129,7 +130,8 @@ _verbose source "${env}/bin/activate"
 source "${env}/bin/activate"
 
 _execute python -m pip install --upgrade pip                || _die "Can't upgrade pip"
-_execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
+# _execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
+_execute python -m pip install --upgrade setuptools || _die "Can't upgrade setuptools to v57.5.0"
 _execute python -m pip --no-cache-dir install numpy         || _die "Can't install numpy from scratch"
 
 # Check if GDAL fulfils all S1Tiling requirements
