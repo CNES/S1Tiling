@@ -215,7 +215,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
 
         nodata = meta.get('nodata', -32768)
         parameters = [
-                "-wm", str(self.ram_per_process),
+                "-wm", str(self.ram_per_process*1024*1024),
                 "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
