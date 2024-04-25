@@ -32,6 +32,7 @@
 import logging
 import re
 from typing import Callable, Dict, List, Union, Tuple
+import os
 
 from shapely.geometry.base import np
 
@@ -367,7 +368,8 @@ class FileDB:
     @property
     def GeoidFile(self):
         """ Property GeoidFile """
-        return self.__GeoidFile
+        # return the geoid file in the temporary directory
+        return f'{self.__tmp_dir}/geoid/{os.path.basename(self.__GeoidFile)}'
 
     def all_products(self) -> List[str]:
         return [self.product_name(idx) for idx in range(len(self.FILES))]
@@ -568,7 +570,7 @@ class FileDB:
         return self._maskfile_for_all(crt, tmp, polarity, calibration)
 
     def dem_file(self) -> str:
-        return f'{self.__tmp_dir}/TMP'
+        return f'{self.__tmp_dir}/TMP_DEM'
 
     def vrtfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]

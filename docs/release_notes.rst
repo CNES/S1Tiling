@@ -40,6 +40,9 @@ v1.1.0 Improvements
 - Product encoding/compression options can be configured through
   :ref:`creation_options.* <Processing.creation_options>` options
   (`#66 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/66>`_).
+- GEOID file is also copied alongside DEM data when :ref:`[Processing].cache_dem_by
+  <Processing.cache_dem_by>` option is on.
+  (`#123 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/123>`_).
 
 v1.1.0 Breaking changes
 +++++++++++++++++++++++

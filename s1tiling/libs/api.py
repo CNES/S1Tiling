@@ -454,7 +454,9 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
         os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        config.tmp_dem_dir = s1_file_manager.tmpdemdir(needed_dem_tiles, config.dem_filename_format)
+        config.tmp_dem_dir = s1_file_manager.tmpdemdir(
+                needed_dem_tiles, config.dem_filename_format,
+                config.GeoidFile)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
