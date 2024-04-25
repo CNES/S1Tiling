@@ -1039,7 +1039,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         Parameters:
             :cfg:                 Request configuration for current S1Tiling session
             :appname:             Name of the OTB application
-            :gen_tmp_dir:         Dirname format for the tempory product
+            :gen_tmp_dir:         Dirname format for the temporary product
             :gen_output_dir:      Optional Dirname format for the final product -- ``None`` if not required.
             :gen_output_filename: Ouput filename generator.
             :extended_filename:   Optional extra :external:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
