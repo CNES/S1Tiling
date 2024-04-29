@@ -441,7 +441,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                     tile_list = tiles_file_handle.readlines()
                 self.tile_list: List[str] = [s.rstrip() for s in tile_list]
                 logging.info("The following tiles will be processed: %s", self.tile_list)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
         else:
             tiles = accessor.get('Processing', 'tiles')
