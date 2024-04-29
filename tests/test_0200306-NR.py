@@ -782,7 +782,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     extent = file_db.TILE_DATA['33NWB']['extent']
     application_mocker.set_expectations(
             'gdalwarp', [
-                "-wm", '2048',
+                "-wm", f'{2048*1024*1024}',
                 "-multi", "-wo", "2",
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
