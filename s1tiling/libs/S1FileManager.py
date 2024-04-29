@@ -711,8 +711,8 @@ class S1FileManager:
                 logger.debug('- ln -s %s <-- %s', src, dst)
                 dst.symlink_to(src)
             def do_copy(src: Union[Path, str], dst: Path):
-                    logger.debug('- cp %s --> %s', src, dst)
-                    shutil.copy2(src, dst)
+                logger.debug('- cp %s --> %s', src, dst)
+                shutil.copy2(src, dst)
             do_localize = do_symlink if self.__caching_option == 'symlink' else do_copy
 
             for _, dem_tile_info in dem_tile_infos.items():
