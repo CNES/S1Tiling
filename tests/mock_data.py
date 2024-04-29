@@ -226,8 +226,10 @@ class FileDB:
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
     extended_geom_compress      = extended_compress_predictor
+    extended_geom_compress_nopr = extended_compress
     if otb_version() < "8.0.0":
-        extended_geom_compress += '&writegeom=false'
+        extended_geom_compress      += '&writegeom=false'
+        extended_geom_compress_nopr += '&writegeom=false'
 
     def __init__(
             self,
@@ -587,7 +589,7 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def LIAfile(self, idx, tmp) -> str:
-        ext = self.extended_compress_predictor if tmp else ''
+        ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
@@ -597,7 +599,7 @@ class FileDB:
 
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
-        ext = self.extended_geom_compress if tmp else ''
+        ext = self.extended_geom_compress_nopr if tmp else ''
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthosinLIAfile(self, idx, tmp) -> str:
@@ -607,7 +609,7 @@ class FileDB:
 
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        ext = self.extended_compress_predictor if tmp else ''
+        ext = self.extended_compress if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -664,7 +666,7 @@ class FileDB:
     def deglia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor
+            ext = self.extended_compress
         else:
             dir = f'{self.__lia_dir}'
             ext = ''
