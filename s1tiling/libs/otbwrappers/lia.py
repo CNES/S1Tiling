@@ -42,6 +42,8 @@ from typing import Dict, List, Optional, Type
 from osgeo import gdal
 import otbApplication as otb
 
+from s1tiling.libs.otbtools import otb_version
+
 from ..file_naming   import (
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
 )
@@ -1514,9 +1516,10 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
                 fname_fmt,
                 image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
         )
+        extra_ef = '&writegeom=false' if otb_version() < '8.0.0' else ''
         self._extended_filenames = {
-                'LIA'     : extended_filename_lia_degree(cfg),
-                'sin_LIA' : extended_filename_lia_sin(cfg),
+                'LIA'     : extended_filename_lia_degree(cfg) + extra_ef,
+                'sin_LIA' : extended_filename_lia_sin(cfg) + extra_ef,
         }
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
