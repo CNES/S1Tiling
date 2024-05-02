@@ -65,6 +65,10 @@ OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
 ExeParameters = List[str]
 
 
+# Disable the log warning about exception and GDAL.
+gdal.UseExceptions()
+
+
 def ram(r) -> Union[int, str]:
     """
     The expected type for the RAM parameter in OTB application changes between OTB 7.x and OTB 8.0.
