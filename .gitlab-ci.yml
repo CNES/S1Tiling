@@ -204,12 +204,13 @@ variables:
   variables:
     # Cannot work because of $(sh ...
     FULL_VERSION: $(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}
+    BASE_FULL_VERSION: ${S1TD_VERSION}-${OS}${OS_VERSION}-otb${OTB_VERSION}
   before_script:
     - *prepare-docker-config
   script:
     - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
     - sh $CI_PROJECT_DIR/docker/version_name.sh
-    - echo "> docker build ${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
+    - echo "> docker build ${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION} <-- ${BASE_FULL_VERSION}"
     - /kaniko/executor --cleanup
                        --verbosity info
                        --context "${CI_PROJECT_DIR}/"
