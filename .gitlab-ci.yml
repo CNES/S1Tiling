@@ -32,9 +32,10 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
-    S1TD_VERSION: "1.3.5"  # S1Tiling Dockers version
+    S1TD_VERSION: "1.3.7"  # S1Tiling Dockers version
     OTB7_VERSION: "7.4.1"
     OTB8_VERSION: "8.1.2"
+    OTB9_VERSION: "9.0.0"
     OS: "ubuntu"
 
 #
@@ -224,35 +225,35 @@ variables:
 # Effective stages
 #
 
-pages8:
+pages9:
   extends: .pages
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
 
-package8:
+package9:
   extends: .package
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
 
-pypi8:
+pypi9:
   extends: .pypi
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
   dependencies:
-    - package8
+    - package9
 
-test-doc8:
+test-doc9:
   extends: .test-doc
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
 
 pytest7:
   extends: .pytest
@@ -262,12 +263,12 @@ pytest7:
     OTB_VERSION: "${OTB7_VERSION}"
     STEP: user
 
-pytest8:
+pytest9:
   extends: .pytest
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
     STEP: user
 
 ubuntu-user7:
@@ -281,13 +282,13 @@ ubuntu-user7:
   only:
   - /^[0-9]+\.[0-9]+.*/
 
-ubuntu-user8:
+ubuntu-user9:
   extends: .common-docker-build
   stage: deploy
   variables:
     OS: ubuntu
     OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB8_VERSION}"
+    OTB_VERSION: "${OTB9_VERSION}"
     STEP: user
   only:
   - /^[0-9]+\.[0-9]+.*/

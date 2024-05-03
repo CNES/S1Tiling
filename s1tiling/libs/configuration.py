@@ -441,7 +441,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                     tile_list = tiles_file_handle.readlines()
                 self.tile_list: List[str] = [s.rstrip() for s in tile_list]
                 logging.info("The following tiles will be processed: %s", self.tile_list)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
         else:
             tiles = accessor.get('Processing', 'tiles')
@@ -796,7 +796,7 @@ def extended_filename_lia_degree(cfg: Configuration) -> str:
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
     """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
 def extended_filename_lia_sin(cfg: Configuration) -> str:

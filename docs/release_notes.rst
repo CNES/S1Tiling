@@ -9,16 +9,14 @@ Version 1.1.0
 This version integrates 3 main improvements:
 
 - it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
-- it supports OTB 8 applications (while staying backward compatible with OTB
-  7.4.2),
-- it improves the quality of LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
+- it supports OTB 8 (and OTB 9) applications (while staying backward compatible
+  with OTB 7.4.2),
+- it improves the quality and the processing performances of
+  LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
 
 v1.1.0 Improvements
 +++++++++++++++++++
 
-- Add support for OTB 8 applications
-  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_)
-  -- contributed by CS Group FRANCE.
 - Improve API (separate CLI from computing functions)
   (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_) --
   contributed by CS Group FRANCE.
@@ -26,6 +24,11 @@ v1.1.0 Improvements
   organization on disk... need to be deduced from a DEM database.
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_) --
   contributed by CS Group FRANCE.
+- Add support for OTB 8 applications
+  (`#105 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/105>`_)
+  -- contributed by CS Group FRANCE.
+- Add support for OTB 9 applications as well
+  (`#152 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/152>`_).
 - Support DEM databases in any spatial reference (they are not restricted to
   WGS84 anymore)
   (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
@@ -38,6 +41,9 @@ v1.1.0 Improvements
 - Product encoding/compression options can be configured through
   :ref:`creation_options.* <Processing.creation_options>` options
   (`#66 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/66>`_).
+- GEOID file is also copied alongside DEM data when :ref:`[Processing].cache_dem_by
+  <Processing.cache_dem_by>` option is on.
+  (`#123 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/123>`_).
 
 v1.1.0 Breaking changes
 +++++++++++++++++++++++

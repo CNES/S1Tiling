@@ -695,7 +695,7 @@ class S1FileManager:
             wdir = dname_fmt_lia_product(self.cfg).format(**directories, tile_name=tile_name)
             os.makedirs(wdir, exist_ok=True)
 
-    def tmpdemdir(self, dem_tile_infos: Dict, dem_filename_format: str) -> str:
+    def tmpdemdir(self, dem_tile_infos: Dict, dem_filename_format: str, geoid_file: str) -> str:
         """
         Generate the temporary directory for DEM tiles on the fly,
         and either populate it with symbolic links to the actual DEM
@@ -703,21 +703,32 @@ class S1FileManager:
         """
         assert self.__caching_option in ['copy', 'symlink']
         if not self.__tmpdemdir:
-            # copy all needed DEM file in a temp directory for orthorectification processing
+            # copy all needed DEM & geoid files in a temp directory for orthorectification processing
             self.__tmpdemdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
             logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
+            def do_symlink(src: Union[Path, str], dst: Path):
+                logger.debug('- ln -s %s <-- %s', src, dst)
+                dst.symlink_to(src)
+            def do_copy(src: Union[Path, str], dst: Path):
+                logger.debug('- cp %s --> %s', src, dst)
+                shutil.copy2(src, dst)
+            do_localize = do_symlink if self.__caching_option == 'symlink' else do_copy
+
             for _, dem_tile_info in dem_tile_infos.items():
                 dem_file          = dem_filename_format.format_map(dem_tile_info)
                 dem_tile_filepath = Path(self.cfg.dem, dem_file)
                 dem_tile_filelink = Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
                 dem_tile_filelink.parent.mkdir(parents=True, exist_ok=True)
-                if self.__caching_option == 'symlink':
-                    logger.debug('- ln -s %s <-- %s', dem_tile_filepath, dem_tile_filelink)
-                    dem_tile_filelink.symlink_to(dem_tile_filepath)
-                else:
-                    logger.debug('- cp %s <-- %s', dem_tile_filepath, dem_tile_filelink)
-                    shutil.copy2(dem_tile_filepath, dem_tile_filelink)
+                do_localize(dem_tile_filepath, dem_tile_filelink)
+            # + copy/link geoid
+            geoid_filelink = Path(self.cfg.tmpdir, 'geoid', os.path.basename(geoid_file))
+            if not geoid_filelink.exists():
+                geoid_filelink.parent.mkdir(parents=True, exist_ok=True)
+                do_localize(geoid_file, geoid_filelink)
+                # in case there is an associated file like (egm96.grd.hdr), copy/symlink it as well
+                if os.path.isfile(with_hdr := f"{geoid_file}.hdr"):
+                    do_localize(with_hdr, geoid_filelink.with_suffix(geoid_filelink.suffix+'.hdr'))
 
         return self.__tmpdemdir.name
 

@@ -277,7 +277,7 @@ def _declare_know_files(
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     # known_dirs.update([dirname(fn, 1) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
-    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager.tmpdemdir', lambda slf, dem_tile_info, dem_filename: demtmpdir)
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
     mocker.patch('glob.glob',        lambda pat  : glob(pat, known_files))
@@ -351,7 +351,13 @@ def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
 
-def mock_upto_concat_S2(application_mocker: OTBApplicationsMockContext, file_db, calibration, N, old_IPF=False):
+def mock_upto_concat_S2(
+        application_mocker: OTBApplicationsMockContext,
+        file_db           : FileDB,
+        calibration       : str,
+        N                 : int,
+        old_IPF           : bool=False
+):
     raw_calibration = 'beta' if calibration == 'normlim' else calibration
     for i in range(N):
         orbit_info = file_db.get_orbit_information(i)
@@ -776,7 +782,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     extent = file_db.TILE_DATA['33NWB']['extent']
     application_mocker.set_expectations(
             'gdalwarp', [
-                "-wm", '2048',
+                "-wm", f'{2048*1024*1024}',
                 "-multi", "-wo", "2",
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",

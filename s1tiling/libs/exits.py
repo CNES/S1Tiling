@@ -96,7 +96,7 @@ class Situation:
         """
         constructor
         """
-        logger.debug('Situation: %s computations errors. %s search failures. %s download failures. %s download timeouts',
+        logger.info('Situation: %s computations errors. %s search failures. %s download failures. %s download timeouts',
                      nb_computation_errors, nb_search_failures, nb_download_failures, nb_download_timeouts)
         if nb_computation_errors > 0:
             self.code = TASK_FAILED

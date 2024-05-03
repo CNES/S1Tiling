@@ -42,6 +42,8 @@ from typing import Dict, List, Optional, Type
 from osgeo import gdal
 import otbApplication as otb
 
+from s1tiling.libs.otbtools import otb_version
+
 from ..file_naming   import (
         OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
 )
@@ -215,7 +217,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
 
         nodata = meta.get('nodata', -32768)
         parameters = [
-                "-wm", str(self.ram_per_process),
+                "-wm", str(self.ram_per_process*1024*1024),
                 "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
                 "-t_srs", f"epsg:{extent['epsg']}",
                 "-tr", f"{spacing}", f"-{spacing}",
@@ -266,7 +268,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="Geoid superimposed on S2 tile",
         )
-        self.__GeoidFile            = cfg.GeoidFile
+        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
         self.__interpolation_method = cfg.interpolation_method
         self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
 
@@ -1514,10 +1516,22 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
                 fname_fmt,
                 image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
         )
+        extra_ef = '&writegeom=false' if otb_version() < '8.0.0' else ''
+        self._extended_filenames = {
+                'LIA'     : extended_filename_lia_degree(cfg) + extra_ef,
+                'sin_LIA' : extended_filename_lia_sin(cfg) + extra_ef,
+        }
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         meta = super()._update_filename_meta_pre_hook(meta)
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
+        return meta
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        meta = super().complete_meta(meta, all_inputs)
+        assert 'out_extended_filename_complement' not in meta, f'{meta["out_extended_filename_complement"]=!r} nothing was expected'
+        kind = meta['LIA_kind']
+        meta['out_extended_filename_complement'] = self._extended_filenames[kind]
         return meta
 
     def _get_input_image(self, meta: Meta) -> str:
@@ -1533,7 +1547,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         types = {
                 'sin_LIA': 'SIN(LIA)',
                 'LIA': '100 * degree(LIA)'
-                }
+        }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']
         assert kind in types, f'The only LIA kind accepted are {types.keys()}'
@@ -1571,7 +1585,13 @@ class ConcatenateLIA(_ConcatenatorFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
+                extended_filename=None,  # will be set later...
+                pixel_type=None,         # will be set later...
         )
+        self._extended_filenames = {
+                'LIA'     : extended_filename_lia_degree(cfg),
+                'sin_LIA' : extended_filename_lia_sin(cfg),
+        }
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
@@ -1590,6 +1610,13 @@ class ConcatenateLIA(_ConcatenatorFactory):
         super().update_image_metadata(meta, all_inputs)
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        meta = super().complete_meta(meta, all_inputs)
+        assert 'out_extended_filename_complement' not in meta, f'{meta["out_extended_filename_complement"]=!r} nothing was expected'
+        kind = meta['LIA_kind']
+        meta['out_extended_filename_complement'] = self._extended_filenames[kind]
+        return meta
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """

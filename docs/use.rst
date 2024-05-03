@@ -109,12 +109,11 @@ S1Tiling will then automatically take care of:
    and it will likely end up corrupted.
 
 .. note::
-   This scenario requires `DiapOTB
-   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   This scenario requires `NORMLIM σ0
    <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
-   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
-   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
-   Eventually both will be guaranteed in S1Tiling docker images.
+   At the moment, NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
 
 
 .. _scenario.S1LIAMap:
@@ -142,12 +141,11 @@ masking....
    LIA maps are perfect products to be stored and reused.
 
 .. note::
-   This scenario requires `DiapOTB
-   <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb>`_ and `NORMLIM σ0
+   This scenario requires `NORMLIM σ0
    <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
-   At this times, DiapOTB binaries are shipped with OTB 7.4 (but not with OTB
-   8), and NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
-   Eventually both will be guaranteed in S1Tiling docker images.
+   At the moment, NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
 
 .. note::
    To run :program:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
@@ -462,14 +460,18 @@ You can use this :download:`this template
 
       .. _Processing.cache_dem_by:
   * - ``cache_dem_by``
-    - Tells whether DEM files are copied in a temporary directory, or if
-      symbolic links are to be created.
+    - Tells whether DEM and Geoid files are copied in a temporary directory, or
+      if symbolic links are to be created.
 
       For performance reasons with OTB 7.X, it's better to regroup the minimal
       subset of the DEM files required for processing. Symbolic links work
       fine most of the time, however if the files are on a remote shared
       filesystem (GPFS, NAS...), performances will be degraded. In those cases,
       it's better to copy the required DEM files on a local filesystem.
+
+      :ref:`Geoid file <paths.geoid_file>` will be also copied (or symlinked),
+      but in :samp:`{{tmp}}/geoid/`. It won't be removed automatically.  You
+      can also do it manually before running S1Tiling.
 
       Two values are supported for this option: ``copy`` and ``symlink``.
       (default: ``symlink``).
@@ -831,7 +833,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`
           - ``.lia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+          - ``uint16 COMPRESS=DEFLATE&gdal``
 
             .. _Processing.creation_options.lia_sin:
         * - :ref:`sin(LIA) <lia-files>`

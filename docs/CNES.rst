@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _CNES:
 
 .. index:: HAL
@@ -26,13 +31,17 @@ HAL/TREX user guides.
     ml av version
 
     # Activate a specific version
-    ml s1tiling/1.0.0rc2-otb7.4.2
+    ml s1tiling/1.0.0-otb7.4.2
+    # Or...
+    ml s1tiling/1.1.0rc1-otb9.0.0
 
 
 .. note::
 
-    For the moment, only S1Tiling 1.0 RC2 is installed with a dependency to OTB
-    7.4.2, Python 3.8.4 and G++ 8.2.
+    Only S1Tiling 1.0 will ever be installed with a dependency to OTB 7.4.2
+    (and Python 3.8.4 and g++ 8.2). |br|
+    S1Tiling 1.1.0 will be installed once with a dependency to OTB 7.4.2, and
+    once with a dependency to OTB 9.
 
 Installation on HAL/TREX
 ------------------------
@@ -99,7 +108,7 @@ To use it
     internally. See: :download:`install-CNES.sh
     <../s1tiling/resources/install-CNES.sh>`
 
-    Prefer the later approach based on conda if you wish to use a different
+    Prefer the next approach based on conda if you wish to use a different
     version of Python.
 
 ...from available OTB module (and w/ conda)
@@ -154,7 +163,7 @@ To use it
 Given :file:`otbenv.profile` cannot be unloaded, prefer the above methods based
 on OTB module.
 
-First let's start by installing OTB binaries somewhere in your personnal (or
+First let's start by installing OTB binaries somewhere in your personal (or
 project) environment.
 
 .. code:: bash
@@ -325,7 +334,7 @@ cluster like HAL or TREX.
           dem_dir : /work/datalake/static_aux/MNT/SRTM_30_hgt
 
   * - :ref:`[Processing].cache_dem_by <Processing.cache_dem_by>`
-    - DEM files should be **copied** locally on :ref:`[PATHS].tmp
+    - DEM and Geoid files should be **copied** locally on :ref:`[PATHS].tmp
       <paths.tmp>` instead of being symlinked over the GPFS.
 
       .. code:: ini
@@ -347,7 +356,7 @@ cluster like HAL or TREX.
   * - PBS resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
-        so on. This means ``select`` value shall be one.
+        so on. This means PBS ``select`` value shall be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the
@@ -405,7 +414,7 @@ SLRUM job file (TREX)
     # S1tiling request file.
 
     # Let's use an existing S1Tiling module
-    s1tiling/1.0.0rc2-otb7.4.2
+    ml s1tiling/1.1.0rc1-otb9.0.0
 
     # Expecting S1Processor.cfg in ${SLURM_SUBMIT_DIR}, the logs will be
     # produced in a subdirectory named after the the JOB ID.
@@ -441,7 +450,7 @@ PBS job file (HAL)
     # S1tiling request file.
 
     # Let's use an existing S1Tiling module
-    s1tiling/1.0.0rc2-otb7.4.2
+    ml s1tiling/1.1.0rc1-otb9.0.0
 
     # Expecting S1Processor.cfg in ${PBS_O_WORKDIR}, the logs will be
     # produced in a subdirectory named after the the JOB ID.
