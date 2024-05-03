@@ -375,7 +375,7 @@ class Calibrate(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
-                )
+        )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
         # Locally override calibration type in case of normlim calibration
@@ -447,7 +447,7 @@ class CorrectDenoising(OTBStepFactory):
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
-                )
+        )
         self.__lower_signal_value = cfg.lower_signal_value
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -1004,7 +1004,7 @@ class SmoothBorderMask(OTBStepFactory):
                 'xradius'               : 5,
                 'yradius'               : 5 ,
                 'filter'                : 'opening'
-                }
+        }
 
 
 # ----------------------------------------------------------------------
