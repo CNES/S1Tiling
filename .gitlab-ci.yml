@@ -92,14 +92,18 @@ variables:
 
 # Package
 # TODO: Reuse installation done in .common-dev
-.package:
-    extends: .common-dev
-    stage: build
-    script:
+package9:
+  extends: .common-dev
+  variables:
+    OS: ubuntu
+    OS_VERSION: "22.04"
+    OTB_VERSION: "${OTB9_VERSION}"
+  stage: build
+  script:
     - python3 setup.py sdist bdist_wheel
-    artifacts:
-        paths:
-            - dist/
+  artifacts:
+    paths:
+      - dist/
 
 # Run tests
 # TODO: Reuse installation done in .common-dev
@@ -149,8 +153,12 @@ variables:
 # - TWINE_PASSWORD
 # - TWINE_USERNAME
 # TODO: Reuse installation done in .common-dev
-.pypi:
+pypi9:
     extends: .common-dev
+    variables:
+      OS: ubuntu
+      OS_VERSION: "22.04"
+      OTB_VERSION: "${OTB9_VERSION}"
     stage: deploy
     script:
     # Upload only EGG as Wheel as formal dependency to gdal.
@@ -158,8 +166,8 @@ variables:
     - echo python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
     # TODO: test the variables exist!
     - python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
-    # dependencies:
-    #     - .package
+    dependencies:
+        - package9
     only:
         # - tags
         - /^[0-9]+\.[0-9]+.*/
@@ -232,22 +240,6 @@ pages9:
     OS: ubuntu
     OS_VERSION: "22.04"
     OTB_VERSION: "${OTB9_VERSION}"
-
-package9:
-  extends: .package
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
-
-pypi9:
-  extends: .pypi
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
-  dependencies:
-    - package9
 
 test-doc9:
   extends: .test-doc
