@@ -125,8 +125,6 @@ package9:
         when: always
         reports:
             junit: report.xml
-    except:
-        - /commits-of-the-lost-artefact/
 
 # Test the documentation compiles
 # TODO: Reuse installation done in .common-doc
@@ -162,22 +160,18 @@ pypi9:
       OS_VERSION: "22.04"
       OTB_VERSION: "${OTB9_VERSION}"
     stage: deploy
-    needs:
-        - package9
     script:
-    # Upload only EGG as Wheel has formal dependency to gdal.
-    - python3 -m pip install --upgrade twine
-    - echo python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
-    - ls
-    - ls dist/
-    # TODO: test the variables exist!
-    # - python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
-    only:
-        # - tags
-        - /^[0-9]+\.[0-9]+.*/
-        - /commits-of-the-lost-artefact/
-    # rules:
-    #   - if: $CI_COMMIT_TAG != null
+      # Upload only EGG as Wheel has formal dependency to gdal.
+      - python3 -m pip install --upgrade twine
+      - ls dist/
+      - echo python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
+      # TODO: test the variables and the files exist!
+      - python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
+    dependencies:
+      - package9
+    rules:
+      # only for tags
+      - if: $CI_COMMIT_TAG != null
 
 # Upload latest documentation when develop/master branches are updated
 # TODO: Reuse installation done in .common-doc
@@ -199,10 +193,11 @@ pypi9:
         - public
     environment:
         name: generate_docs
-    only:
-    - master
-    - develop
-    - /^[0-9]+\.[0-9]+.*/
+    rules:
+      # only for tags, master & develop
+      - if: $CI_COMMIT_TAG != null
+      - if: $CI_COMMIT_BRANCH == "master"
+      - if: $CI_COMMIT_BRANCH == "develop"
 
 #======================================================================
 #
@@ -279,8 +274,9 @@ ubuntu-user7:
     OS_VERSION: "20.04"
     OTB_VERSION: "${OTB7_VERSION}"
     STEP: user
-  only:
-  - /^[0-9]+\.[0-9]+.*/
+  rules:
+    # only for tags
+    - if: $CI_COMMIT_TAG != null
 
 ubuntu-user9:
   extends: .common-docker-build
@@ -290,7 +286,8 @@ ubuntu-user9:
     OS_VERSION: "22.04"
     OTB_VERSION: "${OTB9_VERSION}"
     STEP: user
-  only:
-  - /^[0-9]+\.[0-9]+.*/
+  rules:
+    # only for tags
+    - if: $CI_COMMIT_TAG != null
 
 # vim: set sw=2:
