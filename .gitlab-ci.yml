@@ -126,7 +126,7 @@ package9:
         reports:
             junit: report.xml
     except:
-        - /commits-of-the-last-artefact/
+        - /commits-of-the-lost-artefact/
 
 # Test the documentation compiles
 # TODO: Reuse installation done in .common-doc
@@ -175,7 +175,7 @@ pypi9:
     only:
         # - tags
         - /^[0-9]+\.[0-9]+.*/
-        - /commits-of-the-last-artefact/
+        - /commits-of-the-lost-artefact/
     # rules:
     #   - if: $CI_COMMIT_TAG != null
 
