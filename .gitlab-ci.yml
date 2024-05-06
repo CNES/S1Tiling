@@ -174,13 +174,16 @@ pypi9:
       - if: $CI_COMMIT_TAG != null
 
 # Upload latest documentation when develop/master branches are updated
-# TODO: Reuse installation done in .common-doc
-.pages:
-    extends: .common-doc
-    stage: deploy
-    # resource_group: documentation_cache
-    resource_group: raoul_is_really_constrainst
-    script:
+pages:  # Job name need to be pages, in deploy stage!
+  extends: .common-doc
+  stage: deploy
+  # resource_group: documentation_cache
+  resource_group: raoul_is_really_constrainst
+  variables:
+    OS: ubuntu
+    OS_VERSION: "22.04"
+    OTB_VERSION: "${OTB9_VERSION}"
+  script:
     - mkdir public
     # TODO: lock access to public
     - rclone copy s3_otb:s1-tiling/www public || echo "Oups| no www/ on S3"
@@ -188,16 +191,16 @@ pypi9:
     - ls public
     - docs/install_and_deploy_doc.sh public
     - rclone copy public s3_otb:s1-tiling/www
-    artifacts:
-        paths:
-        - public
-    environment:
-        name: generate_docs
-    rules:
-      # only for tags, master & develop
-      - if: $CI_COMMIT_TAG != null
-      - if: $CI_COMMIT_BRANCH == "master"
-      - if: $CI_COMMIT_BRANCH == "develop"
+  artifacts:
+    paths:
+      - public
+  environment:
+    name: generate_docs
+  rules:
+    # only for tags, master & develop
+    - if: $CI_COMMIT_TAG != null
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 #======================================================================
 #
@@ -235,13 +238,6 @@ pypi9:
 #
 # Effective stages
 #
-
-pages9:
-  extends: .pages
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
 
 test-doc9:
   extends: .test-doc
