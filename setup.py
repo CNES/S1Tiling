@@ -30,7 +30,8 @@
 import os
 import subprocess
 
-from setuptools import setup, find_packages, find_namespace_packages
+from setuptools import setup, find_namespace_packages
+import re
 
 
 # Import the library to make sure there is no side effect
@@ -45,6 +46,11 @@ def request_gdal_version() -> str:
     except Exception:  # pylint: disable=broad-except
         return '3.1.0'
 
+
+def normalize(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
 metadata = {}
@@ -55,7 +61,7 @@ with open(os.path.join(BASEDIR, "README.md"), "r") as f:
     readme = f.read()
 
 setup(
-    name                          = metadata["__title__"],
+    name                          = normalize(metadata["__title__"]),
     version                       = metadata["__version__"],
     description                   = metadata["__description__"],
     long_description              = readme,

@@ -167,11 +167,11 @@ pypi9:
     script:
     # Upload only EGG as Wheel has formal dependency to gdal.
     - python3 -m pip install --upgrade twine
-    - echo python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
+    - echo python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
     - ls
     - ls dist/
     # TODO: test the variables exist!
-    # - python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
+    # - python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
     only:
         # - tags
         - /^[0-9]+\.[0-9]+.*/
