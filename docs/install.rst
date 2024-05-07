@@ -279,7 +279,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
     docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0
     # or
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
 
 or even directly used with
 
