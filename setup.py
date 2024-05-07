@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2024 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -30,7 +30,8 @@
 import os
 import subprocess
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
+import re
 
 
 # Import the library to make sure there is no side effect
@@ -45,6 +46,11 @@ def request_gdal_version() -> str:
     except Exception:  # pylint: disable=broad-except
         return '3.1.0'
 
+
+def normalize(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
 BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
 metadata = {}
@@ -55,7 +61,7 @@ with open(os.path.join(BASEDIR, "README.md"), "r") as f:
     readme = f.read()
 
 setup(
-    name                          = metadata["__title__"],
+    name                          = normalize(metadata["__title__"]),
     version                       = metadata["__version__"],
     description                   = metadata["__description__"],
     long_description              = readme,
@@ -72,7 +78,7 @@ setup(
     # python recursivement dans le dossier courant.
     # C'est pour cette raison que l'on a tout mis dans un seul dossier:
     # on peut ainsi utiliser cette fonction facilement
-    packages=find_packages(exclude=("*.tests", "*.tests.*", "tests.*", "tests")),
+    packages=find_namespace_packages(exclude=("*.tests", "*.tests.*", "tests.*", "tests")),
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 

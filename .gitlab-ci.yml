@@ -92,14 +92,18 @@ variables:
 
 # Package
 # TODO: Reuse installation done in .common-dev
-.package:
-    extends: .common-dev
-    stage: build
-    script:
+package9:
+  extends: .common-dev
+  variables:
+    OS: ubuntu
+    OS_VERSION: "22.04"
+    OTB_VERSION: "${OTB9_VERSION}"
+  stage: build
+  script:
     - python3 setup.py sdist bdist_wheel
-    artifacts:
-        paths:
-            - dist/
+  artifacts:
+    paths:
+      - dist/
 
 # Run tests
 # TODO: Reuse installation done in .common-dev
@@ -149,29 +153,37 @@ variables:
 # - TWINE_PASSWORD
 # - TWINE_USERNAME
 # TODO: Reuse installation done in .common-dev
-.pypi:
+pypi9:
     extends: .common-dev
+    variables:
+      OS: ubuntu
+      OS_VERSION: "22.04"
+      OTB_VERSION: "${OTB9_VERSION}"
     stage: deploy
     script:
-    # Upload only EGG as Wheel as formal dependency to gdal.
-    - python3 -m pip install --upgrade twine
-    - echo python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
-    # TODO: test the variables exist!
-    - python3 -m twine upload --repository pypi dist/S1Tiling-*.tar.gz
-    # dependencies:
-    #     - .package
-    only:
-        # - tags
-        - /^[0-9]+\.[0-9]+.*/
+      # Upload only EGG as Wheel has formal dependency to gdal.
+      - python3 -m pip install --upgrade twine
+      - ls dist/
+      - echo python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
+      # TODO: test the variables and the files exist!
+      - python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
+    dependencies:
+      - package9
+    rules:
+      # only for tags
+      - if: $CI_COMMIT_TAG != null
 
 # Upload latest documentation when develop/master branches are updated
-# TODO: Reuse installation done in .common-doc
-.pages:
-    extends: .common-doc
-    stage: deploy
-    # resource_group: documentation_cache
-    resource_group: raoul_is_really_constrainst
-    script:
+pages:  # Job name need to be pages, in deploy stage!
+  extends: .common-doc
+  stage: deploy
+  # resource_group: documentation_cache
+  resource_group: raoul_is_really_constrainst
+  variables:
+    OS: ubuntu
+    OS_VERSION: "22.04"
+    OTB_VERSION: "${OTB9_VERSION}"
+  script:
     - mkdir public
     # TODO: lock access to public
     - rclone copy s3_otb:s1-tiling/www public || echo "Oups| no www/ on S3"
@@ -179,15 +191,16 @@ variables:
     - ls public
     - docs/install_and_deploy_doc.sh public
     - rclone copy public s3_otb:s1-tiling/www
-    artifacts:
-        paths:
-        - public
-    environment:
-        name: generate_docs
-    only:
-    - master
-    - develop
-    - /^[0-9]+\.[0-9]+.*/
+  artifacts:
+    paths:
+      - public
+  environment:
+    name: generate_docs
+  rules:
+    # only for tags, master & develop
+    - if: $CI_COMMIT_TAG != null
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 #======================================================================
 #
@@ -204,12 +217,13 @@ variables:
   variables:
     # Cannot work because of $(sh ...
     FULL_VERSION: $(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}
+    BASE_FULL_VERSION: ${S1TD_VERSION}-${OS}${OS_VERSION}-otb${OTB_VERSION}
   before_script:
     - *prepare-docker-config
   script:
     - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
     - sh $CI_PROJECT_DIR/docker/version_name.sh
-    - echo "> docker build ${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
+    - echo "> docker build ${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION} <-- ${BASE_FULL_VERSION}"
     - /kaniko/executor --cleanup
                        --verbosity info
                        --context "${CI_PROJECT_DIR}/"
@@ -224,29 +238,6 @@ variables:
 #
 # Effective stages
 #
-
-pages9:
-  extends: .pages
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
-
-package9:
-  extends: .package
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
-
-pypi9:
-  extends: .pypi
-  variables:
-    OS: ubuntu
-    OS_VERSION: "22.04"
-    OTB_VERSION: "${OTB9_VERSION}"
-  dependencies:
-    - package9
 
 test-doc9:
   extends: .test-doc
@@ -279,8 +270,9 @@ ubuntu-user7:
     OS_VERSION: "20.04"
     OTB_VERSION: "${OTB7_VERSION}"
     STEP: user
-  only:
-  - /^[0-9]+\.[0-9]+.*/
+  rules:
+    # only for tags
+    - if: $CI_COMMIT_TAG != null
 
 ubuntu-user9:
   extends: .common-docker-build
@@ -290,7 +282,8 @@ ubuntu-user9:
     OS_VERSION: "22.04"
     OTB_VERSION: "${OTB9_VERSION}"
     STEP: user
-  only:
-  - /^[0-9]+\.[0-9]+.*/
+  rules:
+    # only for tags
+    - if: $CI_COMMIT_TAG != null
 
 # vim: set sw=2:
