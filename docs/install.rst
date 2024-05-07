@@ -12,50 +12,34 @@ Installation
 Manual installation with pip
 ----------------------------
 
-OTB & GDAL dependency
-+++++++++++++++++++++
+S1Tiling is a Linux Python software which is based on Python packages but also to C++ software OTB and GDAL.
+We recommend to use a dedicated Python virtual environement and a dedicated OTB 9.0.0 binary installation to install S1Tiling.
+If you want use the OTB 7.4.2 version please consider the S1Tiling previous version installation instructions.
 
-S1 Tiling depends on OTB 7.3+, or OTB 8.1.1+, but we recommend the latest,
-which at the moment is `OTB 9.0.0
-<https://www.orfeo-toolbox.org/CookBook-9.0/>`_. Or if you really need you can
-use `OTB 7.4.2 <https://www.orfeo-toolbox.org/CookBook-7.4/>`_.
+Please find below a step by step installation:
 
-First install OTB on your platform. See the `related documentation
-<https://www.orfeo-toolbox.org/CookBook-9.0/Installation.html>`_ to install OTB
-on your system. Things has changed between versions 8.x and 9.x.
+.. code-block:: bash
 
-Then, you'll also need a version of GDAL which is compatible with your OTB
-version.
+    # First create a virtual environment and use it
+    python3 -m venv venv-s1tiling
+    source venv-s1tiling/bin/activate
 
-- In case you're using OTB binary distribution, you'll need to **patch** the
-  files provided.
+    # Upgrade pip and setuptools in your virtual environment
+    pip install --upgrade pip
+    pip install --upgrade setuptools
 
-  - For that purpose you can **drop** this simplified and generic version of
-    :download:`gdal-config <../s1tiling/resources/gdal-config>` into the
-    ``bin/`` directory where you've extracted OTB. This will permit :samp:`pip
-    install gdal=={vernum}` to work correctly.
-  - You'll also have to **patch** :file:`otbenv.profile` to **insert** OTB
-    ``lib/`` directory at the start of :envvar:`$LD_LIBRARY_PATH`. This will
-    permit ``python3 -c 'from osgeo import gdal'`` to work correctly.
+    # Install and configure OTB (included embedded GDAL) for S1Tiling
+    curl https://www.orfeo-toolbox.org/packages/archives/OTB/OTB-9.0.0-Linux.tar.gz -o ./OTB-9.0.0-Linux.tar.gz
+    tar xf OTB-9.0.0-Linux.tar.gz --one-top-level=./venv-s1tiling/otb-9.0.0
+    curl https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/1.1.0rc1/_downloads/6b5223a542baf214a8a6820bf4e786cf/gdal-config -o venv-s1tiling/otb-9.0.0/bin/gdal-config
+    # https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/raw/1.1.0rc1/s1tiling/resources/gdal-config?ref_type=tags&inline=false
+    echo -e '\nLD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> venv-s1tiling/otb-9.0.0/otbenv.profile
+    source venv-s1tiling/otb-9.0.0/otbenv.profile
 
-        .. code-block:: bash
+    # Install S1Tiling
+    pip install S1Tiling==1.1.0rc1
 
-            # For instance, type this, once!
-            echo 'LD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> otbenv.profile
-
-  - You may also have to make sure ``numpy`` is installed before gdal Python
-    bindings. i.e.
-
-        .. code-block:: bash
-
-            python3 -m pip install numpy
-            python3 -m pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
-
-
-- In case you've compiled OTB from sources, you shouldn't have this kind of
-  troubles.
-
-- On clusters where OTB has been compiled from sources, you can simply load the
+On CNES cluster where OTB has been compiled from sources, you can simply load the
   associated module:
 
         .. code-block:: bash
@@ -74,107 +58,6 @@ version.
    you'll need to inject in your ``$PATH`` a version of :download:`gdal-config
    <../s1tiling/resources/gdal-config>` tuned to return GDAL configuration
    information.
-
-Possible conflicts on Python version
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The Python version you have chosen may not match exactly the version used to
-generate Python bindings of the version of OTB you have selected.
-This means you'll likely need to recompile OTB Python bindings as described in:
-https://www.orfeo-toolbox.org/CookBook/Installation.html#recompiling-python-bindings
-
-
-.. code-block:: bash
-
-    cd OTB-9.0.0-Linux64
-    source otbenv.profile
-    # require g++, cmake
-    ctest3 -S share/otb/swig/build_wrapping.cmake -VV
-
-Conflicts between rasterio default wheel and OTB binaries
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. note::
-   **TL;DR** In the case you install **other programs alongside S1Tiling** in
-   the same environment, and that programs depend on ``rasterio``, then use
-   :program:`pip` with ``--no-binary rasterio`` parameter.
-
-   The current version of S1Tiling doesn't depend on any package that requires
-   ``rasterio``, and thus ``pip install s1tiling`` is enough.
-
-
-The following paragraph applies **only** in case you install other Python
-programs alongside S1Tiling in the same environment. And the wheels of these
-programs have hardcoded the version of GDAL they depend upon, like this is the
-case with ``rasterio``.
-
-We had found a compatibility issue between OTB and default rasterio packaging.
-The kind that produces:
-
-.. code-block:: none
-
-    Unable to open EPSG support file gcs.csv
-
-The problem came from:
-
-- OTB binaries that come with GDAL 3.1 and that set :envvar:`$GDAL_DATA` to
-  the valid path in OTB binaries,
-- and GDAL 2.5+ that no longer ships :file:`gcs.csv`,
-- and GDAL 2.4.4 that requires :file:`gcs.csv` in :envvar:`$GDAL_DATA`
-- and rasterio (used to be required by eodag 1.x) wheel that was statically
-  built with gdal 2.4.4
-
-Either we could have globally changed :envvar:`$GDAL_DATA` to rasterio's one
-(which requires an extra step, and which may introduce other problems), or we
-could have forced rasterio to depend on GDAL library shipped with OTB.
-
-Since December 15th 2020 `rasterio wheel
-<https://github.com/rasterio/rasterio-wheels/blob/master/env_vars.sh#L11>`_
-depends on GDAL 3.2, while OTB binaries depend on GDAL 3.1. We are not sure
-there aren't any compatibility issues between both versions.
-
-As a consequence,
-if you are in this situation where you need S1Tiling, or may be just OTB, plus
-any other package that relies on rasterio, then we highly recommend to use
-:program:`pip` with ``--no-binary rasterio`` parameter to force OTB version of
-GDAL and rasterio version of GDAL to be identical.
-
-
-S1 Tiling installation
-++++++++++++++++++++++
-
-Then you can install S1 Tiling thanks to `pip`.
-
-.. code-block:: bash
-
-    # First go into a virtual environment (optional)
-    # a- It could be a python virtual environment
-    python3 -m venv myS1TilingEnv
-    cd myS1TilingEnv
-    source bin/activate
-    # b- or a conda virtual environment
-    conda create -n myS1TilingEnv python==3.10
-    conda activate myS1TilingEnv
-
-    # Then, upgrade pip and setuptools in your virtual environment
-    python -m pip install --upgrade pip
-    python -m pip install --upgrade setuptools==57.5.0
-
-    # Finally, install S1 Tiling
-    #   Note: older versions of pip used to require --use-feature=2020-resolver
-    #   to install S1Tiling to resolve `click` version that `eodag` also uses.
-    python -m pip install s1tiling
-
-    # Or, developper-version if you plan to work on S1 Tiling source code
-    mkdir whatever && cd whatever
-    git clone git@gitlab.orfeo-toolbox.org:s1-tiling/s1tiling.git
-    cd s1tiling
-    python -m pip install -r requirements-dev.txt
-
-.. note::
-
-    The :file:`requirements*.txt` files already force rasterio wheel to be
-    ignored.
 
 Installation scripts
 ++++++++++++++++++++
