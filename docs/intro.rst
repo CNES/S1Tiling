@@ -6,12 +6,17 @@ Introduction
 ============
 
 
-`Sentinel-1  <https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1>`_ 
-is currently the only mission to provide long times serie of Synthetic Aperture Radar 
-(SAR) data over land. In order to generate *"Analysis Ready Data"* for various related application,
-CNES, in collaboration with CESBIO, have created and developed since several years an operational
-processor to generate calibrated and ortho-rectified Sentinel-1 data on the Sentinel-2 grid: **S1Tiling**.
-With this Python software, users can easily used jointly Sentinel-1 and Sentinel-2 time series.
+`Sentinel-1
+<https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1>`_ is
+currently the only mission to provide long time series of Synthetic Aperture
+Radar (SAR) data over land. In order to generate *"Analysis Ready Data"* for
+various related application, CNES, in collaboration with CESBIO, have created
+and developed since several years an operational processor to generate
+calibrated and ortho-rectified Sentinel-1 data on the Sentinel-2 grid:
+**S1Tiling**.
+
+With this Python software, users can easily use jointly Sentinel-1 and
+Sentinel-2 time series.
 
 .. list-table::
   :widths: auto
@@ -30,7 +35,7 @@ With this Python software, users can easily used jointly Sentinel-1 and Sentinel
            :alt:   The orthorectified result
            :align: left
 
-**S1Tiling** was developed as an open source project by CNES based on the 
+**S1Tiling** was developed as an open source project by CNES based on the
 existing CNES open source project `Orfeo Tool Box <https://www.orfeo-toolbox.org/>`_.
 
 The resulting images are gridded to Sentinel-2 MGRS geographic reference grid (`S2 tiling system - kml file <https://sentinel.esa.int/documents/247904/1955685/S2A_OPER_GIP_TILPAR_MPC__20151209T095117_V20150622T000000_21000101T000000_B00.kml>`_).
