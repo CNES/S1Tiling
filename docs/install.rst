@@ -12,15 +12,27 @@ Installation
 Manual installation with pip
 ----------------------------
 
-S1Tiling is a Linux Python software which is based on Python packages but also to C++ software OTB and GDAL.
-We recommend to use a dedicated Python virtual environement and a dedicated OTB 9.0.0 binary installation to install S1Tiling.
-If you want use the OTB 7.4.2 version please consider the S1Tiling previous version installation instructions.
+
+From OTB binaries
++++++++++++++++++
+
+S1Tiling is a Linux Python software which is based on Python packages but also
+on C++ softwares OTB and GDAL.
+
+We recommend to use a dedicated Python virtual environment and a dedicated OTB
+{REF_OTB_VERSION} binary installation to install S1Tiling.
+If you want use the OTB 7.4.2 version please consider the installation
+instructions from previous S1Tiling version.
+
+  .. note:: OTB 9+ binaries aren't compatible with older distributions of Linux like for instance Ubuntu 18.04.
 
 Please find below a step by step installation:
 
 .. code-block:: bash
 
     # First create a virtual environment and use it
+    # | We won't document other approaches like conda (that enables selecting
+    # | any version of Python), nor poetry, uv...
     python3 -m venv venv-s1tiling
     source venv-s1tiling/bin/activate
 
@@ -28,30 +40,31 @@ Please find below a step by step installation:
     pip install --upgrade pip
     pip install --upgrade setuptools
 
+    # Make sure numpy is properly installed before updating GDAL python bindings
+    pip install numpy
+
     # Install and configure OTB (included embedded GDAL) for S1Tiling
-    curl https://www.orfeo-toolbox.org/packages/archives/OTB/OTB-9.0.0-Linux.tar.gz -o ./OTB-9.0.0-Linux.tar.gz
-    tar xf OTB-9.0.0-Linux.tar.gz --one-top-level=./venv-s1tiling/otb-9.0.0
-    curl https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/1.1.0rc1/_downloads/6b5223a542baf214a8a6820bf4e786cf/gdal-config -o venv-s1tiling/otb-9.0.0/bin/gdal-config
-    # https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/raw/1.1.0rc1/s1tiling/resources/gdal-config?ref_type=tags&inline=false
-    echo -e '\nLD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> venv-s1tiling/otb-9.0.0/otbenv.profile
-    source venv-s1tiling/otb-9.0.0/otbenv.profile
+    # | Actually, since OTB 9, only the following packages are required:
+    # | - OTB-{REF_OTB_VERSION}-Linux-FeaturesExtraction.tar.gz
+    # | - OTB-{REF_OTB_VERSION}-Linux-Sar.tar.gz
+    # | - OTB-{REF_OTB_VERSION}-Linux-Dependencies.tar.gz
+    # | - OTB-{REF_OTB_VERSION}-Linux-Core.tar.gz
+    # | But, OTB-{REF_OTB_VERSION}-Linux.tar.gz provides all OTB applications
+    curl https://www.orfeo-toolbox.org/packages/archives/OTB/OTB-{REF_OTB_VERSION}-Linux.tar.gz -o ./OTB-{REF_OTB_VERSION}-Linux.tar.gz
+    tar xf OTB-{REF_OTB_VERSION}-Linux.tar.gz --one-top-level=./venv-s1tiling/otb-{REF_OTB_VERSION}
+
+    # Patch gdal-config with a generic and relocatable version
+    curl https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/raw/{VERSION}/s1tiling/resources/gdal-config?ref_type={VERSION_TYPE}&inline=false -o venv-s1tiling/otb-{REF_OTB_VERSION}/bin/gdal-config
+    echo -e '\nLD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> venv-s1tiling/otb-{REF_OTB_VERSION}/otbenv.profile
+    source venv-s1tiling/otb-{REF_OTB_VERSION}/otbenv.profile
+
+    # Note that extra OTB applications for NORMLIM calibration support aren't
+    # installed with this simplified procedure.
+    # At the moment, you'll need to compile them manually from sources, or to
+    # use S1Tiling docker distributions.
 
     # Install S1Tiling
-    pip install S1Tiling==1.1.0rc1
-
-On CNES cluster where OTB has been compiled from sources, you can simply load the
-  associated module:
-
-        .. code-block:: bash
-
-            # Example, on TREX:
-            module load otb/9.0.0-python3.8
-
-        .. note::
-
-            The installation script which is used on CNES clusters would be a
-            good starting point. See: :download:`install-CNES.sh
-            <../s1tiling/resources/install-CNES.sh>`
+    pip install S1Tiling=={VERSION}
 
 .. note::
    We haven't tested yet with packages distributed for Linux OSes. It's likely
@@ -59,10 +72,32 @@ On CNES cluster where OTB has been compiled from sources, you can simply load th
    <../s1tiling/resources/gdal-config>` tuned to return GDAL configuration
    information.
 
+On HPC clusters
++++++++++++++++
+
+The procedure previously described stays valid. Yet you may already have
+pre-installed modules for Python, GDAL, OTB...
+
+As an inspiration, we provide the installation script used on CNES HPC
+clusters. It may be a good starting point. See
+:ref:`CNES installation script <install_cnes>` below.
+
+   .. note::
+      On CNES cluster where OTB has been compiled from sources, you can simply
+      load the associated module:
+
+      .. code-block:: bash
+
+        # Example, on TREX:
+        module load otb/9.0.0-python3.8
+
+
 Installation scripts
 ++++++++++++++++++++
 
 A couple of installation scripts used internally are provided.
+
+.. _install_cnes:
 
 CNES clusters installation script
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -160,7 +195,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION}
     # or
     docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2
 
@@ -172,7 +207,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION} \
         /data/MyS1ToS2.cfg
 
 .. note::
