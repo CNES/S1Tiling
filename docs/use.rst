@@ -100,6 +100,46 @@ S1Tiling will then automatically take care of:
   given an orbit and it direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
+.. list-table::
+  :widths: auto
+  :header-rows: 0
+  :stub-columns: 0
+
+  * - .. figure:: _static/sin_LIA_s1a_33NWB_DES_007.jpeg
+            :alt: sine(LIA)
+            :scale: 50%
+
+            Map of sine(LIA) on 33NWB descending orbit 007
+
+    - .. carousel::
+            :show_controls:
+            :show_indicators:
+            :show_fade:
+            :show_shadows:
+            :show_dark:
+            :show_captions_below:
+            :data-bs-interval: false
+            :data-bs-pause: false
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_beta.jpeg
+                :alt: 33NWB β° calibrated
+                :scale: 50%
+
+                33NWB β° calibrated -- 20200108
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_NormLim.jpeg
+                :alt: 33NWB NORMLIM σ° RTC calibrated
+                :scale: 50%
+
+                33NWB NORMLIM σ° RTC calibrated -- 20200108
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_Normlim_filtered_lee.jpeg
+                :alt: 33NWB NORMLIM σ° RTC calibrated and filtered
+                :scale: 50%
+
+                33NWB σ° RTC calibrated and despeckled (Lee) -- 20200108
+
+
 
 .. warning::
    If you wish to parallelize this scenario and dedicate a different cluster
