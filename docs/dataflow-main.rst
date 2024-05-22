@@ -203,7 +203,7 @@ Margins cutting
 This step takes care of resetting margins content to 0 when too many no-data
 are detected within the margin. This phenomenon happens on coasts. The margins
 aren't cut out like what :external:std:doc:`ExtractROI <Applications/app_ExtractROI>`
-would do but filled with 0's, which permits to keeps the initial geometry.
+would do but filled with 0's, which permits to keep the initial geometry.
 
 The implemented heuristic is to:
 
