@@ -356,7 +356,7 @@ cluster like TREX.
     - RAM allowed per OTB application pipeline, in MB.
 
   * - SLURM resources
-    - - At this time, S1Tiling does not support multiple and related jobs. We
+      - At this time, S1Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
         so on. This means SLURM nodes value shall be one.
 
