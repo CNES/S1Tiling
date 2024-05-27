@@ -30,7 +30,7 @@ For each S2 tile,
       the S2 grid
    2. It :ref:`superposes (concatenates) <concatenation-proc>` the
       orthorectified images into a single S2 tile.
-   3. It :ref:`filters <filter-proc>` the orthorectified images.
+   3. It :ref:`filters <filter-proc>` the orthorectified images to reduce the speckle.
    4. It :ref:`builds masks <mask_generation-proc>`, :ref:`if required
       <Mask.generate_border_mask>`
 

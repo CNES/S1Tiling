@@ -10,7 +10,7 @@ Introduction
 <https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1>`_ is
 currently the only mission to provide long time series of Synthetic Aperture
 Radar (SAR) data over land. In order to generate *"Analysis Ready Data"* for
-various related application, CNES, in collaboration with CESBIO, have created
+various related applications, CNES, in collaboration with CESBIO, have created
 and developed since several years an operational processor to generate
 calibrated and ortho-rectified Sentinel-1 data on the Sentinel-2 grid:
 **S1Tiling**.
@@ -39,8 +39,8 @@ Sentinel-2 time series.
 existing CNES open source project `Orfeo Tool Box <https://www.orfeo-toolbox.org/>`_.
 
 The resulting images are gridded to Sentinel-2 MGRS geographic reference grid (`S2 tiling system - kml file <https://sentinel.esa.int/documents/247904/1955685/S2A_OPER_GIP_TILPAR_MPC__20151209T095117_V20150622T000000_21000101T000000_B00.kml>`_).
-Different Sentinel-1 data providers can be used
-like `PEPS <https://peps.cnes.fr/>`_ or `Copernicus Scihub <https://scihub.copernicus.eu>`_.
+Thanks to `EODAG <https://peps.cnes.fr/>`_ , different Sentinel-1 data providers can be used
+like `PEPS <https://peps.cnes.fr/>`_ or `Copernicus Data Space <https://scihub.copernicus.eu>`_.
 It can be used on any type of platform, from a large computing cluster to a
 laptop (the fan will make some noise during processing). It is considerably
 faster than the ortho-rectification tool in ESA SNAP software with similar results and can be easily used in

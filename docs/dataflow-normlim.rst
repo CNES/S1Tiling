@@ -15,8 +15,8 @@ Normlim data flow
 Two data flows are possibles:
 
 - with :program:`S1LIAMap` only LIA maps are produced,
-- with :program:`S1Processor` LIA maps are produced is not found, then
-  :math:`σ^0_{RTC}` orthorectified files are produced.
+- with :program:`S1Processor` LIA maps are produced if not found, then
+  :math:`σ^0_{RTC}` NORMLIM orthorectified files are produced.
 
 NormLim global processing
 -------------------------
