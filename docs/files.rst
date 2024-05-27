@@ -105,9 +105,7 @@ Orthorectified S2 tiles
 Mask files
 ++++++++++
 
-:Content:
-
-    .. todo:: Thierry?
+:Content: Binary image containing mask on valide data. It is a mask on no-data pixels.
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
 
@@ -145,9 +143,7 @@ Mask files
 Filtered files
 ++++++++++++++
 
-:Content:
-
-    .. todo:: Thierry?
+:Content: Complete final product, after applying the fspeckle filtering if option is activated
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/` by
              default

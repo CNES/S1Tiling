@@ -5,7 +5,6 @@
 
 .. _CNES:
 
-.. index:: HAL
 .. index:: TREX
 
 Some specificities about CNES clusters
@@ -18,9 +17,9 @@ Some specificities about CNES clusters
 Using S1Tiling Lmod module on HAL/TREX
 --------------------------------------
 
-S1Tiling is already installed on HAL and TREX (since June 2023). It's available
+S1Tiling is already installed on TREX (since June 2023). It's available
 through `Lmod <https://lmod.readthedocs.io/en/latest/?badge=latest>`_; see also
-HAL/TREX user guides.
+TREX user guides.
 
 .. code:: bash
 
@@ -43,7 +42,7 @@ HAL/TREX user guides.
     S1Tiling 1.1.0 will be installed once with a dependency to OTB 7.4.2, and
     once with a dependency to OTB 9.
 
-Installation on HAL/TREX
+Installation on TREX
 ------------------------
 
 You may prefer to install S1Tiling yourself. In that case, there are mainly two
@@ -297,7 +296,7 @@ The theory
 ++++++++++
 
 A few options deserve our attention when running S1 Tiling as a job on a
-cluster like HAL or TREX.
+cluster like TREX.
 
 .. list-table::
   :widths: auto
@@ -325,13 +324,16 @@ cluster like HAL or TREX.
          intensive computation on nodes not dedicated to computations.
 
   * - :ref:`[PATHS].dem_dir <paths.dem_dir>`
-    - Original DEM files are stored in
+    - Original SRTM DEM files are stored in
       :file:`/work/datalake/static_aux/MNT/SRTM_30_hgt`.
 
       .. code:: ini
 
           [PATHS]
           dem_dir : /work/datalake/static_aux/MNT/SRTM_30_hgt
+      
+    - Copernics DEM is available in
+      :file:`/work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_extracted`
 
   * - :ref:`[Processing].cache_dem_by <Processing.cache_dem_by>`
     - DEM and Geoid files should be **copied** locally on :ref:`[PATHS].tmp
@@ -344,19 +346,19 @@ cluster like HAL or TREX.
 
   * - :ref:`[Processing].nb_otb_threads <Processing.nb_otb_threads>`
     - This is the number of threads that will be used by each OTB application
-      pipeline.
+      pipeline. A good value is 2.
 
   * - :ref:`[Processing].nb_parallel_processes <Processing.nb_parallel_processes>`
     - This is the number of OTB application pipelines that will be executed in
-      parallel.
+      parallel. Each pipeline will use Processing.nb_otb_threads CPUs
 
   * - :ref:`[Processing].ram_per_process <Processing.ram_per_process>`
     - RAM allowed per OTB application pipeline, in MB.
 
-  * - PBS resources
-    - - At this time, S1 Tiling does not support multiple and related jobs. We
+  * - SLURM resources
+    - - At this time, S1Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
-        so on. This means PBS ``select`` value shall be one.
+        so on. This means SLURM nodes value shall be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the
@@ -380,12 +382,13 @@ cluster like HAL or TREX.
 
       .. code:: bash
 
-        #PBS -l select=1:ncpus=20:mem=40gb
+        #SBATCH -N=1
+        #SBATCH -n=20
+        #SBATCH mem_per_cpu=8gb
         # always 1 for select
         # cpu = 2 * 10 => 20
-        # mem = 10 * 4096 => 40gb
 
-TL;DR: here is an example
+Here is an example
 +++++++++++++++++++++++++
 
 SLRUM job file (TREX)
@@ -395,12 +398,10 @@ SLRUM job file (TREX)
 
     #!/bin/bash
     #SBATCH --account=...
-    #SBATCH --partition=cpu2022   # jobs < 72h
     #SBATCH --qos=...
     #SBATCH -N 1                  # number of nodes (or --nodes=1)
-    #SBATCH -n 1                  # number of tasks (or --ntasks=1)
-    #SBATCH --cpus-per-task=20    # number of cpus par task
-    #SBATCH --mem=160G            # memory per core
+    #SBATCH -n 20                 # number of cpu
+    #SBATCH --mem_per_cpu=8G      # memory per core
     #SBATCH --time=00:59:00       # Wall Time 59mn
     #SBATCH -J job-s1tiling
 
@@ -426,43 +427,6 @@ SLRUM job file (TREX)
         echo "Echec de l'exécution de programme" >&2
         exit ${code}
     }
-
-PBS job file (HAL)
-~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-    #!/bin/bash
-    #PBS -N job-s1tiling
-    #PBS -l select=1:ncpus=20:mem=40gb
-    #PBS -l walltime=1:00:00
-
-    # NB: Using 5Gb per cpu
-
-    # The number of allocated CPUs is in the select parameter let's extract it
-    # automatically
-    NCPUS=$(qstat -f "${PBS_JOBID}" | awk '/resources_used.ncpus/{print $3}')
-    # Let's use 2 threads in each OTB application pipeline
-    export NB_OTB_THREADS=2
-    # Let's deduce the number of OTB application pipelines to run in parallel
-    export NB_OTB_PIPELINES=$(($NCPUS / $NB_OTB_THREADS))
-    # These two variables have been exported to be automatically used from the
-    # S1tiling request file.
-
-    # Let's use an existing S1Tiling module
-    ml s1tiling/1.1.0rc1-otb9.0.0
-
-    # Expecting S1Processor.cfg in ${PBS_O_WORKDIR}, the logs will be
-    # produced in a subdirectory named after the the JOB ID.
-    WORK_DIR="${PBS_O_WORKDIR}/${PBS_JOBID}"
-    mkdir -p "${WORK_DIR}"
-    cd "${WORK_DIR}"
-    S1Processor --cache-before-ortho ../S1Processor.cfg || {
-        code=$?
-        echo "Echec de l'exécution de programme" >&2
-        exit ${code}
-    }
-
 
 S1 Tiling request file: :file:`S1Processor.cfg`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
