@@ -1007,7 +1007,7 @@ def test_33NWB_202001_lia_mocked(
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.lia_directory    = liadir.absolute()
+    configuration.map_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
@@ -1048,7 +1048,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.lia_directory    = liadir.absolute()
+    configuration.map_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
@@ -1118,7 +1118,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.lia_directory = liadir.absolute()
+    configuration.map_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)

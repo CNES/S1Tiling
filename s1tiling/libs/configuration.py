@@ -294,8 +294,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
         self.output_preprocess   = accessor.get('Paths', 'output')
-        #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory       = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        #: Destination directory where maps products are generated:  :ref:`[PATHS.map] <paths.map>`
+        self.map_directory       = accessor.get('Paths', 'map', fallback=os.path.join(self.output_preprocess, '_MAP'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory       = accessor.get('Paths', 's1_images')
 
@@ -466,6 +466,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if self.dem_warp_resampling_method not in resamplings:
             accessor.throw(f"{self.dem_warp_resampling_method} is an invalid choice for `dem_warp_resampling_method`. Choose one among {resamplings}")
 
+        # - - - - - - - - - -[ GAMMA AREA
+        #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
+        self.produce_gamma_area_map = accessor.getboolean('Processing', 'produce_gamma_area_map', fallback=False)
+
     # ----------------------------------------------------------------------
     def __init_filtering(self, accessor: _ConfigAccessor) -> None:
         #: Despeckle filter to apply, if any: See :ref:`[Filtering.filter] <Filtering.filter>`
@@ -500,9 +504,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 'orthorectification', 'concatenation', 'filtered',
                 'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
                 'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+                'gamma_area_product', 's2_gamma_area_corrected',
                 # Keys to deprecated workflow
-                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
+                'dem_s1_agglomeration', 's1_on_dem', 's1_on_geoid_dem', 'xyz', 'normals_on_s1',
                 'lia_orthorectification', 'lia_concatenation',
+                'gamma_area_orthorectification', 'gamma_area_concatenation'
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
@@ -516,7 +522,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         dname_fmt_keys = [
                 'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_product',
+                's1_lia',  's1_sin_lia', 'lia_product', 'gamma_area_product'
         ]
         self.dname_fmt = {}
         for key in dname_fmt_keys:
@@ -530,7 +536,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         creation_options_keys = [
                 'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin',
+                's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin', 's1_gamma_area'
         ]
         self.creation_options = {}
         for key in creation_options_keys:
@@ -564,7 +570,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- geoid_file                       : %s",     self.GeoidFile)
         logging.info("- s1_images                        : %s",     self.raw_directory)
         logging.info("- output                           : %s",     self.output_preprocess)
-        logging.info("- LIA                              : %s",     self.lia_directory)
+        logging.info("- MAP                              : %s",     self.map_directory)
         logging.info("- dem directory                    : %s",     self.dem)
         logging.info("- dem filename format              : %s",     self.dem_filename_format)
         logging.info("- dem field ids (from shapefile)   : %s",     self.dem_field_ids)
@@ -596,6 +602,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles                            : %s",     self.tile_list)
         logging.info("- tiles_shapefile                  : %s",     self.output_grid)
         logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
+        logging.info("- produce GAMMA_AREA° map          : %s",     self.produce_gamma_area_map)
         logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
         logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.info("[Mask]")
@@ -739,7 +746,14 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
     Helper function that returns the ``Processing.dname.lia_product`` actual value,
     or its default value.
     """
-    return cfg.dname_fmt.get('lia_product', '{lia_dir}')
+    return cfg.dname_fmt.get('lia_product', '{map_dir}')
+
+def dname_fmt_gamma_area_product(cfg: Configuration) -> str:
+    """
+    Helper function that returns the ``Processing.dname.gamma_area_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('gamma_area_product', '{map_dir}')
 
 
 def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
@@ -795,6 +809,14 @@ def extended_filename_lia_degree(cfg: Configuration) -> str:
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
+
+def extended_filename_gamma_area(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for GAMMA AREA
+    products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 

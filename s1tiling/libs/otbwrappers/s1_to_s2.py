@@ -60,7 +60,7 @@ from ..steps import (
         ram,
 )
 from ..otbpipeline import (
-    TaskInputInfo,
+    TaskInputInfo, fetch_input_data_all_inputs, fetch_input_data
 )
 from ..otbtools      import otb_version
 from ..              import exceptions
@@ -339,7 +339,7 @@ class AnalyseBorders(StepFactory):
         return meta
 
 
-k_calib_convert = {'normlim' : 'beta'}
+k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
 
 
 class Calibrate(OTBStepFactory):
@@ -661,9 +661,17 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'map.utm.northhem' : extent['utm_northern'],
                 'outputs.ulx'      : extent['xmin'],
                 'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
-                'elev.dem'         : self.__tmp_dem_dir,
-                'elev.geoid'       : self.__GeoidFile
+                'elev.dem'         : self.__tmp_dem_dir
         }
+        #print(meta)
+        #indem = meta['indem_path']
+        #if os.path.exists(indem):
+        #    print(idem)
+        #    parameters["elev.dem"] = indem
+
+        if self.__GeoidFile:
+            parameters["elev.geoid"] = self.__GeoidFile
+
         return parameters
 
 

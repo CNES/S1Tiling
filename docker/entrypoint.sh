@@ -39,6 +39,9 @@ export LANG=C.UTF-8
 if [ "$1" = "--lia" ] ; then
     shift
     S1LIAMap "$@"
+elif [ "$1" = "--gamma_area" ] ; then
+    shift
+    S1GammaNaughtAreaMap "$@"
 else
     S1Processor "$@"
 fi

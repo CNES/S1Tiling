@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 
@@ -62,7 +63,7 @@ from typing import NoReturn
 
 import click
 
-from s1tiling.libs.api import s1_process, s1_process_lia
+from s1tiling.libs.api import s1_process, s1_process_lia, s1_process_gamma_area
 from s1tiling.libs.exits import translate_exception_into_exit_code
 
 from s1tiling.libs.S1FileManager import (
@@ -229,6 +230,72 @@ def run_lia(
     sys.exit(
             cli_execute(
                 s1_process_lia,
+                config_filename,
+                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+                **kwargs
+            ))
+
+# ======================================================================
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option()
+@click.option(
+        "--searched_items_per_page",
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        help="Number of products simultaneously requested by eodag"
+)
+@click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
+)
+@click.option(
+        "--eodag_download_timeout",
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        help="If download fails, maximum time in mins before stop retrying to download"
+)
+@click.option(
+        "--eodag_download_wait",
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
+        help="If download fails, wait time in minutes between two download tries"
+)
+@click.option(
+        "--trace-errors",
+        is_flag=True,
+        help="Display error full traceback, if any",
+)
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--debug-caches",
+        is_flag=True,
+        help="Investigation mode were intermediary cached files are not purged.")
+@click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def run_gamma_area(
+        config_filename,
+        eodag_download_wait,
+        eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process_gamma_area
+) -> NoReturn:
+    """
+    This function is used as entry point to create console scripts with setuptools.
+    """
+    sys.exit(
+            cli_execute(
+                s1_process_gamma_area,
                 config_filename,
                 dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 **kwargs

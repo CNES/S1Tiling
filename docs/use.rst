@@ -90,7 +90,7 @@ Regarding options, the only difference with previous scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that needs to be
   ``normlim``,
-- the :ref:`directory <Paths.lia>` where LIA maps will be searched for, or
+- the :ref:`directory <Paths.map>` where LIA maps will be searched for, or
   produced in.
 
 
@@ -270,10 +270,10 @@ You can use this :download:`this template
   * - ``output``
     - Where products are generated.
 
-      .. _paths.lia:
-  * - ``lia``
+      .. _paths.map:
+  * - ``map``
     - Where Local Incidence Maps and sin(LIA) products are generated. Its
-      default value is ``{output}/_LIA``.
+      default value is ``{output}/_MAP``.
 
       .. _paths.tmp:
   * - ``tmp``
@@ -766,8 +766,8 @@ You can use this :download:`this template
           - :ref:`[PATHS].output <paths.output>`
         * - :samp:`{{tmp_dir}}`
           - :ref:`[PATHS].tmp <paths.tmp>`
-        * - :samp:`{{lia_dir}}`
-          - :ref:`[PATHS].lia <paths.lia>`
+        * - :samp:`{{map_dir}}`
+          - :ref:`[PATHS].map <paths.map>`
 
       .. list-table::
         :widths: auto
@@ -791,7 +791,7 @@ You can use this :download:`this template
             .. _Processing.dname_fmt.lia_product:
         * - :ref:`degree(LIA) and sin(LIA) <lia-files>`
           - ``.lia_product``
-          - :samp:`{{lia_dir}}`
+          - :samp:`{{map_dir}}`
 
             .. _Processing.dname_fmt.filtered:
         * - :ref:`Filtering <filtered-files>`

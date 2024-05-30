@@ -64,6 +64,10 @@ from .otbwrappers import (
         # Deprecated LIA related Step Factories
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
         ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
+        # Gamma Area related Step Factories
+        SARDEMGeoidImageEstimation, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
+        OrthoRectifyGAMMA_AREA, filter_GAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
+        ApplyGammaNaughtRTCCalibration,
         # Filter Step Factories
         SpatialDespeckle)
 from .outcome import Outcome
@@ -535,7 +539,7 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
             inputs={'in': concat_deg},
             product_required=produce_angles)
 
-    ortho_sin       = pipelines.register_pipeline(
+    ortho_sin = pipelines.register_pipeline(
             [filter_LIA('sin_LIA'), OrthoRectifyLIA],
             'OrthoSinLIA',
             inputs={'in': lia},
@@ -606,6 +610,59 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     )
     return lia
 
+def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produce_gamma_area: bool) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    GAMMA AREA map.
+    """
+    dem = pipelines.register_pipeline(
+        [AgglomerateDEMOnS1],
+        'AgglomerateDEM',
+        inputs={'insar': 'basename'}
+    )
+
+    geoid_dem = pipelines.register_pipeline(
+        [ExtractSentinel1Metadata, SARDEMGeoidImageEstimation],
+        'SARDEMGeoidImageEstimation',
+        is_name_incremental=True,
+        inputs={'insar': 'basename', 'indemwithoutgeoid': dem}
+    )
+
+    demproj = pipelines.register_pipeline(
+        [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
+        'SARDEMProjectionImageEstimation',
+        is_name_incremental=True,
+        inputs={'insar': 'basename', 'indem': geoid_dem}
+    )
+
+    gamma_area = pipelines.register_pipeline(
+        [SARGammaAreaImageEstimation],
+        'SARGammaAreaImageEstimation',
+        inputs={'insar': 'basename', 'indem': geoid_dem, 'indemproj': demproj}
+    )
+
+    # "inputs" parameter doesn't need to be specified in the following pipeline declarations
+    # but we still use it for clarity!
+    ortho_gamma_area = pipelines.register_pipeline(
+        [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
+        'OrthoGAMMA_AREA',
+        inputs={'in': gamma_area},
+        is_name_incremental=True
+    )
+    concat_ortho_gamma_area = pipelines.register_pipeline(
+        [ConcatenateGAMMA_AREA],
+        'ConcatGAMMA_AREA',
+        inputs={'in': ortho_gamma_area}
+    )
+
+    best_concat_ortho_gamma_area = pipelines.register_pipeline(
+        [SelectGammaNaughtAreaBestCoverage],
+        'SelectGAMMA_AREA',
+        inputs={'in': concat_ortho_gamma_area},
+        product_required=True
+    )
+
+    return best_concat_ortho_gamma_area
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
@@ -620,6 +677,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         debug_tasks             : bool = False,
         cache_before_ortho      : bool = False,
         lia_process                    = None,
+        gamma_area_process             = None
 ) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
@@ -681,6 +739,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 'Cannot purge non filtered products when mask are also produced!'
 
         chain_LIA_and_despeckle_inmemory    = config.filter and not config.keep_non_filtered_products
+        chain_GAMMA_AREA_and_despeckle_inmemory = config.filter and not config.keep_non_filtered_products
         chain_concat_and_despeckle_inmemory = False  # See issue #118
 
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
@@ -742,6 +801,32 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                     inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2}, is_name_incremental=True)
             last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
+
+        # GAMMA AREA Calibration (...+ Despeckle)
+        if config.calibration_type == 'gamma_naught_rtc':
+            apply_GAMMA_AREA_seq: List[Type[StepFactory]] = [ApplyGammaNaughtRTCCalibration]
+            if chain_GAMMA_AREA_and_despeckle_inmemory:
+                apply_GAMMA_AREA_seq.append(SpatialDespeckle)
+                need_to_keep_non_filtered_products = False
+            else:
+                need_to_keep_non_filtered_products = True
+
+            GammaNaughtArea_registration = gamma_area_process or register_GAMMA_AREA_pipelines
+            gammanaughtareas = GammaNaughtArea_registration(pipelines, config.produce_gamma_area_map)
+
+            # This steps helps forwarding GAMMA AREA (only) to the next step
+            # that corrects the β° with GAMMA AREA map.
+            GAMMA_AREA = pipelines.register_pipeline(
+                [filter_GAMMA_AREA('GAMMA_AREA')],
+                'SelectGAMMA_AREA',
+                is_name_incremental=True,
+                inputs={'in': gammanaughtareas},
+            )
+            # TODO: Merge filter_GAMMA_AREA in apply_GAMMA_AREA_seq!
+            apply_GAMMA_AREA = pipelines.register_pipeline(apply_GAMMA_AREA_seq, product_required=True,
+                                                    inputs={'GAMMA_AREA': GAMMA_AREA, 'concat_S2': concat_S2}, is_name_incremental=True)
+            last_product_S2 = apply_GAMMA_AREA
+            required_workspaces.append(WorkspaceKinds.GAMMA_AREA)
 
         # Masking
         if config.mask_cond:
@@ -916,6 +1001,84 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )
+
+def s1_process_gamma_area(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`GAMMA_AREA Map production scenario <scenario.S1GammaAreaMap>` that
+    generates Gamma Area Maps on S2 geometry.
+
+    It performs the following steps:
+
+    1. Determine the S1 products to process
+        Given a list of S2 tiles, we first determine the day that'll the best
+        coverage of each S2 tile in terms of S1 products.
+
+        In case there is no single day that gives the best coverage for all
+        S2 tiles, we try to determine the best solution that minimizes the
+        number of S1 products to download and process.
+    2. Process these S1 products
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map)
+        required_workspaces = [WorkspaceKinds.GAMMA_AREA]
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(

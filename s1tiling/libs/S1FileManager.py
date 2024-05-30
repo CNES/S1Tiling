@@ -69,7 +69,7 @@ from .Utils             import (
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import (
-        Configuration, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+        Configuration, dname_fmt_lia_product, dname_fmt_gamma_area_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
@@ -98,6 +98,7 @@ class WorkspaceKinds(Enum):
     LIA    = 2
     FILTER = 3
     MASK   = 4
+    GAMMA_AREA = 5
 
 
 def product_property(prod: EOProduct, key: str, default=None):
@@ -670,9 +671,9 @@ class S1FileManager:
         all exist
         """
         directories = {
-                'out_dir': self.cfg.output_preprocess,
-                'tmp_dir': self.cfg.tmpdir,
-                'lia_dir': self.cfg.lia_directory,
+            'out_dir': self.cfg.output_preprocess,
+            'tmp_dir': self.cfg.tmpdir,
+            'map_dir': self.cfg.map_directory
         }
 
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
@@ -693,6 +694,9 @@ class S1FileManager:
         # if self.cfg.calibration_type == 'normlim':
         if WorkspaceKinds.LIA in required_workspaces:
             wdir = dname_fmt_lia_product(self.cfg).format(**directories, tile_name=tile_name)
+            os.makedirs(wdir, exist_ok=True)
+        if WorkspaceKinds.GAMMA_AREA in required_workspaces:
+            wdir = dname_fmt_gamma_area_product(self.cfg).format(**directories, tile_name=tile_name)
             os.makedirs(wdir, exist_ok=True)
 
     def tmpdemdir(self, dem_tile_infos: Dict, dem_filename_format: str, geoid_file: str) -> str:

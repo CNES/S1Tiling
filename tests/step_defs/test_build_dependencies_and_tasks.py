@@ -243,7 +243,7 @@ class Configuration():
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
-        self.lia_directory                     = liadir
+        self.map_directory                     = liadir
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
