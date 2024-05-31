@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 # =========================================================================
 
 """
@@ -621,8 +622,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
                 'GreenDisplayChannel', 'BlueDisplayChannel', 'AbsoluteCalibrationConstant',
                 'AcquisitionStartTime', 'AcquisitionStopTime', 'AcquisitionDate',
-                'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument', 'LineSpacing',
-                'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
+                'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument',
+                'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'SensorID',
                 'Swath', 'NumberOfLines', 'NumberOfColumns',
         )
         for kw in meta_to_remove_in_s2:
