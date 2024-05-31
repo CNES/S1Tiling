@@ -65,7 +65,7 @@ from .otbwrappers import (
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
         ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Gamma Area related Step Factories
-        SARDEMGeoidImageEstimation, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
+        ResampleDEM, SARDEMGeoidImageEstimation, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
         OrthoRectifyGAMMA_AREA, filter_GAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
         ApplyGammaNaughtRTCCalibration,
         # Filter Step Factories
@@ -610,39 +610,53 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     )
     return lia
 
-def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produce_gamma_area: bool) -> PipelineDescription:
+def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produce_gamma_area: bool, config: Configuration) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     GAMMA AREA map.
     """
+    
+    # build VRT
     dem = pipelines.register_pipeline(
         [AgglomerateDEMOnS1],
         'AgglomerateDEM',
         inputs={'insar': 'basename'}
     )
-
+    
+    # add geoid to DEM
     geoid_dem = pipelines.register_pipeline(
         [ExtractSentinel1Metadata, SARDEMGeoidImageEstimation],
         'SARDEMGeoidImageEstimation',
         is_name_incremental=True,
         inputs={'insar': 'basename', 'indemwithoutgeoid': dem}
     )
+    
+    # resample dem
+    resampled_geoid_dem = geoid_dem
+    if not config.no_use_resampled_dem:
+        resampled_geoid_dem = pipelines.register_pipeline(
+            [ResampleDEM],
+            'RigidTransformResample',
+            is_name_incremental=True,
+            inputs={'indem': geoid_dem}
+        )
 
+    # project dem
     demproj = pipelines.register_pipeline(
         [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
         'SARDEMProjectionImageEstimation',
         is_name_incremental=True,
-        inputs={'insar': 'basename', 'indem': geoid_dem}
+        inputs={'insar': 'basename', 'indem': resampled_geoid_dem}
     )
 
+    # gamma area
     gamma_area = pipelines.register_pipeline(
         [SARGammaAreaImageEstimation],
         'SARGammaAreaImageEstimation',
-        inputs={'insar': 'basename', 'indem': geoid_dem, 'indemproj': demproj}
+        inputs={'insar': 'basename', 'indem': resampled_geoid_dem, 'indemproj': demproj}
     )
 
-    # "inputs" parameter doesn't need to be specified in the following pipeline declarations
-    # but we still use it for clarity!
+    # ortho gamma area
     ortho_gamma_area = pipelines.register_pipeline(
         [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
         'OrthoGAMMA_AREA',
@@ -812,7 +826,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 need_to_keep_non_filtered_products = True
 
             GammaNaughtArea_registration = gamma_area_process or register_GAMMA_AREA_pipelines
-            gammanaughtareas = GammaNaughtArea_registration(pipelines, config.produce_gamma_area_map)
+            gammanaughtareas = GammaNaughtArea_registration(pipelines, config.produce_gamma_area_map, config)
 
             # This steps helps forwarding GAMMA AREA (only) to the next step
             # that corrects the β° with GAMMA AREA map.
