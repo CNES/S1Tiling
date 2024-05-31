@@ -616,30 +616,20 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
     Internal function that takes care to register all pipelines related to
     GAMMA AREA map.
     """
-    
     # build VRT
     dem = pipelines.register_pipeline(
         [AgglomerateDEMOnS1],
         'AgglomerateDEM',
         inputs={'insar': 'basename'}
     )
-    
-    # add geoid to DEM
-    geoid_dem = pipelines.register_pipeline(
-        [ExtractSentinel1Metadata, SARDEMGeoidImageEstimation],
-        'SARDEMGeoidImageEstimation',
-        is_name_incremental=True,
-        inputs={'insar': 'basename', 'indemwithoutgeoid': dem}
-    )
-    
+
     # resample dem
-    resampled_geoid_dem = geoid_dem
+    resampled_dem = dem
     if not config.no_use_resampled_dem:
-        resampled_geoid_dem = pipelines.register_pipeline(
+        resampled_dem = pipelines.register_pipeline(
             [ResampleDEM],
             'RigidTransformResample',
-            is_name_incremental=True,
-            inputs={'indem': geoid_dem}
+            inputs={'indem': dem}
         )
 
     # project dem
@@ -647,14 +637,14 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
         [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
         'SARDEMProjectionImageEstimation',
         is_name_incremental=True,
-        inputs={'insar': 'basename', 'indem': resampled_geoid_dem}
+        inputs={'insar': 'basename', 'indem': resampled_dem}
     )
 
     # gamma area
     gamma_area = pipelines.register_pipeline(
         [SARGammaAreaImageEstimation],
         'SARGammaAreaImageEstimation',
-        inputs={'insar': 'basename', 'indem': resampled_geoid_dem, 'indemproj': demproj}
+        inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
     )
 
     # ortho gamma area

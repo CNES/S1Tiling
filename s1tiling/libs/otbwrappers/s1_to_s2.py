@@ -26,7 +26,6 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
-#          Fabien CONTIVAL (CS Group)
 # =========================================================================
 
 """
@@ -622,8 +621,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
                 'GreenDisplayChannel', 'BlueDisplayChannel', 'AbsoluteCalibrationConstant',
                 'AcquisitionStartTime', 'AcquisitionStopTime', 'AcquisitionDate',
-                'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument',
-                'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'SensorID',
+                'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument', 'LineSpacing',
+                'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
                 'Swath', 'NumberOfLines', 'NumberOfColumns',
         )
         for kw in meta_to_remove_in_s2:
@@ -632,6 +631,14 @@ class _OrthoRectifierFactory(OTBStepFactory):
     @abstractmethod
     def _get_input_image(self, meta: Meta):
         raise TypeError("_OrthoRectifierFactory does not know how to fetch input image")
+
+    @property
+    def out_spatial_res(self):
+        return self.__out_spatial_res
+
+    @out_spatial_res.setter
+    def out_spatial_res(self, value):
+        self.__out_spatial_res = value
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -664,11 +671,6 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
                 'elev.dem'         : self.__tmp_dem_dir
         }
-        #print(meta)
-        #indem = meta['indem_path']
-        #if os.path.exists(indem):
-        #    print(idem)
-        #    parameters["elev.dem"] = indem
 
         if self.__GeoidFile:
             parameters["elev.geoid"] = self.__GeoidFile

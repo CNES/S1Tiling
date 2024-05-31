@@ -281,7 +281,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
                 + [os.path.join(self.__dem_dir,
                                 self.__dem_filename_format.format_map(meta['dem_infos'][s]))
                    for s in meta['dem_infos']]
-                   
+
 class ResampleDEM(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_RigidTransformResample`
@@ -383,7 +383,7 @@ class ResampleDEM(OTBStepFactory):
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         indem = fetch_input_data('indem', inputs).out_filename
-            
+
         params = {
             "ram": ram(self.ram_per_process),
             "in": indem,
@@ -447,8 +447,8 @@ class SARDEMGeoidImageEstimation(OTBStepFactory):
         self.__dem_db_filepath = cfg.dem_db_filepath
         self.__dem_field_ids = cfg.dem_field_ids
         self.__dem_main_field_id = cfg.dem_main_field_id
-        self.dem_epsg = cfg.fname_fmt.get('demepsg', 4326)
-        self.geoid_epsg = cfg.fname_fmt.get("geoidepsg", 5773)
+        self.dem_epsg = cfg.fname_fmt.get('dem_epsg', 4326)
+        self.geoid_epsg = cfg.fname_fmt.get("geoid_epsg", 5773)
         self.__GeoidFile = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
         self.geoid_reader_type = cfg.fname_fmt.get("geoidreadertype", 'auto')
 
@@ -609,7 +609,7 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-       
+
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
         # find DEMs that intersect the input image
@@ -727,23 +727,10 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
                 image_description='Gamma area image estimation',
         )
         self.distributearea = cfg.fname_fmt.get('distribute_area', False)
-        self.filterbyareacenterpixel = cfg.fname_fmt.get("filter_by_area_center_pixel", False)
-        self.filterbyshadow = cfg.fname_fmt.get("filter_by_shadow", True)
-        self.alternatemode = cfg.fname_fmt.get("alternate_mode", False)
         self.arearatio = cfg.fname_fmt.get("area_ratio", False)
-        self.ceilprojarea = cfg.fname_fmt.get("ceil_proj_area", False)
-        self.maxprojarea = cfg.fname_fmt.get("max_proj_area", False)
-        self.projareamax = cfg.fname_fmt.get("proj_area_max", False)
         self.nostreaming = cfg.fname_fmt.get("nostreaming", False)
-        self.dichotomicsearch = cfg.fname_fmt.get("dichotomic_search", True)
-        self.nblinesstreamingmax = cfg.fname_fmt.get("nblines_streaming_max", 10000)
-        self.fullxyz = cfg.fname_fmt.get("full_xyz", True)
-        self.fullshadow = cfg.fname_fmt.get("full_shadow", True)
-        self.shadowbyimage = cfg.fname_fmt.get("shadow_by_image", False)
-        self.meangammaplane = cfg.fname_fmt.get("mean_gamma_plane", False)
         self.innermarginratiostatus = cfg.fname_fmt.get("inner_margin_ratio_status", False)
         self.outermarginratiostatus = cfg.fname_fmt.get("outer_margin_ratio_status", True)
-        self.margin = cfg.fname_fmt.get("margin", None)
         self.innermarginratio = cfg.fname_fmt.get("inner_margin_ratio", 0.01)
         self.outermarginratio = cfg.fname_fmt.get("outer_margin_ratio", 0.04)
 
@@ -845,27 +832,12 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             'mlran'           : 1,
             'mlazi'           : 1,
             'distributearea': self.distributearea,
-            'filterbyareacenterpixel': self.filterbyareacenterpixel,
-            'filterbyshadow': self.filterbyshadow,
-            'alternatemode': self.alternatemode,
             'arearatio': self.arearatio,
             'nostreaming': self.nostreaming,
-            'ceilprojarea': self.ceilprojarea,
-            'maxprojarea': self.maxprojarea,
-            'projareamax': self.projareamax,
-            'nostreaming': self.nostreaming,
-            'dichotomicsearch': self.dichotomicsearch,
             'nodata': -32768,
-            'nblinesstreamingmax': self.nblinesstreamingmax,
-            'fullxyz': self.fullxyz,
-            'fullshadow': self.fullshadow,
-            'shadowbyimage': self.shadowbyimage,
-            'meangammaplane': self.meangammaplane,
             'innermarginratiostatus': self.innermarginratiostatus,
             'outermarginratiostatus': self.outermarginratiostatus
         }
-        if self.margin:
-            params["margin"] = self.margin
         if self.innermarginratio:
             params["innermarginratio"] = self.innermarginratio
         if self.outermarginratio:
@@ -1107,6 +1079,8 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert kind in types, f'The only GAMMA_AREA kind accepted are {types.keys()}'
         imd = meta['image_metadata']
         imd['DATA_TYPE'] = types[kind]
+        imd['PixelSpacing'] = str(self.out_spatial_res)
+        imd['LineSpacing'] = str(self.out_spatial_res)
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """

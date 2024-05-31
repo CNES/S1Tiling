@@ -325,7 +325,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             # Even if tmpdir doesn't exist we should still be able to create it
             accessor.throw(f"tmpdir={self.tmpdir} is not a valid path")
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
-        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.grd'))
+        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.gtx'))
         #: Path to directory of temp DEMs
         self.tmp_dem_dir: str    = ""
 
@@ -417,16 +417,21 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
             accessor.throw(
                 "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
-                
+
         # - - - - - - - - - -[ Gamma area computation
         #: Resampling: See :ref:`[Processing.no_use_resampled_dem] <Processing.no_use_resampled_dem>`
         self.no_use_resampled_dem     = accessor.get('Processing', 'no_use_resampled_dem', fallback=False)
-        
+
         #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
         self.resample_dem_factor_x     = accessor.get('Processing', 'resample_dem_factor_x', fallback=2.0)
         #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
         self.resample_dem_factor_y     = accessor.get('Processing', 'resample_dem_factor_y', fallback=2.0)
-        
+
+        #: Resampling: See :ref:`[Processing.dem_epsg] <Processing.dem_epsg>`
+        self.dem_epsg = accessor.get('Processing', 'dem_epsg', fallback=4326)
+        #: Resampling: See :ref:`[Processing.geoid_epsg] <Processing.geoid_epsg>`
+        self.geoid_epsg = accessor.get('Processing', 'geoid_epsg', fallback=5773)
+
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
         self.distribute_area     = accessor.get('Processing', 'distribute_area', fallback=False)
         #: Gamma area: See :ref:`[Processing.area_ratio] <Processing.area_ratio>`
@@ -441,15 +446,15 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.inner_margin_ratio     = accessor.get('Processing', 'inner_margin_ratio', fallback=False)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
         self.outer_margin_ratio     = accessor.get('Processing', 'outer_margin_ratio', fallback=False)
-        
+
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
         self.min_gamma_area     = accessor.get('Processing', 'min_gamma_area', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
         self.gamma_area_to_gamma_naught_rtc_nostreaming     = accessor.get('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
         self.output_nodata     = accessor.get('Processing', 'output_nodata', fallback=False)
-        
-        
+
+
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
@@ -637,6 +642,21 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles_shapefile                  : %s",     self.output_grid)
         logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
         logging.info("- produce GAMMA_AREA° map          : %s",     self.produce_gamma_area_map)
+        logging.info("- no_use_resampled_dem          : %s", self.no_use_resampled_dem)
+        logging.info("- resample_dem_factor_x          : %s", self.resample_dem_factor_x)
+        logging.info("- resample_dem_factor_y          : %s", self.resample_dem_factor_y)
+        logging.info("- dem_epsg          : %s", self.dem_epsg)
+        logging.info("- geoid_epsg          : %s", self.geoid_epsg)
+        logging.info("- distribute_area          : %s", self.distribute_area)
+        logging.info("- area_ratio          : %s", self.area_ratio)
+        logging.info("- gamma_area_nostreaming          : %s", self.gamma_area_nostreaming)
+        logging.info("- inner_margin_ratio_status          : %s", self.inner_margin_ratio_status)
+        logging.info("- outer_margin_ratio_status          : %s", self.outer_margin_ratio_status)
+        logging.info("- inner_margin_ratio          : %s", self.inner_margin_ratio)
+        logging.info("- outer_margin_ratio          : %s", self.outer_margin_ratio)
+        logging.info("- min_gamma_area          : %s", self.min_gamma_area)
+        logging.info("- gamma_area_to_gamma_naught_rtc_nostreaming          : %s", self.gamma_area_to_gamma_naught_rtc_nostreaming)
+        logging.info("- output_nodata          : %s", self.output_nodata)
         logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
         logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.info("[Mask]")
