@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 
@@ -416,6 +417,39 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
             accessor.throw(
                 "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
+                
+        # - - - - - - - - - -[ Gamma area computation
+        #: Resampling: See :ref:`[Processing.no_use_resampled_dem] <Processing.no_use_resampled_dem>`
+        self.no_use_resampled_dem     = accessor.get('Processing', 'no_use_resampled_dem', fallback=False)
+        
+        #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
+        self.resample_dem_factor_x     = accessor.get('Processing', 'resample_dem_factor_x', fallback=2.0)
+        #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
+        self.resample_dem_factor_y     = accessor.get('Processing', 'resample_dem_factor_y', fallback=2.0)
+        
+        #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
+        self.distribute_area     = accessor.get('Processing', 'distribute_area', fallback=False)
+        #: Gamma area: See :ref:`[Processing.area_ratio] <Processing.area_ratio>`
+        self.area_ratio     = accessor.get('Processing', 'area_ratio', fallback=False)
+        #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
+        self.gamma_area_nostreaming     = accessor.get('Processing', 'gamma_area_nostreaming', fallback=False)
+        #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
+        self.inner_margin_ratio_status     = accessor.get('Processing', 'inner_margin_ratio_status', fallback=False)
+        #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
+        self.outer_margin_ratio_status     = accessor.get('Processing', 'outer_margin_ratio_status', fallback=False)
+        #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
+        self.inner_margin_ratio     = accessor.get('Processing', 'inner_margin_ratio', fallback=False)
+        #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
+        self.outer_margin_ratio     = accessor.get('Processing', 'outer_margin_ratio', fallback=False)
+        
+        #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
+        self.min_gamma_area     = accessor.get('Processing', 'min_gamma_area', fallback=1.0)
+        #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
+        self.gamma_area_to_gamma_naught_rtc_nostreaming     = accessor.get('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
+        #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
+        self.output_nodata     = accessor.get('Processing', 'output_nodata', fallback=False)
+        
+        
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
