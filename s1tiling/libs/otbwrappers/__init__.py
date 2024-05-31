@@ -25,6 +25,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 # =========================================================================
 
 """
@@ -69,6 +70,7 @@ from .lia import (
 )
 
 from .gamma_area import (
+    ResampleDEM,
     ApplyGammaNaughtRTCCalibration,
     AgglomerateDEMOnS1,
     filter_GAMMA_AREA,
