@@ -338,8 +338,7 @@ class AnalyseBorders(StepFactory):
                 }
         return meta
 
-
-k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
+k_calib_convert = {'normlim' : 'beta'}
 
 
 class Calibrate(OTBStepFactory):
@@ -406,15 +405,16 @@ class Calibrate(OTBStepFactory):
         """
         params : OTBParameters = {
                 'ram'           : ram(self.ram_per_process),
-                self.param_in   : in_filename(meta),
-                # self.param_out  : out_filename(meta),
-                'lut'           : self.__calibration_type,
+                self.param_in   : in_filename(meta)
         }
-        if otb_version() >= '7.4.0':
-            params['removenoise'] = self.__removethermalnoise
-        else:
-            # Don't try to do anything, let's keep the noise
-            params['noise']       = True
+        if self.__calibration_type != 'gamma_naught_rtc':
+            params['lut'] = self.__calibration_type
+
+            if otb_version() >= '7.4.0':
+                params['removenoise'] = self.__removethermalnoise
+            else:
+                # Don't try to do anything, let's keep the noise
+                params['noise']       = True
         return params
 
 
