@@ -338,7 +338,7 @@ class AnalyseBorders(StepFactory):
                 }
         return meta
 
-k_calib_convert = {'normlim' : 'beta'}
+k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
 
 
 class Calibrate(OTBStepFactory):
@@ -378,6 +378,7 @@ class Calibrate(OTBStepFactory):
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
         # Locally override calibration type in case of normlim calibration
+        self.__final_calibration_type = cfg.calibration_type
         self.__calibration_type   = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
         self.__removethermalnoise = cfg.removethermalnoise
 
@@ -407,7 +408,7 @@ class Calibrate(OTBStepFactory):
                 'ram'           : ram(self.ram_per_process),
                 self.param_in   : in_filename(meta)
         }
-        if self.__calibration_type != 'gamma_naught_rtc':
+        if self.__final_calibration_type != 'gamma_naught_rtc':
             params['lut'] = self.__calibration_type
 
             if otb_version() >= '7.4.0':

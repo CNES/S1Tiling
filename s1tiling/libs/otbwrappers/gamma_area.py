@@ -938,8 +938,7 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         """
         Force GAMMA AREA output pixel type to ``INT16``.
         """
-        if meta.get('GAMMA_AREA_kind', '') == 'GAMMA_AREA':
-            app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
+        pass
 
 class _FilterGAMMA_AREAStepFactory(StepFactory):
     """
@@ -1056,6 +1055,7 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         meta = super().complete_meta(meta, all_inputs)
+
         assert 'out_extended_filename_complement' not in meta, f'{meta["out_extended_filename_complement"]=!r} nothing was expected'
         kind = meta['GAMMA_AREA_kind']
         meta['out_extended_filename_complement'] = self._extended_filenames[kind]
@@ -1086,8 +1086,7 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         """
         Force GAMMA_AREA output pixel type to some type.
         """
-        if meta.get('GAMMA_AREA_kind', '') == 'GAMMA_AREA':
-            pass
+        pass
 
 class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     """
