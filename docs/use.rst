@@ -100,6 +100,46 @@ S1Tiling will then automatically take care of:
   given an orbit and it direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
+.. list-table::
+  :widths: auto
+  :header-rows: 0
+  :stub-columns: 0
+
+  * - .. figure:: _static/sin_LIA_s1a_33NWB_DES_007.jpeg
+            :alt: sine(LIA)
+            :scale: 50%
+
+            Map of sine(LIA) on 33NWB descending orbit 007
+
+    - .. carousel::
+            :show_controls:
+            :show_indicators:
+            :show_fade:
+            :show_shadows:
+            :show_dark:
+            :show_captions_below:
+            :data-bs-interval: false
+            :data-bs-pause: false
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_beta.jpeg
+                :alt: 33NWB β° calibrated
+                :scale: 50%
+
+                33NWB β° calibrated -- 20200108
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_NormLim.jpeg
+                :alt: 33NWB NORMLIM σ° RTC calibrated
+                :scale: 50%
+
+                33NWB NORMLIM σ° RTC calibrated -- 20200108
+
+            .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_Normlim_filtered_lee.jpeg
+                :alt: 33NWB NORMLIM σ° RTC calibrated and filtered
+                :scale: 50%
+
+                33NWB σ° RTC calibrated and despeckled (Lee) -- 20200108
+
+
 
 .. warning::
    If you wish to parallelize this scenario and dedicate a different cluster
@@ -192,8 +232,7 @@ jobarrays for instances.
 Use any other set of DEM inputs
 +++++++++++++++++++++++++++++++
 
-By default S1Tiling comes with a GPKG database that associates SRTM 30 tile ids
-to SRTM geometries.
+By default S1Tiling comes with a GPKG database that associates SRTM30 geometries to the SRTM tile filename.
 
 In order to use other DEM inputs, we need:
 
@@ -380,7 +419,7 @@ You can use this :download:`this template
   * - ``platform_list``
     - Defines the list of platforms from where come the products to download
       and process.
-      Valid values are expected in the form of ``S1*``.
+      Valid values are ``S1A`` or ``S1B``.
 
       .. _DataSource.polarisation:
   * - ``polarisation``
@@ -442,7 +481,7 @@ You can use this :download:`this template
       .. _Mask.generate_border_mask:
   * - ``generate_border_mask``
     - This option allows you to choose if you want to generate border masks of
-      the S2 image file produced.
+      the S2 image file produced. Values are ``True`` or ``False``.
 
 
 .. _Processing:
@@ -483,7 +522,7 @@ You can use this :download:`this template
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
-    - Shall the thermal noise be removed?
+    - Activate the thermal noise removal in the images. Values are ``True`` or ``False``.
 
       .. important::
 
@@ -956,7 +995,7 @@ Working on clusters
   - logs -- running S1Tiling in different directories, like :file:`$TMPDIR/`
     on TREX, should be enough
   - storing :ref:`input files <paths.s1_images>`, like for instance
-    :file:`$TMPDIR/data_raw/` on HAL/TREX for instance.
+    :file:`$TMPDIR/data_raw/` on TREX for instance.
 
 .. _exit_codes:
 

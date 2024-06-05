@@ -32,7 +32,7 @@ Orthorectified S2 tiles
 
 :File name:
 
-    - :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}txxxxxx.tif` when the tile has been assembled from the concatenation of several S1 images
+    - :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}txxxxxx.tif` when the tile has been assembled from the concatenation of two S1 images
     - :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}.tif` when the tile has been produced from a single S1 image
 
     .. note::
@@ -105,9 +105,7 @@ Orthorectified S2 tiles
 Mask files
 ++++++++++
 
-:Content:
-
-    .. todo:: Thierry?
+:Content: Binary image containing mask on valide data. It is a mask on no-data pixels.
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
 
@@ -145,9 +143,7 @@ Mask files
 Filtered files
 ++++++++++++++
 
-:Content:
-
-    .. todo:: Thierry?
+:Content: Complete final product, after applying the speckle filtering if option is activated
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/` by
              default

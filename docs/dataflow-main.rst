@@ -30,7 +30,7 @@ For each S2 tile,
       the S2 grid
    2. It :ref:`superposes (concatenates) <concatenation-proc>` the
       orthorectified images into a single S2 tile.
-   3. It :ref:`filters <filter-proc>` the orthorectified images.
+   3. It :ref:`filters <filter-proc>` the orthorectified images to reduce the speckle.
    4. It :ref:`builds masks <mask_generation-proc>`, :ref:`if required
       <Mask.generate_border_mask>`
 
@@ -203,7 +203,7 @@ Margins cutting
 This step takes care of resetting margins content to 0 when too many no-data
 are detected within the margin. This phenomenon happens on coasts. The margins
 aren't cut out like what :external:std:doc:`ExtractROI <Applications/app_ExtractROI>`
-would do but filled with 0's, which permits to keeps the initial geometry.
+would do but filled with 0's, which permits to keep the initial geometry.
 
 The implemented heuristic is to:
 
