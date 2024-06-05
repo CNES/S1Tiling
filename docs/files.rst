@@ -143,7 +143,7 @@ Mask files
 Filtered files
 ++++++++++++++
 
-:Content: Complete final product, after applying the fspeckle filtering if option is activated
+:Content: Complete final product, after applying the speckle filtering if option is activated
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/filtered/{{tilename}}/` by
              default
