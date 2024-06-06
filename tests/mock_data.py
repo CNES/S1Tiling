@@ -238,7 +238,7 @@ class FileDB:
 
     def __init__(
             self,
-            inputdir, tmpdir, outputdir, liadir, gamma_dir,
+            inputdir, tmpdir, outputdir, liadir, gamma_areadir,
             tile, demdir, geoid_file,
             dname_fmt_tiled=None,
     ) -> None:

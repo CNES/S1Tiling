@@ -63,6 +63,16 @@ scenarios('../features/build_dependencies_and_tasks.feature', '../features/norml
 
 DEBUG_OTB = False
 FILES = [
+
+        # 06 jun 2024
+        {
+            's1dir'       : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+            's1file'      : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}.tiff',
+            'orthofile'   : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
+            'root'        : '{kind}_s1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
+            'orthoGAMMA_AREA'    : 'GAMMA_AREA_s1a_33NWB_DES_007_20200108t044150',
+            'polygon'     : [(14.233953, 1.137156), (16.461103, 0.660935), (16.77552, 2.173307), (14.545785, 2.645077), (14.233953, 1.137156)]
+            },
         # 08 jan 2020
         {
             's1dir'       : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
@@ -114,9 +124,10 @@ TMPDIR = 'TMP'
 INPUT  = 'data_raw'
 OUTPUT = 'OUTPUT'
 LIADIR = 'LIADIR'
+GAMMA_AREADIR = 'GAMMA_AREADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
 #def tile_origins(tile_name):
 #    origins = {
@@ -199,6 +210,9 @@ def XYZ_file_s1(idx) -> str:
 def LIA_file_s1(idx) -> str:
     return file_db.LIAfile(idx, tmp=False)
 
+def GAMMA_AREA_file_s1(idx) -> str:
+    return file_db.GAMMA_AREAfile(idx, tmp=False)
+
 def sin_LIA_file_s1(idx) -> str:
     return file_db.sinLIAfile(idx, tmp=False)
 
@@ -210,6 +224,15 @@ def S2_LIA_file() -> str:
 
 def S2_LIA_preselect_file() -> str:
     return file_db.concatLIAfile_from_two(idx=0, tmp=False)
+
+def ortho_GAMMA_AREA_file(idx) -> str:
+    return file_db.orthoGAMMA_AREAfile(idx, tmp=False)
+
+def S2_GAMMA_AREA_file() -> str:
+    return file_db.selectedGAMMA_AREAfile()
+
+def S2_GAMMA_AREA_preselect_file() -> str:
+    return file_db.concatGAMMA_AREAfile_from_two(idx=0, tmp=False)
 
 def ortho_sin_LIA_file(idx) -> str:
     return file_db.orthosinLIAfile(idx, tmp=False)

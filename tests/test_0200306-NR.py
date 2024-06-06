@@ -1368,7 +1368,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.gamma_area_directory    = liadir.absolute()
+    configuration.lia_directory    = liadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
@@ -1445,7 +1445,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.gamma_area_directory = gammaareadir.absolute()
+    configuration.gamma_area_directory = gamma_areadir.absolute()
     logging.info("Gamma0 RTC mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gammaareadir.absolute(), tile, demdir, configuration.GeoidFile)
