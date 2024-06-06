@@ -57,9 +57,10 @@ TMPDIR = 'TMP'
 INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
 LIADIR = 'LIADIR'
+GAMMA_AREA = 'GAMMA_AREADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, GAMMA_AREA, TILE, 'unused', 'unused')
 
 # ======================================================================
 # Fixtures

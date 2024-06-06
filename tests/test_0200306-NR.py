@@ -1006,7 +1006,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
         })
 
-def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, gammaareadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
 
@@ -1016,7 +1016,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, gammaareadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1030,7 +1030,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     logging.info("Full mocked test")
 
     file_db = FileDB(
-            inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gammaareadir.absolute(),
+            inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gamma_areadir.absolute(),
             tile, demdir, configuration.GeoidFile,
             dname_fmt_tiled=configuration.dname_fmt['tiled'],
     )
@@ -1063,7 +1063,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, gammaareadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
@@ -1071,7 +1071,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, g
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, gammaareadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1083,7 +1083,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, g
     configuration.show_configuration()
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gammaareadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1308,7 +1308,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
                              (mock_GAMMA_AREA_v1_0, s1_process_gamma_area),
                          ])
 def test_33NWB_202001_lia_mocked(
-        baselinedir, outputdir, gammaareadir, tmpdir, demdir, ram,
+        baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram,
         mocker,
         register_expectations, processor
 ):
@@ -1426,7 +1426,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, outputdir, gammaareadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1437,7 +1437,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, gammaareadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1448,7 +1448,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     configuration.gamma_area_directory = gamma_areadir.absolute()
     logging.info("Gamma0 RTC mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gammaareadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
     configuration.first_date       = file_db.CONCATS[0]['first_date']
     configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
     configuration.produce_gamma_area_map  = True
