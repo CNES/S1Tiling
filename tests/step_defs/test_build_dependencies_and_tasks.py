@@ -316,7 +316,7 @@ def expected_files_id() -> List[int]:
 
 @pytest.fixture
 def configuration() -> Configuration:
-    config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR)
+    config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR, gamma_areadir=GAMMA_AREADIR)
     return config
 
 @pytest.fixture

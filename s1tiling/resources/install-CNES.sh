@@ -115,6 +115,9 @@ _execute cd "${env}"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d normlim_sigma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 
+_execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
+[ -d gamma0-rtc ] || _execute git clone https://{user}:{token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+
 # ==[ Create and prepare the virtual env
 _execute cd "${prefix_root}"
 _verbose ml "otb/${otb_ver}-${python_ml_dep}"
@@ -177,6 +180,23 @@ _execute make                       || _die "Can't compile normlim_sigma0"
 _execute make install               || _die "Can't install normlim_sigma0"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 _execute rm -rf "normlim_sigma0"    || _die "Can't clean normlim_sigma0 directory"
+
+# ==[ Clone and install OTB applications for NORMLIM Calibration
+gamma_area_build_dir="gamma0-rtc/_builddir"
+
+_execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
+[ -d gamma0-rtc ]         || _execute git clone https://{user}:{token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+_execute cd "gamma0-rtc"  || _die "Can't cd to the gamma0-rtc directory"
+# Use temporary branch for applications compatible with OTB 8
+# [[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
+_execute mkdir -p "_builddir" || _die "Can't create the build directory"
+_execute cd       "_builddir" || _die "Can't cd to the build directory"
+# _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
+_execute cmake -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${prefix_root}/${env}" -DCMAKE_BUILD_TYPE=Release .. || _die "Can't configure gamma0-rtc compilation"
+_execute make                       || _die "Can't compile normlim_sigma0"
+_execute make install               || _die "Can't install normlim_sigma0"
+_execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
+_execute rm -rf "gamma0-rtc"    || _die "Can't clean gamma0-rtc directory"
 
 # ==[ Commit the installation
 _execute cd "${prefix_root}"
