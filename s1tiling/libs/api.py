@@ -66,7 +66,7 @@ from .otbwrappers import (
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
         ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Gamma Area related Step Factories
-        ResampleDEM, SARDEMGeoidImageEstimation, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
+        ResampleDEM, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
         OrthoRectifyGAMMA_AREA, filter_GAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
         ApplyGammaNaughtRTCCalibration,
         # Filter Step Factories
@@ -659,12 +659,11 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
         'ConcatGAMMA_AREA',
         inputs={'in': ortho_gamma_area}
     )
-
     best_concat_ortho_gamma_area = pipelines.register_pipeline(
         [SelectGammaNaughtAreaBestCoverage],
         'SelectGAMMA_AREA',
         inputs={'in': concat_ortho_gamma_area},
-        product_required=True
+        product_required=produce_gamma_area
     )
 
     return best_concat_ortho_gamma_area

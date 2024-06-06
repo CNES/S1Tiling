@@ -50,7 +50,7 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
-from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_lia_v0, register_LIA_pipelines_v0
+from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_gamma_area, s1_process_lia_v0, register_LIA_pipelines_v0, register_GAMMA_AREA_pipelines
 from s1tiling.libs.meta        import out_filename
 from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
@@ -67,17 +67,18 @@ def remove_dirs(dir_list) -> None:
             shutil.rmtree(dir)
 
 
-def process(tmpdir, outputdir, liadir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
+def process(tmpdir, outputdir, liadir, gamma_areadir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
     '''
     Executes the S1Processor
     '''
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     src_dir       = crt_dir.parent.absolute()
-    dirs_to_clean = dirs_to_clean or [outputdir, tmpdir/'S1', tmpdir/'S2', liadir]
+    dirs_to_clean = dirs_to_clean or [outputdir, tmpdir/'S1', tmpdir/'S2', liadir, gamma_areadir]
 
     logging.info('$S1TILING_TEST_DATA_INPUT  -> %s', os.environ['S1TILING_TEST_DATA_INPUT'])
     logging.info('$S1TILING_TEST_DATA_OUTPUT -> %s', os.environ['S1TILING_TEST_DATA_OUTPUT'])
     logging.info('$S1TILING_TEST_DATA_LIA    -> %s', os.environ['S1TILING_TEST_DATA_LIA'])
+    logging.info('$S1TILING_TEST_DATA_GAMMA_AREA -> %s', os.environ['S1TILING_TEST_DATA_GAMMA_AREA'])
     logging.info('$S1TILING_TEST_SRTM        -> %s', os.environ['S1TILING_TEST_SRTM'])
     logging.info('$S1TILING_TEST_TMPDIR      -> %s', os.environ['S1TILING_TEST_TMPDIR'])
     logging.info('$S1TILING_TEST_DOWNLOAD    -> %s', os.environ['S1TILING_TEST_DOWNLOAD'])
@@ -93,7 +94,7 @@ def process(tmpdir, outputdir, liadir, baseline_reference_outputs, test_file, wa
     return subprocess.call(args, cwd=crt_dir)
 
 
-def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -114,6 +115,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
     os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -129,7 +131,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
         baseline_path = baseline_path / 'otb8'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     logging.info("Full test")
-    EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram)
+    EX = process(tmpdir, outputdir, liadir, gamma_areadir, baseline_path, test_file, watch_ram)
     assert EX == 0
     descr_ortho = 'sigma calibrated orthorectified Sentinel-1A IW GRD'
     descr_mask  = 'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile'
@@ -168,7 +170,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
         # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
-def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, tmpdir, demdir, ram, download, watch_ram):
+def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
     # In all cases, the baseline is required for the reference outputs
@@ -189,6 +191,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
     os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -215,7 +218,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 
 
     dirs_to_clean = [tmpdir/'S1', tmpdir/'S2'] # do not clear outputdir in that case
-    EX = process(tmpdir, outputdir, liadir, baseline_path, test_file, watch_ram, dirs_to_clean)
+    EX = process(tmpdir, outputdir, liadir, gamma_areadir, baseline_path, test_file, watch_ram, dirs_to_clean)
     assert EX == 0
     for im, polar in zip(images, ['vh', 'vv']):
         expected = baseline_path / im
@@ -293,6 +296,7 @@ def _declare_know_files(
     # TODO: Test written meta data as well
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
+    # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyGAMMA_AREA.add_ortho_metadata', lambda slf, mt, app : True)
     def mock_write_image_metadata(slf: _ProducerStep, dryrun: bool):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
@@ -319,6 +323,13 @@ def _declare_know_files(
         known_files.remove(inp)
     mocker.patch('s1tiling.libs.otbwrappers.lia.commit_execution', mock_commit_execution_for_SelectLIA)
 
+    def mock_commit_execution_for_SelectGAMMA_AREA(inp, out):
+        logging.debug('mock.mv %s %s', inp, out)
+        assert os.path.isfile(inp)
+        known_files.append(out)
+        known_files.remove(inp)
+    mocker.patch('s1tiling.libs.otbwrappers.gamma_area.commit_execution', mock_commit_execution_for_SelectGAMMA_AREA)
+
     def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???
         fullpath = mt.get('out_filename')
@@ -329,6 +340,7 @@ def _declare_know_files(
         assert 'dems' in mt, f"Metadata don't contain 'dems', only: {mt.keys()}"
         return mt
     mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation.add_image_metadata', mock_add_image_metadata)
 
     def mock_direction_to_scan(slf, meta):
         logging.debug('Mocking direction to scan')
@@ -339,13 +351,14 @@ def _declare_know_files(
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
 
 
-def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
+def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram):
     os.environ['S1TILING_TEST_DOWNLOAD']       = 'False'
     os.environ['S1TILING_TEST_OVERRIDE_CUT_Y'] = 'False' # keep everything
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
     os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -358,7 +371,7 @@ def mock_upto_concat_S2(
         N                 : int,
         old_IPF           : bool=False
 ):
-    raw_calibration = 'beta' if calibration == 'normlim' else calibration
+    raw_calibration = 'beta' if (calibration == 'normlim' or calibration == 'gamma_naught_rtc') else calibration
     for i in range(N):
         orbit_info = file_db.get_orbit_information(i)
         input_file = file_db.input_file_vv(i)
@@ -874,8 +887,126 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',
     })
 
+def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
+    demdir = file_db.demdir
+    for idx in range(2):
+        orbit_info        = file_db.get_orbit_information(idx)
+        cov               = file_db.dem_coverage(idx)
+        exp_dem_names     = sorted(cov)
+        exp_out_vrt       = file_db.vrtfile(idx, False)
+        exp_out_dem       = file_db.sardemprojfile(idx, False)
+        exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
-def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
+        application_mocker.set_expectations(AgglomerateDEMOnS1.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
+
+        application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
+            'ram'        : param_ram(2048),
+            'insar'      : file_db.input_file_vv(idx),
+            'indem'      : exp_out_vrt,
+            'withxyz'    : True,
+            'nodata'     : -32768,
+            'out'        : file_db.sardemprojfile(idx, True),
+            }, None,
+            {
+                'ACQUISITION_DATETIME'     : file_db.start_time(idx),
+                'DEM_LIST'                 : ', '.join(exp_dem_names),
+                'FLYING_UNIT_CODE'         : 's1a',
+                'IMAGE_TYPE'               : 'GRD',
+                'INPUT_S1_IMAGES'          : file_db.product_name(idx),
+                'ORBIT_DIRECTION'          : 'DES',
+                'ORBIT_NUMBER'             : '{:0>6d}'.format(orbit_info['absolute_orbit']),
+                'POLARIZATION'             : '',  # <=> removing the key
+                'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(orbit_info['relative_orbit']),
+                'TIFFTAG_IMAGEDESCRIPTION' : 'SARDEM projection onto DEM list',
+            })
+
+        application_mocker.set_expectations('SARGammaAreaImageEstimation', {
+            'ram'             : param_ram(2048),
+            'insar'           : file_db.input_file_vv(idx),
+            'indem'           : exp_out_vrt,
+            'indemproj'       : exp_out_dem,
+            'indemproj'       : exp_out_dem,
+            'indirectiondemc' : 24,
+            'indirectiondeml' : 12,
+            'mlran'           : 1,
+            'mlazi'           : 1,
+            'out'             : file_db.xyzfile(idx, True),
+            }, None,
+            {
+                'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
+                'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
+                'PRJ.GAIN'                 : '',  # <=> removing the key
+                'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma Area coordinates estimation',
+            })
+
+        application_mocker.set_expectations('OrthoRectification', {
+            'opt.ram'         : param_ram(2048),
+            'io.in'           : file_db.GAMMA_AREAfile(idx, False),
+            'interpolator'    : 'nn',
+            'outputs.spacingx': 10.0,
+            'outputs.spacingy': -10.0,
+            'outputs.sizex'   : 10980,
+            'outputs.sizey'   : 10980,
+            'opt.gridspacing' : 40.0,
+            'map'             : 'utm',
+            'map.utm.zone'    : 33,
+            'map.utm.northhem': True,
+            'outputs.ulx'     : 499979.99999484676,
+            'outputs.uly'     : 200040.0000009411,
+            'elev.dem'        : file_db.dem_file(),
+            'elev.geoid'      : file_db.GeoidFile,
+            'io.out'          : file_db.orthoGAMMA_AREAfile(idx, True),
+            }, {'io.out': otb.ImagePixelType_int16},
+            {
+                'DATA_TYPE'                 : 'meters^2',
+                'ORTHORECTIFIED'            : 'true',
+                'S2_TILE_CORRESPONDING_CODE': '33NWB',
+                'SPATIAL_RESOLUTION'        : '10.0',
+                'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
+                'AbsoluteCalibrationConstant' : '',
+                'AcquisitionDate'             : '',
+                'AcquisitionStartTime'        : '',
+                'AcquisitionStopTime'         : '',
+                'AverageSceneHeight'          : '',
+                'BeamMode'                    : '',
+                'BeamSwath'                   : '',
+                'BlueDisplayChannel'          : '',
+                'GreenDisplayChannel'         : '',
+                'Instrument'                  : '',
+                'LineSpacing'                 : '',
+                'Mission'                     : '',
+                'Mode'                        : '',
+                'NumberOfColumns'             : '',
+                'NumberOfLines'               : '',
+                'OrbitDirection'              : '',
+                'OrbitNumber'                 : '',
+                'PRF'                         : '',
+                'PixelSpacing'                : '',
+                'RadarFrequency'              : '',
+                'RedDisplayChannel'           : '',
+                'SAR'                         : '',
+                'SARCalib*'                   : '',
+                'SensorID'                    : '',
+                'Swath'                       : '',
+            })
+
+    # endfor on 2 consecutive images
+
+    application_mocker.set_expectations('Synthetize', {
+        'ram'      : param_ram(2048),
+        'il'       : [file_db.orthoGAMMA_AREAfile(0, False), file_db.orthoGAMMA_AREAfile(1, False)],
+        'out'      : file_db.concatGAMMA_AREAfile_from_two(0, True),
+        }, {'out': otb.ImagePixelType_int16},
+        {
+            'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
+            'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
+            'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'DEM_LIST'                 : '',  # <=> Removing the key
+            'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
+        })
+
+def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, gammaareadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
 
@@ -885,7 +1016,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gammaareadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -899,7 +1030,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     logging.info("Full mocked test")
 
     file_db = FileDB(
-            inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(),
+            inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gammaareadir.absolute(),
             tile, demdir, configuration.GeoidFile,
             dname_fmt_tiled=configuration.dname_fmt['tiled'],
     )
@@ -932,7 +1063,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir,
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, gammaareadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
@@ -940,7 +1071,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gammaareadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -952,7 +1083,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     configuration.show_configuration()
     logging.info("Full mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), gammaareadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1007,7 +1138,7 @@ def test_33NWB_202001_lia_mocked(
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.map_directory    = liadir.absolute()
+    configuration.lia_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
@@ -1048,7 +1179,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.map_directory    = liadir.absolute()
+    configuration.lia_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
@@ -1118,7 +1249,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
-    configuration.map_directory = liadir.absolute()
+    configuration.lia_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
@@ -1163,6 +1294,219 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
+
+    s1_process(
+            config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
+            lia_process=register_LIA_pipelines_v0,
+    )
+    application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
+
+@pytest.mark.parametrize("register_expectations,processor",
+                         [
+                             (mock_GAMMA_AREA_v1_0, s1_process_gamma_area),
+                         ])
+def test_33NWB_202001_lia_mocked(
+        baselinedir, outputdir, gammaareadir, tmpdir, demdir, ram,
+        mocker,
+        register_expectations, processor
+):
+    """
+    Mocked test of production of GAMMA_AREA file
+    """
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
+
+    tile = '33NWB'
+
+    # baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    configuration.calibration_type = 'gamma_naught_rtc'
+    configuration.gamma_area_directory    = gamma_areadir.absolute()
+    configuration.produce_gamma_area_map  = True
+    configuration.show_configuration()
+    logging.info("Sigma0 GAMMA_AREA mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+
+    register_expectations(application_mocker, file_db)
+
+    processor(config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False,
+            debug_tasks=False)
+    application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
+
+
+def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
+    """
+    Mocked test of production of S2 normlim calibrated images.
+    """
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
+
+    tile = '33NWB'
+
+    # baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    configuration.calibration_type = 'gamma_naught_rtc'
+    configuration.gamma_area_directory    = liadir.absolute()
+    configuration.produce_gamma_area_map  = True
+    configuration.show_configuration()
+    logging.info("Sigma0 NORMLIM mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
+    assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
+    assert os.path.isfile(file_db.input_file_vv(1))
+
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                'skip'             : True,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
+
+    mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', 2)
+    mock_GAMMA_AREA_v1_0(application_mocker, file_db)
+    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', 2)
+
+    application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
+        'ram'                   : param_ram(2048),
+        'ingammaarea'           : file_db.selectedsinGAMMA_AREAfile(),
+        'inbetanaught'          : file_db.concatfile_from_two(0, False, calibration='_beta'),
+        'mingammaarea'          : 1.0,
+        'nblinesstreamingmax'   : 10000,
+        'nostreaming'           : False,
+        'calibfactor'           : 1.0,
+        'outputnodata'          : False,
+        'nodate'                : 0,
+        'out': file_db.sigma0_normlim_file_from_two(idx, True),
+        }, None,
+        {
+            'CALIBRATION'              : 'GammaNaughtRTC',
+            'GAMMA_AREA_FILE'                 : os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Gamma Area Calibrated Sentinel-1A IW GRD',
+            }
+    )
+
+    s1_process(
+            config_opt=configuration, searched_items_per_page=0,
+            dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
+            gamma_area_process=register_GAMMA_AREA_pipelines,
+    )
+    application_mocker.assert_all_have_been_executed()
+    application_mocker.assert_all_metadata_match()
+
+
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, outputdir, gammaareadir, tmpdir, demdir, ram, mocker):
+    """
+    Mocked test of production of S2 normlim calibrated images.
+    """
+    number_dates = 3
+
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    logging.info("Baseline expected in '%s'", baselinedir)
+
+    inputdir = str((baselinedir/'inputs').absolute())
+
+    set_environ_mocked(inputdir, outputdir, gammaareadir, demdir, tmpdir, ram)
+
+    tile = '33NWB'
+
+    # baseline_path = baselinedir / 'expected'
+    test_file     = crt_dir / 'test_33NWB_202001.cfg'
+    configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
+    configuration.calibration_type = 'gamma_naught_rtc'
+    configuration.gamma_area_directory = gammaareadir.absolute()
+    logging.info("Gamma0 RTC mocked test")
+
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gammaareadir.absolute(), tile, demdir, configuration.GeoidFile)
+    configuration.first_date       = file_db.CONCATS[0]['first_date']
+    configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.produce_gamma_area_map  = True
+    configuration.show_configuration()
+
+    mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
+
+    application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
+    known_files = application_mocker.known_files
+    known_dirs = set()
+    _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
+    for i in range(number_dates):
+        assert os.path.isfile(file_db.input_file_vv(i))  # Check mocking
+
+    def mock__AnalyseBorders_complete_meta(slf, meta, all_inputs):
+        meta = super(AnalyseBorders, slf).complete_meta(meta, all_inputs)
+        meta['cut'] = {
+                'threshold.x'      : 0,
+                'threshold.y.start': 0,
+                'threshold.y.end'  : 0,
+                'skip'             : True,
+                }
+        return meta
+    mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
+
+    mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
+    mock_GAMMA_AREA_v1_0(application_mocker, file_db)  # always N=2
+    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
+
+    for idx in range(number_dates):
+        application_mocker.set_expectations('BandMath', {
+            'ram'      : param_ram(2048),
+            'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
+            'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
+            'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
+            }, None,
+        {
+            'CALIBRATION'              : 'Normlim',
+            'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
+            })
+        application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
+            'ram': param_ram(2048),
+            'ingammaarea': file_db.selectedsinGAMMA_AREAfile(),
+            'inbetanaught': file_db.concatfile_from_two(0, False, calibration='_beta'),
+            'mingammaarea': 1.0,
+            'nblinesstreamingmax': 10000,
+            'nostreaming': False,
+            'calibfactor': 1.0,
+            'outputnodata': False,
+            'nodate': 0,
+        }, None,
+        {
+            'CALIBRATION': 'GammaNaughtRTC',
+            'GAMMA_AREA_FILE': os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
+            'TIFFTAG_IMAGEDESCRIPTION': 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
+        }
+        )
 
     s1_process(
             config_opt=configuration, searched_items_per_page=0,

@@ -217,9 +217,9 @@ Local Incidence Angle map files
     The values have been orthorectified on the Sentinel-2 tile from a pair of
     :ref:`LIA maps computed on S1 images <lia-s1-files>`.
 
-:Directory:  :ref:`%(output_lia)/ <paths.map>` by default
+:Directory:  :ref:`%(output_lia)/ <paths.lia>` by default
 
-:Directory format: :samp:`{{map_dir}}`, see
+:Directory format: :samp:`{{lia_dir}}`, see
                    :ref:`[Processing].dname_fmt.lia_product
                    <Processing.dname_fmt.lia_product>`
 

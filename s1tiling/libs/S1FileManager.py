@@ -622,7 +622,7 @@ class S1FileManager:
         Turn the S1FileManager into a context manager, cleanup function
         """
         if self.__tmpdemdir:
-            logger.debug('Cleaning temporary DEM diretory (%s)', self.__tmpdemdir)
+            logger.debug('Cleaning temporary DEM directory (%s)', self.__tmpdemdir)
             self.__tmpdemdir.cleanup()
             self.__tmpdemdir = None
         return False
@@ -673,7 +673,8 @@ class S1FileManager:
         directories = {
             'out_dir': self.cfg.output_preprocess,
             'tmp_dir': self.cfg.tmpdir,
-            'map_dir': self.cfg.map_directory
+            'lia_dir': self.cfg.lia_directory,
+            'gamma_area_dir': self.cfg.gamma_area_directory
         }
 
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)

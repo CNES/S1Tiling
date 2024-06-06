@@ -378,7 +378,6 @@ class Calibrate(OTBStepFactory):
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
         # Locally override calibration type in case of normlim calibration
-        self.__final_calibration_type = cfg.calibration_type
         self.__calibration_type   = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
         self.__removethermalnoise = cfg.removethermalnoise
 
@@ -405,17 +404,16 @@ class Calibrate(OTBStepFactory):
         application <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
-                'ram'           : ram(self.ram_per_process),
-                self.param_in   : in_filename(meta)
+            'ram'           : ram(self.ram_per_process),
+            self.param_in   : in_filename(meta),
+            'lut': self.__calibration_type
         }
-        if self.__final_calibration_type != 'gamma_naught_rtc':
-            params['lut'] = self.__calibration_type
 
-            if otb_version() >= '7.4.0':
-                params['removenoise'] = self.__removethermalnoise
-            else:
-                # Don't try to do anything, let's keep the noise
-                params['noise']       = True
+        if otb_version() >= '7.4.0':
+            params['removenoise'] = self.__removethermalnoise
+        else:
+            # Don't try to do anything, let's keep the noise
+            params['noise']       = True
         return params
 
 

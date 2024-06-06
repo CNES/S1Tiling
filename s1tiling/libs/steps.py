@@ -916,7 +916,8 @@ class _FileProducingStepFactory(StepFactory):
         self.__ram_per_process     = cfg.ram_per_process
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        self.__mapdir              = cfg.map_directory
+        self.__liadir              = cfg.lia_directory
+        self.__gamma_areadir       = cfg.gamma_area_directory
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
     def output_directory(self, meta: Meta) -> str:
@@ -936,7 +937,8 @@ class _FileProducingStepFactory(StepFactory):
                 **meta,
                 out_dir=self.__outdir,
                 tmp_dir=self.__tmpdir,
-                map_dir=self.__mapdir
+                lia_dir=self.__liadir,
+                gamma_area_dir=self.__gamma_areadir
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:

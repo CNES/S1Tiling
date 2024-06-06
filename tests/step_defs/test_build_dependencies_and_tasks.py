@@ -232,7 +232,7 @@ def normlim_concatfile(idx, polarity) -> str:
 resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
 
 class Configuration():
-    def __init__(self, tmpdir, outputdir, liadir, *argv) -> None:
+    def __init__(self, tmpdir, outputdir, liadir, gamma_areadir, *argv) -> None:
         """
         constructor
         """
@@ -243,7 +243,8 @@ class Configuration():
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
-        self.map_directory                     = liadir
+        self.lia_directory                     = liadir
+        self.gamma_area_directory              = gamma_areadir
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True

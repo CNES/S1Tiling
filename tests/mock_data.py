@@ -51,6 +51,7 @@ class FileDB:
             'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
             'orthofile'           : '{s2_basename}{calibration}{tmp}',
             'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
+            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
             'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
@@ -62,6 +63,9 @@ class FileDB:
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
             'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
+            'GAMMA_AREAfile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
+            'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
+
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
@@ -71,6 +75,7 @@ class FileDB:
             # TODO: add fmt for orbit direction/number
             'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
             'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+            'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif'
     }
     FILES = [
             # 08 jan 2020
@@ -233,7 +238,7 @@ class FileDB:
 
     def __init__(
             self,
-            inputdir, tmpdir, outputdir, liadir,
+            inputdir, tmpdir, outputdir, liadir, gamma_dir,
             tile, demdir, geoid_file,
             dname_fmt_tiled=None,
     ) -> None:
@@ -241,6 +246,7 @@ class FileDB:
         self.__tmp_dir         = tmpdir
         self.__output_dir      = outputdir
         self.__lia_dir         = liadir
+        self.__gamma_area_dir  = gamma_areadir
         self.__tile            = tile
         self.__dem_dir         = demdir
         self.__GeoidFile       = geoid_file
@@ -280,6 +286,11 @@ class FileDB:
                 (self.concatsinLIAfile_from_two,    NConcats),
                 (self.sigma0_normlim_file_from_one, NFiles),
                 (self.sigma0_normlim_file_from_two, NConcats),
+                (self.GAMMA_AREAfile,               NFiles),
+                (self.orthoGAMMA_AREAfile,          NFiles),
+                (self.concatGAMMA_AREAfile_from_two, NConcats),
+                (self.gamma0_rtc_file_from_one, NFiles),
+                (self.gamma0_rtc_file_from_two, NConcats),
         ]
         names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
                 (self.orthofile,                    NFiles),
@@ -299,6 +310,7 @@ class FileDB:
                 (self.normals_on_s2,                NConcats),
                 (self.deglia_on_s2,                 NConcats),
                 (self.sinlia_on_s2,                 NConcats),
+                (self.gamma_area_on_s2,             NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -596,7 +608,10 @@ class FileDB:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-
+    def GAMMA_AREAfile(self, idx, tmp) -> str:
+        ext = self.extended_compress if tmp else ''
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["GAMMA_AREAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
@@ -606,6 +621,11 @@ class FileDB:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+
+    def orthoGAMMA_AREAfile(self, idx, tmp) -> str:
+        crt = self.FILES[idx]
+        ext = self.extended_geom_compress_nopr if tmp else ''
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoGAMMA_AREAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
@@ -617,6 +637,17 @@ class FileDB:
     def concatLIAfile_from_two(self, idx, tmp) -> str:
         crt = self.CONCATS[idx]
         return self._concatLIAfile_for_all(crt, tmp)
+
+    def _concatGAMMA_AREAfile_for_all(self, crt, tmp) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        ext = self.extended_compress if tmp else ''
+        return f'{dir}/{self.FILE_FMTS["orthoGAMMA_AREAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+    def concatGAMMA_AREAfile_from_one(self, idx, tmp) -> str:
+        crt = self.FILES[idx]
+        return self._concatGAMMA_AREAfile_for_all(crt, tmp)
+    def concatGAMMA_AREAfile_from_two(self, idx, tmp) -> str:
+        crt = self.CONCATS[idx]
+        return self._concatGAMMA_AREAfile_for_all(crt, tmp)
 
     def _concatsinLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
@@ -631,6 +662,9 @@ class FileDB:
 
     def selectedLIAfile(self) -> str:
         return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
+
+    def selectedGAMMA_AREAfile(self) -> str:
+        return f'{self.__gamma_area_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
@@ -672,6 +706,15 @@ class FileDB:
             ext = ''
         return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
+    def gamma_area_on_s2(self, tmp: bool) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2'
+            ext = self.extended_compress
+        else:
+            dir = f'{self.__gamma_area_dir}'
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["gamma_area_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
     def sinlia_on_s2(self, tmp: bool) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2'
@@ -698,6 +741,23 @@ class FileDB:
     def sigma0_normlim_file_from_two(self, idx, tmp, polarity='vv') -> str:
         crt = self.CONCATS[idx]
         return self._sigma0_normlim_file_for_all(crt, tmp, polarity)
+
+    def _gamma0_rtc_file_for_all(self, crt, tmp, polarity) -> str:
+        if tmp:
+            dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+            ext = self.extended_compress_predictor
+        else:
+            dir = f'{self.__output_dir}/{self.__tile}'
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["gamma0_rtc_file"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
+    def gamma0_rtc_file_from_one(self, idx, tmp, polarity='vv') -> str:
+        crt = self.FILES[idx]
+        return self._gamma0_rtc_file_for_all(crt, tmp, polarity)
+
+    def gamma0_rtc_file_from_two(self, idx, tmp, polarity='vv') -> str:
+        crt = self.CONCATS[idx]
+        return self._gamma0_rtc_file_for_all(crt, tmp, polarity)
+
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'

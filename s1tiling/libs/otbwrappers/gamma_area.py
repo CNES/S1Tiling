@@ -117,11 +117,11 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=dname_fmt,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            image_description='Gamma0 GammaNaughtRTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
+            image_description='Gamma0 RTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
         self.mingammaarea = cfg.fname_fmt.get('min_gamma_area', 1.0)
         self.nblinesstreamingmax = cfg.fname_fmt.get("nb_lines_streaming_max", 10000)
-        self.nostreaming = cfg.fname_fmt.get("no_streaming", False)
+        self.nostreaming = cfg.fname_fmt.get("gamma_area_to_gamma_naught_rtc_no_streaming", False)
         self.calibfactor = cfg.fname_fmt.get("calib_factor", 1.0)
         self.outputnodata = cfg.fname_fmt.get("output_nodata", False)
 
@@ -401,139 +401,6 @@ class ResampleDEM(OTBStepFactory):
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
 
-
-class SARDEMGeoidImageEstimation(OTBStepFactory):
-    """
-    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMGeoidImageEstimation`
-    as described in :ref:`Gamma area computation` documentation.
-
-    :external:doc:`Applications/app_SARDEMGeoidImageEstimation` application add a geoid to a DEM file in S1/S2 coordinate system
-    For each point of the DEM input the input geoid is added.
-
-    Requires the following information from the configuration object:
-
-    - `ram_per_process`
-    - `dem_db_filepath`   -- to fill-up image metadata
-    - `dem_field_ids`     -- to fill-up image metadata
-    - `dem_main_field_id` -- to fill-up image metadata
-    - `tmp_dir`           -- useless in the in-memory nomical case
-    - `fname_fmt`         -- optional key: `s1_on_geoid_dem`, useless in the in-memory nominal case
-
-    Requires the following information from the metadata dictionary
-
-    - `basename`
-    - `input filename`
-    - `output filename`
-    - `nodata` -- optional
-
-    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
-    DEM information already registered in dask worker (through
-    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
-    the Geoid.
-    """
-
-    def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'S1_on_GEOID_DEM_{polarless_basename}'
-        fname_fmt = cfg.fname_fmt.get('s1_on_geoid_dem', fname_fmt)
-        super().__init__(
-            cfg,
-            appname='SARDEMGeoidImageEstimation', name='SARDEMGeoidImageEstimation',
-            param_in=None, param_out='out',
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,  # Use gen_tmp_dir
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            image_description="SARDEM+geoid projection onto DEM list",
-        )
-        self.__dem_db_filepath = cfg.dem_db_filepath
-        self.__dem_field_ids = cfg.dem_field_ids
-        self.__dem_main_field_id = cfg.dem_main_field_id
-        self.dem_epsg = cfg.fname_fmt.get('dem_epsg', 4326)
-        self.geoid_epsg = cfg.fname_fmt.get("geoid_epsg", 5773)
-        self.__GeoidFile = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        self.geoid_reader_type = cfg.fname_fmt.get("geoidreadertype", 'auto')
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
-        """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
-        meta['reduce_inputs_insar'] = lambda inputs: [inputs[0]]  # TODO!!!
-        return meta
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        - Complete meta information with hook for updating image metadata
-          w/ directiontoscandemc, directiontoscandeml and gain.
-        - Computes dem information and add them to the meta structure, to be used
-          later to fill-in the image metadata.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        append_to(meta, 'post', self.add_image_metadata)
-        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-
-        _, inbasename = os.path.split(in_filename(meta))
-        meta['inbasename'] = inbasename
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set SARDEMProjection related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-
-    def add_image_metadata(self, meta: Meta, app) -> None:
-        """
-        Post-application hook used to complete GDAL metadata.
-
-        As :func:`update_image_metadata` is not designed to access OTB
-        application information (``directiontoscandeml``...), we need this
-        extra hook to fetch and propagate the PRJ information.
-        """
-        fullpath = out_filename(meta)
-        logger.debug('Set metadata in %s', fullpath)
-
-    def parameters(self, meta: Meta) -> OTBParameters:
-        """
-        Returns the parameters to use with
-        :external:doc:`SARDEMGeoidImageEstimation OTB application
-        <Applications/app_SARDEMGeoidImageEstimation>` to project S1 geometry onto DEM tiles.
-        """
-        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
-        inputs = meta['inputs']
-        indem = fetch_input_data('indemwithoutgeoid', inputs).out_filename
-
-        params = {
-            'ram': ram(self.ram_per_process),
-            'indem': indem,
-            'demepsg': self.dem_epsg,
-            'geoidepsg': self.geoid_epsg,
-            'nodata': -32768
-        }
-
-        if self.__GeoidFile:
-            params["elev.geoid"] = self.__GeoidFile
-
-        if self.geoid_reader_type:
-            params['geoidreadertype'] = self.geoid_reader_type
-
-        return params
-
-    def requirement_context(self) -> str:
-        """
-        Return the requirement context that permits to fix missing requirements.
-        SARDEMGeoidImageEstimation comes from gamma0-rtc.
-        """
-        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
-
 class SARDEMProjectionImageEstimation(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjectionImageEstimation`
@@ -581,7 +448,6 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
-        self.proj_dem_epsg = int(cfg.fname_fmt.get("projdemepsg", '4326'))
         self.__GeoidFile = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
         self.geoid_reader_type = cfg.fname_fmt.get("geoidreadertype", 'auto')
 
@@ -674,9 +540,6 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             'nodata': -32768
         }
 
-        if self.proj_dem_epsg:
-            params['projdemepsg'] = self.proj_dem_epsg
-
         if self.__GeoidFile:
             params["elev.geoid"] = self.__GeoidFile
 
@@ -727,8 +590,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
                 image_description='Gamma area image estimation',
         )
         self.distributearea = cfg.fname_fmt.get('distribute_area', False)
-        self.arearatio = cfg.fname_fmt.get("area_ratio", False)
-        self.nostreaming = cfg.fname_fmt.get("nostreaming", False)
+        self.nostreaming = cfg.fname_fmt.get("gamma_area_nostreaming", False)
         self.innermarginratiostatus = cfg.fname_fmt.get("inner_margin_ratio_status", False)
         self.outermarginratiostatus = cfg.fname_fmt.get("outer_margin_ratio_status", True)
         self.innermarginratio = cfg.fname_fmt.get("inner_margin_ratio", 0.01)
@@ -832,7 +694,6 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             'mlran'           : 1,
             'mlazi'           : 1,
             'distributearea': self.distributearea,
-            'arearatio': self.arearatio,
             'nostreaming': self.nostreaming,
             'nodata': -32768,
             'innermarginratiostatus': self.innermarginratiostatus,
@@ -953,7 +814,6 @@ class _FilterGAMMA_AREAStepFactory(StepFactory):
     # Useless definition used to trick pylint in believing self._LIA_kind is set.
     # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
     _GAMMA_AREA_kind : Optional[str] = None
-    #_DEM_file: Optional[str] = None
 
     def __init__(self, cfg: Configuration) -> None:
         """

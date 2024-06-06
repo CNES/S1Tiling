@@ -295,8 +295,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
         self.output_preprocess   = accessor.get('Paths', 'output')
-        #: Destination directory where maps products are generated:  :ref:`[PATHS.map] <paths.map>`
-        self.map_directory       = accessor.get('Paths', 'map', fallback=os.path.join(self.output_preprocess, '_MAP'))
+        #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
+        self.lia_directory       = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.lia] <paths.gamma_area>`
+        self.gamma_area_directory = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory       = accessor.get('Paths', 's1_images')
 
@@ -420,39 +422,35 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Gamma area computation
         #: Resampling: See :ref:`[Processing.no_use_resampled_dem] <Processing.no_use_resampled_dem>`
-        self.no_use_resampled_dem     = accessor.get('Processing', 'no_use_resampled_dem', fallback=False)
+        self.no_use_resampled_dem     = accessor.getboolean('Processing', 'no_use_resampled_dem', fallback=False)
 
         #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
-        self.resample_dem_factor_x     = accessor.get('Processing', 'resample_dem_factor_x', fallback=2.0)
+        self.resample_dem_factor_x     = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
         #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
-        self.resample_dem_factor_y     = accessor.get('Processing', 'resample_dem_factor_y', fallback=2.0)
+        self.resample_dem_factor_y     = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
 
         #: Resampling: See :ref:`[Processing.dem_epsg] <Processing.dem_epsg>`
-        self.dem_epsg = accessor.get('Processing', 'dem_epsg', fallback=4326)
-        #: Resampling: See :ref:`[Processing.geoid_epsg] <Processing.geoid_epsg>`
-        self.geoid_epsg = accessor.get('Processing', 'geoid_epsg', fallback=5773)
+        self.dem_epsg = accessor.getint('Processing', 'dem_epsg', fallback=4326)
 
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
-        self.distribute_area     = accessor.get('Processing', 'distribute_area', fallback=False)
-        #: Gamma area: See :ref:`[Processing.area_ratio] <Processing.area_ratio>`
-        self.area_ratio     = accessor.get('Processing', 'area_ratio', fallback=False)
+        self.distribute_area     = accessor.getboolean('Processing', 'distribute_area', fallback=False)
         #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
-        self.gamma_area_nostreaming     = accessor.get('Processing', 'gamma_area_nostreaming', fallback=False)
+        self.gamma_area_nostreaming     = accessor.getboolean('Processing', 'gamma_area_nostreaming', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
-        self.inner_margin_ratio_status     = accessor.get('Processing', 'inner_margin_ratio_status', fallback=False)
+        self.inner_margin_ratio_status     = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=False)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
-        self.outer_margin_ratio_status     = accessor.get('Processing', 'outer_margin_ratio_status', fallback=False)
+        self.outer_margin_ratio_status     = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
-        self.inner_margin_ratio     = accessor.get('Processing', 'inner_margin_ratio', fallback=False)
+        self.inner_margin_ratio     = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
-        self.outer_margin_ratio     = accessor.get('Processing', 'outer_margin_ratio', fallback=False)
+        self.outer_margin_ratio     = accessor.getfloat('Processing', 'outer_margin_ratio', fallback=0.04)
 
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
-        self.min_gamma_area     = accessor.get('Processing', 'min_gamma_area', fallback=1.0)
+        self.min_gamma_area     = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
-        self.gamma_area_to_gamma_naught_rtc_nostreaming     = accessor.get('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
+        self.gamma_area_to_gamma_naught_rtc_nostreaming     = accessor.getboolean('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
-        self.output_nodata     = accessor.get('Processing', 'output_nodata', fallback=False)
+        self.output_nodata     = accessor.getboolean('Processing', 'output_nodata', fallback=False)
 
 
 
@@ -606,70 +604,69 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("Running S1Tiling %s with:", s1tiling_version)
         logging.info("From request file: %s", self.__config_file or "(some string)")
         logging.info("[Paths]")
-        logging.info("- geoid_file                       : %s",     self.GeoidFile)
-        logging.info("- s1_images                        : %s",     self.raw_directory)
-        logging.info("- output                           : %s",     self.output_preprocess)
-        logging.info("- MAP                              : %s",     self.map_directory)
-        logging.info("- dem directory                    : %s",     self.dem)
-        logging.info("- dem filename format              : %s",     self.dem_filename_format)
-        logging.info("- dem field ids (from shapefile)   : %s",     self.dem_field_ids)
-        logging.info("- main ID for DEM names deduced    : %s",     self.dem_main_field_id)
-        logging.info("- tmp                              : %s",     self.tmpdir)
+        logging.info("- geoid_file                                  : %s",     self.GeoidFile)
+        logging.info("- s1_images                                   : %s",     self.raw_directory)
+        logging.info("- output                                      : %s",     self.output_preprocess)
+        logging.info("- LIA                                         : %s",     self.lia_directory)
+        logging.info("- GAMMA_AREA                                  : %s",     self.gamma_area_directory)
+        logging.info("- dem directory                               : %s",     self.dem)
+        logging.info("- dem filename format                         : %s",     self.dem_filename_format)
+        logging.info("- dem field ids (from shapefile)              : %s",     self.dem_field_ids)
+        logging.info("- main ID for DEM names deduced               : %s",     self.dem_main_field_id)
+        logging.info("- tmp                                         : %s",     self.tmpdir)
         logging.info("[DataSource]")
-        logging.info("- download                         : %s",     self.download)
-        logging.info("- first_date                       : %s",     self.first_date)
-        logging.info("- last_date                        : %s",     self.last_date)
-        logging.info("- platform_list                    : %s",     self.platform_list)
-        logging.info("- polarisation                     : %s",     self.polarisation)
-        logging.info("- orbit_direction                  : %s",     self.orbit_direction)
-        logging.info("- relative_orbit_list              : %s",     self.relative_orbit_list)
-        logging.info("- tile_to_product_overlap_ratio    : %s%%",   self.tile_to_product_overlap_ratio)
-        logging.info("- roi_by_tiles                     : %s",     self.roi_by_tiles)
+        logging.info("- download                                    : %s",     self.download)
+        logging.info("- first_date                                  : %s",     self.first_date)
+        logging.info("- last_date                                   : %s",     self.last_date)
+        logging.info("- platform_list                               : %s",     self.platform_list)
+        logging.info("- polarisation                                : %s",     self.polarisation)
+        logging.info("- orbit_direction                             : %s",     self.orbit_direction)
+        logging.info("- relative_orbit_list                         : %s",     self.relative_orbit_list)
+        logging.info("- tile_to_product_overlap_ratio               : %s%%",   self.tile_to_product_overlap_ratio)
+        logging.info("- roi_by_tiles                                : %s",     self.roi_by_tiles)
         if self.download:
-            logging.info("- nb_parallel_downloads            : %s", self.nb_download_processes)
+            logging.info("- nb_parallel_downloads                   : %s", self.nb_download_processes)
         logging.info("[Processing]")
-        logging.info("- calibration                      : %s",     self.calibration_type)
-        logging.info("- mode                             : %s",     self.Mode)
-        logging.info("- nb_otb_threads                   : %s",     self.OTBThreads)
-        logging.info("- nb_parallel_processes            : %s",     self.nb_procs)
-        logging.info("- orthorectification interpolation : %s",     self.interpolation_method)
-        logging.info("- orthorectification_gridspacing   : %s",     self.grid_spacing)
-        logging.info("- output_spatial_resolution        : %s",     self.out_spatial_res)
-        logging.info("- ram_per_process                  : %s",     self.ram_per_process)
-        logging.info("- remove_thermal_noise             : %s",     self.removethermalnoise)
-        logging.info("- dem_shapefile                    : %s",     self._DEMShapefile)
-        logging.info("- tiles                            : %s",     self.tile_list)
-        logging.info("- tiles_shapefile                  : %s",     self.output_grid)
-        logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
-        logging.info("- produce GAMMA_AREA° map          : %s",     self.produce_gamma_area_map)
-        logging.info("- no_use_resampled_dem          : %s", self.no_use_resampled_dem)
-        logging.info("- resample_dem_factor_x          : %s", self.resample_dem_factor_x)
-        logging.info("- resample_dem_factor_y          : %s", self.resample_dem_factor_y)
-        logging.info("- dem_epsg          : %s", self.dem_epsg)
-        logging.info("- geoid_epsg          : %s", self.geoid_epsg)
-        logging.info("- distribute_area          : %s", self.distribute_area)
-        logging.info("- area_ratio          : %s", self.area_ratio)
-        logging.info("- gamma_area_nostreaming          : %s", self.gamma_area_nostreaming)
-        logging.info("- inner_margin_ratio_status          : %s", self.inner_margin_ratio_status)
-        logging.info("- outer_margin_ratio_status          : %s", self.outer_margin_ratio_status)
-        logging.info("- inner_margin_ratio          : %s", self.inner_margin_ratio)
-        logging.info("- outer_margin_ratio          : %s", self.outer_margin_ratio)
-        logging.info("- min_gamma_area          : %s", self.min_gamma_area)
-        logging.info("- gamma_area_to_gamma_naught_rtc_nostreaming          : %s", self.gamma_area_to_gamma_naught_rtc_nostreaming)
-        logging.info("- output_nodata          : %s", self.output_nodata)
-        logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
-        logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
+        logging.info("- calibration                                 : %s", self.calibration_type)
+        logging.info("- mode                                        : %s", self.Mode)
+        logging.info("- nb_otb_threads                              : %s", self.OTBThreads)
+        logging.info("- nb_parallel_processes                       : %s", self.nb_procs)
+        logging.info("- orthorectification interpolation            : %s", self.interpolation_method)
+        logging.info("- orthorectification_gridspacing              : %s", self.grid_spacing)
+        logging.info("- output_spatial_resolution                   : %s", self.out_spatial_res)
+        logging.info("- ram_per_process                             : %s", self.ram_per_process)
+        logging.info("- remove_thermal_noise                        : %s", self.removethermalnoise)
+        logging.info("- dem_shapefile                               : %s", self._DEMShapefile)
+        logging.info("- tiles                                       : %s", self.tile_list)
+        logging.info("- tiles_shapefile                             : %s", self.output_grid)
+        logging.info("- produce LIA° map                            : %s", self.produce_lia_map)
+        logging.info("- produce GAMMA_AREA° map                     : %s", self.produce_gamma_area_map)
+        logging.info("- no_use_resampled_dem                        : %s", self.no_use_resampled_dem)
+        logging.info("- resample_dem_factor_x                       : %s", self.resample_dem_factor_x)
+        logging.info("- resample_dem_factor_y                       : %s", self.resample_dem_factor_y)
+        logging.info("- dem_epsg                                    : %s", self.dem_epsg)
+        logging.info("- distribute_area                             : %s", self.distribute_area)
+        logging.info("- gamma_area_nostreaming                      : %s", self.gamma_area_nostreaming)
+        logging.info("- inner_margin_ratio_status                   : %s", self.inner_margin_ratio_status)
+        logging.info("- outer_margin_ratio_status                   : %s", self.outer_margin_ratio_status)
+        logging.info("- inner_margin_ratio                          : %s", self.inner_margin_ratio)
+        logging.info("- outer_margin_ratio                          : %s", self.outer_margin_ratio)
+        logging.info("- min_gamma_area                              : %s", self.min_gamma_area)
+        logging.info("- gamma_area_to_gamma_naught_rtc_nostreaming  : %s", self.gamma_area_to_gamma_naught_rtc_nostreaming)
+        logging.info("- output_nodata                               : %s", self.output_nodata)
+        logging.info("- warping method for DEM on S2                : %s",     self.dem_warp_resampling_method)
+        logging.info("- superimpose interpol Geoid on S2            : %s",     self.interpolation_method)
         logging.info("[Mask]")
-        logging.info("- generate_border_mask             : %s",     self.mask_cond)
+        logging.info("- generate_border_mask                        : %s",     self.mask_cond)
         logging.info("[Filter]")
-        logging.info("- Speckle filtering method         : %s",     self.filter or "none")
+        logging.info("- Speckle filtering method                    : %s",     self.filter or "none")
         if self.filter:
-            logging.info("- Keeping previous products        : %s", self.keep_non_filtered_products)
-            logging.info("- Window radius                    : %s", self.filter_options['rad'])
+            logging.info("- Keeping previous products               : %s", self.keep_non_filtered_products)
+            logging.info("- Window radius                           : %s", self.filter_options['rad'])
             if   self.filter in ['lee', 'gammamap', 'kuan']:
-                logging.info("- nblooks                          : %s", self.filter_options['nblooks'])
+                logging.info("- nblooks                             : %s", self.filter_options['nblooks'])
             elif self.filter in ['frost']:
-                logging.info("- deramp                           : %s", self.filter_options['deramp'])
+                logging.info("- deramp                              : %s", self.filter_options['deramp'])
 
         logging.info('Output directories:')
         for k, fmt in self.dname_fmt.items():
@@ -800,14 +797,14 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
     Helper function that returns the ``Processing.dname.lia_product`` actual value,
     or its default value.
     """
-    return cfg.dname_fmt.get('lia_product', '{map_dir}')
+    return cfg.dname_fmt.get('lia_product', '{lia_dir}')
 
 def dname_fmt_gamma_area_product(cfg: Configuration) -> str:
     """
     Helper function that returns the ``Processing.dname.gamma_area_product`` actual value,
     or its default value.
     """
-    return cfg.dname_fmt.get('gamma_area_product', '{map_dir}')
+    return cfg.dname_fmt.get('gamma_area_product', '{gamma_area_dir}')
 
 
 def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
