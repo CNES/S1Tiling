@@ -58,7 +58,7 @@ def pytest_addoption(parser) -> None:
     parser.addoption("--baselinedir", action="store",      default=crt_dir/'baseline',                 type=dir_path, help="Directory where the baseline is")
     parser.addoption("--outputdir",   action="store",      default=crt_dir/'output',                   type=dir_path, help="Directory where the S2 products will be generated. Don't forget to clean it eventually.")
     parser.addoption("--liadir",      action="store",      default=crt_dir/'LIAs',                     type=dir_path, help="Directory where the LIA products will be generated. Don't forget to clean it eventually.")
-    parser.addoption("--gammaareadir",action="store",      default=crt_dir/'GAMMA_AREAs',              type=dir_path, help="Directory where the GAMMA_AREA products will be generated. Don't forget to clean it eventually.")
+    parser.addoption("--gamma_areadir",action="store",      default=crt_dir/'GAMMA_AREAs',              type=dir_path, help="Directory where the GAMMA_AREA products will be generated. Don't forget to clean it eventually.")
     parser.addoption("--tmpdir",      action="store",      default=crt_dir/'tmp',                      type=dir_path, help="Directory where the temporary files will be generated. Don't forget to clean it eventually.")
     parser.addoption("--demdir",      action="store",       default=os.getenv('SRTM_DIR', '$SRTM_DIR'),type=dir_path, help="Directory where DEM files are - default: $SRTM_DIR")
     parser.addoption("--ram",         action="store",      default='4096',                             type=int     , help="Available RAM allocated to each OTB process")

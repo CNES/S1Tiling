@@ -67,9 +67,10 @@ TMPDIR = 'TMP'
 INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
 LIADIR = 'LIADIR'
+GAMMA_AREADIR = 'GAMMA_AREADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
 def safe_dir(idx) -> str:
     return file_db.safe_dir(idx)
