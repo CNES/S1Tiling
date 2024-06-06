@@ -61,6 +61,7 @@ from ..steps import (
 )
 from ..otbpipeline import (
     TaskInputInfo,
+    fetch_input_data,
 )
 from ..otbtools      import otb_version
 from ..              import exceptions
@@ -450,6 +451,47 @@ class CorrectDenoising(OTBStepFactory):
         )
         self.__lower_signal_value = cfg.lower_signal_value
 
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Complete meta information with inputs.
+        """
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
+        return meta
+
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method is overridden in order to fetch N-1 "in_s2_dem" input.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        assert len(previous_steps) > 1
+
+        # "in_sar" is expected at level -2, likelly named '__last'
+        in_sar  = fetch_input_data('__last', previous_steps[-2])
+        # "in_cal" is expected at level -1, likelly named '__last'
+        in_cal  = fetch_input_data('__last', previous_steps[-1])
+
+        inputs = [{'in_sar': in_sar, 'in_cal': in_cal}]
+        _check_input_step_type(inputs)
+        logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
+        return inputs
+
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+
+        In current case, the canonical input comes from the "in_s2_geoid"
+        step instanciated in :func:`s1tiling.s1_process_lia` pipeline builder.
+        """
+        _check_input_step_type(inputs)
+        keys = set().union(*(input.keys() for input in inputs))
+        assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
+        assert 'in_cal' in keys
+        return [input['in_cal'] for input in inputs if 'in_cal' in input.keys()][0]
+
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set noise correction related information that'll get carried around.
@@ -463,12 +505,21 @@ class CorrectDenoising(OTBStepFactory):
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
         <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
+
+        Expression used: ``exp = im{sar}b1 == 0 ? 0 : im{cal}b1 == 0 ? 1e-7 : im{cal}b1``
         """
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        # "in_sar" needs to be "im2" as _do_create_actual_step() will add extra filenames to inputlist
+        # after in_memory pipelines
+        in_cal = fetch_input_data('in_cal', inputs).out_filename
+        in_sar = fetch_input_data('in_sar', inputs).out_filename
         params : OTBParameters = {
                 'ram'              : ram(self.ram_per_process),
-                self.param_in      : in_filename(meta),
+                self.param_in      : [in_cal, in_sar],
                 # self.param_out     : out_filename(meta),
-                'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
+                # 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
+                'exp'              : f'im2b1==0?0:im1b1==0?{self.__lower_signal_value}:im1b1'
         }
         return params
 
