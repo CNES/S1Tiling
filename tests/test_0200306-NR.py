@@ -114,8 +114,10 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, gamma_aread
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
-    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
+    if liadir != "":
+        os.environ['S1TILING_TEST_DATA_LIA'] = str(liadir.absolute())
+    if gamma_areadir != "":
+        os.environ['S1TILING_TEST_DATA_GAMMA_AREA'] = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -190,8 +192,10 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
-    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
+    if liadir != "":
+        os.environ['S1TILING_TEST_DATA_LIA'] = str(liadir.absolute())
+    if gamma_areadir != "":
+        os.environ['S1TILING_TEST_DATA_GAMMA_AREA'] = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -357,8 +361,10 @@ def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdi
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
-    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
+    if liadir != "":
+        os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    if gamma_areadir != "":
+        os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -1130,7 +1136,7 @@ def test_33NWB_202001_lia_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1171,7 +1177,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1241,7 +1247,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1319,7 +1325,7 @@ def test_33NWB_202001_lia_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1360,7 +1366,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1437,7 +1443,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
