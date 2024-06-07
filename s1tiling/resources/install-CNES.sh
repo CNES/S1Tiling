@@ -23,6 +23,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 #
@@ -37,6 +38,7 @@ s1tiling_version=1.2.0alpha
 otb_ver=9.0.0
 # otb_ver=8.1.2
 git_node=90-integration-gamma-naught-rtc
+git_gamma0-rtc_node=tmp
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
@@ -122,7 +124,7 @@ echo
 [ -d gamma0-rtc ] || _execute git clone https://${_user}:${_token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 _execute cd "${prefix_root}/${env}"/gamma0-rtc
-_execute git checkout tmp || _die "Can't checkout tmp"
+_execute git checkout ${git_gamma0-rtc_node} || _die "Can't checkout '${git_gamma0-rtc_node}'"
 unset _user
 unset _token
 
