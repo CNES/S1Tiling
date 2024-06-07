@@ -65,7 +65,7 @@ env="${public_prefix}-${date}"
 # -> HAL
 # projets_root="/softs/projets"
 # -> TREX
-projets_root="/work/softs/projets"
+projets_root="/work/scratch/data/contivf/"
 
 prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
 module_root="${projets_root}/modulefiles/s1tiling"
