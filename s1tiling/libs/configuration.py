@@ -429,9 +429,6 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
         self.resample_dem_factor_y     = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
 
-        #: Resampling: See :ref:`[Processing.dem_epsg] <Processing.dem_epsg>`
-        self.dem_epsg = accessor.getint('Processing', 'dem_epsg', fallback=4326)
-
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
         self.distribute_area     = accessor.getboolean('Processing', 'distribute_area', fallback=False)
         #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
@@ -644,7 +641,6 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- no_use_resampled_dem                        : %s", self.no_use_resampled_dem)
         logging.info("- resample_dem_factor_x                       : %s", self.resample_dem_factor_x)
         logging.info("- resample_dem_factor_y                       : %s", self.resample_dem_factor_y)
-        logging.info("- dem_epsg                                    : %s", self.dem_epsg)
         logging.info("- distribute_area                             : %s", self.distribute_area)
         logging.info("- gamma_area_nostreaming                      : %s", self.gamma_area_nostreaming)
         logging.info("- inner_margin_ratio_status                   : %s", self.inner_margin_ratio_status)

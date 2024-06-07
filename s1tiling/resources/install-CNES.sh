@@ -181,7 +181,7 @@ _execute make install               || _die "Can't install normlim_sigma0"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 _execute rm -rf "normlim_sigma0"    || _die "Can't clean normlim_sigma0 directory"
 
-# ==[ Clone and install OTB applications for NORMLIM Calibration
+# ==[ Clone and install OTB applications for GAMMA NAUGHT RTC Calibration
 gamma_area_build_dir="gamma0-rtc/_builddir"
 
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
@@ -193,8 +193,8 @@ _execute mkdir -p "_builddir" || _die "Can't create the build directory"
 _execute cd       "_builddir" || _die "Can't cd to the build directory"
 # _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
 _execute cmake -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${prefix_root}/${env}" -DCMAKE_BUILD_TYPE=Release .. || _die "Can't configure gamma0-rtc compilation"
-_execute make                       || _die "Can't compile normlim_sigma0"
-_execute make install               || _die "Can't install normlim_sigma0"
+_execute make                       || _die "Can't compile gamma0-rtc"
+_execute make install               || _die "Can't install gamma0-rtc"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 _execute rm -rf "gamma0-rtc"    || _die "Can't clean gamma0-rtc directory"
 
