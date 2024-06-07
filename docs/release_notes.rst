@@ -45,6 +45,14 @@ v1.1.0 Improvements
   <Processing.cache_dem_by>` option is on.
   (`#123 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/123>`_).
 
+v1.1.0 Bugs fixed
++++++++++++++++++
+
+- Noise correction post-processing shall not transform wide no-data sides from
+  Sentinel-1 IPF 2.90+ products into :ref:`minimal signal value
+  <Processing.lower_signal_value>`.
+  (`#159 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/159>`_).
+
 v1.1.0 Breaking changes
 +++++++++++++++++++++++
 

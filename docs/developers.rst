@@ -192,7 +192,7 @@ convenience, but they are not expected to be extended.
   class of steps hierarchy. It still get instantiated automatically for steps
   not related to any kind of application.
 
-.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.AnyProducerStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._ProducerStep
+.. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.AnyProducerStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._ProducerStep s1tiling.libs.steps._OTBStep s1tiling.libs.steps.SkippedStep
    :parts: 1
    :top-classes: s1tiling.libs.steps.AbstractStep
    :private-bases:
@@ -204,7 +204,9 @@ convenience, but they are not expected to be extended.
    s1tiling.libs.steps.FirstStep
    s1tiling.libs.steps.MergeStep
    s1tiling.libs.steps._ProducerStep
+   s1tiling.libs.steps._OTBStep
    s1tiling.libs.steps.Step
+   s1tiling.libs.steps.SkippedStep
    s1tiling.libs.steps.AnyProducerStep
    s1tiling.libs.steps.ExecutableStep
    s1tiling.libs.steps.StoreStep

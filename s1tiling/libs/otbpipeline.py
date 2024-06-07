@@ -210,7 +210,7 @@ class Pipeline:
         assert len(steps[-1]) == 1
         res = steps[-1][0]['__last'].out_filename
         assert res == self.output, (
-            f"Step output {self.output} doesn't match expected output {res}."
+            f"Step output {self.output!r} doesn't match expected output {res!r}."
             "\nThis is likely happenning because pipeline name generation isn't incremental."
         )
         steps = None  # type: ignore  # force reset local variable, in doubt...
@@ -375,8 +375,10 @@ class PipelineDescription:
         for factory_step in self.__factory_steps + []:
             pipeline.push(factory_step)
             need_OTB_store = need_OTB_store or isinstance(factory_step, OTBStepFactory)  # TODO: use a dedicated function
+            # logger.debug(f"{self.name}.push({factory_step.name}) -> need store: {need_OTB_store}")
         if need_OTB_store:
             pipeline.push(Store('noappname'))
+            # logger.debug("Store pushed!")
         return pipeline
 
     def __repr__(self) -> str:
