@@ -33,10 +33,10 @@
 # ==[ Constant parameters {{{2
 # s1tiling_version=1.0.0
 # otb_ver=7.4.2
-s1tiling_version=1.1.0rc0
+s1tiling_version=1.2.0alpha
 otb_ver=9.0.0
 # otb_ver=8.1.2
-git_node=develop
+git_node=90-integration-gamma-naught-rtc
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
@@ -65,10 +65,10 @@ env="${public_prefix}-${date}"
 # -> HAL
 # projets_root="/softs/projets"
 # -> TREX
-projets_root="/work/scratch/data/contivf/demo"
+projects_root="/work/scratch/data/contivf/demo"
 
-prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
-module_root="${projets_root}/modulefiles/s1tiling"
+prefix_root="${projects_root}/s1tiling/rh${RH_FLAVOR}"
+module_root="${projects_root}/modulefiles/s1tiling"
 
 ## ======[ Helper functions {{{1
 # ==[ _verbose                          {{{2
@@ -119,8 +119,10 @@ _execute read -s -p "user? " _user || exit 127
 echo
 _execute read -s -p "token? " _token || exit 127
 echo
-_execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d gamma0-rtc ] || _execute git clone https://${_user}:${_token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+_execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
+_execute cd "${prefix_root}/${env}"/gamma0-rtc
+_execute git checkout tmp || _die "Can't checkout tmp"
 unset _user
 unset _token
 
@@ -243,7 +245,7 @@ whatis("Date d installation : "..installation)
 -- check_os(os_disponible) -- on HAL only, not on TREX...
 
 -- Variable du modulefile
-local home=pathJoin("/softs/projets/s1tiling",rhos,version)
+local home=pathJoin("${projects_root}/s1tiling",rhos,version)
 
 -- Dependances
 depend("otb/${otb_ver}-${python_ml_dep}")

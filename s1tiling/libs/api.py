@@ -1081,7 +1081,7 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
-        register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map)
+        register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map, config=config)
         required_workspaces = [WorkspaceKinds.GAMMA_AREA]
         return pipelines, required_workspaces
 
