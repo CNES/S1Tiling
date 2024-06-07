@@ -39,7 +39,7 @@ import shutil
 import re
 from abc import abstractmethod
 from typing import Dict, List, Optional, Union
-# from packaging import version
+from packaging import version
 
 import numpy as np
 from osgeo import gdal
@@ -55,7 +55,7 @@ from ..steps import (
         _check_input_step_type,
         AbstractStep, StepFactory,
         OTBStepFactory,
-        FirstStep, MergeStep,
+        FirstStep, MergeStep, _OTBStep, SkippedStep,
         manifest_to_product_name,
         ram,
 )
@@ -100,7 +100,9 @@ def extract_IPF_version(tifftag_software: str) -> str:
     if not match:
         logger.warning('Cannot extract IPF version from "%s"', tifftag_software)
         return '000.00'
-    return match.group(1)
+    ipf_version = match.group(1)
+    # logger.debug(f"IPF version is {ipf_version}; {tifftag_software=!r} ")
+    return ipf_version
 
 
 def s2_tile_extent(tile_name: str, tile_origin: Utils.Polygon, in_epsg: int, spacing: float) -> Dict:
@@ -296,16 +298,14 @@ class AnalyseBorders(StepFactory):
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        # tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE') # Ex: Sentinel-1 IPF 003.10
+        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE') # Ex: Sentinel-1 IPF 003.10
 
-        # TODO: The margin analysis must extract the width of ipf 2.9 margin correction.
-        # see Issue #88
-        #Temporary correction:
-        #     The cut margin (right and left)  is done for any version of IPF
+        # Starting from IPF 2.90+, no margin correction is done on the sides.
+        # With prior versions, the cut margin (right and left) is done.
 
-        #ipf_version = extract_IPF_version(tifftag_software)
-        # if version.parse(ipf_version) >= version.parse('2.90'):
-        #    cut_overlap_range = 0
+        ipf_version = extract_IPF_version(tifftag_software)
+        if version.parse(ipf_version) >= version.parse('2.90'):
+            cut_overlap_range = 0
 
         if self.__override_azimuth_cut_threshold_to is None:
             xsize = ds_reader.RasterXSize
@@ -332,11 +332,11 @@ class AnalyseBorders(StepFactory):
         thr_y_e = cut_overlap_azimuth if crop2 else 0
 
         meta['cut'] = {
-                'threshold.x'      : cut_overlap_range,
+                'threshold.x'      : thr_x,
                 'threshold.y.start': thr_y_s,
                 'threshold.y.end'  : thr_y_e,
                 'skip'             : thr_x == 0 and thr_y_s == 0 and thr_y_e == 0,
-                }
+        }
         return meta
 
 
@@ -464,7 +464,7 @@ class CorrectDenoising(OTBStepFactory):
         Extract the last inputs to use at the current level from all previous
         products seens in the pipeline.
 
-        This method is overridden in order to fetch N-1 "in_s2_dem" input.
+        This method is overridden in order to fetch N-3 "in_sar" input.
         It has been specialized for S1Tiling exact pipelines.
         """
         assert len(previous_steps) > 1
@@ -483,8 +483,8 @@ class CorrectDenoising(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "in_s2_geoid"
-        step instanciated in :func:`s1tiling.s1_process_lia` pipeline builder.
+        In current case, the canonical input comes from the "in_cal"
+        step instanciated in :func:`s1tiling.s1_process` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -504,7 +504,10 @@ class CorrectDenoising(OTBStepFactory):
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for changing 0.0 into lower_signal_value
+        <Applications/app_BandMath>` for changing no-non-data 0.0 into lower_signal_value,
+        and force nodata to 0.
+
+        The nodata mask comes from the input SAR image.
 
         Expression used: ``exp = im{sar}b1 == 0 ? 0 : im{cal}b1 == 0 ? 1e-7 : im{cal}b1``
         """
@@ -556,20 +559,27 @@ class CutBorders(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
         )
 
-    # def create_step(self, execution_parameters: Dict, previous_steps: List[InputList]):
-    #     """
-    #     This overrides checks whether ResetMargin would cut any border.
-    #
-    #     In the likelly other case, the method returns ``None`` to say **Don't
-    #     register any OTB application and skip this step!**.
-    #     """
-    #     inputs = self._get_inputs(previous_steps)
-    #     inp    = self._get_canonical_input(inputs)
-    #     if inp.meta['cut'].get('skip', False):
-    #         logger.debug('Margins cutting is not required and thus skipped!')
-    #         return None
-    #     else:
-    #         return super().create_step(execution_parameters, previous_steps)
+    def create_step(
+            self,
+            execution_parameters: Dict,
+            previous_steps: List[InputList]
+    ) -> AbstractStep:
+        """
+        This overrides checks whether ResetMargin would cut any border.
+
+        In the likelly other case, the method returns a
+        :class:`s1tiling.libs.steps.SkippedStep` to say **Don't register any OTB
+        application and skip this step!**.
+        """
+        inputs = self._get_inputs(previous_steps)
+        inp    = self._get_canonical_input(inputs)
+        if inp.meta['cut'].get('skip', False):
+            logger.debug('Margins cutting is not required and thus skipped!')
+            meta = self.complete_meta(inp.meta, inputs)
+            assert isinstance(inp, _OTBStep)
+            return SkippedStep(inp.app, **meta)
+        else:
+            return super().create_step(execution_parameters, previous_steps)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -583,7 +593,7 @@ class CutBorders(OTBStepFactory):
                 'threshold.x'      : meta['cut']['threshold.x'],
                 'threshold.y.start': meta['cut']['threshold.y.start'],
                 'threshold.y.end'  : meta['cut']['threshold.y.end']
-                }
+        }
         if otb_version() != '7.2.0':  # From 7.3.0 onward actually
             params['mode'] = 'threshold'
         return params

@@ -243,7 +243,8 @@ class AbstractStep:
 
     def release_app(self) -> None:
         """
-        Makes sure that steps with applications are releasing the application
+        Makes sure that steps with applications are releasing the application (no-op for
+        this class)
         """
         pass
 
@@ -448,12 +449,15 @@ class ExecutableStep(_ProducerStep):
         execute([self._exename] + parameters, dryrun)
 
 
-class Step(AbstractStep):
+class _OTBStep(AbstractStep):
     """
-    Internal specialized `Step` that holds a binding to an OTB Application.
+    Step that have a reference to an OTB application. 
+    It could be an actual :class:`Step` holding an OTB application,
+    or a :class:`SkippedStep` that forwards the OTB application from its
+    previous step in the pipeline.
 
-    The application binding is expected to be built by a dedicated :class:`StepFactory` and
-    passed to the constructor.
+    **Note**: Both child classes are virtually the same. Yet, different types are used in
+    order to really distinguish what is registered and executed.
     """
     def __init__(self, app, *argv, **kwargs) -> None:
         """
@@ -464,14 +468,10 @@ class Step(AbstractStep):
         self._app = app
         self._out = kwargs.get('param_out', 'out')
 
-    def __del__(self) -> None:
-        """
-        Makes sure the otb app is released
-        """
-        if self._app:
-            self.release_app()
-
     def release_app(self) -> None:
+        """
+        Makes sure that steps with applications are releasing the application!
+        """
         self._app = None
 
     @property
@@ -483,6 +483,7 @@ class Step(AbstractStep):
 
     @property
     def is_first_step(self) -> bool:
+        # TODO: does it make sense for an OTB step to have no application associated???
         return self._app is None
 
     @property
@@ -492,6 +493,36 @@ class Step(AbstractStep):
         Default is likely to be "out", while some applications use "io.out".
         """
         return self._out
+
+
+class Step(_OTBStep):
+    """
+    Internal specialized `Step` that holds a binding to an OTB Application.
+
+    The application binding is expected to be built by a dedicated :class:`StepFactory` and
+    passed to the constructor.
+    """
+    # parent __init__ is perfect.
+
+    def __del__(self) -> None:
+        """
+        Makes sure the otb app is released
+        """
+        if self._app:
+            self.release_app()
+
+
+class SkippedStep(_OTBStep):
+    """
+    Kind of OTB Step that forwards the OTB application of the previous step in the
+    pipeline.
+    """
+    def __init__(self, app, *argv, **kwargs) -> None:
+        """
+        constructor
+        """
+        assert "SkippedStep needs a valid OTB application to forward from a previous Step"
+        super().__init__(app, *argv, **kwargs)
 
 
 def _check_input_step_type(inputs: InputList) -> None:
@@ -761,7 +792,7 @@ class StoreStep(_ProducerStep):
     Artificial Step that takes care of executing the last OTB application in the
     pipeline.
     """
-    def __init__(self, previous: Step) -> None:
+    def __init__(self, previous: _OTBStep) -> None:
         assert not previous.is_first_step
         super().__init__(*[], **previous.meta)
         self._app = previous._app
@@ -1179,7 +1210,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                 # parameters[self.param_in] = input_step.out_filename
                 lg_from = input_step.out_filename
             else:
-                assert isinstance(input_step, Step)
+                assert isinstance(input_step, _OTBStep)
                 assert isinstance(self.param_in, str), f"String expected for {self.param_in}"
                 assert isinstance(input_step.param_out, str), f"String expected for {self.param_out}"
                 app.ConnectImage(self.param_in, input_step.app, input_step.param_out)
@@ -1366,13 +1397,18 @@ class Store(StepFactory):
         inputs     = self._get_inputs(previous_steps)
         input_step = self._get_canonical_input(inputs)
         if input_step.is_first_step:
-            # assert False  # Should no longer happen, yet it does w/ ConcatLIA...
-            # Special case of by-passed inputs
+            # TODO: The boolean tested is incorrectly named! Fix that.
+            # | This case may happen when StepFactories skips their actions by returning
+            # | an AbstractStep instead of the usual Step; meaning no OTB application
+            # | will be called.
+            # | This may happen in the case of the concatenation when there is only one
+            # | input image that will be renamed.
+            # logger.debug(f"Unexpected case where StoreStep is build from: {input_step}")
             meta = input_step.meta.copy()
             return AbstractStep(**meta)
 
-        # logger.debug('Creating StoreStep from %s', input_step)
-        assert isinstance(input_step, Step)
+        logger.debug('Creating StoreStep from %s', input_step)
+        assert isinstance(input_step, _OTBStep)
         res = StoreStep(input_step)
         try:
             res.execute_and_write_output(None, execution_parameters)  # Parameters have already been set for OTB applications

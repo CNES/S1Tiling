@@ -368,10 +368,10 @@ def mock_upto_concat_S2(
         assert '_'+raw_calibration in orthofile
 
     # Workaround defect on skipping cut margins
-        # out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
-        # in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
-        out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
-        in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
+        out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
+        in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
+        # out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
+        # in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
 
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : param_ram(2048),
@@ -419,7 +419,7 @@ def mock_upto_concat_S2(
                 'Swath'                       : '',
                 })
 
-        if True:     #  workaround defect on skipping cutmargin       #old_IPF:
+        if old_IPF:     #  workaround defect on skipping cutmargin
             application_mocker.set_expectations('ResetMargin', {
                 'in'               : input_file+'|>SARCalibration',
                 'ram'              : param_ram(2048),
