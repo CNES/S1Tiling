@@ -65,7 +65,7 @@ env="${public_prefix}-${date}"
 # -> HAL
 # projets_root="/softs/projets"
 # -> TREX
-projets_root="/work/scratch/data/contivf/"
+projets_root="/work/scratch/data/contivf/demo"
 
 prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
 module_root="${projets_root}/modulefiles/s1tiling"
@@ -115,8 +115,14 @@ _execute cd "${env}"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d normlim_sigma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 
+_execute read -s -p "user? " _user || exit 127
+echo
+_execute read -s -p "token? " _token || exit 127
+echo
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-[ -d gamma0-rtc ] || _execute git clone https://{user}:{token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+[ -d gamma0-rtc ] || _execute git clone https://${_user}:${_token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+unset _user
+unset _token
 
 # ==[ Create and prepare the virtual env
 _execute cd "${prefix_root}"
