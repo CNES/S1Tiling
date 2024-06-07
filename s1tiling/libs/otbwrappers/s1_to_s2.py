@@ -668,11 +668,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'map.utm.northhem' : extent['utm_northern'],
                 'outputs.ulx'      : extent['xmin'],
                 'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
-                'elev.dem'         : self.__tmp_dem_dir
+                'elev.dem'         : self.__tmp_dem_dir,
+                'elev.geoid'       : self.__GeoidFile
         }
-
-        if self.__GeoidFile:
-            parameters["elev.geoid"] = self.__GeoidFile
 
         return parameters
 

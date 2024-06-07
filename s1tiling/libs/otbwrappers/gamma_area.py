@@ -537,11 +537,9 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             'insar': in_filename(meta),
             'indem': indem,
             'withxyz': True,
-            'nodata': -32768
+            'nodata': -32768,
+            'elev.geoid': self.__GeoidFile
         }
-
-        if self.__GeoidFile:
-            params["elev.geoid"] = self.__GeoidFile
 
         if self.geoid_reader_type:
             params['geoidreadertype'] = self.geoid_reader_type
