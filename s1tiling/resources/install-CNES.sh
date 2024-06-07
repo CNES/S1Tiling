@@ -117,16 +117,10 @@ _execute cd "${env}"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d normlim_sigma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 
-_execute read -s -p "user? " _user || exit 127
-echo
-_execute read -s -p "token? " _token || exit 127
-echo
-[ -d gamma0-rtc ] || _execute git clone https://${_user}:${_token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+[ -d gamma0-rtc ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 _execute cd "${prefix_root}/${env}"/gamma0-rtc
 _execute git checkout ${git_gamma0-rtc_node} || _die "Can't checkout '${git_gamma0-rtc_node}'"
-unset _user
-unset _token
 
 # ==[ Create and prepare the virtual env
 _execute cd "${prefix_root}"
