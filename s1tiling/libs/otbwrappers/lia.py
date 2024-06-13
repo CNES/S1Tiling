@@ -287,6 +287,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         Returns the parameters to use with :external:std:doc:`super impose
         <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
         """
+        nodata = meta.get('nodata', -32768)
         in_s2_dem = in_filename(meta)
         return {
                 'ram'                     : ram(self.ram_per_process),
@@ -294,6 +295,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 'inm'                     : self.__GeoidFile,
                 'interpolator'            : self.__interpolation_method,  # TODO: add parameter
                 'interpolator.bco.radius' : 2,  # 2 is the default value for bco
+                'fv'                      : nodata, # Make sure meta data are correctly set
         }
 
 
@@ -338,6 +340,8 @@ class SumAllHeights(OTBStepFactory):
         dem_on_s2  = fetch_input_data('in_s2_dem', all_inputs).out_filename
         meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
         logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
+        # Make sure to set nodata metadata in image
+        meta['out_extended_filename_complement'] = '?&nodata=-32768'
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
@@ -570,7 +574,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         :external:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
-        nodata = meta.get('nodata', -32768)
+        nodata = meta.get('nodata', 'nan')  # Best nodata value here is NaN
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         inheight = fetch_input_data('inheight', inputs).out_filename
@@ -660,7 +664,7 @@ class _ComputeNormals(OTBStepFactory):
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
-        nodata = meta.get('nodata', -32768)
+        nodata = meta.get('nodata', 'nan')  # Best nodata value here is NaN
         xyz = in_filename(meta)
         return {
                 'ram'             : ram(self.ram_per_process),
@@ -810,7 +814,7 @@ class _ComputeLIA(OTBStepFactory):
         inputs = meta['inputs']
         xyz     = fetch_input_data('xyz', inputs).out_filename
         normals = fetch_input_data('normals', inputs).out_filename
-        nodata  = meta.get('nodata', -32768)
+        nodata = meta.get('nodata', 'nan')  # Best nodata value here is NaN
         return {
                 'ram'             : ram(self.ram_per_process),
                 'in.xyz'          : xyz,
