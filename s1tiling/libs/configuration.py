@@ -466,6 +466,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if self.dem_warp_resampling_method not in resamplings:
             accessor.throw(f"{self.dem_warp_resampling_method} is an invalid choice for `dem_warp_resampling_method`. Choose one among {resamplings}")
 
+        #: no-data value used for various processings
+        self.nodatas = {}
+        self.nodatas['SAR'] = accessor.get('Processing', 'nodata.SAR', fallback=0)  # undocumented => best avoided!!!
+        self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)
+
     # ----------------------------------------------------------------------
     def __init_filtering(self, accessor: _ConfigAccessor) -> None:
         #: Despeckle filter to apply, if any: See :ref:`[Filtering.filter] <Filtering.filter>`
@@ -806,3 +811,31 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def nodata_SAR(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in Sentinel-1 raw
+    products and in S1Tiling SAR products.
+    """
+    return cfg.nodatas.get('SAR', None) or 0
+
+
+def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    images generated for LIA normlim correction.
+
+    TODO: it should become NaN starting w/ S1Tiling 1.2
+    """
+    return cfg.nodatas.get('LIA', None) or -3278
+
+
+def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    DEM images generated for LIA normlim correction.
+
+    TODO: it should become NaN starting w/ S1Tiling 1.2
+    """
+    return cfg.nodatas.get('DEM', -32768)
