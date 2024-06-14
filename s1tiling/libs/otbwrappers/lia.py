@@ -669,7 +669,8 @@ class _ComputeNormals(OTBStepFactory):
         return {
                 'ram'             : ram(self.ram_per_process),
                 'xyz'             : xyz,
-                'nodata'          : float(nodata),
+                # 'nodata'          : float(nodata),
+                'nodata'          : nodata,
         }
 
     def requirement_context(self) -> str:
@@ -819,7 +820,8 @@ class _ComputeLIA(OTBStepFactory):
                 'ram'             : ram(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
-                'nodata'          : float(nodata),
+                # 'nodata'          : float(nodata),
+                'nodata'          : nodata,
         }
 
     def requirement_context(self) -> str:
