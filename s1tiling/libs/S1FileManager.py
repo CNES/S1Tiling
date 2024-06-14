@@ -506,7 +506,7 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
     Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
     """
     nb_products = len(products)
-    paths = []
+    paths : List[DownloadOutcome] = []
     log_queue : multiprocessing.Queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
     dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
@@ -518,7 +518,7 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
             # -> IOW, downloading instability justifies trying again.
             # /> On the contrary, on a complete network failure, we should not try again and again...
             while len(products) > 0:
-                products_in_timeout : List[EOProduct] = []
+                products_in_timeout : List[DownloadOutcome] = []
                 nb_successes_since_timeout = 0
                 for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
                     # logger.debug('DL -> %s', result)
@@ -532,12 +532,12 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
                         logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                         # TODO: make it possible to detect missing products in the analysis
                         if isinstance(result.error(), ReadTimeout):
-                            products_in_timeout.append(result.related_product())
+                            products_in_timeout.append(result)
                         else:
                             paths.append(result)
                 products = []
                 if nb_successes_since_timeout > nb_procs:
-                    products = products_in_timeout
+                    products = [r.related_product() for r in products_in_timeout]
                     logger.info("Attempting again to download %s products on timeout...", len(products))
                 elif len(products_in_timeout) > 0:
                     paths.extend(products_in_timeout)
@@ -705,7 +705,7 @@ class S1FileManager:
         if not self.__tmpdemdir:
             # copy all needed DEM & geoid files in a temp directory for orthorectification processing
             self.__tmpdemdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
+            logger.debug('Create temporary DEM directory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
             def do_symlink(src: Union[Path, str], dst: Path):
                 logger.debug('- ln -s %s <-- %s', src, dst)
