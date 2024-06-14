@@ -791,7 +791,7 @@ class S1FileManager:
                             orbitDirection=dag_orbit_dir_param,        # None => all
                             relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
                             platformSerialIdentifier=dag_platform_list_param,
-                            )
+                    )
                     logger.info("%s remote S1 products returned in page %s: %s", len(page_products), page, page_products)
                     products.extend(page_products)
                     page += 1
