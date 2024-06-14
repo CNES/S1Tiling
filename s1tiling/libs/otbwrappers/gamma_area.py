@@ -119,11 +119,9 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description='Gamma0 RTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
-        self.mingammaarea = cfg.fname_fmt.get('min_gamma_area', 1.0)
-        self.nblinesstreamingmax = cfg.fname_fmt.get("nb_lines_streaming_max", 10000)
-        self.nostreaming = cfg.fname_fmt.get("gamma_area_to_gamma_naught_rtc_no_streaming", False)
-        self.calibfactor = cfg.fname_fmt.get("calib_factor", 1.0)
-        self.outputnodata = cfg.fname_fmt.get("output_nodata", False)
+        self.mingammaarea = cfg.min_gamma_area
+        self.nostreaming = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
+        self.outputnodata = cfg.output_nodata
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -191,9 +189,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             'ingammaarea': in_GAMMA_AREA,
             'inbetanaught': in_concat_S2,
             'mingammaarea': self.mingammaarea,
-            'nblinesstreamingmax': self.nblinesstreamingmax,
             'nostreaming': self.nostreaming,
-            'calibfactor': self.calibfactor,
             'outputnodata': self.outputnodata,
             'nodata': 0
         }
@@ -321,8 +317,8 @@ class ResampleDEM(OTBStepFactory):
         self.__dem_db_filepath = cfg.dem_db_filepath
         self.__dem_field_ids = cfg.dem_field_ids
         self.__dem_main_field_id = cfg.dem_main_field_id
-        self.factor_x = cfg.fname_fmt.get('resample_dem_factor_x', 2.0)
-        self.factor_y = cfg.fname_fmt.get("resample_dem_factor_y", 2.0)
+        self.factor_x = cfg.resample_dem_factor_x
+        self.factor_y = cfg.resample_dem_factor_y
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -449,7 +445,6 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
         self.__GeoidFile = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        self.geoid_reader_type = cfg.fname_fmt.get("geoidreadertype", 'auto')
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -541,9 +536,6 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             'elev.geoid': self.__GeoidFile
         }
 
-        if self.geoid_reader_type:
-            params['geoidreadertype'] = self.geoid_reader_type
-
         return params
 
     def requirement_context(self) -> str:
@@ -587,12 +579,12 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Gamma area image estimation',
         )
-        self.distributearea = cfg.fname_fmt.get('distribute_area', False)
-        self.nostreaming = cfg.fname_fmt.get("gamma_area_nostreaming", False)
-        self.innermarginratiostatus = cfg.fname_fmt.get("inner_margin_ratio_status", False)
-        self.outermarginratiostatus = cfg.fname_fmt.get("outer_margin_ratio_status", True)
-        self.innermarginratio = cfg.fname_fmt.get("inner_margin_ratio", 0.01)
-        self.outermarginratio = cfg.fname_fmt.get("outer_margin_ratio", 0.04)
+        self.distributearea = cfg.distribute_area
+        self.nostreaming = cfg.gamma_area_nostreaming
+        self.innermarginratiostatus = cfg.inner_margin_ratio_status
+        self.outermarginratiostatus = cfg.outer_margin_ratio_status
+        self.innermarginratio = cfg.inner_margin_ratio
+        self.outermarginratio = cfg.outer_margin_ratio
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -758,6 +750,7 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         super().update_image_metadata(meta, all_inputs)
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
+        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         meta = super().complete_meta(meta, all_inputs)
@@ -981,7 +974,7 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
                 name='SelectGammaNaughtAreaBestCoverage',
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=dname_fmt,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt)
         )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:

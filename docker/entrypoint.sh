@@ -41,7 +41,7 @@ if [ "$1" = "--lia" ] ; then
     S1LIAMap "$@"
 elif [ "$1" = "--gamma_area" ] ; then
     shift
-    S1GammaNaughtAreaMap "$@"
+    S1GammaAreaMap "$@"
 else
     S1Processor "$@"
 fi

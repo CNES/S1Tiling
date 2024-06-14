@@ -161,7 +161,7 @@ setup(
         'console_scripts': [
             'S1Processor = s1tiling.S1Processor:run',
             'S1LIAMap    = s1tiling.S1Processor:run_lia',
-            'S1GammaNaughtAreaMap    = s1tiling.S1Processor:run_gamma_area'
+            'S1GammaAreaMap    = s1tiling.S1Processor:run_gamma_area'
         ],
     },
 )

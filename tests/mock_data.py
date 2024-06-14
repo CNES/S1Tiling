@@ -664,7 +664,7 @@ class FileDB:
         return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
-        return f'{self.__gamma_area_dir}/LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__gamma_area_dir}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'

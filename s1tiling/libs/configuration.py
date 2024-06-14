@@ -449,8 +449,6 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
         self.output_nodata     = accessor.getboolean('Processing', 'output_nodata', fallback=False)
 
-
-
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
         self.out_spatial_res      = accessor.getfloat('Processing', 'output_spatial_resolution')

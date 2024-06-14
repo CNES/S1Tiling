@@ -1149,7 +1149,7 @@ def test_33NWB_202001_lia_mocked(
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), "", tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1190,7 +1190,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), "", tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1258,7 +1258,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     configuration.lia_directory = liadir.absolute()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), "", tile, demdir, configuration.GeoidFile)
     configuration.first_date       = file_db.CONCATS[0]['first_date']
     configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
     configuration.produce_lia_map  = True
@@ -1338,7 +1338,7 @@ def test_33NWB_202001_lia_mocked(
     configuration.show_configuration()
     logging.info("Sigma0 GAMMA_AREA mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), "", gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1357,7 +1357,7 @@ def test_33NWB_202001_lia_mocked(
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1377,9 +1377,9 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma
     configuration.lia_directory    = liadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
-    logging.info("Sigma0 NORMLIM mocked test")
+    logging.info("Gamma0 RTC mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), "", gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
@@ -1419,7 +1419,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, gamma
         {
             'CALIBRATION'              : 'GammaNaughtRTC',
             'GAMMA_AREA_FILE'                 : os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
-            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Gamma Area Calibrated Sentinel-1A IW GRD',
+            'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
             }
     )
 
@@ -1454,7 +1454,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     configuration.gamma_area_directory = gamma_areadir.absolute()
     logging.info("Gamma0 RTC mocked test")
 
-    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
+    file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), "", gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
     configuration.first_date       = file_db.CONCATS[0]['first_date']
     configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
     configuration.produce_gamma_area_map  = True
@@ -1485,17 +1485,6 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
 
     for idx in range(number_dates):
-        application_mocker.set_expectations('BandMath', {
-            'ram'      : param_ram(2048),
-            'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
-            'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
-            }, None,
-        {
-            'CALIBRATION'              : 'Normlim',
-            'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
-            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
-            })
         application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
             'ram': param_ram(2048),
             'ingammaarea': file_db.selectedsinGAMMA_AREAfile(),
@@ -1511,8 +1500,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
             'CALIBRATION': 'GammaNaughtRTC',
             'GAMMA_AREA_FILE': os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
             'TIFFTAG_IMAGEDESCRIPTION': 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
-        }
-        )
+        })
 
     s1_process(
             config_opt=configuration, searched_items_per_page=0,
