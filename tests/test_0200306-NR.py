@@ -1406,7 +1406,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
 
     application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
         'ram'                   : param_ram(2048),
-        'ingammaarea'           : file_db.selectedsinGAMMA_AREAfile(),
+        'ingammaarea'           : file_db.selectedGAMMA_AREAfile(),
         'inbetanaught'          : file_db.concatfile_from_two(0, False, calibration='_beta'),
         'mingammaarea'          : 1.0,
         'nblinesstreamingmax'   : 10000,
@@ -1418,7 +1418,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
         }, None,
         {
             'CALIBRATION'              : 'GammaNaughtRTC',
-            'GAMMA_AREA_FILE'                 : os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
+            'GAMMA_AREA_FILE'                 : os.path.basename(file_db.selectedGAMMA_AREAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
             }
     )
@@ -1498,7 +1498,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
         }, None,
         {
             'CALIBRATION': 'GammaNaughtRTC',
-            'GAMMA_AREA_FILE': os.path.basename(file_db.selectedsinGAMMA_AREAfile()),
+            'GAMMA_AREA_FILE': os.path.basename(file_db.selectedGAMMA_AREAfile()),
             'TIFFTAG_IMAGEDESCRIPTION': 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
         })
 
