@@ -1374,7 +1374,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.lia_directory    = liadir.absolute()
+    configuration.gamma_area_directory    = gamma_areadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
     logging.info("Gamma0 RTC mocked test")
@@ -1487,7 +1487,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     for idx in range(number_dates):
         application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
             'ram': param_ram(2048),
-            'ingammaarea': file_db.selectedsinGAMMA_AREAfile(),
+            'ingammaarea': file_db.selectedGAMMA_AREAfile(),
             'inbetanaught': file_db.concatfile_from_two(0, False, calibration='_beta'),
             'mingammaarea': 1.0,
             'nblinesstreamingmax': 10000,
