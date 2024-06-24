@@ -901,9 +901,20 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         exp_dem_names     = sorted(cov)
         exp_out_vrt       = file_db.vrtfile(idx, False)
         exp_out_dem       = file_db.sardemprojfile(idx, False)
+        exp_out_resampled_dem       = file_db.resampleddemfile(idx, False)
         exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
         application_mocker.set_expectations(AgglomerateDEMOnS1.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
+
+        application_mocker.set_expectations('RigidTransformResample', {
+            'ram': param_ram(2048),
+            'insar': file_db.input_file_vv(idx),
+            'indem': exp_out_vrt,
+            'transform.type': "id",
+            'transform.type.id.scalex': 2.0,
+            'transform.type.id.scaley': 2.0,
+            'out': file_db.exp_out_resampled_dem(idx, True),
+        }, None, None)
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
             'ram'        : param_ram(2048),
@@ -929,14 +940,13 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'             : param_ram(2048),
             'insar'           : file_db.input_file_vv(idx),
-            'indem'           : exp_out_vrt,
-            'indemproj'       : exp_out_dem,
+            'indem'           : exp_out_resampled_dem,
             'indemproj'       : exp_out_dem,
             'indirectiondemc' : 24,
             'indirectiondeml' : 12,
             'mlran'           : 1,
             'mlazi'           : 1,
-            'out'             : file_db.xyzfile(idx, True),
+            'out'             : file_db.gamma_areafile(idx, True),
             }, None,
             {
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
@@ -947,7 +957,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : param_ram(2048),
-            'io.in'           : file_db.GAMMA_AREAfile(idx, False),
+            'io.in'           : file_db.gamma_areafile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -1490,7 +1500,6 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
             'ingammaarea': file_db.selectedGAMMA_AREAfile(),
             'inbetanaught': file_db.concatfile_from_two(0, False, calibration='_beta'),
             'mingammaarea': 1.0,
-            'nblinesstreamingmax': 10000,
             'nostreaming': False,
             'calibfactor': 1.0,
             'outputnodata': False,

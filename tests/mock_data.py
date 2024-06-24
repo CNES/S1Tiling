@@ -56,6 +56,7 @@ class FileDB:
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
             'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
+            'resampled_dem'       : 'RESAMPLED_DEM_{polarless_basename}-{tmp}.tiff',
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
             'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
             'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
@@ -63,7 +64,7 @@ class FileDB:
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
             'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
-            'GAMMA_AREAfile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
+            'gamma_areafile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
             'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
 
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
@@ -275,6 +276,7 @@ class FileDB:
                 (self.maskfile_from_two,            NConcats),
 
                 (self.vrtfile,                      NFiles),
+                (self.resampleddemfile,             NFiles),
                 (self.sardemprojfile,               NFiles),
                 (self.xyzfile,                      NFiles),
                 (self.normalsfile,                  NFiles),
@@ -286,7 +288,7 @@ class FileDB:
                 (self.concatsinLIAfile_from_two,    NConcats),
                 (self.sigma0_normlim_file_from_one, NFiles),
                 (self.sigma0_normlim_file_from_two, NConcats),
-                (self.GAMMA_AREAfile,               NFiles),
+                (self.gamma_areafile,               NFiles),
                 (self.orthoGAMMA_AREAfile,          NFiles),
                 (self.concatGAMMA_AREAfile_from_two, NConcats),
                 (self.gamma0_rtc_file_from_one, NFiles),
@@ -591,6 +593,9 @@ class FileDB:
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def dem_coverage(self, idx) -> List[str]:
         return self.FILES[idx]['dem_coverage']
+    def resampleddemfile(self, idx, tmp) -> str:
+        crt = self.FILES[idx]
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["resampleddemfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def sardemprojfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
@@ -608,10 +613,10 @@ class FileDB:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def GAMMA_AREAfile(self, idx, tmp) -> str:
+    def gamma_areafile(self, idx, tmp) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["GAMMA_AREAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["gamma_areafile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
