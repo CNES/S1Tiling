@@ -3,16 +3,14 @@
 Release notes
 =============
 
-Version 1.1.0
+Version 1.2.0
 -------------
 
 This version integrates 3 main improvements:
 
-- it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
-- it supports OTB 8 (and OTB 9) applications (while staying backward compatible
+- it exposes the :math:`γ^0_{RTC}` GammaNaughtRTC calibration (for OTB > 8),
+- it supports OTB 9 applications (while staying backward compatible
   with OTB 7.4.2),
-- it improves the quality and the processing performances of
-  LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
 
 v1.1.0 Improvements
 +++++++++++++++++++

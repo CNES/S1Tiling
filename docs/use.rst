@@ -32,7 +32,7 @@ This is the main scenario where pairs of Sentinel-1 images are:
 The unique elements in this scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that must be
-  either one of ``beta``, ``sigma`` or ``gamma``
+  either one of ``beta``, ``sigma``, ``gamma``, ``normlim`` or ``gamma_naught_rtc``
 - the main executable which is :program:`S1Processor`.
 
 All options go in a :ref:`request configuration file <request-config-file>`
@@ -153,6 +153,94 @@ masking....
    request configuration file and other S1LIAMap related parameters). See
    :ref:`Using S1LIAMap with a docker <docker.S1LIAMap>`.
 
+.. _scenario.S1ProcessorGAMMA_AREA:
+
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` GammaNaughtRTC calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+In this scenario, the calibration applied is the :math:`σ^0_{RTC}` GammaNaughtRTC
+calibration described in [Small2011]_.
+
+.. [Small2011] D. Small, "Flattening Gamma: Radiometric Terrain Correction for
+   SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
+   49, no. 8, pp. 3081-3093, Aug. 2011, doi: 10.1109/TGRS.2011.2120616.
+
+In S1Tiling, we have chosen to precompute Local Incidence Angle (LIA) maps on
+Sentinel-2 grid. Given a series of Sentinel-1 images to orthorectify on a
+Sentinel-2 grid, we select a pair of Sentinel-1 images to compute the LIA
+in the geometry of these images. The LIA map is then projected, through
+orthorectification, on a Sentinel-2 tile.
+
+That map will then be used for all series of pairs of Sentinel-1 images that
+intersect the associated S2 tile.
+
+Regarding options, the only difference with previous scenario are:
+
+- the :ref:`calibration option <Processing.calibration>` that needs to be
+  ``gammanaughtrtc``,
+- the :ref:`directory <Paths.gamma_area>` where GAMMA_AREA maps will be searched for, or
+  produced in.
+
+
+S1Tiling will then automatically take care of:
+
+- producing, or using existing, maps of GAMMA_AREA for each Sentinel-2 tiles --
+  given an orbit and it direction,
+- producing intermediary products calibrated with β\ :sup:`0` LUT.
+
+
+.. warning::
+   If you wish to parallelize this scenario and dedicate a different cluster
+   node to each date -- as recommended in ":ref:`scenario.parallelize_date`"
+   scenario, you will **NEED** produce all the LIA maps beforehand.
+   Otherwise a same file may be concurrently written to from different nodes,
+   and it will likely end up corrupted.
+
+.. note::
+   This scenario requires `GammaNaughtRTC
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc>`_ binaries.
+   At the moment, GammaNaughtRTC γ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
+
+
+.. _scenario.S1GammaAreaMap:
+
+Preproduce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` GammaNaughtRTC calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+While :program:`S1Processor` is able to produce the necessary GAMMA_AREA maps on the
+fly, it is not able to do so when parallelization is done manually over time
+ranges -- as described in ":ref:`scenario.parallelize_date`" scenario.
+
+A different program is provided to compute the GAMMA_AREA maps beforehand:
+:program:`S1GammaAreaMap`. It takes the exact same parameter files as
+:program:`S1Processor`. A few options will be ignored though: calibration type,
+masking....
+
+.. code:: bash
+
+        cd workingdir
+        # Yes, the same file works!
+        S1LIAMap MyS1ToS2.cfg
+
+
+.. note::
+   LIA maps are perfect products to be stored and reused.
+
+.. note::
+   This scenario requires `GammaNaughtRTC
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc>`_ binaries.
+   At the moment, GammaNauhgtRTC γ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
+
+.. note::
+   To run :program:`S1GammaAreaMap` from the official S1Tiling docker, use ``--gamma_area``
+   as the first parameter to the docker execution (just before the the
+   request configuration file and other S1GammaAreaMap related parameters). See
+   :ref:`Using S1GammaAreaMap with a docker <docker.S1GammaAreaMap>`.
+
 
 .. _scenario.masks:
 
@@ -181,9 +269,9 @@ jobarrays for instances.
 
 
 .. warning::
-   This scenario is not compatible with ``normlim`` calibration where the LIA
-   maps would be computed on-the-fly. For ``normlim`` calibration, it's
-   imperative to precompute (and store LIA maps) before going massively
+   This scenario is not compatible with ``gammanaughtrtc`` calibration where the GAMMA_AREA
+   maps would be computed on-the-fly. For ``gammanaughtrtc`` calibration, it's
+   imperative to precompute (and store GAMMA_AREA maps) before going massively
    parallel.
 
 
@@ -274,6 +362,11 @@ You can use this :download:`this template
   * - ``lia``
     - Where Local Incidence Maps and sin(LIA) products are generated. Its
       default value is ``{output}/_LIA``.
+
+      .. _paths.gamma_area:
+  * - ``gamma_area``
+    - GAMMA_AREA products are generated. Its
+      default value is ``{output}/_GAMMA_AREA``.
 
       .. _paths.tmp:
   * - ``tmp``
@@ -478,8 +571,8 @@ You can use this :download:`this template
 
       .. _Processing.calibration:
   * - ``calibration``
-    - Defines the calibration type: ``gamma``, ``beta``, ``sigma``, or
-      ``normlim``.
+    - Defines the calibration type: ``gamma``, ``beta``, ``sigma``,
+      ``normlim`` or ``gamma_naught_rtc``.
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
@@ -602,10 +695,25 @@ You can use this :download:`this template
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
+      .. _Processing.produce_gamma_area_map:
+  * - ``produce_gamma_area_map``
+    - When :ref:`GAMMA_AREA map <gamma_area-files>` is produced.
+
+      Possible values are:
+
+      :``True``:         Do generate the GAMMA_AREA map.
+      :``False``:        Don't generate the GAMMA_AREA map.
+
+      .. note::
+        This option will be ignored when no GAMMA_AREA map is required. The GAMMA_AREA
+        map is produced by :ref:`S1GammaAreaMap program <scenario.S1GammaAreaMap>` ,
+        or when :ref:`calibration mode <Processing.calibration>` is
+        ``"gamma_naught_rtc"``.
+
       .. _Processing.dem_warp_resampling_method:
   * - ``dem_warp_resampling_method``
-    - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
-      <lia-files>`.
+    - DEM files projected on S2 tiles are required to produce :ref:`GAMMA_AREA maps
+      <gamma_area-files>`.
       This parameters permits to select the resampling method that
       :external:std:doc:`gdalwarp <programs/gdalwarp>` will use.
 
@@ -690,6 +798,10 @@ You can use this :download:`this template
           - ``LIA``/``sin_LIA``
           - S2
 
+        * - GAMMA_AREA_kind
+          - ``GAMMA_AREA``
+          - S2
+
         * - basename
           - Filename of initial S1 image.
           - S1
@@ -699,7 +811,7 @@ You can use this :download:`this template
           - S1
 
         * - calibration_type
-          - ``beta``/``gamma``/``sigma``/``dn``/``Normlim``
+          - ``beta``/``gamma``/``sigma``/``dn``/``normlim``/``gamma_naught_rtc``
           - S1/S2
 
         * - polarless_basename
@@ -734,6 +846,19 @@ You can use this :download:`this template
 
       Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
+.. _Processing.fname_fmt.gamma_area_corrected:
+  * - ``fname_fmt.s2_gamma_area_corrected``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`
+      when GammaNaughtRTC calibrated.
+
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC.tif`
+
+      .. _Processing.fname_fmt.lia_product:
+  * - ``fname_fmt.gamma_area_product``
+    - File format pattern for GAMMA_AREA files
+
+      Default value: :samp:`{{GAMMA_AREA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
     - File format pattern for :ref:`filtered files <filtered-files>`
@@ -742,6 +867,7 @@ You can use this :download:`this template
       for β°, σ° and γ° calibrations,
 
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC_filtered.tif` when GammaNaughtRTC calibrated.
 
       .. _Processing.dname_fmt:
   * - ``dname_fmt.*``
@@ -768,6 +894,8 @@ You can use this :download:`this template
           - :ref:`[PATHS].tmp <paths.tmp>`
         * - :samp:`{{lia_dir}}`
           - :ref:`[PATHS].lia <paths.lia>`
+        * - :samp:`{{gamma_area_dir}}`
+          - :ref:`[PATHS].gamma_area <paths.gamma_area>`
 
       .. list-table::
         :widths: auto
@@ -779,7 +907,7 @@ You can use this :download:`this template
           - Default value
 
             .. _Processing.dname_fmt.tiled:
-        * - :ref:`(β°/σ°/γ°/NORMLIM) Final tiled product <full-S2-tiles>`
+        * - :ref:`(β°/σ°/γ°/NORMLIM/GammaNaughtRTC) Final tiled product <full-S2-tiles>`
           - ``.tiled``
           - :samp:`{{out_dir}}/{{tile_name}}`
 
@@ -792,6 +920,11 @@ You can use this :download:`this template
         * - :ref:`degree(LIA) and sin(LIA) <lia-files>`
           - ``.lia_product``
           - :samp:`{{lia_dir}}`
+
+            .. _Processing.dname_fmt.lia_product:
+        * - :ref:`GAMMA_AREA <gamma_area-files>`
+          - ``.gamma_area_product``
+          - :samp:`{{gamma_area_dir}}`
 
             .. _Processing.dname_fmt.filtered:
         * - :ref:`Filtering <filtered-files>`
@@ -815,7 +948,7 @@ You can use this :download:`this template
           - Default value
 
             .. _Processing.creation_options.tiled:
-        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
+        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM/GammaNaughtRTC) Concatenation
             <full-S2-tiles>`...
           - ``.tiled``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
@@ -839,6 +972,11 @@ You can use this :download:`this template
         * - :ref:`sin(LIA) <lia-files>`
           - ``.lia_sin``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.gamma_area_deg:
+        * - :ref:`GAMMA_AREA in meters square <gamma_area-files>`
+          - ``.gamma_area``
+          - ``float32 COMPRESS=DEFLATE&gdal``
 
 .. _Filtering:
 
@@ -893,7 +1031,7 @@ You can use this :download:`this template
       ``generate_border_mask`` is True)
 
       .. warning::
-           Note: This feature is only supported after LIA calibration as of
+           Note: This feature is only supported after LIA/GAMMA_AREA calibration as of
            V1.0 of S1Tiling.  See Issue `#118
            <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/118>`_.
 
@@ -1021,7 +1159,7 @@ The following exit code are produced when :program:`S1Processor` returns:
       incorrect. See the log produced.
   * - 77
     - Some processing cannot be done because external applications cannot
-      be executed. Likelly OTB and/or NORMLIM related applications aren't
+      be executed. Likelly OTB and/or NORMLIM/GammaNaughtRTC related applications aren't
       correctly installed.
       See the log produced.
 

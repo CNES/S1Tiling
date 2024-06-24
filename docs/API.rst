@@ -13,7 +13,7 @@ S1Tiling API
 
 This section is intented for people who want to directly call S1Tiling code
 from their project instead of using the external programs
-:program:`S1Processor` and :program:`S1LIAMap`.
+:program:`S1Processor` and :program:`S1LIAMap` and :program:`S1GammaAreaMap`.
 
 
 .. contents:: Contents:
@@ -34,6 +34,12 @@ Entry points
 ------------------
 
 .. autofunction:: s1tiling.libs.api.s1_process_lia
+
+
+``s1_process_gamma_area``
+------------------
+
+.. autofunction:: s1tiling.libs.api.s1_process_gamma_area
 
 
 Configuration object

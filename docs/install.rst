@@ -167,6 +167,12 @@ care of installating S1Tiling on Linux machines
             order to :ref:`produce LIA maps <scenario.s1liamap>`, or to apply
             :ref:`σ° NORMLIM calibration <scenario.s1processorlia>`.
 
+         .. note::
+            You will still need to install `GAMMA_AREA extra applications
+            <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc>`_ in
+            order to :ref:`produce GAMMA_AREA maps <scenario.s1gamma_areamap>`, or to apply
+            :ref:`γ° RTC calibration <scenario.s1processorgamma_area>`.
+
 Extra packages
 ++++++++++++++
 
@@ -257,4 +263,26 @@ In other word, run the docker with something like the following
         /data/MyS1ToS2.cfg
 
 The only difference with the *normal case* example: there is a ``--lia``
+parameter in the penultimate line.
+
+Using S1GammaAreaMap with a docker
+++++++++++++++++++++++++++++
+
+It's also possible to run :program:`S1GammaAreaMap` in the docker -- see :ref:`GAMMA_AREA
+Map production scenario <scenario.S1GammaAreaMap>`. In order to do that, pass
+``--gamma_area`` as the first parameter to the docker *entry point*.
+
+In other word, run the docker with something like the following
+
+.. code-block:: bash
+
+    docker run                            \
+        -v /localpath/to/MNT:/MNT         \
+        -v "$(pwd)":/data                 \
+        -v $HOME/.config/eodag:/eo_config \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --gamma_area                            \
+        /data/MyS1ToS2.cfg
+
+The only difference with the *normal case* example: there is a ``--gamma_area``
 parameter in the penultimate line.
