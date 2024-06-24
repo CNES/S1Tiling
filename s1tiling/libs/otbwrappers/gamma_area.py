@@ -120,6 +120,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             image_description='Gamma0 RTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
         self.mingammaarea = cfg.min_gamma_area
+        self.calibfactor = cfg.calibration_factor
         self.nostreaming = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
         self.outputnodata = cfg.output_nodata
 
@@ -189,6 +190,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             'ingammaarea': in_GAMMA_AREA,
             'inbetanaught': in_concat_S2,
             'mingammaarea': self.mingammaarea,
+            'calibfactor': self.calibfactor,
             'nostreaming': self.nostreaming,
             'outputnodata': self.outputnodata,
             'nodata': 0

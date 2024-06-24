@@ -444,6 +444,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
         self.min_gamma_area     = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
+        #: Gamma area to gamma naught rtc: See :ref:`[Processing.calibration_factor] <Processing.calibration_factor>`
+        self.calibration_factor = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
         self.gamma_area_to_gamma_naught_rtc_nostreaming     = accessor.getboolean('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
@@ -646,6 +648,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- inner_margin_ratio                          : %s", self.inner_margin_ratio)
         logging.info("- outer_margin_ratio                          : %s", self.outer_margin_ratio)
         logging.info("- min_gamma_area                              : %s", self.min_gamma_area)
+        logging.info("- calibration_factor                          : %s", self.calibration_factor)
         logging.info("- gamma_area_to_gamma_naught_rtc_nostreaming  : %s", self.gamma_area_to_gamma_naught_rtc_nostreaming)
         logging.info("- output_nodata                               : %s", self.output_nodata)
         logging.info("- warping method for DEM on S2                : %s",     self.dem_warp_resampling_method)
