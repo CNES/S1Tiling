@@ -908,8 +908,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
 
         application_mocker.set_expectations('RigidTransformResample', {
             'ram': param_ram(2048),
-            'insar': file_db.input_file_vv(idx),
-            'indem': exp_out_vrt,
+            'in': exp_out_vrt,
             'transform.type': "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
@@ -1422,8 +1421,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
         'nostreaming'           : False,
         'calibfactor'           : 1.0,
         'outputnodata'          : False,
-        'nodate'                : 0,
-        'out': file_db.sigma0_normlim_file_from_two(idx, True),
+        'out': file_db.gamma0_rtc_file_from_two(0, True),
         }, None,
         {
             'CALIBRATION'              : 'GammaNaughtRTC',
@@ -1497,12 +1495,12 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
         application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
             'ram': param_ram(2048),
             'ingammaarea': file_db.selectedGAMMA_AREAfile(),
-            'inbetanaught': file_db.concatfile_from_two(0, False, calibration='_beta'),
+            'inbetanaught': file_db.concatfile_from_two(idx, False, calibration='_beta'),
             'mingammaarea': 1.0,
             'nostreaming': False,
             'calibfactor': 1.0,
             'outputnodata': False,
-            'nodate': 0,
+            'out': file_db.gamma0_rtc_file_from_two(idx, True),
         }, None,
         {
             'CALIBRATION': 'GammaNaughtRTC',
