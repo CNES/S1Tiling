@@ -56,7 +56,7 @@ class FileDB:
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
             'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
-            'resampleddemfile'    : 'RESAMPLED_DEM_{polarless_basename}-{tmp}.tiff',
+            'resampleddemfile'    : 'RESAMPLED_DEM_{s1_polarless}-{tmp}.tiff',
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
             'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
             'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
