@@ -913,7 +913,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type': "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
-            'out': file_db.exp_out_resampled_dem(idx, True),
+            'out': file_db.resampleddemfile(idx, True),
         }, None, None)
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
@@ -1419,7 +1419,6 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
         'ingammaarea'           : file_db.selectedGAMMA_AREAfile(),
         'inbetanaught'          : file_db.concatfile_from_two(0, False, calibration='_beta'),
         'mingammaarea'          : 1.0,
-        'nblinesstreamingmax'   : 10000,
         'nostreaming'           : False,
         'calibfactor'           : 1.0,
         'outputnodata'          : False,
