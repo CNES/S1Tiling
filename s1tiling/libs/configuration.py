@@ -327,7 +327,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             # Even if tmpdir doesn't exist we should still be able to create it
             accessor.throw(f"tmpdir={self.tmpdir} is not a valid path")
         #: Path to Geoid model. :ref:`[PATHS.geoid_file] <paths.geoid_file>`
-        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.gtx'))
+        self.GeoidFile           = accessor.get('Paths', 'geoid_file', fallback=str(resource_dir / 'Geoid/egm96.grd'))
         #: Path to directory of temp DEMs
         self.tmp_dem_dir: str    = ""
 
