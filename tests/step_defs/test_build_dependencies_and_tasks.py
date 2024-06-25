@@ -56,7 +56,7 @@ from mock_data import FileDB
 
 # ======================================================================
 # Scenarios
-scenarios('../features/build_dependencies_and_tasks.feature', '../features/normlim.feature')
+scenarios('../features/build_dependencies_and_tasks.feature', '../features/normlim.feature', '../features/gammanaughtrtc.feature')
 
 # ======================================================================
 # Test Data
