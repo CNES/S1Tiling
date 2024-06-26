@@ -41,7 +41,22 @@ from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
-k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz', 'inr', 'inm']
+k_input_keys  = [
+    'io.in',
+    'in',
+    'il',
+    'in.normals',
+    'in.xyz',
+    'insar',
+    'indem',
+    'indemproj',
+    'xyz',
+    'inr',
+    'inm',
+    'transform.type',
+    'transform.type.id.scalex',
+    'transform.type.id.scaley'
+]
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin', 'out.gamma_area']
 
 
