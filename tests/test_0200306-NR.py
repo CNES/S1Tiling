@@ -921,6 +921,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'indem'      : exp_out_vrt,
             'withxyz'    : True,
             'nodata'     : -32768,
+            'elev.geoid' : file_db.GeoidFile,
             'out'        : file_db.sardemprojfile(idx, True),
             }, None,
             {
