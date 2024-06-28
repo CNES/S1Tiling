@@ -44,7 +44,7 @@ from s1tiling.libs.otbwrappers import (
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormalsOnS1, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration,
         SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation, filter_GAMMA_AREA, OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA,
-        SelectBestCoverage, ApplyGAMMA_AREACalibration
+        SelectBestCoverage, ApplyGammaNaughtRTCCalibration
 )
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
