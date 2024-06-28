@@ -353,6 +353,7 @@ def _declare_know_files(
         meta['gain']                = 42
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
+    mocker.patch('s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation.fetch_direction', lambda slf, ip, mt: mock_direction_to_scan(slf, mt))
 
 
 def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram):
