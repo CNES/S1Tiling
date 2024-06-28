@@ -913,17 +913,17 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type': "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
-            'out': file_db.resampleddemfile(idx, True),
+            'out': file_db.resampleddemfile(idx, False),
         }, None, None)
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
-            'indem'      : file_db.resampleddemfile(idx, True),
+            'indem'      : file_db.resampleddemfile(idx, False),
             'withxyz'    : True,
             'nodata'     : -32768,
             'elev.geoid' : file_db.GeoidFile,
-            'out'        : file_db.sardemprojfile(idx, True),
+            'out'        : file_db.sardemprojfile(idx, False),
             }, None,
             {
                 'ACQUISITION_DATETIME'     : file_db.start_time(idx),
@@ -941,8 +941,8 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'             : param_ram(2048),
             'insar'           : file_db.input_file_vv(idx),
-            'indem'           : file_db.resampleddemfile(idx, True),
-            'indemproj'       : file_db.sardemprojfile(idx, True),
+            'indem'           : file_db.resampleddemfile(idx, False),
+            'indemproj'       : file_db.sardemprojfile(idx, False),
             'indirectiondemc' : 24,
             'indirectiondeml' : 12,
             'mlran'           : 1,
@@ -954,7 +954,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'outermarginratiostatus': True,
             'innermarginratio': 0.01,
             'outermarginratio': 0.04,
-            'out'             : file_db.gamma_areafile(idx, True),
+            'out'             : file_db.gamma_areafile(idx, False),
             }, None,
             {
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
