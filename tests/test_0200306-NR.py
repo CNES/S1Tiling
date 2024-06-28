@@ -900,7 +900,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         orbit_info        = file_db.get_orbit_information(idx)
         cov               = file_db.dem_coverage(idx)
         exp_dem_names     = sorted(cov)
-        exp_out_vrt       = file_db.vrtfile(idx, True)
+        exp_out_vrt       = file_db.vrtfile(idx, False)
         exp_out_resampled_dem       = file_db.resampleddemfile(idx, True)
         exp_out_dem       = file_db.sardemprojfile(idx, True)
         exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
