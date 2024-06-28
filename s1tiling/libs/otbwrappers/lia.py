@@ -299,7 +299,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 'inm'                     : self.__GeoidFile,
                 'interpolator'            : self.__interpolation_method,  # TODO: add parameter
                 'interpolator.bco.radius' : 2,  # 2 is the default value for bco
-                'fv'                      : self.__nodata,
+                'fv'                      : self.__nodata,  # Make sure meta data are correctly set
         }
 
 
@@ -1051,6 +1051,23 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['basename']                   = self._get_nominal_output_basename(meta)
         meta['calibration_type']           = 'Normlim'
 
+    def fetch_nodata_value(self, inputpath, meta: Meta, default_value, band_nr: int = 1) -> None:
+        """
+        Extract no-data value set in input image.
+        """
+        logger.debug("Fetch No-data value from '%s'", inputpath)
+        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
+            with Utils.gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+                if not ds:
+                    raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
+                band = ds.GetRasterBand(band_nr)
+                if not band:
+                    raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
+                nodata = band.GetNoDataValue()
+                return nodata if nodata is not None else default_value
+        else:
+            return default_value
+
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
@@ -1063,13 +1080,15 @@ class ApplyLIACalibration(OTBStepFactory):
         in_sin_LIA   = fetch_input_data('sin_LIA',   inputs).out_filename
         # TODO: we should use previous LOWER_SIGNAL_VALUE in priority if it exists in input SAR file
         lower_signal_value = self.__lower_signal_value
-        # TODO: read the nodata values from input images
-        nodata_SAR = self.__nodata_SAR
-        nodata_LIA = self.__nodata_LIA
+        # Read the nodata values from input images
+        nodata_SAR = self.fetch_nodata_value(in_concat_S2, meta, self.__nodata_SAR)  # usually 0
+        nodata_LIA = self.fetch_nodata_value(in_sin_LIA,   meta, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
         # exp is:
         # - if im{LIA} is LIA_nodata => SAR_nodata
         # - if im{SAR} is SAR_nodata = SAR_nodata
         # - else max(lower_signal_value, im{LIA} * im{SAR}
+        # Note: if either is NaN, `max(?, nan*nan)` should be = NaN
+        # => NaN should be supported, but tests are required
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
