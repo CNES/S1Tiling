@@ -913,7 +913,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type': "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
-            'out': file_db.resampleddemfile(idx, True),
+            'out': file_db.resampleddemfile(idx, False),
         }, None, None)
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
