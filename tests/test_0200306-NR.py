@@ -918,7 +918,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
-            'indem'      : exp_out_resampled_dem,
+            'indem'      : file_db.resampleddemfile(idx, True),
             'withxyz'    : True,
             'nodata'     : -32768,
             'elev.geoid' : file_db.GeoidFile,
@@ -940,8 +940,8 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'             : param_ram(2048),
             'insar'           : file_db.input_file_vv(idx),
-            'indem'           : exp_out_resampled_dem,
-            'indemproj'       : exp_out_dem,
+            'indem'           : file_db.resampleddemfile(idx, True),
+            'indemproj'       : file_db.sardemprojfile(idx, True),
             'indirectiondemc' : 24,
             'indirectiondeml' : 12,
             'mlran'           : 1,
