@@ -26,8 +26,8 @@
 #
 # =========================================================================
 
-Feature: GammaNaughtRTC
-    Existing S1 images shall be analysed to deduce gammanaughtrtc related tasks to
+Feature: gamma_naught_rtc
+    Existing S1 images shall be analysed to deduce gamma_naught_rtc related tasks to
     execute.
 
     # v1.0 Workflows
@@ -96,8 +96,8 @@ Feature: GammaNaughtRTC
         And   RESAMPLED_DEM task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
-    Scenario: Full production of orthorectified of normlim calibrated S2 images
-        Given A pipeline that gammanaughtrtc calibrates and orthorectifies
+    Scenario: Full production of orthorectified of gamma_naught_rtc calibrated S2 images
+        Given A pipeline that gamma_naught_rtc calibrates and orthorectifies
         And   that concatenates
         And   A pipeline that fully computes in GAMMA_AREA S2 geometry
         And   that applies GAMMA_AREA
@@ -123,7 +123,7 @@ Feature: GammaNaughtRTC
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
 
-        Then  a txxxxxx gammanaughtrtc S2 file is required
+        Then  a txxxxxx gamma_naught_rtc S2 file is required
 
         And   a select GAMMA_AREA task is registered
         And   a concat GAMMA_AREA task is registered

@@ -635,7 +635,7 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
     # project dem
     demproj = pipelines.register_pipeline(
         [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
-        'SARDEMProjectionImageEstimation',
+        'SARDEMProjection',
         is_name_incremental=True,
         inputs={'insar': 'basename', 'indem': resampled_dem}
     )
