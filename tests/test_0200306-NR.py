@@ -901,8 +901,8 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         cov               = file_db.dem_coverage(idx)
         exp_dem_names     = sorted(cov)
         exp_out_vrt       = file_db.vrtfile(idx, False)
-        exp_out_resampled_dem       = file_db.resampleddemfile(idx, True)
-        exp_out_dem       = file_db.sardemprojfile(idx, True)
+        exp_out_resampled_dem       = file_db.resampleddemfile(idx, False)
+        exp_out_dem       = file_db.sardemprojfile(idx, False)
         exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
         application_mocker.set_expectations(AgglomerateDEMOnS1.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
@@ -913,13 +913,13 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type': "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
-            'out': file_db.resampleddemfile(idx, False),
+            'out': file_db.resampleddemfile(idx, True),
         }, None, None)
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
-            'indem'      : file_db.resampleddemfile(idx, True),
+            'indem'      : exp_out_resampled_dem,
             'withxyz'    : True,
             'nodata'     : -32768,
             'elev.geoid' : file_db.GeoidFile,
@@ -941,8 +941,8 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'             : param_ram(2048),
             'insar'           : file_db.input_file_vv(idx),
-            'indem'           : file_db.resampleddemfile(idx, True),
-            'indemproj'       : file_db.sardemprojfile(idx, True),
+            'indem'           : exp_out_resampled_dem,
+            'indemproj'       : exp_out_dem,
             'indirectiondemc' : 24,
             'indirectiondeml' : 12,
             'mlran'           : 1,
@@ -965,7 +965,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : param_ram(2048),
-            'io.in'           : file_db.gamma_areafile(idx, True),
+            'io.in'           : file_db.gamma_areafile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
