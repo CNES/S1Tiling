@@ -943,8 +943,8 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'insar'           : file_db.input_file_vv(idx),
             'indem'           : exp_out_resampled_dem,
             'indemproj'       : exp_out_dem,
-            'indirectiondemc' : 24,
-            'indirectiondeml' : 12,
+            'indirectiondemc' : -1,
+            'indirectiondeml' : -1,
             'mlran'           : 1,
             'mlazi'           : 1,
             'distributearea'  : False,
@@ -954,7 +954,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'outermarginratiostatus': True,
             'innermarginratio': 0.01,
             'outermarginratio': 0.04,
-            'out'             : file_db.gamma_areafile(idx, True),
+            'out'             : file_db.gamma_areafile(idx, False),
             }, None,
             {
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
