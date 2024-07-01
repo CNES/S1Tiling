@@ -1020,7 +1020,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
         'ram'      : param_ram(2048),
         'il'       : [file_db.orthoGAMMA_AREAfile(0, False), file_db.orthoGAMMA_AREAfile(1, False)],
         'out'      : file_db.concatGAMMA_AREAfile_from_two(0, True),
-        }, {'out': otb.ImagePixelType_int16},
+        }, None,
         {
             'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
             'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
