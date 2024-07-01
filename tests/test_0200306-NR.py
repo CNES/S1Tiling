@@ -954,7 +954,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'outermarginratiostatus': True,
             'innermarginratio': 0.01,
             'outermarginratio': 0.04,
-            'out'             : file_db.gamma_areafile(idx, True),
+            'out'             : file_db.gamma_areafile(idx, False),
             }, None,
             {
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
