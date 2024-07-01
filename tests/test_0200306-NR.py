@@ -980,7 +980,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
             'io.out'          : file_db.orthoGAMMA_AREAfile(idx, True),
-            }, {'io.out': otb.ImagePixelType_int16},
+            }, None,
             {
                 'DATA_TYPE'                 : 'meters^2',
                 'ORTHORECTIFIED'            : 'true',
