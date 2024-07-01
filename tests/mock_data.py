@@ -614,9 +614,8 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def gamma_areafile(self, idx, tmp) -> str:
-        ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["gamma_areafile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["gamma_areafile"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def orthoLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
