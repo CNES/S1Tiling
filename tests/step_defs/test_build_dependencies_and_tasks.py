@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 
@@ -34,6 +35,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
+from s1tiling.libs.otbwrappers.gamma_area import ResampleDEM
 
 from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
@@ -66,7 +68,6 @@ scenarios('../features/build_dependencies_and_tasks.feature', '../features/norml
 
 DEBUG_OTB = False
 FILES = [
-
         # 06 jun 2024
         {
             's1dir'       : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
@@ -123,12 +124,12 @@ FILES = [
             },
         ]
 
-TMPDIR = 'TMP'
-INPUT  = 'data_raw'
-OUTPUT = 'OUTPUT'
-LIADIR = 'LIADIR'
+TMPDIR        = 'TMP'
+INPUT         = 'data_raw'
+OUTPUT        = 'OUTPUT'
+LIADIR        = 'LIADIR'
 GAMMA_AREADIR = 'GAMMA_AREADIR'
-TILE   = '33NWB'
+TILE          = '33NWB'
 
 file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
@@ -470,9 +471,9 @@ def given_pipeline_that_computes_GAMMA_AREA_in_s1(pipelines) -> None:
             product_required=False,
             inputs={'insar': 'basename'})
     resampled_dem = pipelines.register_pipeline(
-        [ResampleDEM],
-        'RigidTransformResample',
-        inputs={'indem': dem}
+            [ResampleDEM],
+            'RigidTransformResample',
+            inputs={'indem': dem}
     )
     demproj = pipelines.register_pipeline(
             [SARDEMProjection],
@@ -480,11 +481,11 @@ def given_pipeline_that_computes_GAMMA_AREA_in_s1(pipelines) -> None:
             product_required=False,
             inputs={'insar': 'basename', 'indem': resampled_dem})
     gamma_area = pipelines.register_pipeline(
-        [SARGammaAreaImageEstimation],
-        'SARGammaAreaImageEstimation',
-        product_required=True,
-        is_name_incremental=True,
-        inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
+            [SARGammaAreaImageEstimation],
+            'SARGammaAreaImageEstimation',
+            product_required=True,
+            is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
     )
 
 
@@ -568,39 +569,44 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
             product_required=False,
             inputs={'insar': 'basename'})
     resampled_dem = pipelines.register_pipeline(
-        [ResampleDEM],
-        'RigidTransformResample',
-        inputs={'indem': dem}
+            [ResampleDEM],
+            'RigidTransformResample',
+            inputs={'indem': dem}
     )
     demproj = pipelines.register_pipeline(
             [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
             'SARDEMProjection',
             product_required=False,
             is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': resampled_dem})
+            inputs={'insar': 'basename', 'indem': resampled_dem}
+    )
     gamma_area = pipelines.register_pipeline(
             [SARGammaAreaImageEstimation],
             'SARGammaAreaImageEstimation',
             product_required=False,
-            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj}
+    )
     ortho_gamma_area = pipelines.register_pipeline(
             [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
             'OrthoGAMMA_AREA',
             product_required=False,
             is_name_incremental=True,
-            inputs={'in': gamma_area})
+            inputs={'in': gamma_area}
+    )
     concat_ortho_gamma_area = pipelines.register_pipeline(
             [ConcatenateGAMMA_AREA],
             'ConcatGAMMA_AREA',
             product_required=False,
             is_name_incremental=True,
-            inputs={'in': ortho_gamma_area})
+            inputs={'in': ortho_gamma_area}
+    )
     select_gamma_area = pipelines.register_pipeline(
             [SelectBestCoverage],
             'SelectGAMMA_AREA',
             product_required=GAMMA_AREA_product_required and configuration.produce_gamma_area_map,
             is_name_incremental=True,
-            inputs={'in': concat_ortho_gamma_area})
+            inputs={'in': concat_ortho_gamma_area}
+    )
 
     pipeline_ids['dem']                 = dem
     pipeline_ids['resampleddem']        = resampled_dem
@@ -624,7 +630,8 @@ def given_pipeline_that_applies_LIA(pipelines, pipeline_ids) -> None:
 def given_pipeline_that_applies_GAMMA_AREA(pipelines, pipeline_ids) -> None:
     s2_gamma_area = pipeline_ids['s2_gamma_area']
     concat_S2  = pipeline_ids['concat']
-    s2_gamma_naught_rtced = pipelines.register_pipeline([ApplyGammaNaughtRTCCalibration], product_required=True,
+    s2_gamma_naught_rtced = pipelines.register_pipeline(
+            [ApplyGammaNaughtRTCCalibration], product_required=True,
             inputs={'GAMMA_AREA': s2_gamma_area, 'concat_S2': concat_S2})
     pipeline_ids['s2_gamma_naught_rtced'] = s2_gamma_naught_rtced
     pipeline_ids['last']         = s2_gamma_naught_rtced
@@ -1097,6 +1104,34 @@ def then_S2_LIA_image_is_required(dependencies) -> None:
     assert len(required) >= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
     for fn in expected_fn:
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('a txxxxxx normlim S2 file is required')
+def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [normlim_concatfile(None, 'vv')]
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) >= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn in required, f'Expected {fn} not found in computed requirements {required}'
+
+@then('no S2 LIA image is required (S2)')
+def then_no_S2_LIA_image_is_required_s2(dependencies) -> None:
+    required, previous, task2outfile_map = dependencies
+
+    expected_fn = [deg_LIA_file_s2(), sin_LIA_file_s2()]
+
+    logging.info("required (%s) = %s", type(required), required)
+    assert isinstance(required, set)
+    assert len(required) <= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
+    for fn in expected_fn:
+        assert fn not in required, f'Expected {fn} should not have been found in computed requirements {required}'
+        # Yet, they are known
+        # assert fn in previous.keys(), f'Expected {fn} is not found in computed dependencies {previous.keys()}'
+    # Yet sin(LIA), only, is know
+    assert sin_LIA_file_s2() in previous.keys(), f'{sin_LIA_file_s2()} is not found in computed dependencies {previous.keys()}'
+    assert deg_LIA_file_s2() not in previous.keys(), f'{deg_LIA_file_s2()} is found in computed dependencies {previous.keys()}'
 
 @then('a single S2 GAMMA_AREA image is required')
 def then_S2_GAMMA_AREA_image_is_required(dependencies) -> None:
@@ -1633,10 +1668,10 @@ def then_a_select_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_fi
     out     = S2_GAMMA_AREA_file()
     expectations = {
             out: {'pipeline': 'SelectGAMMA_AREA',
-                'input_steps': {
-                    S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
-                    }},
-            }
+                  'input_steps': {
+                      S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
+                  }},
+    }
     dest = []
     GAMMA_AREA_product_required = 'concat' not in pipeline_ids
     if GAMMA_AREA_product_required:
@@ -1690,8 +1725,8 @@ def then_a_concat_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_fi
     out     = S2_GAMMA_AREA_preselect_file()
     expectations = {
             out: {'pipeline': 'ConcatGAMMA_AREA',
-                'input_steps': {}},
-            }
+                  'input_steps': {}},
+    }
     dest = []
 
     GAMMA_AREA_product_required = 'concat' not in pipeline_ids
@@ -1741,7 +1776,7 @@ def then_ortho_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files
         expectations[out] = {
                 'pipeline': 'OrthoGAMMA_AREA',
                 'input_steps': {GAMMA_AREA_file_s1(i) : ['in', FirstStep]}
-                }
+        }
 
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1802,11 +1837,11 @@ def then_a_GAMMA_AREA_task_is_registered_s1(tasks, dependencies, expected_files_
         expectations[out] = {
                 'pipeline': 'SARGammaAreaImageEstimation',
                 'input_steps': {
-                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
-                    DEMPROJ_file(i):      ['indemproj', FirstStep],
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                    }
+                    RESAMPLED_DEM_file(i): ['indem',     FirstStep],
+                    DEMPROJ_file(i):       ['indemproj', FirstStep],
+                    input_file(i, 'vv'):   ['insar',     FirstStep],
                 }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1822,10 +1857,11 @@ def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id) ->
         expectations[out] = {
                 'pipeline': 'SARDEMProjection',
                 'input_steps': {
-                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
+                    DEM_file(i):          ['indem',     FirstStep],
+                    # RESAMPLED_DEM_file(i):['indem',     FirstStep],
                     input_file(i, 'vv'):  ['insar',     FirstStep],
-                    }
                 }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)

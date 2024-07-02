@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 
@@ -41,31 +42,7 @@ from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
-k_input_keys  = [
-    'io.in',
-    'in',
-    'il',
-    'in.normals',
-    'in.xyz',
-    'insar',
-    'indem',
-    'indemproj',
-    'xyz',
-    'inr',
-    'inm',
-    'transform.type',
-    'transform.type.id.scalex',
-    'transform.type.id.scaley',
-    'ram',
-    'ingammaarea',
-    'inbetanaught',
-    'mingammaarea',
-    'calibfactor',
-    'nostreaming',
-    'outputnodata',
-    'nodata',
-    'out'
-]
+k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz', 'inr', 'inm', 'ingammaarea', 'inbetanaught']
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin', 'out.gamma_area']
 
 

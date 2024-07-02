@@ -75,14 +75,14 @@ def process(tmpdir, outputdir, liadir, gamma_areadir, baseline_reference_outputs
     src_dir       = crt_dir.parent.absolute()
     dirs_to_clean = dirs_to_clean or [outputdir, tmpdir/'S1', tmpdir/'S2', liadir, gamma_areadir]
 
-    logging.info('$S1TILING_TEST_DATA_INPUT  -> %s', os.environ['S1TILING_TEST_DATA_INPUT'])
-    logging.info('$S1TILING_TEST_DATA_OUTPUT -> %s', os.environ['S1TILING_TEST_DATA_OUTPUT'])
-    logging.info('$S1TILING_TEST_DATA_LIA    -> %s', os.environ['S1TILING_TEST_DATA_LIA'])
+    logging.info('$S1TILING_TEST_DATA_INPUT      -> %s', os.environ['S1TILING_TEST_DATA_INPUT'])
+    logging.info('$S1TILING_TEST_DATA_OUTPUT     -> %s', os.environ['S1TILING_TEST_DATA_OUTPUT'])
+    logging.info('$S1TILING_TEST_DATA_LIA        -> %s', os.environ['S1TILING_TEST_DATA_LIA'])
     logging.info('$S1TILING_TEST_DATA_GAMMA_AREA -> %s', os.environ['S1TILING_TEST_DATA_GAMMA_AREA'])
-    logging.info('$S1TILING_TEST_SRTM        -> %s', os.environ['S1TILING_TEST_SRTM'])
-    logging.info('$S1TILING_TEST_TMPDIR      -> %s', os.environ['S1TILING_TEST_TMPDIR'])
-    logging.info('$S1TILING_TEST_DOWNLOAD    -> %s', os.environ['S1TILING_TEST_DOWNLOAD'])
-    logging.info('$S1TILING_TEST_RAM         -> %s', os.environ['S1TILING_TEST_RAM'])
+    logging.info('$S1TILING_TEST_SRTM            -> %s', os.environ['S1TILING_TEST_SRTM'])
+    logging.info('$S1TILING_TEST_TMPDIR          -> %s', os.environ['S1TILING_TEST_TMPDIR'])
+    logging.info('$S1TILING_TEST_DOWNLOAD        -> %s', os.environ['S1TILING_TEST_DOWNLOAD'])
+    logging.info('$S1TILING_TEST_RAM             -> %s', os.environ['S1TILING_TEST_RAM'])
 
     remove_dirs(dirs_to_clean)
 
@@ -114,10 +114,8 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, gamma_aread
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    if liadir != "":
-        os.environ['S1TILING_TEST_DATA_LIA'] = str(liadir.absolute())
-    if gamma_areadir != "":
-        os.environ['S1TILING_TEST_DATA_GAMMA_AREA'] = str(gamma_areadir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -192,10 +190,8 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    if liadir != "":
-        os.environ['S1TILING_TEST_DATA_LIA'] = str(liadir.absolute())
-    if gamma_areadir != "":
-        os.environ['S1TILING_TEST_DATA_GAMMA_AREA'] = str(gamma_areadir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -362,10 +358,8 @@ def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdi
 
     os.environ['S1TILING_TEST_DATA_INPUT']         = str(inputdir)
     os.environ['S1TILING_TEST_DATA_OUTPUT']        = str(outputdir.absolute())
-    if liadir != "":
-        os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
-    if gamma_areadir != "":
-        os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
+    os.environ['S1TILING_TEST_DATA_LIA']           = str(liadir.absolute())
+    os.environ['S1TILING_TEST_DATA_GAMMA_AREA']    = str(gamma_areadir.absolute())
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
@@ -388,10 +382,10 @@ def mock_upto_concat_S2(
         assert '_'+raw_calibration in orthofile
 
     # Workaround defect on skipping cut margins
-        # out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
-        # in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
-        out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
-        in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
+        out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
+        in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
+        # out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
+        # in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
 
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : param_ram(2048),
@@ -439,7 +433,7 @@ def mock_upto_concat_S2(
                 'Swath'                       : '',
                 })
 
-        if True:     #  workaround defect on skipping cutmargin       #old_IPF:
+        if old_IPF:     #  workaround defect on skipping cutmargin
             application_mocker.set_expectations('ResetMargin', {
                 'in'               : input_file+'|>SARCalibration',
                 'ram'              : param_ram(2048),
@@ -1154,7 +1148,7 @@ def test_33NWB_202001_lia_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1195,7 +1189,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1225,7 +1219,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
                 'threshold.y.start': 0,
                 'threshold.y.end'  : 0,
                 'skip'             : True,
-                }
+        }
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
@@ -1243,7 +1237,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
             'CALIBRATION'              : 'Normlim',
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
-            })
+        })
 
     s1_process(
             config_opt=configuration, searched_items_per_page=0,
@@ -1265,7 +1259,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, "", demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1331,7 +1325,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
                          [
                              (mock_GAMMA_AREA_v1_0, s1_process_gamma_area),
                          ])
-def test_33NWB_202001_lia_mocked(
+def test_33NWB_202001_rtc_mocked(
         baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram,
         mocker,
         register_expectations, processor
@@ -1343,7 +1337,7 @@ def test_33NWB_202001_lia_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1384,7 +1378,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1459,7 +1453,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, "", gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
