@@ -382,10 +382,10 @@ def mock_upto_concat_S2(
         assert '_'+raw_calibration in orthofile
 
     # Workaround defect on skipping cut margins
-        out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
-        in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
-        # out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
-        # in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
+        #out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
+        #in_ortho  = input_file+('|>SARCalibration|>ResetMargin' if old_IPF else '|>SARCalibration')
+        out_calib = ('ResetMargin|>OrthoRectification|>')+orthofile
+        in_ortho  = input_file+('|>SARCalibration|>ResetMargin')
 
         application_mocker.set_expectations('SARCalibration', {
             'ram'        : param_ram(2048),
@@ -433,7 +433,7 @@ def mock_upto_concat_S2(
                 'Swath'                       : '',
                 })
 
-        if old_IPF:     #  workaround defect on skipping cutmargin
+        if True:     #  workaround defect on skipping cutmargin
             application_mocker.set_expectations('ResetMargin', {
                 'in'               : input_file+'|>SARCalibration',
                 'ram'              : param_ram(2048),
@@ -1325,7 +1325,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
                          [
                              (mock_GAMMA_AREA_v1_0, s1_process_gamma_area),
                          ])
-def test_33NWB_202001_rtc_mocked(
+def test_33NWB_202001_gamma_area_mocked(
         baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram,
         mocker,
         register_expectations, processor
