@@ -1858,7 +1858,25 @@ def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id) ->
                 'pipeline': 'SARDEMProjection',
                 'input_steps': {
                     DEM_file(i):          ['indem',     FirstStep],
-                    # RESAMPLED_DEM_file(i):['indem',     FirstStep],
+                    input_file(i, 'vv'):  ['insar',     FirstStep],
+                    }
+                }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+@then('RESAMPLEDDEMPROJ task(s) is(/are) registered')
+def then_a_RESAMPLEDDEMPROJ_task_is_registered(tasks, dependencies, expected_files_id) -> None:
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = DEMPROJ_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'SARDEMProjectionImageEstimation',
+                'input_steps': {
+                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
                     input_file(i, 'vv'):  ['insar',     FirstStep],
                 }
         }

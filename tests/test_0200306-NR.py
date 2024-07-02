@@ -1344,7 +1344,7 @@ def test_33NWB_202001_rtc_mocked(
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'gamma_naught_rtc'
+    configuration.calibration_type = 'normlim'
     configuration.gamma_area_directory    = gamma_areadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()

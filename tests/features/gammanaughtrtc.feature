@@ -45,7 +45,7 @@ Feature: gamma_naught_rtc
         And   DEM images depend on BASE images
 
         And   GAMMA_AREA task(s) is(/are) registered (S1)
-        And   DEMPROJ task(s) is(/are) registered
+        And   RESAMPLEDDEMPROJ task(s) is(/are) registered
         And   RESAMPLED_DEM task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -65,7 +65,7 @@ Feature: gamma_naught_rtc
         And   DEM images depend on BASE images
 
         And   GAMMA_AREA task(s) is(/are) registered (S1)
-        And   DEMPROJ task(s) is(/are) registered
+        And   RESAMPLEDDEMPROJ task(s) is(/are) registered
         And   RESAMPLED_DEM task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -92,7 +92,7 @@ Feature: gamma_naught_rtc
         And   a concat GAMMA_AREA task is registered
         And   ortho GAMMA_AREA task(s) is(/are) registered
         And   GAMMA_AREA task(s) is(/are) registered (S1)
-        And   DEMPROJ task(s) is(/are) registered
+        And   RESAMPLEDDEMPROJ task(s) is(/are) registered
         And   RESAMPLED_DEM task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
@@ -119,7 +119,7 @@ Feature: gamma_naught_rtc
         And   concat GAMMA_AREA depends on 2 ortho GAMMA_AREA images
         And   2 ortho GAMMA_AREA images depend on two GAMMA_AREA images
         And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, DEMPROJ and BASE images (S1)
-        And   DEMPROJ images depend on RESAMPLED_DEM and BASE images
+        And   RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
 
@@ -129,7 +129,7 @@ Feature: gamma_naught_rtc
         And   a concat GAMMA_AREA task is registered
         And   ortho GAMMA_AREA task(s) is(/are) registered
         And   GAMMA_AREA task(s) is(/are) registered (S1)
-        And   DEMPROJ task(s) is(/are) registered
+        And   RESAMPLEDDEMPROJ task(s) is(/are) registered
         And   RESAMPLED_DEM task(s) is(/are) registered
         And   DEM task(s) is(/are) registered
 
