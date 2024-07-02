@@ -55,7 +55,16 @@ k_input_keys  = [
     'inm',
     'transform.type',
     'transform.type.id.scalex',
-    'transform.type.id.scaley'
+    'transform.type.id.scaley',
+    'ram',
+    'ingammaarea',
+    'inbetanaught',
+    'mingammaarea',
+    'calibfactor',
+    'nostreaming',
+    'outputnodata',
+    'nodata',
+    'out'
 ]
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin', 'out.gamma_area']
 
