@@ -1425,7 +1425,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
         'calibfactor'           : 1.0,
         'outputnodata'          : False,
         'nodata'                : 0,
-        'out': file_db.gamma0_rtc_file_from_two(0, True),
+        'out': file_db.gamma0_rtc_file_from_two(0, False),
         }, None,
         {
             'CALIBRATION'              : 'GammaNaughtRTC',
@@ -1505,7 +1505,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
             'calibfactor': 1.0,
             'outputnodata': False,
             'nodata': 0,
-            'out': file_db.gamma0_rtc_file_from_two(idx, True),
+            'out': file_db.gamma0_rtc_file_from_two(idx, False),
         }, None,
         {
             'CALIBRATION': 'GammaNaughtRTC',
