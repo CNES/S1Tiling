@@ -51,7 +51,7 @@ class FileDB:
             'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
             'orthofile'           : '{s2_basename}{calibration}{tmp}',
             'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
-            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC',
+            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
             'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
@@ -749,7 +749,8 @@ class FileDB:
     def _gamma0_rtc_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-            ext = self.extended_compress_predictor
+            ext =#self.extended_compress_predictor
+            ext=''
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
