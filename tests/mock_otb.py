@@ -64,8 +64,7 @@ k_input_keys  = [
     'mingammaarea',
     'calibfactor',
     'nostreaming',
-    'outputnodata',
-    'nodata'
+    'outputnodata'
 ]
 k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin', 'out.gamma_area']
 

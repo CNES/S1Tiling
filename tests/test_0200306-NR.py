@@ -1424,6 +1424,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
         'nostreaming'           : False,
         'calibfactor'           : 1.0,
         'outputnodata'          : False,
+        'nodata'                : 0,
         'out': file_db.gamma0_rtc_file_from_two(0, True),
         }, None,
         {
@@ -1503,6 +1504,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
             'nostreaming': False,
             'calibfactor': 1.0,
             'outputnodata': False,
+            'nodata': 0,
             'out': file_db.gamma0_rtc_file_from_two(idx, True),
         }, None,
         {
