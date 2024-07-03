@@ -51,7 +51,7 @@ class FileDB:
             'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
             'orthofile'           : '{s2_basename}{calibration}{tmp}',
             'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
-            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
+            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC',
             'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
