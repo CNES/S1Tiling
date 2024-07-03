@@ -749,8 +749,7 @@ class FileDB:
     def _gamma0_rtc_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-            ext =#self.extended_compress_predictor
-            ext=''
+            ext=self.extended_compress_predictor
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
