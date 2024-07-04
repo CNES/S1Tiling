@@ -51,7 +51,7 @@ from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
 from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_lia_v0, register_LIA_pipelines_v0
-from s1tiling.libs.meta        import out_filename
+from s1tiling.libs.meta        import Meta, out_filename
 from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
 
@@ -330,13 +330,17 @@ def _declare_know_files(
         return mt
     mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
 
-    def mock_direction_to_scan(slf, meta):
+    def mock_direction_to_scan(slf, meta: Meta) -> Meta:
         logging.debug('Mocking direction to scan')
         meta['directiontoscandeml'] = 12
         meta['directiontoscandemc'] = 24
         meta['gain']                = 42
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
+
+    def mock_fetch_nodata_value(slf, inputpath, meta:Meta, default_value, band_nr:int = 1) -> float:
+        return default_value
+    mocker.patch('s1tiling.libs.otbwrappers.ApplyLIACalibration.fetch_nodata_value', mock_fetch_nodata_value)
 
 
 def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
@@ -1082,7 +1086,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     application_mocker.set_expectations('BandMath', {
         'ram'      : param_ram(2048),
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-        'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
+        'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None,
         {
@@ -1156,7 +1160,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
+            'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None,
         {

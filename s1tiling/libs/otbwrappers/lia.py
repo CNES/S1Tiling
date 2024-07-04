@@ -1051,7 +1051,7 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['basename']                   = self._get_nominal_output_basename(meta)
         meta['calibration_type']           = 'Normlim'
 
-    def fetch_nodata_value(self, inputpath, meta: Meta, default_value, band_nr: int = 1) -> None:
+    def fetch_nodata_value(self, inputpath, meta: Meta, default_value, band_nr: int = 1) -> float:
         """
         Extract no-data value set in input image.
         """
