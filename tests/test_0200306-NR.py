@@ -1353,10 +1353,11 @@ def test_33NWB_202001_gamma_area_mocked(
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'normlim'
+    configuration.calibration_type = 'gamma_naught_rtc'
     configuration.gamma_area_directory    = gamma_areadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
+    print(configuration)
     logging.info("Sigma0 GAMMA_AREA mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), "", gamma_areadir.absolute(), tile, demdir, configuration.GeoidFile)
