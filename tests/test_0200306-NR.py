@@ -606,7 +606,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : param_ram(2048),
             'xyz'             : file_db.xyzfile(idx, False),
-            'nodata'          : -32768,
+            'nodata'          : '-32768',
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
             }, None,
             {
@@ -619,7 +619,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'in.xyz'          : file_db.xyzfile(idx, False),
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
-            'nodata'          : -32768,
+            'nodata'          : '-32768',
             }, {'out.lia': otb.ImagePixelType_uint16},
             {
                 # TODO: 2 files to test!!!
@@ -808,6 +808,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'inm'                     : file_db.GeoidFile,
         'interpolator'            : 'nn',
         'interpolator.bco.radius' : 2,
+        'fv'                      : nodata,
         'out'                     : 'BandMath|>' + file_db.height_on_s2(True),
     }, None, {
         # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
@@ -854,7 +855,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     application_mocker.set_expectations('ExtractNormalVector', {
         'ram'             : param_ram(2048),
         'xyz'             : exp_out_xyz_s2,
-        'nodata'          : nodata,
+        'nodata'          : str(nodata),
         'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
@@ -867,7 +868,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'in.xyz'          : file_db.xyz_on_s2(False),
         'out.lia'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
-        'nodata'          : -32768,
+        'nodata'          : '-32768',
     }, {'out.lia': otb.ImagePixelType_uint16}, {
         # TODO: 2 files to test!!!
         # 'DATA_TYPE'                : 'sin(LIA)',

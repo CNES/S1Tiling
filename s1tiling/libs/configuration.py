@@ -828,7 +828,7 @@ def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
 
     TODO: it should become NaN starting w/ S1Tiling 1.2
     """
-    return cfg.nodatas.get('LIA', None) or -3278
+    return cfg.nodatas.get('LIA', None) or -32768
 
 
 def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:

@@ -673,7 +673,7 @@ class _ComputeNormals(OTBStepFactory):
         """
         nodata = self.__nodata
         xyz = in_filename(meta)
-        logger.warning("nodata(ComputeNormals) == %s", nodata)
+        logger.debug("nodata(ComputeNormals) == %s", nodata)
         return {
                 'ram'             : ram(self.ram_per_process),
                 'xyz'             : xyz,
