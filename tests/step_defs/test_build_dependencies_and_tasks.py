@@ -259,6 +259,8 @@ class Configuration():
         self.nb_procs                          = 1
         self.produce_lia_map                   = True
         assert self.dem_db_filepath.is_file()
+        self.lower_signal_value                = 1e-7
+        self.nodatas                           = { 'SAR': 0, 'LIA': None }
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
