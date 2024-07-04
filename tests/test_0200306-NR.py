@@ -416,7 +416,7 @@ def mock_upto_concat_S2(
                 'BlueDisplayChannel'          : '',
                 'GreenDisplayChannel'         : '',
                 'Instrument'                  : '',
-                'LineSpacing'                 : '',
+                'LineSpacing'                 : '10.0',
                 'Mission'                     : '',
                 'Mode'                        : '',
                 'NumberOfColumns'             : '',
