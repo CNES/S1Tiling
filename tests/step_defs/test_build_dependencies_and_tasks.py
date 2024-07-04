@@ -613,8 +613,8 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
             is_name_incremental=True,
             inputs={'in': ortho_gamma_area}
     )
-    select_gamma_area = pipelines.register_pipeline(
-            [SelectBestCoverage],
+    best_concat_ortho_gamma_area = pipelines.register_pipeline(
+            [SelectGammaNaughtAreaBestCoverage],
             'SelectGAMMA_AREA',
             product_required=GAMMA_AREA_product_required and configuration.produce_gamma_area_map,
             is_name_incremental=True,
@@ -627,8 +627,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
     pipeline_ids['gamma_area']          = gamma_area
     pipeline_ids['orthogamma_area']     = ortho_gamma_area
     pipeline_ids['concatgamma_area']    = concat_ortho_gamma_area
-    pipeline_ids['selectgamma_area']    = select_gamma_area
-    pipeline_ids['s2_gamma_area']       = best_concat_gamma_area
+    pipeline_ids['s2_gamma_area']       = best_concat_ortho_gamma_area
 
 @given('that applies LIA')
 def given_pipeline_that_applies_LIA(pipelines, pipeline_ids) -> None:
