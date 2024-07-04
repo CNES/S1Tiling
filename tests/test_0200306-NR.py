@@ -424,7 +424,7 @@ def mock_upto_concat_S2(
                 'OrbitDirection'              : '',
                 'OrbitNumber'                 : '',
                 'PRF'                         : '',
-                'PixelSpacing'                : '',
+                'PixelSpacing'                : '10.0',
                 'RadarFrequency'              : '',
                 'RedDisplayChannel'           : '',
                 'SAR'                         : '',

@@ -637,7 +637,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles                                       : %s", self.tile_list)
         logging.info("- tiles_shapefile                             : %s", self.output_grid)
         logging.info("- produce LIA° map                            : %s", self.produce_lia_map)
-        logging.info("- produce GAMMA_AREA° map                     : %s", self.produce_gamma_area_map)
+        logging.info("- produce GAMMA_AREA map                      : %s", self.produce_gamma_area_map)
         logging.info("- no_use_resampled_dem                        : %s", self.no_use_resampled_dem)
         logging.info("- resample_dem_factor_x                       : %s", self.resample_dem_factor_x)
         logging.info("- resample_dem_factor_y                       : %s", self.resample_dem_factor_y)

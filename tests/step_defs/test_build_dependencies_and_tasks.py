@@ -296,8 +296,18 @@ class Configuration():
         self.nb_procs                          = 1
         self.produce_lia_map                   = True
         self.produce_map_map                   = True
-        self.resample_dem_factor_x              = 2.0
-        self.resample_dem_factor_y              = 2.0
+        self.resample_dem_factor_x             = 2.0
+        self.resample_dem_factor_y             = 2.0
+        self.distribute_area                   = False
+        self.gamma_area_nostreaming            = True
+        self.inner_margin_ratio_status         = True
+        self.outer_margin_ratio_status         = True
+        self.inner_margin_ratio                = 0.01
+        self.outer_margin_ratio                = 0.04
+        self.min_gamma_area                    = 1.0
+        self.calibration_factor                = 1.0
+        self.gamma_area_to_gamma_naught_rtc_nostreaming = False
+        self.output_nodata                     = False
         assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests
