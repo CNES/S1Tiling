@@ -296,6 +296,8 @@ class Configuration():
         self.nb_procs                          = 1
         self.produce_lia_map                   = True
         self.produce_map_map                   = True
+        self.resample_dem_factor_x              = 2.0
+        self.resample_dem_factor_y              = 2.0
         assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests

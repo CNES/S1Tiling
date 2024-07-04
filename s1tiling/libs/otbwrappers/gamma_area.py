@@ -752,7 +752,7 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         super().update_image_metadata(meta, all_inputs)
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
+        #imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         meta = super().complete_meta(meta, all_inputs)

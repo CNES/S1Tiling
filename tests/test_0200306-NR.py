@@ -917,7 +917,10 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
             'out': file_db.resampleddemfile(idx, True),
-        }, None, None)
+        }, None, {
+                'POLARIZATION'  : '',  # <=> removing the key
+                'TIFFTAG_IMAGEDESCRIPTION' : 'DEM resampling',
+            })
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
             'ram'        : param_ram(2048),
@@ -963,7 +966,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
                 'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
                 'PRJ.GAIN'                 : '',  # <=> removing the key
-                'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma Area coordinates estimation',
+                'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma area image estimation',
             })
 
         application_mocker.set_expectations('OrthoRectification', {
