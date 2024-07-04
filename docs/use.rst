@@ -539,6 +539,10 @@ You can use this :download:`this template
       removed <Processing.remove_thermal_noise>`.  By default: 1e-7 will be
       used.
 
+      .. _Processing.nodata:
+  * - ``nodata.LIA``
+    - Nodata value to use in :ref:`LIA files <lia-files>`
+
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``
     - Pixel size (in meters) of the output images
