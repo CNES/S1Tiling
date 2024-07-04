@@ -1081,8 +1081,8 @@ class ApplyLIACalibration(OTBStepFactory):
         # TODO: we should use previous LOWER_SIGNAL_VALUE in priority if it exists in input SAR file
         lower_signal_value = self.__lower_signal_value
         # Read the nodata values from input images
-        nodata_SAR = self.fetch_nodata_value(in_concat_S2, meta, self.__nodata_SAR)  # usually 0
-        nodata_LIA = self.fetch_nodata_value(in_sin_LIA,   meta, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
+        sar_nodata = self.fetch_nodata_value(in_concat_S2, meta, self.__nodata_SAR)  # usually 0
+        lia_nodata = self.fetch_nodata_value(in_sin_LIA,   meta, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
         # exp is:
         # - if im{LIA} is LIA_nodata => SAR_nodata
         # - if im{SAR} is SAR_nodata = SAR_nodata
@@ -1092,7 +1092,7 @@ class ApplyLIACalibration(OTBStepFactory):
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
-                'exp'         : f'(im2b1 == {nodata_LIA} || im1b1 == {nodata_SAR}) ? {nodata_SAR} : max({lower_signal_value}, im1b1*im2b1)'
+                'exp'         : f'(im2b1 == {lia_nodata} || im1b1 == {sar_nodata}) ? {sar_nodata} : max({lower_signal_value}, im1b1*im2b1)'
         }
         return params
 
