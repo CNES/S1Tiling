@@ -218,7 +218,7 @@ def LIA_file_s1(idx) -> str:
     return file_db.LIAfile(idx, tmp=False)
 
 def GAMMA_AREA_file_s1(idx) -> str:
-    return file_db.GAMMA_AREAfile(idx, tmp=False)
+    return file_db.gamma_areafile(idx, tmp=False)
 
 def sin_LIA_file_s1(idx) -> str:
     return file_db.sinLIAfile(idx, tmp=False)
@@ -295,7 +295,7 @@ class Configuration():
         self.dem_warp_resampling_method        = 'cubic'
         self.nb_procs                          = 1
         self.produce_lia_map                   = True
-        self.produce_map_map                   = True
+        self.produce_gamma_area_map                   = True
         self.resample_dem_factor_x             = 2.0
         self.resample_dem_factor_y             = 2.0
         self.distribute_area                   = False
@@ -308,6 +308,7 @@ class Configuration():
         self.calibration_factor                = 1.0
         self.gamma_area_to_gamma_naught_rtc_nostreaming = False
         self.output_nodata                     = False
+
         assert self.dem_db_filepath.is_file()
         self.fname_fmt                         = {
                 # Use "_beta" in mocked tests
@@ -625,7 +626,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
     pipeline_ids['demproj']             = demproj
     pipeline_ids['gamma_area']          = gamma_area
     pipeline_ids['orthogamma_area']     = ortho_gamma_area
-    pipeline_ids['concatgamma_area']    = concat_gamma_area
+    pipeline_ids['concatgamma_area']    = concat_ortho_gamma_area
     pipeline_ids['selectgamma_area']    = select_gamma_area
     pipeline_ids['s2_gamma_area']       = best_concat_gamma_area
 
