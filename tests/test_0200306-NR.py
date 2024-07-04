@@ -525,17 +525,26 @@ def mock_upto_concat_S2(
 
 def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibration, N):
     # raw_calibration = 'beta' if calibration == 'normlim' else calibration
-    raw_calibration = 'NormLim' if calibration == 'normlim' else calibration
+    if calibration == 'normlim':
+        raw_calibration = 'NormLim'
+    elif calibration == 'gamma_naught_rtc':
+        raw_calibration = 'GammaNaughtRTC'
+    else:
+        raw_calibration = calibration
     if N >= 2:
         outfile = lambda idx, tmp, calibration: file_db.maskfile_from_two(idx, tmp, calibration=calibration)
         if calibration == 'normlim':
             infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_two(idx, tmp)
+        elif calibration == 'gamma_naught_rtc':
+            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_two(idx, tmp)
         else:
             infile = lambda idx, tmp: file_db.concatfile_from_two(idx, tmp)
     else:
         outfile = lambda idx, tmp, calibration: file_db.maskfile_from_one(idx//2, tmp, calibration=calibration)
         if calibration == 'normlim':
             infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_one(idx//2, tmp)
+        elif calibration == 'gamma_naught_rtc':
+            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_two(idx // 2, tmp)
         else:
             infile = lambda idx, tmp: file_db.concatfile_from_one(idx//2, tmp)
 
