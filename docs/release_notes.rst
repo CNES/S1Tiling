@@ -53,6 +53,11 @@ v1.1.0 Bugs fixed
   <Processing.lower_signal_value>`.
   (`#159 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/159>`_).
 
+- Handling of `nodata` values has been improved.
+  (`#159 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/159>`_,
+  (`#160 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/160>`_).
+
+
 v1.1.0 Breaking changes
 +++++++++++++++++++++++
 
