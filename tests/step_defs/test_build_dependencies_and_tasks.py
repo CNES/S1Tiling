@@ -1519,8 +1519,8 @@ def XYZ_depend_on_DEM_DEMPROJ_and_BASE_s1(dependencies, expected_files_id) -> No
         indemproj_as_input = indemproj_as_inputs[0]
         assert indemproj_as_input['out_filename'] == DEMPROJ_file(i)
 
-@then('GAMMA_AREA images depend on DEM, RESAMPLED_DEM, DEMPROJ and BASE images (S1)')
-def GAMMA_AREA_depend_on_RESAMPLED_DEM_DEM_DEMPROJ_and_BASE_s1(dependencies, expected_files_id) -> None:
+@then('GAMMA_AREA images depend on DEM, RESAMPLED_DEM, RESAMPLEDDEMPROJ and BASE images (S1)')
+def GAMMA_AREA_depend_on_DEM_RESAMPLED_DEM_RESAMPLEDDEMPROJ_and_BASE_s1(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -1566,29 +1566,8 @@ def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id) -> None:
         indem_as_input = indem_as_inputs[0]
         assert indem_as_input['out_filename'] == DEM_file(i)
 
-@then('DEMPROJ images depend on DEM and BASE images')
-def DEMPROJ_depends_on_DEM_and_BASE(dependencies, expected_files_id) -> None:
-    required, previous, task2outfile_map = dependencies
-
-    for i in expected_files_id:
-        expected_fn = DEMPROJ_file(i)
-        prev_expected = previous[expected_fn]
-        expected_inputs = prev_expected.inputs
-        assert len(expected_inputs) == 2
-        assert {'indem', 'insar'} == set(expected_inputs.keys())
-
-        insar_as_inputs = expected_inputs['insar']
-        assert len(insar_as_inputs) == 1, f"{len(insar_as_inputs)} in SAR input founds, only 1 expected.\nFound: {insar_as_inputs}"
-        insar_as_input = insar_as_inputs[0]
-        assert insar_as_input['out_filename'] == input_file(i, 'vv')
-
-        indem_as_inputs = expected_inputs['indem']
-        assert len(indem_as_inputs) == 1
-        indem_as_input = indem_as_inputs[0]
-        assert indem_as_input['out_filename'] == DEM_file(i)
-
-@then('DEMPROJ images depend on RESAMPLED_DEM and BASE images')
-def DEMPROJ_depends_on_RESAMPLED_DEM_and_BASE(dependencies, expected_files_id) -> None:
+@then('RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images')
+def RESAMPLEDDEMPROJ_depends_on_RESAMPLED_DEM_and_BASE(dependencies, expected_files_id) -> None:
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
@@ -1622,7 +1601,7 @@ def RESAMPLED_DEM_depends_on_DEM(dependencies, expected_files_id) -> None:
         indem_as_inputs = expected_inputs['indem']
         assert len(indem_as_inputs) == 1, f"{len(indem_as_inputs)} in SAR input founds, only 1 expected.\nFound: {indem_as_inputs}"
         indem_as_input = indem_as_inputs[0]
-        assert indem_as_input['out_filename'] == DEM_file(i)
+        assert indem_as_input['out_filename'] == RESAMPLED_DEM_file(i)
 
 @then('DEM images depend on BASE images')
 def DEM_depends_on_BASE(dependencies, expected_files_id) -> None:

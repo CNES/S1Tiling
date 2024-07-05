@@ -39,8 +39,8 @@ Feature: gamma_naught_rtc
         And   tasks are generated
 
         Then  a single GAMMA_AREA image is required in S1
-        And   GAMMA_AREA images depend on DEM, RESAMPLE_DEM and DEMPROJ and BASE images (S1)
-        And   DEMPROJ images depend on RESAMPLED_DEM and BASE images
+        And   GAMMA_AREA images depend on DEM, RESAMPLE_DEM and RESAMPLEDDEMPROJ and BASE images (S1)
+        And   RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
 
@@ -59,8 +59,8 @@ Feature: gamma_naught_rtc
         And   tasks are generated
 
         Then  a single GAMMA_AREA image is required in S1
-        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, DEMPROJ and BASE images (S1)
-        And   DEMPROJ images depend on RESAMPLED_DEM and BASE images
+        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, RESAMPLEDDEMPROJ and BASE images (S1)
+        And   RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
 
@@ -83,8 +83,8 @@ Feature: gamma_naught_rtc
         And   final GAMMA_AREA image has been selected from one concat GAMMA_AREA
         And   concat GAMMA_AREA depends on 2 ortho GAMMA_AREA images
         And   2 ortho GAMMA_AREA images depend on two GAMMA_AREA images
-        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, DEMPROJ and BASE images (S1)
-        And   DEMPROJ images depend on RESAMPLED_DEM and BASE images
+        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, RESAMPLEDDEMPROJ and BASE images (S1)
+        And   RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
 
@@ -118,7 +118,7 @@ Feature: gamma_naught_rtc
         And   final GAMMA_AREA image has been selected from one concat GAMMA_AREA
         And   concat GAMMA_AREA depends on 2 ortho GAMMA_AREA images
         And   2 ortho GAMMA_AREA images depend on two GAMMA_AREA images
-        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, DEMPROJ and BASE images (S1)
+        And   GAMMA_AREA images depend on DEM, RESAMPLED_DEM, RESAMPLEDDEMPROJ and BASE images (S1)
         And   RESAMPLEDDEMPROJ images depend on RESAMPLED_DEM and BASE images
         And   RESAMPLED_DEM images depend on DEM images
         And   DEM images depend on BASE images
