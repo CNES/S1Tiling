@@ -393,8 +393,8 @@ class SumAllHeights(OTBStepFactory):
         dem_nodata = Utils.fetch_nodata_value(in_s2_dem, is_running_dry(meta), self.__nodata)  # usually -32768
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
-                self.param_in : [in_s2_dem, in_s2_geoid],
-                'exp'         : f'im2b1 == {dem_nodata} ? {self.__nodata} : im1b1+im2b1'
+                self.param_in : [in_s2_geoid, in_s2_dem],
+                'exp'         : f'{Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} ? {self.__nodata} : im1b1+im2b1'
         }
         return params
 
@@ -1074,10 +1074,12 @@ class ApplyLIACalibration(OTBStepFactory):
         # - else max(lower_signal_value, im{LIA} * im{SAR}
         # Note: if either is NaN, `max(?, nan*nan)` should be = NaN
         # => NaN should be supported, but tests are required
+        is_LIA_nodata = Utils.test_nodata_for_bandmath(lia_nodata, "im2b1")
+        is_SAR_nodata = Utils.test_nodata_for_bandmath(sar_nodata, "im1b1")
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
-                'exp'         : f'(im2b1 == {lia_nodata} || im1b1 == {sar_nodata}) ? {sar_nodata} : max({lower_signal_value}, im1b1*im2b1)'
+                'exp'         : f'({is_LIA_nodata} || {is_SAR_nodata}) ? {sar_nodata} : max({lower_signal_value}, im1b1*im2b1)'
         }
         return params
 

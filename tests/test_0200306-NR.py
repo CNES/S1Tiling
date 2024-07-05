@@ -40,6 +40,7 @@ from typing import List
 import otbApplication as otb
 
 import pytest
+from s1tiling.libs import Utils
 
 from s1tiling.libs.otbtools import otb_version
 # from unittest.mock import patch
@@ -831,6 +832,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     })
 
     # Sum DEM + GEOID
+    is_nodata_DEM_bandmath = Utils.test_nodata_for_bandmath(bandname="im2b1", nodata=nodata_DEM)
     application_mocker.set_expectations('BandMath', {
         'il'         : [
             exp_out_dem_s2+"|>Superimpose",
@@ -838,7 +840,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
             # exp_out_geoid_s2
         ],
         'ram'        : param_ram(2048),
-        'exp'        : f'im2b1 == {nodata_DEM} ? {nodata_DEM} : im1b1+im2b1',
+        'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
@@ -1091,10 +1093,12 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     mock_LIA_v1_0(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'normlim', 2)
 
+    is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
+    is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     application_mocker.set_expectations('BandMath', {
         'ram'      : param_ram(2048),
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-        'exp'      : f'(im2b1 == {nodata_LIA} || im1b1 == {nodata_SAR}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
+        'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None,
         {
@@ -1164,11 +1168,13 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     mock_LIA_v1_0(application_mocker, file_db)  # always N=2
     mock_masking(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
 
+    is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
+    is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     for idx in range(number_dates):
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : f'(im2b1 == {nodata_LIA} || im1b1 == {nodata_SAR}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
+            'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None,
         {
