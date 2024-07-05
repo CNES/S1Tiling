@@ -51,7 +51,7 @@ from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
 from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_lia_v0, register_LIA_pipelines_v0
-from s1tiling.libs.meta        import out_filename
+from s1tiling.libs.meta        import Meta, out_filename
 from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
 
@@ -330,13 +330,17 @@ def _declare_know_files(
         return mt
     mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
 
-    def mock_direction_to_scan(slf, meta):
+    def mock_direction_to_scan(slf, meta: Meta) -> Meta:
         logging.debug('Mocking direction to scan')
         meta['directiontoscandeml'] = 12
         meta['directiontoscandemc'] = 24
         meta['gain']                = 42
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
+
+    def mock_fetch_nodata_value(slf, inputpath, meta:Meta, default_value, band_nr:int = 1) -> float:
+        return default_value
+    mocker.patch('s1tiling.libs.otbwrappers.ApplyLIACalibration.fetch_nodata_value', mock_fetch_nodata_value)
 
 
 def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
@@ -606,7 +610,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : param_ram(2048),
             'xyz'             : file_db.xyzfile(idx, False),
-            'nodata'          : -32768,
+            'nodata'          : '-32768',
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
             }, None,
             {
@@ -619,7 +623,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'in.xyz'          : file_db.xyzfile(idx, False),
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
-            'nodata'          : -32768,
+            'nodata'          : '-32768',
             }, {'out.lia': otb.ImagePixelType_uint16},
             {
                 # TODO: 2 files to test!!!
@@ -808,6 +812,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'inm'                     : file_db.GeoidFile,
         'interpolator'            : 'nn',
         'interpolator.bco.radius' : 2,
+        'fv'                      : nodata,
         'out'                     : 'BandMath|>' + file_db.height_on_s2(True),
     }, None, {
         # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
@@ -854,7 +859,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     application_mocker.set_expectations('ExtractNormalVector', {
         'ram'             : param_ram(2048),
         'xyz'             : exp_out_xyz_s2,
-        'nodata'          : nodata,
+        'nodata'          : str(nodata),
         'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
@@ -867,7 +872,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'in.xyz'          : file_db.xyz_on_s2(False),
         'out.lia'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
-        'nodata'          : -32768,
+        'nodata'          : '-32768',
     }, {'out.lia': otb.ImagePixelType_uint16}, {
         # TODO: 2 files to test!!!
         # 'DATA_TYPE'                : 'sin(LIA)',
@@ -1081,7 +1086,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     application_mocker.set_expectations('BandMath', {
         'ram'      : param_ram(2048),
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-        'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
+        'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None,
         {
@@ -1155,7 +1160,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : 'im2b1 == -32768 ? -32768 : im1b1*im2b1',
+            'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None,
         {
