@@ -1585,7 +1585,7 @@ def RESAMPLEDDEMPROJ_depends_on_RESAMPLED_DEM_and_BASE(dependencies, expected_fi
         indem_as_inputs = expected_inputs['indem']
         assert len(indem_as_inputs) == 1
         indem_as_input = indem_as_inputs[0]
-        assert indem_as_input['out_filename'] == DEM_file(i)
+        assert indem_as_input['out_filename'] == RESAMPLED_DEM_file(i)
 
 @then('RESAMPLED_DEM images depend on DEM images')
 def RESAMPLED_DEM_depends_on_DEM(dependencies, expected_files_id) -> None:
@@ -1601,7 +1601,7 @@ def RESAMPLED_DEM_depends_on_DEM(dependencies, expected_files_id) -> None:
         indem_as_inputs = expected_inputs['indem']
         assert len(indem_as_inputs) == 1, f"{len(indem_as_inputs)} in SAR input founds, only 1 expected.\nFound: {indem_as_inputs}"
         indem_as_input = indem_as_inputs[0]
-        assert indem_as_input['out_filename'] == RESAMPLED_DEM_file(i)
+        assert indem_as_input['out_filename'] == DEM_file(i)
 
 @then('DEM images depend on BASE images')
 def DEM_depends_on_BASE(dependencies, expected_files_id) -> None:
