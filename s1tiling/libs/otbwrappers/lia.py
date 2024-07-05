@@ -72,9 +72,7 @@ from ..configuration import (
         Configuration,
         dname_fmt_lia_product, dname_fmt_tiled,
         extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled,
-        nodata_DEM,
-        nodata_LIA,
-        nodata_SAR,
+        nodata_DEM, nodata_LIA, nodata_SAR, nodata_XYZ,
         pixel_type,
 )
 
@@ -392,12 +390,11 @@ class SumAllHeights(OTBStepFactory):
         inputs = meta['inputs']
         in_s2_dem   = fetch_input_data('in_s2_dem',   inputs).out_filename
         in_s2_geoid = fetch_input_data('in_s2_geoid', inputs).out_filename
-        nodata = self.__nodata
-        # TODO: should distinguish DEM nodata from output nodata
+        dem_nodata = Utils.fetch_nodata_value(in_s2_dem, is_running_dry(meta), self.__nodata)  # usually -32768
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_s2_dem, in_s2_geoid],
-                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1'
+                'exp'         : f'im2b1 == {dem_nodata} ? {self.__nodata} : im1b1+im2b1'
         }
         return params
 
@@ -449,7 +446,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 image_description="XYZ ground and satellite positions on S2 tile",
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
-        self.__nodata = nodata_LIA(cfg)
+        self.__nodata = nodata_XYZ(cfg)
 
     @staticmethod
     def reduce_inputs(inputs: List[Meta]) -> List:
@@ -598,7 +595,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 'withxyz'    : True,
                 'withsatpos' : True,
                 # 'withh'      : True,  # uncomment to analyse/debug height computed
-                'nodata'     : nodata
+                'nodata'     : str(nodata)
         }
 
     def requirement_context(self) -> str:
@@ -645,7 +642,7 @@ class _ComputeNormals(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(output_fname_fmt),
                 image_description=image_description,
         )
-        self.__nodata = nodata_LIA(cfg)
+        self.__nodata = nodata_XYZ(cfg)
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -1015,6 +1012,8 @@ class ApplyLIACalibration(OTBStepFactory):
         # IOW, it's not required in normlim case, and we can safely remove the calibrated β0 file.
         in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
         meta['files_to_remove'] = [in_concat_S2]
+        # Make sure to set nodata metadata in output image
+        meta['out_extended_filename_complement'] += f'&nodata={self.__nodata_SAR}'
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -1053,23 +1052,6 @@ class ApplyLIACalibration(OTBStepFactory):
         meta['basename']                   = self._get_nominal_output_basename(meta)
         meta['calibration_type']           = 'Normlim'
 
-    def fetch_nodata_value(self, inputpath, meta: Meta, default_value, band_nr: int = 1) -> float:
-        """
-        Extract no-data value set in input image.
-        """
-        logger.debug("Fetch No-data value from '%s'", inputpath)
-        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
-            with Utils.gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
-                if not ds:
-                    raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
-                band = ds.GetRasterBand(band_nr)
-                if not band:
-                    raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
-                nodata = band.GetNoDataValue()
-                return nodata if nodata is not None else default_value
-        else:
-            return default_value
-
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
@@ -1083,8 +1065,9 @@ class ApplyLIACalibration(OTBStepFactory):
         # We can expect consistency and blindy use LOWER_SIGNAL_VALUE from previous step
         lower_signal_value = self.__lower_signal_value
         # Read the nodata values from input images
-        sar_nodata = self.fetch_nodata_value(in_concat_S2, meta, self.__nodata_SAR)  # usually 0
-        lia_nodata = self.fetch_nodata_value(in_sin_LIA,   meta, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
+        running_dry = is_running_dry(meta)
+        sar_nodata = Utils.fetch_nodata_value(in_concat_S2, running_dry, self.__nodata_SAR)  # usually 0
+        lia_nodata = Utils.fetch_nodata_value(in_sin_LIA,   running_dry, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
         # exp is:
         # - if im{LIA} is LIA_nodata => SAR_nodata
         # - if im{SAR} is SAR_nodata = SAR_nodata

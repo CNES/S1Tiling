@@ -845,17 +845,21 @@ def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
     images generated for LIA normlim correction.
-
-    TODO: it should become NaN starting w/ S1Tiling 1.2
     """
-    return _get_nodata(cfg.nodatas, 'LIA', -32768)
+    return _get_nodata(cfg.nodatas, 'LIA', 'nan')
 
 
 def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
     DEM images generated for LIA normlim correction.
-
-    TODO: it should become NaN starting w/ S1Tiling 1.2
     """
     return _get_nodata(cfg.nodatas, 'DEM', -32768)
+
+
+def nodata_XYZ(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    XYZ images generated for LIA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'XYZ', 'nan')

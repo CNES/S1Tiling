@@ -132,6 +132,24 @@ class DatasetManager:
         return self.__ds
 
 
+def fetch_nodata_value(inputpath: Union[str, Path], is_running_dry: bool, default_value: Optional[Union[int,float,str]], band_nr: int = 1) -> float:
+    """
+    Extract no-data value set in input image.
+    """
+    logger.debug("Fetch No-data value from '%s'", inputpath)
+    if not is_running_dry:
+        with gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+            if not ds:
+                raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
+            band = ds.GetRasterBand(band_nr)
+            if not band:
+                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
+            nodata = band.GetNoDataValue()
+            return nodata if nodata is not None else default_value
+    else:
+        return default_value
+
+
 # ======================================================================
 ## Domain helpers
 
