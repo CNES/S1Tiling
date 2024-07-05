@@ -46,7 +46,7 @@ from s1tiling.libs.otbwrappers import (
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormalsOnS1, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration,
         SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation, filter_GAMMA_AREA, OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA,
-        SelectBestCoverage, ApplyGammaNaughtRTCCalibration
+        SelectGammaNaughtAreaBestCoverage, ApplyGammaNaughtRTCCalibration
 )
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
 
@@ -1908,6 +1908,24 @@ def then_a_DEM_task_is_registered(tasks, dependencies, expected_files_id) -> Non
                 'pipeline': 'AgglomerateDEM',
                 'input_steps': {
                     input_file(i, 'vv'):  ['insar',     FirstStep],
+                    }
+                }
+    required, previous, task2outfile_map = dependencies
+    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    assert isinstance(tasks, dict)
+    _check_registered_task(expectations, tasks, dest, task2outfile_map)
+
+@then('RESAMPLED_DEM task(s) is(/are) registered')
+def then_a_RESAMPLEDDEM_task_is_registered(tasks, dependencies, expected_files_id) -> None:
+    expectations = {}
+    dest = []
+    for i in expected_files_id:
+        out = RESAMPLED_DEM_file(i)
+        dest.append(out)
+        expectations[out] = {
+                'pipeline': 'RigidTransformResample',
+                'input_steps': {
+                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
                     }
                 }
     required, previous, task2outfile_map = dependencies
