@@ -597,7 +597,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
             [SARGammaAreaImageEstimation],
             'SARGammaAreaImageEstimation',
             product_required=False,
-            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj}
+            inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
     )
     ortho_gamma_area = pipelines.register_pipeline(
             [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
