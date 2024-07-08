@@ -41,6 +41,7 @@ import sys
 from timeit import default_timer as timer
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
+from numpy.lib import math
 from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
@@ -130,6 +131,40 @@ class DatasetManager:
 
     def __enter__(self) -> gdal.Dataset:
         return self.__ds
+
+
+def fetch_nodata_value(
+        inputpath: Union[str, Path],
+        is_running_dry: bool,
+        default_value: Optional[Union[int,float,str]],
+        band_nr: int = 1
+) -> Union[int,float,str]:
+    """
+    Extract no-data value set in input image.
+    """
+    logger.debug("Fetch No-data value from '%s'", inputpath)
+    if not is_running_dry:
+        with gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+            if not ds:
+                raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
+            band = ds.GetRasterBand(band_nr)
+            if not band:
+                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
+            nodata = band.GetNoDataValue()
+            return nodata if nodata is not None else default_value
+    else:
+        return default_value
+
+
+def test_nodata_for_bandmath(nodata, bandname):
+    """
+    Helper function that works around :external:doc:`BandMath OTB application <Applications/app_BandMath>`
+    that cannot test ``isnodata(im1b42)``. Also, testing NaN values need a dedicated workaround.
+    """
+    if nodata == 'nan' or math.isnan(nodata):
+        return f'{bandname} != {bandname}'
+    else:
+        return f'{bandname} == {nodata}'
 
 
 # ======================================================================

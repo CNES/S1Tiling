@@ -223,6 +223,7 @@ class FileDB:
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
             },
     }
+    extended_nodata             = '&nodata={nodata}'
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
     extended_geom_compress      = extended_compress_predictor
@@ -653,7 +654,12 @@ class FileDB:
 
     def height_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["height_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+        if tmp:
+            # default DEM nodata==-32768
+            ext = '?' + self.extended_nodata.format(nodata='-32768')
+        else:
+            ext = ''
+        return f'{dir}/{self.FILE_FMTS["height_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
     def xyz_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
@@ -686,7 +692,7 @@ class FileDB:
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-            ext = self.extended_compress_predictor
+            ext = self.extended_compress_predictor + self.extended_nodata.format(nodata='0')  # nodata_SAR=0
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''

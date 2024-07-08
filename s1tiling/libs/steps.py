@@ -451,7 +451,7 @@ class ExecutableStep(_ProducerStep):
 
 class _OTBStep(AbstractStep):
     """
-    Step that have a reference to an OTB application. 
+    Step that have a reference to an OTB application.
     It could be an actual :class:`Step` holding an OTB application,
     or a :class:`SkippedStep` that forwards the OTB application from its
     previous step in the pipeline.

@@ -40,6 +40,7 @@ from typing import List
 import otbApplication as otb
 
 import pytest
+from s1tiling.libs import Utils
 
 from s1tiling.libs.otbtools import otb_version
 # from unittest.mock import patch
@@ -59,6 +60,12 @@ from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, An
 # ======================================================================
 # Full processing versions
 # ======================================================================
+
+nodata_SAR=0
+nodata_DEM=-32768
+nodata_XYZ='nan'
+nodata_LIA='nan'
+
 
 def remove_dirs(dir_list) -> None:
     for dir in dir_list:
@@ -338,9 +345,10 @@ def _declare_know_files(
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
 
-    def mock_fetch_nodata_value(slf, inputpath, meta:Meta, default_value, band_nr:int = 1) -> float:
+    def mock_fetch_nodata_value(inputpath, is_running_dry, default_value, band_nr:int = 1) -> float:
         return default_value
-    mocker.patch('s1tiling.libs.otbwrappers.ApplyLIACalibration.fetch_nodata_value', mock_fetch_nodata_value)
+    # mocker.patch('s1tiling.libs.otbwrappers.lia.fetch_nodata_value', mock_fetch_nodata_value)
+    mocker.patch('s1tiling.libs.Utils.fetch_nodata_value', mock_fetch_nodata_value)
 
 
 def set_environ_mocked(inputdir, outputdir, liadir, demdir, tmpdir, ram):
@@ -610,7 +618,8 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
         application_mocker.set_expectations('ExtractNormalVector', {
             'ram'             : param_ram(2048),
             'xyz'             : file_db.xyzfile(idx, False),
-            'nodata'          : '-32768',
+            'nodata'          : 'nan',
+            # 'nodata'          : '-32768',
             'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
             }, None,
             {
@@ -623,7 +632,8 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'in.xyz'          : file_db.xyzfile(idx, False),
             'out.lia'         : file_db.LIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
-            'nodata'          : '-32768',
+            'nodata'          : 'nan',
+            # 'nodata'          : '-32768',
             }, {'out.lia': otb.ImagePixelType_uint16},
             {
                 # TODO: 2 files to test!!!
@@ -782,7 +792,6 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
 
     # ProjectDEMToS2Tile
     spacing=10.0
-    nodata=-32768
     extent = file_db.TILE_DATA['33NWB']['extent']
     application_mocker.set_expectations(
             'gdalwarp', [
@@ -794,7 +803,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 # "-crop_to_cutline",
                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
                 "-r", "cubic",
-                "-dstnodata", str(nodata),
+                "-dstnodata", str(nodata_DEM),
                 exp_out_vrt,
                 file_db.demfile_on_s2(True),
             ], None, {
@@ -812,7 +821,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'inm'                     : file_db.GeoidFile,
         'interpolator'            : 'nn',
         'interpolator.bco.radius' : 2,
-        'fv'                      : nodata,
+        'fv'                      : nodata_DEM,
         'out'                     : 'BandMath|>' + file_db.height_on_s2(True),
     }, None, {
         # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
@@ -823,6 +832,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     })
 
     # Sum DEM + GEOID
+    is_nodata_DEM_bandmath = Utils.test_nodata_for_bandmath(bandname="im2b1", nodata=nodata_DEM)
     application_mocker.set_expectations('BandMath', {
         'il'         : [
             exp_out_dem_s2+"|>Superimpose",
@@ -830,7 +840,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
             # exp_out_geoid_s2
         ],
         'ram'        : param_ram(2048),
-        'exp'        : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1',
+        'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
@@ -844,7 +854,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'withcryz'   : False,
         'withxyz'    : True,
         'withsatpos' : True,
-        'nodata'     : nodata,
+        'nodata'     : nodata_XYZ,
         'out'        : file_db.xyz_on_s2(True),
     }, None, {
         # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
@@ -859,7 +869,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     application_mocker.set_expectations('ExtractNormalVector', {
         'ram'             : param_ram(2048),
         'xyz'             : exp_out_xyz_s2,
-        'nodata'          : str(nodata),
+        'nodata'          : nodata_XYZ,
         'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
@@ -872,7 +882,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'in.xyz'          : file_db.xyz_on_s2(False),
         'out.lia'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
-        'nodata'          : '-32768',
+        'nodata'          : nodata_LIA,
     }, {'out.lia': otb.ImagePixelType_uint16}, {
         # TODO: 2 files to test!!!
         # 'DATA_TYPE'                : 'sin(LIA)',
@@ -1083,10 +1093,12 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, outputdir, liadi
     mock_LIA_v1_0(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'normlim', 2)
 
+    is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
+    is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     application_mocker.set_expectations('BandMath', {
         'ram'      : param_ram(2048),
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-        'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
+        'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
         }, None,
         {
@@ -1156,11 +1168,13 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, outputdir, liad
     mock_LIA_v1_0(application_mocker, file_db)  # always N=2
     mock_masking(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
 
+    is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
+    is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     for idx in range(number_dates):
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
             'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
-            'exp'      : '(im2b1 == -32768 || im1b1 == 0) ? 0 : max(1e-07, im1b1*im2b1)',
+            'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
             }, None,
         {
