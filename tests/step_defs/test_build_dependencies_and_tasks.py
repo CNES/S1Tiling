@@ -588,7 +588,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
     )
     demproj = pipelines.register_pipeline(
             [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
-            'SARDEMProjection',
+            'SARDEMProjectionImageEstimation',
             product_required=False,
             is_name_incremental=True,
             inputs={'insar': 'basename', 'indem': resampled_dem}
