@@ -1311,7 +1311,7 @@ def two_ortho_GAMMA_AREA_depend_on_two_GAMMA_AREA_images(dependencies) -> None:
         for key, inputs in expected_input_groups.items():
             assert key == 'in'  # May change in the future...
             assert len(inputs) == 1
-            assert [inp['out_filename'] for inp in inputs][0] == [GAMMA_AREA_file_s1(i)]
+            assert [inp['out_filename'] for inp in inputs][0] == GAMMA_AREA_file_s1(i)
 
 
 @then('the sin(LIA) image depends on a single XYZ image (S2)')
