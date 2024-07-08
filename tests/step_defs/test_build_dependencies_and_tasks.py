@@ -1599,7 +1599,7 @@ def RESAMPLED_DEM_depends_on_DEM(dependencies, expected_files_id) -> None:
         assert {'indem'} == set(expected_inputs.keys())
 
         indem_as_inputs = expected_inputs['indem']
-        assert len(indem_as_inputs) == 1, f"{len(indem_as_inputs)} in SAR input founds, only 1 expected.\nFound: {indem_as_inputs}"
+        assert len(indem_as_inputs) == 1, f"{len(indem_as_inputs)} in DEM input founds, only 1 expected.\nFound: {indem_as_inputs}"
         indem_as_input = indem_as_inputs[0]
         assert indem_as_input['out_filename'] == DEM_file(i)
 
@@ -1904,7 +1904,7 @@ def then_a_RESAMPLEDDEM_task_is_registered(tasks, dependencies, expected_files_i
         expectations[out] = {
                 'pipeline': 'RigidTransformResample',
                 'input_steps': {
-                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
+                    DEM_file(i):          ['indem',     FirstStep],
                     }
                 }
     required, previous, task2outfile_map = dependencies
