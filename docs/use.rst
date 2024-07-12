@@ -198,7 +198,7 @@ S1Tiling will then automatically take care of:
 
 .. note::
    This scenario requires `GammaNaughtRTC
-   <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc>`_ binaries.
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ binaries.
    At the moment, GammaNaughtRTC γ\ :sup:`0` binaries need to be compiled manually.
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
@@ -230,7 +230,7 @@ masking....
 
 .. note::
    This scenario requires `GammaNaughtRTC
-   <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc>`_ binaries.
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ binaries.
    At the moment, GammaNauhgtRTC γ\ :sup:`0` binaries need to be compiled manually.
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.

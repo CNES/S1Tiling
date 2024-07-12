@@ -38,7 +38,7 @@ s1tiling_version=1.2.0alpha
 otb_ver=9.0.0
 # otb_ver=8.1.2
 git_node=90-integration-gamma-naught-rtc
-git_gamma0-rtc_node=tmp
+git_RTC_gamma0_node=tmp
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
@@ -117,10 +117,10 @@ _execute cd "${env}"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d normlim_sigma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 
-[ -d gamma0-rtc ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
+[ -d RTC_gamma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0.git || _die "Can't clone RTC_gamma0 repository"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-_execute cd "${prefix_root}/${env}"/gamma0-rtc
-_execute git checkout ${git_gamma0-rtc_node} || _die "Can't checkout '${git_gamma0-rtc_node}'"
+_execute cd "${prefix_root}/${env}"/RTC_gamma0
+_execute git checkout ${git_RTC_gamma0_node} || _die "Can't checkout '${git_RTC_gamma0_node}'"
 
 # ==[ Create and prepare the virtual env
 _execute cd "${prefix_root}"
@@ -186,21 +186,21 @@ _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'
 _execute rm -rf "normlim_sigma0"    || _die "Can't clean normlim_sigma0 directory"
 
 # ==[ Clone and install OTB applications for GAMMA NAUGHT RTC Calibration
-gamma_area_build_dir="gamma0-rtc/_builddir"
+gamma_area_build_dir="RTC_gamma0/_builddir"
 
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-[ -d gamma0-rtc ]         || _execute git clone https://{user}:{token}@gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc.git || _die "Can't clone gamma0-rtc repository"
-_execute cd "gamma0-rtc"  || _die "Can't cd to the gamma0-rtc directory"
+[ -d RTC_gamma0 ]         || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0.git || _die "Can't clone RTC_gamma0 repository"
+_execute cd "RTC_gamma0"  || _die "Can't cd to the RTC_gamma0 directory"
 # Use temporary branch for applications compatible with OTB 8
 # [[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
 _execute mkdir -p "_builddir" || _die "Can't create the build directory"
 _execute cd       "_builddir" || _die "Can't cd to the build directory"
 # _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
-_execute cmake -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${prefix_root}/${env}" -DCMAKE_BUILD_TYPE=Release .. || _die "Can't configure gamma0-rtc compilation"
-_execute make                       || _die "Can't compile gamma0-rtc"
-_execute make install               || _die "Can't install gamma0-rtc"
+_execute cmake -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${prefix_root}/${env}" -DCMAKE_BUILD_TYPE=Release .. || _die "Can't configure RTC_gamma0 compilation"
+_execute make                       || _die "Can't compile RTC_gamma0"
+_execute make install               || _die "Can't install RTC_gamma0"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-_execute rm -rf "gamma0-rtc"    || _die "Can't clean gamma0-rtc directory"
+_execute rm -rf "RTC_gamma0"    || _die "Can't clean RTC_gamma0 directory"
 
 # ==[ Commit the installation
 _execute cd "${prefix_root}"

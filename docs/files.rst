@@ -682,7 +682,7 @@ Files of GAMMA_AREA cartesian coordinates in S1 geometry
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
           values contain the GAMMA_AREA cartesian coordinates of the pixel.
           This file is produced with `our patched version
-          <https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc/-/merge_requests/1>`_
+          <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0/-/merge_requests/1>`_
           of `OTB SARGammaAreaImageEstimation
           <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARGammaAreaImageEstimation>`_
           application.
