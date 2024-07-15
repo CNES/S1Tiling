@@ -350,10 +350,11 @@ cluster like TREX.
   * - :ref:`[Processing].ram_per_process <Processing.ram_per_process>`
     - RAM allowed per OTB application pipeline, in MB.
 
-  * - PBS resources
+  * - SLURM resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
-        so on. This means PBS ``select`` value shall be one.
+        so on. This means SLURM number of nodes and number tasks values shall
+        be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the
@@ -377,10 +378,10 @@ cluster like TREX.
 
       .. code:: bash
 
-        #PBS -l select=1:ncpus=20:mem=40gb
-        # always 1 for select
-        # cpu = 2 * 10 => 20
-        # mem = 10 * 4096 => 40gb
+        #SBATCH -N 1                  # number of nodes (or --nodes=1)
+        #SBATCH -n 1                  # number of tasks (or --ntasks=1)
+        #SBATCH --cpus-per-task=20    # number of cpus par task: 2 * 10
+        #SBATCH --mem=40G             # memory per core: 10 * 4096
 
 TL;DR: here is an example
 +++++++++++++++++++++++++
