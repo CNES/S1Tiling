@@ -938,7 +938,7 @@ class _FileProducingStepFactory(StepFactory):
                 out_dir=self.__outdir,
                 tmp_dir=self.__tmpdir,
                 lia_dir=self.__liadir,
-                gamma_area_dir=self.__gamma_areadir
+                gamma_area_dir=self.__gamma_areadir,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:

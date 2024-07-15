@@ -74,7 +74,9 @@ from ..configuration import (
         pixel_type,
 )
 
+
 logger = logging.getLogger('s1tiling.wrappers.gamma_area')
+
 
 class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
     """
@@ -120,8 +122,8 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             image_description='Gamma0 RTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
         self.mingammaarea = cfg.min_gamma_area
-        self.calibfactor = cfg.calibration_factor
-        self.nostreaming = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
+        self.calibfactor  = cfg.calibration_factor
+        self.nostreaming  = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
         self.outputnodata = cfg.output_nodata
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -148,7 +150,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         in_GAMMA_AREA = fetch_input_data('GAMMA_AREA', inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['CALIBRATION'] = meta['calibration_type']
+        imd['CALIBRATION']     = meta['calibration_type']
         imd['GAMMA_AREA_FILE'] = os.path.basename(in_GAMMA_AREA)
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
@@ -183,25 +185,20 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_concat_S2 = fetch_input_data('concat_S2', inputs).out_filename
+        in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
         in_GAMMA_AREA   = fetch_input_data('GAMMA_AREA',   inputs).out_filename
         params = {
-            'ram': ram(self.ram_per_process),
-            'ingammaarea': in_GAMMA_AREA,
-            'inbetanaught': in_concat_S2,
-            'mingammaarea': self.mingammaarea,
-            'calibfactor': self.calibfactor,
-            'nostreaming': self.nostreaming,
-            'outputnodata': self.outputnodata,
-            'nodata': 0
+                'ram'         : ram(self.ram_per_process),
+                'ingammaarea' : in_GAMMA_AREA,
+                'inbetanaught': in_concat_S2,
+                'mingammaarea': self.mingammaarea,
+                'calibfactor' : self.calibfactor,
+                'nostreaming' : self.nostreaming,
+                'outputnodata': self.outputnodata,
+                'nodata'      : 0,
         }
         return params
 
-# ======================================================================
-# Deprecated wrappers.
-# They were used in S1Tiling 1.0 when the worflow was done in S1 SAR geometry
-# until the production of the GAMMA_AREA map that was eventuall orthorectified and
-# concatenated.
 
 class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
@@ -248,9 +245,9 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         """
         # Ignore polarization in filenames
         assert 'polarless_basename' not in meta
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+        meta['polarless_basename']  = remove_polarization_marks(meta['basename'])
         rootname = os.path.splitext(meta['polarless_basename'])[0]
-        meta['polarless_rootname'] = rootname
+        meta['polarless_rootname']  = rootname
         meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
         return meta
 
@@ -279,6 +276,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
                 + [os.path.join(self.__dem_dir,
                                 self.__dem_filename_format.format_map(meta['dem_infos'][s]))
                    for s in meta['dem_infos']]
+
 
 class ResampleDEM(OTBStepFactory):
     """
@@ -316,11 +314,11 @@ class ResampleDEM(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description="DEM resampling",
         )
-        self.__dem_db_filepath = cfg.dem_db_filepath
-        self.__dem_field_ids = cfg.dem_field_ids
+        self.__dem_db_filepath   = cfg.dem_db_filepath
+        self.__dem_field_ids     = cfg.dem_field_ids
         self.__dem_main_field_id = cfg.dem_main_field_id
-        self.factor_x = cfg.resample_dem_factor_x
-        self.factor_y = cfg.resample_dem_factor_y
+        self.factor_x            = cfg.resample_dem_factor_x
+        self.factor_y            = cfg.resample_dem_factor_y
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -380,14 +378,14 @@ class ResampleDEM(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        indem = fetch_input_data('indem', inputs).out_filename
+        indem  = fetch_input_data('indem', inputs).out_filename
 
         params = {
-            "ram": ram(self.ram_per_process),
-            "in": indem,
-            "transform.type": "id",
-            "transform.type.id.scalex": self.factor_x,
-            "transform.type.id.scaley": self.factor_y
+                "ram"                      : ram(self.ram_per_process),
+                "in"                       : indem,
+                "transform.type"           : "id",
+                "transform.type.id.scalex" : self.factor_x,
+                "transform.type.id.scaley" : self.factor_y,
         }
 
         return params
@@ -398,6 +396,7 @@ class ResampleDEM(OTBStepFactory):
         RigidTransformResample comes from gamma0-rtc.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
+
 
 class SARDEMProjectionImageEstimation(OTBStepFactory):
     """
@@ -443,10 +442,10 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description="SARDEM projection onto DEM list",
         )
-        self.__dem_db_filepath     = cfg.dem_db_filepath
-        self.__dem_field_ids       = cfg.dem_field_ids
-        self.__dem_main_field_id   = cfg.dem_main_field_id
-        self.__GeoidFile = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        self.__dem_db_filepath   = cfg.dem_db_filepath
+        self.__dem_field_ids     = cfg.dem_field_ids
+        self.__dem_main_field_id = cfg.dem_main_field_id
+        self.__GeoidFile         = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -530,12 +529,12 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         indem = fetch_input_data('indem', inputs).out_filename
 
         params = {
-            'ram': ram(self.ram_per_process),
-            'insar': in_filename(meta),
-            'indem': indem,
-            'withxyz': True,
-            'nodata': -32768,
-            'elev.geoid': self.__GeoidFile
+                'ram'       : ram(self.ram_per_process),
+                'insar'     : in_filename(meta),
+                'indem'     : indem,
+                'withxyz'   : True,
+                'nodata'    : -32768,
+                'elev.geoid': self.__GeoidFile,
         }
 
         return params
@@ -581,12 +580,12 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='Gamma area image estimation',
         )
-        self.distributearea = cfg.distribute_area
-        self.nostreaming = cfg.gamma_area_nostreaming
+        self.distributearea         = cfg.distribute_area
+        self.nostreaming            = cfg.gamma_area_nostreaming
         self.innermarginratiostatus = cfg.inner_margin_ratio_status
         self.outermarginratiostatus = cfg.outer_margin_ratio_status
-        self.innermarginratio = cfg.inner_margin_ratio
-        self.outermarginratio = cfg.outer_margin_ratio
+        self.innermarginratio       = cfg.inner_margin_ratio
+        self.outermarginratio       = cfg.outer_margin_ratio
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -677,19 +676,19 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         indemproj = fetch_input_data('indemproj', inputs).out_filename
 
         params = {
-            'ram'             : ram(self.ram_per_process),
-            'insar'           : insar,
-            'indem'           : indem,
-            'indemproj'       : indemproj,
-            'indirectiondemc' : int(meta['directiontoscandemc']),
-            'indirectiondeml' : int(meta['directiontoscandeml']),
-            'mlran'           : 1,
-            'mlazi'           : 1,
-            'distributearea': self.distributearea,
-            'nostreaming': self.nostreaming,
-            'nodata': -32768,
-            'innermarginratiostatus': self.innermarginratiostatus,
-            'outermarginratiostatus': self.outermarginratiostatus
+                'ram'                   : ram(self.ram_per_process),
+                'insar'                 : insar,
+                'indem'                 : indem,
+                'indemproj'             : indemproj,
+                'indirectiondemc'       : int(meta['directiontoscandemc']),
+                'indirectiondeml'       : int(meta['directiontoscandeml']),
+                'mlran'                 : 1,
+                'mlazi'                 : 1,
+                'distributearea'        : self.distributearea,
+                'nostreaming'           : self.nostreaming,
+                'nodata'                : -32768,
+                'innermarginratiostatus': self.innermarginratiostatus,
+                'outermarginratiostatus': self.outermarginratiostatus,
         }
         if self.innermarginratio:
             params["innermarginratio"] = self.innermarginratio
@@ -704,6 +703,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         SARGammaAreaImageEstimation comes from gamma0-rtc.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
+
 
 class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
     """
@@ -794,6 +794,7 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         """
         pass
 
+
 class _FilterGAMMA_AREAStepFactory(StepFactory):
     """
     Helper root class for all GAMMA_AREA filtering steps.
@@ -850,6 +851,7 @@ class _FilterGAMMA_AREAStepFactory(StepFactory):
         """
         return self.build_step_output_filename(meta)
 
+
 def filter_GAMMA_AREA(GAMMA_AREA_kind: str) -> Type[_FilterGAMMA_AREAStepFactory]:
     """
     Generates a new :class:`StepFactory` class that filters which GAMMA_AREA product
@@ -861,6 +863,7 @@ def filter_GAMMA_AREA(GAMMA_AREA_kind: str) -> Type[_FilterGAMMA_AREAStepFactory
             (_FilterGAMMA_AREAStepFactory,),  # Parent
             {'_GAMMA_AREA_kind': GAMMA_AREA_kind }
     )
+
 
 class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
     """
@@ -931,15 +934,16 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         kind = meta['GAMMA_AREA_kind']
         assert kind in types, f'The only GAMMA_AREA kind accepted are {types.keys()}'
         imd = meta['image_metadata']
-        imd['DATA_TYPE'] = types[kind]
+        imd['DATA_TYPE']    = types[kind]
         imd['PixelSpacing'] = str(self.out_spatial_res)
-        imd['LineSpacing'] = str(self.out_spatial_res)
+        imd['LineSpacing']  = str(self.out_spatial_res)
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
         Force GAMMA_AREA output pixel type to some type.
         """
         pass
+
 
 class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     """

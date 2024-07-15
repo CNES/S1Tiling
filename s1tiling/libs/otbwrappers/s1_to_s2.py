@@ -338,6 +338,7 @@ class AnalyseBorders(StepFactory):
                 }
         return meta
 
+
 k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
 
 
@@ -404,11 +405,11 @@ class Calibrate(OTBStepFactory):
         application <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
-            'ram'           : ram(self.ram_per_process),
-            self.param_in   : in_filename(meta),
-            'lut': self.__calibration_type
+                'ram'           : ram(self.ram_per_process),
+                self.param_in   : in_filename(meta),
+                # self.param_out  : out_filename(meta),
+                'lut'           : self.__calibration_type,
         }
-
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
         else:
@@ -669,9 +670,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'outputs.ulx'      : extent['xmin'],
                 'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
                 'elev.dem'         : self.__tmp_dem_dir,
-                'elev.geoid'       : self.__GeoidFile
+                'elev.geoid'       : self.__GeoidFile,
         }
-
         return parameters
 
 

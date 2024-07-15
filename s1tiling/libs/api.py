@@ -611,6 +611,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     )
     return lia
 
+
 def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produce_gamma_area: bool, config: Configuration) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
@@ -618,55 +619,56 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
     """
     # build VRT
     dem = pipelines.register_pipeline(
-        [AgglomerateDEMOnS1],
-        'AgglomerateDEM',
-        inputs={'insar': 'basename'}
+            [AgglomerateDEMOnS1],
+            'AgglomerateDEM',
+            inputs={'insar': 'basename'},
     )
 
     # resample dem
     resampled_dem = dem
     if not config.no_use_resampled_dem:
         resampled_dem = pipelines.register_pipeline(
-            [ResampleDEM],
-            'RigidTransformResample',
-            inputs={'indem': dem}
+                [ResampleDEM],
+                'RigidTransformResample',
+                inputs={'indem': dem},
         )
 
     # project dem
     demproj = pipelines.register_pipeline(
-        [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
-        'SARDEMProjection',
-        is_name_incremental=True,
-        inputs={'insar': 'basename', 'indem': resampled_dem}
+            [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
+            'SARDEMProjection',
+            is_name_incremental=True,
+            inputs={'insar': 'basename', 'indem': resampled_dem},
     )
 
     # gamma area
     gamma_area = pipelines.register_pipeline(
-        [SARGammaAreaImageEstimation],
-        'SARGammaAreaImageEstimation',
-        inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
+            [SARGammaAreaImageEstimation],
+            'SARGammaAreaImageEstimation',
+            inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj},
     )
 
     # ortho gamma area
     ortho_gamma_area = pipelines.register_pipeline(
-        [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
-        'OrthoGAMMA_AREA',
-        inputs={'in': gamma_area},
-        is_name_incremental=True
+            [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
+            'OrthoGAMMA_AREA',
+            inputs={'in': gamma_area},
+            is_name_incremental=True,
     )
     concat_ortho_gamma_area = pipelines.register_pipeline(
-        [ConcatenateGAMMA_AREA],
-        'ConcatGAMMA_AREA',
-        inputs={'in': ortho_gamma_area}
+            [ConcatenateGAMMA_AREA],
+            'ConcatGAMMA_AREA',
+            inputs={'in': ortho_gamma_area},
     )
     best_concat_ortho_gamma_area = pipelines.register_pipeline(
-        [SelectGammaNaughtAreaBestCoverage],
-        'SelectGAMMA_AREA',
-        inputs={'in': concat_ortho_gamma_area},
-        product_required=produce_gamma_area
+            [SelectGammaNaughtAreaBestCoverage],
+            'SelectGAMMA_AREA',
+            inputs={'in': concat_ortho_gamma_area},
+            product_required=produce_gamma_area,
     )
 
     return best_concat_ortho_gamma_area
+
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
@@ -681,7 +683,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         debug_tasks             : bool = False,
         cache_before_ortho      : bool = False,
         lia_process                    = None,
-        gamma_area_process             = None
+        gamma_area_process             = None,
 ) -> exits.Situation:
     """
     Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
@@ -742,7 +744,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
                 'Cannot purge non filtered products when mask are also produced!'
 
-        chain_LIA_and_despeckle_inmemory    = config.filter and not config.keep_non_filtered_products
+        chain_LIA_and_despeckle_inmemory        = config.filter and not config.keep_non_filtered_products
         chain_GAMMA_AREA_and_despeckle_inmemory = config.filter and not config.keep_non_filtered_products
         chain_concat_and_despeckle_inmemory = False  # See issue #118
 
@@ -821,14 +823,17 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             # This steps helps forwarding GAMMA AREA (only) to the next step
             # that corrects the β° with GAMMA AREA map.
             GAMMA_AREA = pipelines.register_pipeline(
-                [filter_GAMMA_AREA('GAMMA_AREA')],
-                'SelectGAMMA_AREA',
-                is_name_incremental=True,
-                inputs={'in': gammanaughtareas},
+                    [filter_GAMMA_AREA('GAMMA_AREA')],
+                    'SelectGAMMA_AREA',
+                    is_name_incremental=True,
+                    inputs={'in': gammanaughtareas},
             )
             # TODO: Merge filter_GAMMA_AREA in apply_GAMMA_AREA_seq!
-            apply_GAMMA_AREA = pipelines.register_pipeline(apply_GAMMA_AREA_seq, product_required=True,
-                                                    inputs={'GAMMA_AREA': GAMMA_AREA, 'concat_S2': concat_S2}, is_name_incremental=True)
+            apply_GAMMA_AREA = pipelines.register_pipeline(
+                    apply_GAMMA_AREA_seq, product_required=True,
+                    inputs={'GAMMA_AREA': GAMMA_AREA, 'concat_S2': concat_S2},
+                    is_name_incremental=True,
+            )
             last_product_S2 = apply_GAMMA_AREA
             required_workspaces.append(WorkspaceKinds.GAMMA_AREA)
 
@@ -1018,6 +1023,7 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
     )
+
 
 def s1_process_gamma_area(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],

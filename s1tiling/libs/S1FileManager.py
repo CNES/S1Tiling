@@ -69,7 +69,9 @@ from .Utils             import (
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import (
-        Configuration, dname_fmt_lia_product, dname_fmt_gamma_area_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+        Configuration,
+        dname_fmt_lia_product, dname_fmt_gamma_area_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
+        fname_fmt_concatenation, fname_fmt_filtered,
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
@@ -94,10 +96,10 @@ class WorkspaceKinds(Enum):
     :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
         Indeed At this moment, only two kinds of workspaces are supported.
     """
-    TILE   = 1
-    LIA    = 2
-    FILTER = 3
-    MASK   = 4
+    TILE       = 1
+    LIA        = 2
+    FILTER     = 3
+    MASK       = 4
     GAMMA_AREA = 5
 
 
@@ -671,10 +673,10 @@ class S1FileManager:
         all exist
         """
         directories = {
-            'out_dir': self.cfg.output_preprocess,
-            'tmp_dir': self.cfg.tmpdir,
-            'lia_dir': self.cfg.lia_directory,
-            'gamma_area_dir': self.cfg.gamma_area_directory
+            'out_dir'       : self.cfg.output_preprocess,
+            'tmp_dir'       : self.cfg.tmpdir,
+            'lia_dir'       : self.cfg.lia_directory,
+            'gamma_area_dir': self.cfg.gamma_area_directory,
         }
 
         working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
@@ -710,7 +712,7 @@ class S1FileManager:
         if not self.__tmpdemdir:
             # copy all needed DEM & geoid files in a temp directory for orthorectification processing
             self.__tmpdemdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary DEM diretory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
+            logger.debug('Create temporary DEM directory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
             assert Path(self.__tmpdemdir.name).is_dir()
             def do_symlink(src: Union[Path, str], dst: Path):
                 logger.debug('- ln -s %s <-- %s', src, dst)
