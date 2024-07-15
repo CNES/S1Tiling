@@ -434,7 +434,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
         self.gamma_area_nostreaming                     = accessor.getboolean('Processing', 'gamma_area_nostreaming', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
-        self.inner_margin_ratio_status                  = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=False)
+        self.inner_margin_ratio_status                  = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
         self.outer_margin_ratio_status                  = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
