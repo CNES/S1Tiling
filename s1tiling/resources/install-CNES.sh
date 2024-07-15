@@ -37,8 +37,8 @@
 s1tiling_version=1.2.0alpha
 otb_ver=9.0.0
 # otb_ver=8.1.2
-git_node=master
-git_RTC_gamma0_node=master
+git_node=develop
+git_RTC_gamma0_node=develop
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
