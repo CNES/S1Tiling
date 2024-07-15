@@ -334,8 +334,8 @@ cluster like HAL or TREX.
           dem_dir : /work/datalake/static_aux/MNT/SRTM_30_hgt
 
   * - :ref:`[Processing].cache_dem_by <Processing.cache_dem_by>`
-    - DEM and Geoid files should be **copied** locally on :ref:`[PATHS].tmp
-      <paths.tmp>` instead of being symlinked over the GPFS.
+    - DEM files, and GEOID file, should be **copied** locally on
+      :ref:`[PATHS].tmp <paths.tmp>` instead of being symlinked over the GPFS.
 
       .. code:: ini
 

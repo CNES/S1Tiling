@@ -72,6 +72,7 @@ from ..configuration import (
         Configuration,
         dname_fmt_lia_product, dname_fmt_tiled,
         extended_filename_lia_degree, extended_filename_lia_sin, extended_filename_tiled,
+        nodata_DEM, nodata_LIA, nodata_SAR, nodata_XYZ,
         pixel_type,
 )
 
@@ -155,12 +156,12 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
     - `out_spatial_res`
     - `interpolation_method` -- OTB key converted to GDAL equivalent
     - `nb_procs`
+    - `nodatas.DEM`
 
     It requires the following information from the metadata dictionary:
 
     - `tile_name`
     - `tile_origin`
-    - `nodata` -- optional
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'DEM_projected_on_{tile_name}.tiff'
@@ -176,6 +177,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         self.__out_spatial_res   = cfg.out_spatial_res
         self.__resampling_method = cfg.dem_warp_resampling_method
         self.__nb_threads        = cfg.nb_procs
+        self.__nodata            = nodata_DEM(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -215,7 +217,6 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
 
         extent = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
 
-        nodata = meta.get('nodata', -32768)
         parameters = [
                 "-wm", str(self.ram_per_process*1024*1024),
                 "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
@@ -225,7 +226,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
                 # "-crop_to_cutline",
                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
                 "-r", self.__resampling_method,
-                "-dstnodata", str(nodata),
+                "-dstnodata", str(self.__nodata),
                 image,
                 tmp_filename(meta),
         ]
@@ -251,6 +252,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     - `interpolation_method` -- for use by :external:std:doc:`super impose
       <Applications/app_Superimpose>`
     - `out_spatial_res` -- as a workaround...
+    - `nodatas.DEM`
 
     It requires the following information from the metadata dictionary:
 
@@ -271,6 +273,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
         self.__interpolation_method = cfg.interpolation_method
         self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
+        self.__nodata               = nodata_DEM(cfg)
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -294,6 +297,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
                 'inm'                     : self.__GeoidFile,
                 'interpolator'            : self.__interpolation_method,  # TODO: add parameter
                 'interpolator.bco.radius' : 2,  # 2 is the default value for bco
+                'fv'                      : self.__nodata,  # Make sure meta data are correctly set
         }
 
 
@@ -308,10 +312,10 @@ class SumAllHeights(OTBStepFactory):
     - `ram_per_process`
     - `tmp_dir`    -- useless in the in-memory nomical case
     - `fname_fmt`  -- optional key: `height_on_s2`, useless in the in-memory nominal case
+    - `nodata.DEM` -- optional
 
     It requires the following information from the metadata dictionary:
 
-    - `nodata` -- optional
     """
     def __init__(self, cfg: Configuration) -> None:
         """
@@ -327,6 +331,7 @@ class SumAllHeights(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
                 image_description='DEM + GEOID height info projected on S2 tile',
         )
+        self.__nodata = nodata_DEM(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -338,6 +343,8 @@ class SumAllHeights(OTBStepFactory):
         dem_on_s2  = fetch_input_data('in_s2_dem', all_inputs).out_filename
         meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
         logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
+        # Make sure to set nodata metadata in output image
+        meta['out_extended_filename_complement'] = f'?&nodata={self.__nodata}'
         return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
@@ -383,11 +390,11 @@ class SumAllHeights(OTBStepFactory):
         inputs = meta['inputs']
         in_s2_dem   = fetch_input_data('in_s2_dem',   inputs).out_filename
         in_s2_geoid = fetch_input_data('in_s2_geoid', inputs).out_filename
-        nodata = meta.get('nodata', -32768)
+        dem_nodata = Utils.fetch_nodata_value(in_s2_dem, is_running_dry(meta), self.__nodata)  # usually -32768
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
-                self.param_in : [in_s2_dem, in_s2_geoid],
-                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1+im2b1'
+                self.param_in : [in_s2_geoid, in_s2_dem],
+                'exp'         : f'{Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} ? {self.__nodata} : im1b1+im2b1'
         }
         return params
 
@@ -413,13 +420,13 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     - `dem_main_field_id` -- to fill-up image metadata
     - `tmp_dir`           -- useless in the in-memory nomical case
     - `fname_fmt`         -- optional key: `ground_and_sat_s2`, useless in the in-memory nominal case
+    - `nodata.LIA`        -- optional
 
     Requires the following information from the metadata dictionary
 
     - `basename`
     - `input filename`
     - `output filename`
-    - `nodata` -- optional
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
     DEM information already registered in dask worker (through
@@ -439,6 +446,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 image_description="XYZ ground and satellite positions on S2 tile",
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
+        self.__nodata = nodata_XYZ(cfg)
 
     @staticmethod
     def reduce_inputs(inputs: List[Meta]) -> List:
@@ -570,7 +578,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         :external:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
-        nodata = meta.get('nodata', -32768)
+        nodata = self.__nodata
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         inheight = fetch_input_data('inheight', inputs).out_filename
@@ -587,7 +595,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 'withxyz'    : True,
                 'withsatpos' : True,
                 # 'withh'      : True,  # uncomment to analyse/debug height computed
-                'nodata'     : nodata
+                'nodata'     : str(nodata)
         }
 
     def requirement_context(self) -> str:
@@ -610,12 +618,13 @@ class _ComputeNormals(OTBStepFactory):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `nodata.LIA`      -- optional
+    - `fname_fmt`       -- optional key: `normals`, useless in the in-memory nominal case
 
     Requires the following information from the metadata dictionary
 
     - input filename
     - output filename
-    - `fname_fmt`  -- optional key: `normals`, useless in the in-memory nominal case
     """
     def __init__(
             self,
@@ -633,6 +642,7 @@ class _ComputeNormals(OTBStepFactory):
                 gen_output_filename=TemplateOutputFilenameGenerator(output_fname_fmt),
                 image_description=image_description,
         )
+        self.__nodata = nodata_XYZ(cfg)
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -660,12 +670,13 @@ class _ComputeNormals(OTBStepFactory):
         <Applications/app_ExtractNormalVector>` to generate surface normals
         for each point of the origin S1 image.
         """
-        nodata = meta.get('nodata', -32768)
+        nodata = self.__nodata
         xyz = in_filename(meta)
+        logger.debug("nodata(ComputeNormals) == %s", nodata)
         return {
                 'ram'             : ram(self.ram_per_process),
                 'xyz'             : xyz,
-                'nodata'          : float(nodata),
+                'nodata'          : str(nodata),
         }
 
     def requirement_context(self) -> str:
@@ -689,12 +700,13 @@ class ComputeNormalsOnS2(_ComputeNormals):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `nodata.LIA`      -- optional
+    - `fname_fmt`       -- optional key: `normals_on_s2`, useless in the in-memory nominal case
 
     Requires the following information from the metadata dictionary
 
     - input filename
     - output filename
-    - `fname_fmt`  -- optional key: `normals_on_s2`, useless in the in-memory nominal case
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'Normals_on_{tile_name}'
@@ -719,6 +731,7 @@ class _ComputeLIA(OTBStepFactory):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `nodata.LIA`      -- optional
 
     Requires the following information from the metadata dictionary
 
@@ -757,6 +770,7 @@ class _ComputeLIA(OTBStepFactory):
                 extended_filename=extended_filenames,
                 pixel_type=pixel_types,
         )
+        self.__nodata = nodata_LIA(cfg)
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -810,12 +824,13 @@ class _ComputeLIA(OTBStepFactory):
         inputs = meta['inputs']
         xyz     = fetch_input_data('xyz', inputs).out_filename
         normals = fetch_input_data('normals', inputs).out_filename
-        nodata  = meta.get('nodata', -32768)
+        # TODO: should distinguish deg(LIA) nodata from sin(LIA) nodata
+        nodata  = self.__nodata  # Best nodata value here is NaN
         return {
                 'ram'             : ram(self.ram_per_process),
                 'in.xyz'          : xyz,
                 'in.normals'      : normals,
-                'nodata'          : float(nodata),
+                'nodata'          : str(nodata),
         }
 
     def requirement_context(self) -> str:
@@ -838,13 +853,14 @@ class ComputeLIAOnS2(_ComputeLIA):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - `fname_fmt`       -- optional key: `lia_product`
+    - `dname_fmt`       -- optional key: `lia_product`
+    - `nodata.LIA`      -- optional
 
     Requires the following information from the metadata dictionary
 
     - input filename
     - output filename
-    - `fname_fmt`  -- optional key: `lia_product`
-    - `dname_fmt`  -- optional key: `lia_product`
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
@@ -944,6 +960,11 @@ class ApplyLIACalibration(OTBStepFactory):
     Requires the following information from the configuration object:
 
     - `ram_per_process`
+    - lower_signal_value
+    - `fname_fmt`       -- optional key: `s2_lia_corrected`
+    - `dname_fmt`       -- optional key: `tiled`
+    - `nodata.SAR`      -- optional
+    - `nodata.LIA`      -- optional
 
     Requires the following information from the metadata dictionary
 
@@ -955,8 +976,6 @@ class ApplyLIACalibration(OTBStepFactory):
     - orbit_direction
     - orbit
     - acquisition_stamp
-    - `fname_fmt`  -- optional key: `s2_lia_corrected`
-    - `dname_fmt`  -- optional key: `tiled`
     """
 
     def __init__(self, cfg: Configuration) -> None:
@@ -976,6 +995,9 @@ class ApplyLIACalibration(OTBStepFactory):
                 extended_filename=extended_filename_tiled(cfg),
                 pixel_type=pixel_type(cfg, 'tiled'),
         )
+        self.__lower_signal_value = cfg.lower_signal_value
+        self.__nodata_SAR = nodata_SAR(cfg)
+        self.__nodata_LIA = nodata_LIA(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -990,6 +1012,8 @@ class ApplyLIACalibration(OTBStepFactory):
         # IOW, it's not required in normlim case, and we can safely remove the calibrated β0 file.
         in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
         meta['files_to_remove'] = [in_concat_S2]
+        # Make sure to set nodata metadata in output image
+        meta['out_extended_filename_complement'] += f'&nodata={self.__nodata_SAR}'
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -1038,11 +1062,24 @@ class ApplyLIACalibration(OTBStepFactory):
         inputs = meta['inputs']
         in_concat_S2 = fetch_input_data('concat_S2', inputs).out_filename
         in_sin_LIA   = fetch_input_data('sin_LIA',   inputs).out_filename
-        nodata = meta.get('nodata', -32768)
+        # We can expect consistency and blindy use LOWER_SIGNAL_VALUE from previous step
+        lower_signal_value = self.__lower_signal_value
+        # Read the nodata values from input images
+        running_dry = is_running_dry(meta)
+        sar_nodata = Utils.fetch_nodata_value(in_concat_S2, running_dry, self.__nodata_SAR)  # usually 0
+        lia_nodata = Utils.fetch_nodata_value(in_sin_LIA,   running_dry, self.__nodata_LIA)  # usually what we have chosen, likelly -32768
+        # exp is:
+        # - if im{LIA} is LIA_nodata => SAR_nodata
+        # - if im{SAR} is SAR_nodata = SAR_nodata
+        # - else max(lower_signal_value, im{LIA} * im{SAR}
+        # Note: if either is NaN, `max(?, nan*nan)` should be = NaN
+        # => NaN should be supported, but tests are required
+        is_LIA_nodata = Utils.test_nodata_for_bandmath(lia_nodata, "im2b1")
+        is_SAR_nodata = Utils.test_nodata_for_bandmath(sar_nodata, "im1b1")
         params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 self.param_in : [in_concat_S2, in_sin_LIA],
-                'exp'         : f'im2b1 == {nodata} ? {nodata} : im1b1*im2b1'
+                'exp'         : f'({is_LIA_nodata} || {is_SAR_nodata}) ? {sar_nodata} : max({lower_signal_value}, im1b1*im2b1)'
         }
         return params
 

@@ -46,6 +46,7 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx_carousel.carousel',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     "sphinx.ext.autosectionlabel",

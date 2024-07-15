@@ -500,6 +500,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if self.dem_warp_resampling_method not in resamplings:
             accessor.throw(f"{self.dem_warp_resampling_method} is an invalid choice for `dem_warp_resampling_method`. Choose one among {resamplings}")
 
+        #: no-data value used for various processings
+        self.nodatas : Dict[str, Union[int,float,str,None]] = {}
+        self.nodatas['SAR'] = accessor.get('Processing', 'nodata.SAR', fallback=0)  # undocumented => best avoided!!!
+        self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)
+
         # - - - - - - - - - -[ GAMMA AREA
         #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
         self.produce_gamma_area_map = accessor.getboolean('Processing', 'produce_gamma_area_map', fallback=False)
@@ -878,3 +883,55 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def _get_nodata(dict: Dict[str, Optional[Union[str,int,float]]], key: str, default_value: Union[str,int,float]):
+    """
+    Internal helper to extract nodata value from configuration directionaries.
+
+    :return: if the key exists in the dict, return its value if not None.
+    :return: ``default_value`` otherwise
+
+    >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'LIA', 42)
+    42
+    >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'SAR', 42)
+    0
+    >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'DEM', 42)
+    -32768
+    >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'H2G2', 42)
+    42
+    """
+    v = dict.get(key, None)
+    return v if v is not None else default_value
+
+
+def nodata_SAR(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in Sentinel-1 raw
+    products and in S1Tiling SAR products.
+    """
+    return _get_nodata(cfg.nodatas, 'SAR', 0)
+
+
+def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    images generated for LIA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'LIA', 'nan')
+
+
+def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    DEM images generated for LIA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'DEM', -32768)
+
+
+def nodata_XYZ(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    XYZ images generated for LIA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'XYZ', 'nan')

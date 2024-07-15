@@ -41,7 +41,8 @@ import sys
 from timeit import default_timer as timer
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
-from osgeo import ogr, osr
+from numpy.lib import math
+from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
 
@@ -60,9 +61,12 @@ EXTENSION_TO_DRIVER_MAP = {
 logger = logging.getLogger("s1tiling.utils")
 
 
+# ======================================================================
+## GDAL technical helpers
+
 class Layer:
     """
-    Thin wrapper that requests GDL Layers and keep a living reference to intermediary objects.
+    Thin wrapper that requests GDAL Layers and keep a living reference to intermediary objects.
     """
     def __init__(self, grid, driver_name: Optional[str] = None) -> None:
         if not driver_name:
@@ -102,8 +106,69 @@ class Layer:
         return self.__layer.GetSpatialRef()
 
 
+def gdal_open(path: Union[str,Path], access):
+    """
+    Helper function that returns a context manager open GDAL Dataset objects.
+
+    Note: GDAL 3.8 :class:`gdal.Dataset` already behaves as a `Context Manager`.
+    """
+    ds = gdal.Open(path, access)
+    if hasattr(gdal.Dataset, '__enter__'):
+        return ds
+    return DatasetManager(ds)
+
+
+class DatasetManager:
+    """
+    Context Manager over :class:`gdal.Dataset`
+    """
+    def __init__(self, ds: gdal.Dataset) -> None:
+        self.__ds = ds
+
+    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
+        del self.__ds
+        return False
+
+    def __enter__(self) -> gdal.Dataset:
+        return self.__ds
+
+
+def fetch_nodata_value(
+        inputpath: Union[str, Path],
+        is_running_dry: bool,
+        default_value: Optional[Union[int,float,str]],
+        band_nr: int = 1
+) -> Union[int,float,str]:
+    """
+    Extract no-data value set in input image.
+    """
+    logger.debug("Fetch No-data value from '%s'", inputpath)
+    if not is_running_dry:
+        with gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+            if not ds:
+                raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
+            band = ds.GetRasterBand(band_nr)
+            if not band:
+                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
+            nodata = band.GetNoDataValue()
+            return nodata if nodata is not None else default_value
+    else:
+        return default_value
+
+
+def test_nodata_for_bandmath(nodata, bandname):
+    """
+    Helper function that works around :external:doc:`BandMath OTB application <Applications/app_BandMath>`
+    that cannot test ``isnodata(im1b42)``. Also, testing NaN values need a dedicated workaround.
+    """
+    if nodata == 'nan' or math.isnan(nodata):
+        return f'{bandname} != {bandname}'
+    else:
+        return f'{bandname} == {nodata}'
+
+
 # ======================================================================
-## Technical helpers
+## Domain helpers
 
 def _find(
         element: Union[ET.Element, ET.ElementTree],

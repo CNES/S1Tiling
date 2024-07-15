@@ -69,11 +69,12 @@ class CorruptedDataSAFEError(Error):
                 f"Product {product!r} appears to be corrupted ({extra}).\nPlease remove the raw data for {product!r} SAFE file.",
                 *args, **kwargs)
         self.product = product
+        self.details = details
 
     def __reduce__(self):
         # __reduce__ is required as this error will be pickled from subprocess
         # when transported in the :class:`Outcome` object.
-        return (CorruptedDataSAFEError, (self.product, ))
+        return (CorruptedDataSAFEError, (self.product, self.details, ))
 
 
 class DownloadS1FileError(Error):
