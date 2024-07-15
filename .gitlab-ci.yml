@@ -33,8 +33,6 @@ variables:
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
     S1TD_VERSION: "1.3.8"  # S1Tiling Dockers version
-    OTB7_VERSION: "7.4.1"
-    OTB8_VERSION: "8.1.2"
     OTB9_VERSION: "9.0.0"
     OS: "ubuntu"
 
@@ -246,14 +244,6 @@ test-doc9:
     OS_VERSION: "22.04"
     OTB_VERSION: "${OTB9_VERSION}"
 
-pytest7:
-  extends: .pytest
-  variables:
-    OS: ubuntu
-    OS_VERSION: "20.04"
-    OTB_VERSION: "${OTB7_VERSION}"
-    STEP: user
-
 pytest9:
   extends: .pytest
   variables:
@@ -261,18 +251,6 @@ pytest9:
     OS_VERSION: "22.04"
     OTB_VERSION: "${OTB9_VERSION}"
     STEP: user
-
-ubuntu-user7:
-  extends: .common-docker-build
-  stage: deploy
-  variables:
-    OS: ubuntu
-    OS_VERSION: "20.04"
-    OTB_VERSION: "${OTB7_VERSION}"
-    STEP: user
-  rules:
-    # only for tags
-    - if: $CI_COMMIT_TAG != null
 
 ubuntu-user9:
   extends: .common-docker-build

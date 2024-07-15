@@ -502,7 +502,7 @@ You can use this :download:`this template
     - Tells whether DEM and Geoid files are copied in a temporary directory, or
       if symbolic links are to be created.
 
-      For performance reasons with OTB 7.X, it's better to regroup the minimal
+      For performance reasons with OTB, it's better to regroup the minimal
       subset of the DEM files required for processing. Symbolic links work
       fine most of the time, however if the files are on a remote shared
       filesystem (GPFS, NAS...), performances will be degraded. In those cases,
@@ -523,10 +523,6 @@ You can use this :download:`this template
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
     - Activate the thermal noise removal in the images. Values are ``True`` or ``False``.
-
-      .. important::
-
-         This feature requires a version of OTB >= 7.4.0
 
       .. _Processing.lower_signal_value:
   * - ``lower_signal_value``

@@ -21,8 +21,9 @@ on C++ softwares OTB and GDAL.
 
 We recommend to use a dedicated Python virtual environment and a dedicated OTB
 {REF_OTB_VERSION} binary installation to install S1Tiling.
-If you want use the OTB 7.4.2 version please consider the installation
-instructions from previous S1Tiling version.
+If you want use the OTB 7.4.2 version please use an earlier version of
+S1TIling. Starting from v1.2, compatibility to OTB < 9 is no longer activelly
+pursued.
 
   .. note:: OTB 9+ binaries aren't compatible with older distributions of Linux like for instance Ubuntu 18.04.
 
@@ -142,8 +143,8 @@ care of installating S1Tiling on Linux machines
         - Conda.
 
     -
-        - Creates a conda environment for the selected python version (3.8 by
-          default with OTB 7.x, 3.11 w/ OTB 8.x, and 3.12 w/ OTB 9.x),
+        - Creates a conda environment for the selected python version (3.12 by
+          default with OTB 9.x),
         - Extracts the OTB binary release in the directory where the
           ``OTB-M.m.p-Linux64.run`` file is,
         - Patches ``UseOTB.cmake`` if need be (in case of C++ ABI mismatch in
@@ -196,8 +197,6 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 .. code-block:: bash
 
     docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION}
-    # or
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.1
 
 or even directly used with
 
@@ -252,7 +251,7 @@ In other word, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0 \
         --lia                             \
         /data/MyS1ToS2.cfg
 

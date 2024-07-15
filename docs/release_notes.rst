@@ -3,6 +3,17 @@
 Release notes
 =============
 
+Version 1.2.0
+-------------
+
+v1.2.0 Breaking changes
++++++++++++++++++++++++
+
+- Compatibility to OTB 7.x (and even 8.x) is no longer activelly pursued.
+  S1Tiling may work with older version of OTB, but with no guarantees.
+  (`#164 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/164>`_).
+
+
 Version 1.1.0
 -------------
 
