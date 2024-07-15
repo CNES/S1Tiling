@@ -5,7 +5,6 @@
 
 .. _CNES:
 
-.. index:: HAL
 .. index:: TREX
 
 Some specificities about CNES clusters
@@ -15,12 +14,12 @@ Some specificities about CNES clusters
    :local:
    :depth: 3
 
-Using S1Tiling Lmod module on HAL/TREX
---------------------------------------
+Using S1Tiling Lmod module on TREX
+----------------------------------
 
-S1Tiling is already installed on HAL and TREX (since June 2023). It's available
-through `Lmod <https://lmod.readthedocs.io/en/latest/?badge=latest>`_; see also
-HAL/TREX user guides.
+S1Tiling is already installed on TREX (since June 2023). It's available through
+`Lmod <https://lmod.readthedocs.io/en/latest/?badge=latest>`_; see also TREX
+user guides.
 
 .. code:: bash
 
@@ -33,7 +32,7 @@ HAL/TREX user guides.
     # Activate a specific version
     ml s1tiling/1.0.0-otb7.4.2
     # Or...
-    ml s1tiling/1.1.0rc1-otb9.0.0
+    ml s1tiling/1.1.0rc3-otb9.0.0
 
 
 .. note::
@@ -43,8 +42,8 @@ HAL/TREX user guides.
     S1Tiling 1.1.0 will be installed once with a dependency to OTB 7.4.2, and
     once with a dependency to OTB 9.
 
-Installation on HAL/TREX
-------------------------
+Installation on TREX
+--------------------
 
 You may prefer to install S1Tiling yourself. In that case, there are mainly two
 X two ways to install S1Tiling on CNES clusters.
@@ -69,7 +68,7 @@ instead of ``s1tiling`` as ``pip`` parameter.
 
 .. code:: bash
 
-    ml otb/7.4.2-python3.8.4-gcc8.2
+    ml otb/9.0.0-python3.8
 
     # Create a pip virtual environment
     python -m venv install_with_otb_module
@@ -78,8 +77,8 @@ instead of ``s1tiling`` as ``pip`` parameter.
     source install_with_otb_module/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools==57.5.0
-    python -m pip install --upgrade setuptools==57.5.0
+    # - an up-to-date setuptools
+    python -m pip install --upgrade setuptools
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -93,7 +92,7 @@ To use it
 .. code:: bash
 
     ml purge
-    ml otb/7.4.2-python3.8.4-gcc8.2
+    ml otb/9.0.0-python3.8
     source install_with_otb_module/bin/activate
 
     S1Processor requestfile.cfg
@@ -122,18 +121,18 @@ To use it
 
 .. code:: bash
 
-    ml otb/7.4.2-python3.8.4-gcc8.2
+    ml otb/9.0.0-python3.8
 
     # Create a conda environment
     ml conda
-    conda create --prefix ./conda_install_with_otb_distrib python==3.8.4
+    conda create --prefix ./conda_install_with_otb_distrib python==3.8.13
 
     # Configure the environment with:
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools==57.5.0
-    python -m pip install --upgrade setuptools==57.5.0
+    # - an up-to-date setuptools
+    python -m pip install --upgrade setuptools
 
     # Finally, install S1Tiling from sources
     mkdir /work/scratch/${USER}/tmp
@@ -148,7 +147,7 @@ To use it
 
     ml purge
     ml conda
-    ml otb/7.4.2-python3.8.4-gcc8.2
+    ml otb/9.0.0-python3.8
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
 
     S1Processor requestfile.cfg
@@ -172,13 +171,13 @@ project) environment.
     ml purge
     cd "${TST_DIR}"
     # Install OTB binaries
-    wget https://www.orfeo-toolbox.org/packages/OTB-7.4.2-Linux64.run
-    bash OTB-7.4.2-Linux64.run
+    wget https://www.orfeo-toolbox.org/packages/OTB-9.0.0-Linux.tar.gz
+    tar xf OTB-9.0.0-Linux.tar.gz --one-top-level=OTB-9.0.0-Linux
 
     # Patches gdal-config
-    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-7.4.2-Linux64/bin/
+    cp "${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config" OTB-9.0.0-Linux/bin/
     # Patches LD_LIBRARY_PATH
-    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-7.4.2-Linux64/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-7.4.2-Linux64/otbenv.profile
+    echo "export LD_LIBRARY_PATH=\"$(readlink -f OTB-9.0.0-Linux/lib)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> OTB-9.0.0-Linux/otbenv.profile
 
 .. note::
 
@@ -196,25 +195,25 @@ for the chosen version of Python.
 
     # Create a conda environment
     ml conda
-    conda create --prefix ./conda_install_with_otb_distrib python==3.8.4
+    conda create --prefix ./conda_install_with_otb_distrib python==3.12
 
     # Configure the environment with:
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools==57.5.0
-    python -m pip install --upgrade setuptools==57.5.0
-    # - numpy in order to compile OTB python bindinds for Python 3.8.4
-    pip install numpy
+    # - an up-to-date setuptools
+    python -m pip install --upgrade setuptools
+    # - numpy in order to compile OTB python bindinds for Python 3.12
+    pip install "numpy<2"
     # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
     pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
-    source OTB-7.4.2-Linux64/otbenv.profile
+    source OTB-9.0.0-Linux/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.2-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-9.0.0-Linux/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -232,7 +231,7 @@ To use it
     ml purge
     ml conda
     conda activate "${TST_DIR}/conda_install_with_otb_distrib"
-    source "${TST_DIR}/OTB-7.4.2-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-9.0.0-Linux/otbenv.profile"
 
     S1Processor requestfile.cfg
 
@@ -255,19 +254,19 @@ for the chosen version of Python.
     source install_with_otb_binaries/bin/activate
     # - an up-to-date pip
     python -m pip install --upgrade pip
-    # - an up-to-date setuptools==57.5.0
-    python -m pip install --upgrade setuptools==57.5.0
+    # - an up-to-date setuptools
+    python -m pip install --upgrade setuptools
     # - numpy in order to compile OTB python bindinds for Python
-    pip install numpy
+    pip install "numpy<2"
     # - gdal python bindinds shall be compatible with libgdal.so shipped w/ OTB binaries
     pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all:
 
     # - load OTB binaries
-    source OTB-7.4.2-Linux64/otbenv.profile
+    source OTB-9.0.0-Linux/otbenv.profile
     # load cmake and gcc to compile the binding
     ml cmake gcc
     # And update the bindings
-    (cd OTB-7.4.2-Linux64/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
+    (cd OTB-9.0.0-Linux/ && ctest -S share/otb/swig/build_wrapping.cmake -VV)
     ml unload cmake gcc
 
     # Finally, install S1Tiling from sources
@@ -283,7 +282,7 @@ To use it
 
     ml purge
     source install_with_otb_binaries/bin/activate
-    source "${TST_DIR}/OTB-7.4.2-Linux64/otbenv.profile"
+    source "${TST_DIR}/OTB-9.0.0-Linux/otbenv.profile"
 
     S1Processor requestfile.cfg
 
@@ -297,7 +296,7 @@ The theory
 ++++++++++
 
 A few options deserve our attention when running S1 Tiling as a job on a
-cluster like HAL or TREX.
+cluster like TREX.
 
 .. list-table::
   :widths: auto
@@ -353,10 +352,11 @@ cluster like HAL or TREX.
   * - :ref:`[Processing].ram_per_process <Processing.ram_per_process>`
     - RAM allowed per OTB application pipeline, in MB.
 
-  * - PBS resources
+  * - SLURM resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs but they should use different working spaces and
-        so on. This means PBS ``select`` value shall be one.
+        so on. This means SLURM number of nodes and number tasks values shall
+        be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the
@@ -380,10 +380,10 @@ cluster like HAL or TREX.
 
       .. code:: bash
 
-        #PBS -l select=1:ncpus=20:mem=40gb
-        # always 1 for select
-        # cpu = 2 * 10 => 20
-        # mem = 10 * 4096 => 40gb
+        #SBATCH -N 1                  # number of nodes (or --nodes=1)
+        #SBATCH -n 1                  # number of tasks (or --ntasks=1)
+        #SBATCH --cpus-per-task=20    # number of cpus par task: 2 * 10
+        #SBATCH --mem=40G             # memory per core: 10 * 4096
 
 TL;DR: here is an example
 +++++++++++++++++++++++++
