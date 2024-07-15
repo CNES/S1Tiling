@@ -60,7 +60,6 @@ from .lia import (
     ComputeLIAOnS2,
     ApplyLIACalibration,
 
-    AgglomerateDEMOnS1,
     SARDEMProjection,
     SARCartesianMeanEstimation,
     OrthoRectifyLIA,
