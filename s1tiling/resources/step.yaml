@@ -1,0 +1,78 @@
+steps:
+    Calibration:
+        specializes: OTBStepFactory  # parent class
+        name: Calibratation
+        appname: SARCalibration
+        options:  # read from config object
+            calibration_type: str  # tricky... ; stored in meta
+            remove_thermal_noise: bool  # local option
+            ram: int  # local option
+        description: '{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD'
+        creation_options:
+            fname_fmt:
+                option: calibration
+                default: '{rootname}_{calibration_type}_calOk.tiff'
+            tmp_dname_fmt: '{tmpdir}/S1'
+        metadata:
+            CALIBRATION: calibration_type
+            NOISE_REMOVED: removethermalnoise
+        inputs:  # list
+            - in  # can be output of previous step
+        parameters:
+            ram: self.ram_per_process  # stored in parent type
+            in: in
+            lut: calibration_type
+            removenoise: removethermalnoise # Since OTB 7.4.0
+                # noise: True # deprecated: before OTB 7.4.0
+
+
+    CorrectDenoising:
+        specializes: OTBStepFactory  # parent class
+        name: DenoisingCorrection
+        appname: BandMath
+        options:
+            lower_signal_value: float  # local option
+        description: '{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected'
+        creation_options:
+            fname_fmt:
+                option:  correct_denoising
+                default: '{rootname}_{calibration_type}_NoiseFixed.tiff'
+            tmp_dname_fmt: '{tmpdir}/S1'
+        metadata:
+            LOWER_SIGNAL_VALUE: lower_signal_value
+        inputs:
+            - in  # 
+        parameters:
+            ram: self.ram_per_process  # stored in parent type
+            il: in
+            exp: 'im1b1==0?{lower_signal_value}:im1b1'
+
+
+    CutBorder:
+        specializes: OTBStepFactory  # parent class
+        name: BorderCutting
+        appname: ResetMargin
+        creation_options:
+            fname_fmt:
+                option: cut_borders
+                default: '{rootname}_{calibration_type}_OrthoReady.tiff'
+            tmp_dname_fmt: '{tmpdir}/S1'
+        inputs:
+            - in
+        parameters:
+            ram: self.ram_per_process  # stored in parent type
+            in: in
+            threshold.x: cut.threshold.x
+            threshold.y.start: cut.threshold.y.start
+            threshold.y.end: cut.threshold.y.end
+            mode: "threshold"
+
+    OrthoRectification:
+        ...
+        parameters: plein de calculs...
+        heritage possible pour factoriser avec OrthoRectifyLIA
+
+
+
+
+

@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=40:mem=100gb:generation=g2019
+#PBS -l walltime=48:00:00
+
+
+JOBNAME="Vietnam-${f_date}"
+
+module load conda
+module load otb/7.4-python3.7.2
+conda activate s1tilingV0.3
+
+# Lancement du programme
+
+cd "${PBS_O_WORKDIR}" && mkdir "${JOBNAME}" && cd  "${JOBNAME}"
+
+echo  "FIRST_DATE: ${f_date}"
+echo  "LAST_DATE: ${l_date}"
+
+S1Processor  --cache-before-ortho ../Vietnam.cfg || {
+    code=$?
+    echo "Echec de l'exécution de programme" >&2
+    du -h -d 1 "${TMPDIR}"
+    exit ${code}
+}
+
+du -h -d 1 "${TMPDIR}"
+
+# Nettoyage
+cd "${PBS_O_WORKDIR}"
+rm -r "${JOBNAME}"
