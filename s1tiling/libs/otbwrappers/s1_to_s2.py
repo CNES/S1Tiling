@@ -685,6 +685,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'Mission', 'Mode', 'OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
                 'Swath', 'NumberOfLines', 'NumberOfColumns',
         )
+        spacing = Utils.get_spacing(meta['in_filename'])
+        self.__line_spacing = spacing[0]
+        self.__pixel_spacing = spacing[1]
         for kw in meta_to_remove_in_s2:
             imd[kw] = ''
 
@@ -693,12 +696,20 @@ class _OrthoRectifierFactory(OTBStepFactory):
         raise TypeError("_OrthoRectifierFactory does not know how to fetch input image")
 
     @property
-    def out_spatial_res(self):
-        return self.__out_spatial_res
+    def line_spacing(self):
+        return self.__line_spacing
 
-    @out_spatial_res.setter
-    def out_spatial_res(self, value):
-        self.__out_spatial_res = value
+    @line_spacing.setter
+    def line_spacing(self, value):
+        self.__line_spacing = value
+
+    @property
+    def pixel_spacing(self):
+        return self.__pixel_spacing
+
+    @pixel_spacing.setter
+    def pixel_spacing(self, value):
+        self.__pixel_spacing = value
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """

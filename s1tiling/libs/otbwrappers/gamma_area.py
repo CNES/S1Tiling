@@ -936,8 +936,8 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert kind in types, f'The only GAMMA_AREA kind accepted are {types.keys()}'
         imd = meta['image_metadata']
         imd['DATA_TYPE']    = types[kind]
-        imd['PixelSpacing'] = str(self.out_spatial_res)
-        imd['LineSpacing']  = str(self.out_spatial_res)
+        imd['PixelSpacing'] = self.pixel_spacing
+        imd['LineSpacing']  = self.line_spacing
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """

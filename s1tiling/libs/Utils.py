@@ -345,6 +345,19 @@ def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     return shape
 
 
+def get_spacing(image):
+    """Parse the image spacing.
+    Args:
+        image: The image path
+    Returns:
+      The spacing
+    """
+    raster_path = image
+    info = gdal.Info(raster_path, format='json')
+
+    return info['metadata']['']['LineSpacing'], info['metadata']['']['PixelSpacing']
+
+
 def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
     """
     Return shape of the ``s1image`` as a polygon

@@ -430,11 +430,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.resample_dem_factor_y                      = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
 
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
-        self.distribute_area                            = accessor.getboolean('Processing', 'distribute_area', fallback=False)
+        self.distribute_area                            = accessor.getboolean('Processing', 'distribute_area', fallback=True)
         #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
         self.gamma_area_nostreaming                     = accessor.getboolean('Processing', 'gamma_area_nostreaming', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
-        self.inner_margin_ratio_status                  = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=False)
+        self.inner_margin_ratio_status                  = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
         self.outer_margin_ratio_status                  = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
