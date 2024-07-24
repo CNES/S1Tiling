@@ -1003,7 +1003,9 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'BlueDisplayChannel'          : '',
             'GreenDisplayChannel'         : '',
             'Instrument'                  : '',
-            'LineSpacing'                 : '10.0',
+            # LineSpacing & PixelSpacing are inherited from input SAR image
+            # => they see no metadata update
+            # 'LineSpacing'                 : '10.0',
             'Mission'                     : '',
             'Mode'                        : '',
             'NumberOfColumns'             : '',
@@ -1011,7 +1013,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'OrbitDirection'              : '',
             'OrbitNumber'                 : '',
             'PRF'                         : '',
-            'PixelSpacing'                : '10.0',
+            # 'PixelSpacing'                : '10.0',
             'RadarFrequency'              : '',
             'RedDisplayChannel'           : '',
             'SAR'                         : '',
