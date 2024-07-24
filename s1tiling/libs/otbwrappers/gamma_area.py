@@ -676,7 +676,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         indem     = fetch_input_data('indem', inputs).out_filename
         indemproj = fetch_input_data('indemproj', inputs).out_filename
 
-        params = {
+        params : OTBParameters = {
                 'ram'                   : ram(self.ram_per_process),
                 'insar'                 : insar,
                 'indem'                 : indem,
@@ -936,8 +936,13 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert kind in types, f'The only GAMMA_AREA kind accepted are {types.keys()}'
         imd = meta['image_metadata']
         imd['DATA_TYPE']    = types[kind]
-        imd['PixelSpacing'] = self.pixel_spacing
-        imd['LineSpacing']  = self.line_spacing
+        # Original Line/PixelSpacing should not be discarded => unregister its removal
+        assert 'PixelSpacing' in imd,     "PixelSpacing should have been registered for removal. Let's keep it!"
+        assert 'LineSpacing' in imd,      "LineSpacing should have been registered for removal. Let's keep it!"
+        assert imd['PixelSpacing'] == '', "PixelSpacing should have been registered for removal. Let's keep it!"
+        assert imd['LineSpacing'] == '',  "LineSpacing should have been registered for removal. Let's keep it!"
+        del imd['LineSpacing']
+        del imd['PixelSpacing']
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """

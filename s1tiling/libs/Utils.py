@@ -167,6 +167,17 @@ def test_nodata_for_bandmath(nodata, bandname):
         return f'{bandname} == {nodata}'
 
 
+def get_spacing(image_path: Union[str, Path]):
+    """
+    Parse the image spacing.
+    :param image_path: The image path
+    :return: The spacing: (line_spacing, pixel_spacing)
+    """
+    info = gdal.Info(image_path, format='json')
+    # TODO: handle possible errors
+    return info['metadata']['']['LineSpacing'], info['metadata']['']['PixelSpacing']
+
+
 # ======================================================================
 ## Domain helpers
 
@@ -343,19 +354,6 @@ def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     shape.AssignSpatialReference(sr)
     return shape
-
-
-def get_spacing(image):
-    """Parse the image spacing.
-    Args:
-        image: The image path
-    Returns:
-      The spacing
-    """
-    raster_path = image
-    info = gdal.Info(raster_path, format='json')
-
-    return info['metadata']['']['LineSpacing'], info['metadata']['']['PixelSpacing']
 
 
 def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
