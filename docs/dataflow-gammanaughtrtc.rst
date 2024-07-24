@@ -32,22 +32,24 @@ For each S2 tile,
    :ref:`input data cache <paths.s1_images>`
    (all scenarios)
 
-2. Then, it makes sure the :ref:`associated GAMMA_AREA map <gamma_area-files>` exists
-   (all scenarios),
+2. Then, it makes sure the :ref:`associated GAMMA_AREA map <gamma_area-files>`
+   exists (all scenarios),
 
    0. It selects a pair of :ref:`input S1 images <paths.s1_images>` that
       intersect the S2 tile,
    1. For each :ref:`input S1 image <paths.s1_images>`
 
-       1. It :ref:`prepares a VRT <prepare_VRT_s1-proc>` of the DEM files that
-          cover the image,
-       2. It :ref:`projects <sardemproject_s1-proc>` the coordinates of the
-          input S1 image onto the geometry of the VRT,
-       3. It :ref:`computes the GAMMA_AREA map <compute_gamma_area-proc>` of each ground point,
-       4. It :ref:`orthorectifies the GAMMA_AREA map <ortho_gamma_area-proc>` to the S2 tile
+       1. It :ref:`prepares a VRT <prepare_VRT_s1-4rtc-proc>` of the DEM files
+          that cover the image,
+       2. It :ref:`projects <sardemproject_s1-4rtc-proc>` the coordinates of
+          the input S1 image onto the geometry of the VRT,
+       3. It :ref:`computes the GAMMA_AREA map
+          <sargammaareaimageestimation-proc>` of each ground point,
+       4. It :ref:`orthorectifies the GAMMA_AREA map <ortho_gamma_area-proc>`
+          to the S2 tile
 
-   2. It :ref:`concatenates <concat_gamma_area-proc>` both files into a single sine
-      GAMMA_AREA map for the S2 tile.
+   2. It :ref:`concatenates <concat_gamma_area-proc>` both files into a single
+      sine GAMMA_AREA map for the S2 tile.
 
 3. Then, for each polarisation (S1Processor scenario only),
 
@@ -56,8 +58,8 @@ For each S2 tile,
       images onto the S2 grid,
    2. It :ref:`superposes (concatenates) <concatenation-proc>` the
       orthorectified images into a single S2 tile,
-   3. It :ref:`normlizes <apply_gamma_area-proc>` the β° orthorectified image with
-      the GAMMA_AREA map.
+   3. It :ref:`normalizes <apply_gamma_area-proc>` the β° orthorectified image
+      with the GAMMA_AREA map.
 
 
 As with the main dataflow for all other calibrations (β°, γ°, or σ°), these
@@ -175,11 +177,11 @@ GAMMA_AREA specific processings
      }
 
 
-.. _prepare_VRT_s1-proc:
+.. _prepare_VRT_s1-4rtc-proc:
 .. index:: Agglomerate DEM
 
-Agglomerate DEM files in a VRT that covers S1 footprint
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Agglomerate DEM files in a VRT that covers S1 footprint (RTC)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem-vrt-files>`
@@ -190,7 +192,7 @@ All DEM files that intersect an original :ref:`input S1 image
 <paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
 
 
-.. _sardemproject_s1-proc:
+.. _sardemproject_s1-4rtc-proc:
 .. index:: Project SAR coordinates onto DEM
 
 Project SAR coordinates onto DEM
@@ -207,10 +209,10 @@ This step projects the coordinates of original :ref:`input S1 image
 
 
 .. _sargammaareaimageestimation-proc:
-.. index:: Project GAMMA_ARE coordinates onto SAR
+.. index:: Project GAMMA_AREA coordinates onto SAR
 
 Project GAMMA_AREA coordinates onto SAR
-++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
                  - The associated :ref:`VRT file <dem-vrt-files>`
@@ -228,7 +230,7 @@ of the original :ref:`input S1 image <paths.s1_images>`.
 .. index:: Orthorectification of GAMMA_AREA maps
 
 Orthorectification of GAMMA_AREA maps
-++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      A :ref:`Gamma Area Local Incidence Angle map GAMMA_AREA map <gamma_area-s1-files>` in the original S1 image geometry
 :Output:      The associated :ref:`GAMMA_AREA map file(s) <gamma_area-s2-half-files>`
@@ -253,7 +255,7 @@ It uses the following parameters from the request configuration file:
 .. index:: Concatenation of GAMMA_AREA maps
 
 Concatenation of GAMMA_AREA maps
-+++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++
 
 :Inputs:         A pair of :ref:`GAMMA_AREA map files <gamma_area-s2-half-files>` orthorectified on the target S2 tile.
 :Output:         The :ref:`GAMMA_AREA map file(s) <gamma_area-files>` associated to the S2 grid
@@ -269,7 +271,7 @@ by taking the first non null pixel.
 .. index:: Data caches (GAMMA_AREA)
 
 GAMMA_AREA specific data caches
-------------------------
+-------------------------------
 
 As with main dataflow, two kinds of data are cached, but only one is regularly
 cleaned-up by S1 Tiling. The other kind is left along as the software cannot

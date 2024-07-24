@@ -37,7 +37,7 @@ Entry points
 
 
 ``s1_process_gamma_area``
-------------------
+-------------------------
 
 .. autofunction:: s1tiling.libs.api.s1_process_gamma_area
 

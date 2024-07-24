@@ -196,10 +196,10 @@ masking....
 .. _scenario.S1ProcessorGAMMA_AREA:
 
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` GammaNaughtRTC calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In this scenario, the calibration applied is the :math:`σ^0_{RTC}` GammaNaughtRTC
-calibration described in [Small2011]_.
+In this scenario, the calibration applied is the :math:`σ^0_{RTC}`
+GammaNaughtRTC calibration described in [Small2011]_.
 
 .. [Small2011] D. Small, "Flattening Gamma: Radiometric Terrain Correction for
    SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
@@ -247,7 +247,7 @@ S1Tiling will then automatically take care of:
 .. _scenario.S1GammaAreaMap:
 
 Preproduce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` GammaNaughtRTC calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 While :program:`S1Processor` is able to produce the necessary GAMMA_AREA maps on the
 fly, it is not able to do so when parallelization is done manually over time
@@ -889,14 +889,14 @@ You can use this :download:`this template
 
       Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 
-.. _Processing.fname_fmt.gamma_area_corrected:
+      .. _Processing.fname_fmt.gamma_area_corrected:
   * - ``fname_fmt.s2_gamma_area_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when GammaNaughtRTC calibrated.
 
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC.tif`
 
-      .. _Processing.fname_fmt.lia_product:
+      .. _Processing.fname_fmt.gamma_area_product:
   * - ``fname_fmt.gamma_area_product``
     - File format pattern for GAMMA_AREA files
 
@@ -964,7 +964,7 @@ You can use this :download:`this template
           - ``.lia_product``
           - :samp:`{{lia_dir}}`
 
-            .. _Processing.dname_fmt.lia_product:
+            .. _Processing.dname_fmt.gamma_area_product:
         * - :ref:`GAMMA_AREA <gamma_area-files>`
           - ``.gamma_area_product``
           - :samp:`{{gamma_area_dir}}`
@@ -1016,7 +1016,7 @@ You can use this :download:`this template
           - ``.lia_sin``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
-            .. _Processing.creation_options.gamma_area_deg:
+            .. _Processing.creation_options.gamma_area:
         * - :ref:`GAMMA_AREA in meters square <gamma_area-files>`
           - ``.gamma_area``
           - ``float32 COMPRESS=DEFLATE&gdal``

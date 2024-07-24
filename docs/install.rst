@@ -170,8 +170,8 @@ care of installating S1Tiling on Linux machines
          .. note::
             You will still need to install `GAMMA_AREA extra applications
             <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ in
-            order to :ref:`produce GAMMA_AREA maps <scenario.s1gamma_areamap>`, or to apply
-            :ref:`γ° RTC calibration <scenario.s1processorgamma_area>`.
+            order to :ref:`produce GAMMA_AREA maps <scenario.S1GammaAreaMap>`, or to apply
+            :ref:`γ° RTC calibration <scenario.S1ProcessorGAMMA_AREA>`.
 
 Extra packages
 ++++++++++++++
@@ -265,12 +265,15 @@ In other word, run the docker with something like the following
 The only difference with the *normal case* example: there is a ``--lia``
 parameter in the penultimate line.
 
-Using S1GammaAreaMap with a docker
-++++++++++++++++++++++++++++
+.. _docker.S1GammaAreaMap:
 
-It's also possible to run :program:`S1GammaAreaMap` in the docker -- see :ref:`GAMMA_AREA
-Map production scenario <scenario.S1GammaAreaMap>`. In order to do that, pass
-``--gamma_area`` as the first parameter to the docker *entry point*.
+Using S1GammaAreaMap with a docker
+++++++++++++++++++++++++++++++++++
+
+It's also possible to run :program:`S1GammaAreaMap` in the docker -- see
+:ref:`GAMMA_AREA Map production scenario <scenario.S1GammaAreaMap>`. In order
+to do that, pass ``--gamma_area`` as the first parameter to the docker *entry
+point*.
 
 In other word, run the docker with something like the following
 

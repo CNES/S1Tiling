@@ -287,13 +287,13 @@ Local Incidence Angle map files
 .. index:: Gamma Area map file
 
 Gamma Area map file
-+++++++++++++++++++++++++++++++
++++++++++++++++++++
 
 :Content:
 
     - Map of Gamma area (GAMMA_AREA)
 
-    GAMMA_AREA is the reference Gamma Area corresponding to DEM's facets areas
+    GAMMA_AREA is the reference Gamma Area corresponding to DEM facet areas
     seen by each pixel in SAR Geometry.
     All the seen areas are summed by mean of integral.
 
@@ -317,7 +317,7 @@ Gamma Area map file
 :Product encoding:
 
     - defaults to Float32 (/Uint16) GeoTIFF, deflate compressed
-    - defined in :ref:`[Processing].creation_options.gamma_area_sin
+    - defined in :ref:`[Processing].creation_options.gamma_area
       <processing.creation_options.gamma_area>`
 
 
@@ -332,11 +332,11 @@ Gamma Area map file
         - Value
 
       * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image (in UTC format since v1.1)
+        - time of the first S1 image (in UTC format)
       * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image (in UTC format since v1.1)
+        - time of the first S1 image (in UTC format)
       * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image (in UTC format since v1.1)
+        - time of the second S1 image (in UTC format)
       * - ``DATA_TYPE``
         - :samp:`GAMMA_AREA`
       * - ``FLYING_UNIT_CODE``
@@ -610,12 +610,12 @@ Ground and sensor position in XYZ ECEF coordinates
 .. _S1_on_dem-files:
 
 Files of S1 coordinates projected on DEM geometry
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the :ref:`Virtual DEM <dem-vrt-files>` geometry. Their
           values contain the XYZ cartesian coordinates of the pixel and the
           position of the matching pixel in the original Sentinel-1 image.
-          This file is produced with `DiapOTB SARDEMProjection
+          This file is produced with `our fork of DiapOTB SARDEMProjection
           <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARDEMProjectionImageEstimation>`_
           application.
 
@@ -673,14 +673,12 @@ Files of S1 coordinates projected on DEM geometry
 .. _gamma_area-s1-files:
 
 Files of GAMMA_AREA cartesian coordinates in S1 geometry
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
           values contain the GAMMA_AREA cartesian coordinates of the pixel.
-          This file is produced with `our patched version
-          <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0/-/merge_requests/1>`_
-          of `OTB SARGammaAreaImageEstimation
-          <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARGammaAreaImageEstimation>`_
+          This file is produced with `SARGammaAreaImageEstimation
+          <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_
           application.
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
@@ -765,6 +763,164 @@ Half Local Incidence Angle map files -- pre-concatenation.
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified GAMMA_AREA Sentinel-1A IW GRD`
+
+:Cleanup:
+
+    .. warning::
+       These files still **need** to be cleaned manually. This should change
+       eventually, or it may be conditionned to an option.
+
+
+Deprecated temporary files
+--------------------------
+
+.. _xyz-files:
+
+Files of XYZ cartesian coordinates in S1 geometry (deprecated)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+:Content: Pixels are in the original Sentinel-1 image geometry. Their
+          values contain the XYZ cartesian coordinates of the pixel.
+          This file is produced with `our patched version
+          <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/merge_requests/1>`_
+          of `DiapOTB SARCartesianMeanEstimation
+          <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARCartesianMeanEstimation>`_
+          application.
+
+:Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
+
+:File name: :samp:`XYZ-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+
+:File name format:
+
+    ``fname_fmt.xyz`` = :samp:`XYZ_{{polarless_basename}}`
+
+:Product encoding: Float32 GeoTIFF, 4 bands: XCartesian, YCartesian, ZCartesian, and ???
+
+:Metadata: The following metadata changed from the :ref:`SARDEMProjected images <S1_on_dem-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``PRJ.DIRECTIONTOSCANDEMC``
+        - **Removed**
+      * - ``PRJ.DIRECTIONTOSCANDEML``
+        - **Removed**
+      * - ``PRJ.GAIN``
+        - **Removed**
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`Cartesian XYZ coordinates estimation`
+
+:Cleanup:
+
+    .. warning::
+       These files still **need** to be cleaned manually. This should change
+       eventually, or it may be conditionned to an option.
+
+.. _lia-s1-files:
+
+Local Incidence Angle map files in S1 geometry (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+:Content:
+
+    - Map of sines of Local Incidence Angle (LIA),
+    - and optionally of LIA expressed in degree and scaled by a factor of 100.
+
+    Given T, the target point on Earth's surface, and S the SAR sensor
+    position, the LIA is the angle Θ\ :sub:`LIM` between the ground normal
+    projected in range plane :math:`\overrightarrow{n}` (plane defined by S,
+    T, and Earth's center) and :math:`\overrightarrow{TS}`.
+
+    Unlike the :ref:`final LIA maps in S2 geometry <lia-files>`, the LIA map is
+    in the geometry of the original Sentinel-1 image used to produce it.
+
+:Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
+
+:File name:
+
+    - :samp:`LIA-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+    - :samp:`sin-LIA-s1{{a|b}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tif`
+
+:File name format:
+
+    - ``fname_fmt.s1_lia`` = :samp:`LIA_{{polarless_basename}}`
+    - ``fname_fmt.s1_sin_lia`` = :samp:`sin_LIA_{{polarless_basename}}`
+
+:Product encoding: Float32 GeoTIFF
+
+:Metadata: The following metadata is changed the :ref:`XYZ estimated coordinates <xyz-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`LIA on Sentinel-1A IW GRD`
+
+:Cleanup:
+
+    .. warning::
+       These files still **need** to be cleaned manually. This should change
+       eventually, or it may be conditionned to an option.
+
+.. _lia-s2-half-files:
+
+Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+:Content:
+
+    - Map of sines of Local Incidence Angle (LIA),
+    - and optionally of LIA expressed in degree and scaled by a factor of 100.
+
+    These files directly match the :ref:`LIA maps computed on S1 images
+    <lia-s1-files>`, after orthorectification to the Sentinel-2 tile, and
+    before their concatenation in the :ref:`final LIA maps in S2 geometry
+    <lia-files>`.
+
+:Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+
+:File names:
+
+    - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`sin(Θ_{LIM})`
+    - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`100 * Θ°_{LIM}`
+
+:File name format:
+
+    ``fname_fmt.lia_orthorectification`` = :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}_{{acquisition_time}}.tif`
+
+:Product encoding: Float32 (and Int16) GeoTIFF, deflate compressed
+
+:Metadata: The following metadata is changed from the :ref:`un-orthorectified LIA maps <lia-s1-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``DATA_TYPE``
+        - :samp:`100 * degree(LIA)` / :samp:`SIN(LIA)`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
+      * - ``S2_TILE_CORRESPONDING_CODE``
+        - :samp:`{{tilename}}`
+      * - ``SPATIAL_RESOLUTION``
+        - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`Orthorectified LIA Sentinel-1A IW GRD`
 
 :Cleanup:
 

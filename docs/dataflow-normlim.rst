@@ -518,8 +518,8 @@ LIA specific deprecated processings
 .. _prepare_VRT_s1-proc:
 .. index:: Agglomerate DEM
 
-Agglomerate DEM files in a VRT that covers S1 footprint
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Agglomerate DEM files in a VRT that covers S1 footprint (LIA)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem-vrt-files>`
@@ -533,8 +533,8 @@ All DEM files that intersect an original :ref:`input S1 image
 .. _sardemproject_s1-proc:
 .. index:: Project SAR coordinates onto DEM
 
-Project SAR coordinates onto DEM
-++++++++++++++++++++++++++++++++
+Project SAR coordinates onto DEM (LIA)
+++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
                  - The associated :ref:`VRT file <dem-vrt-files>`
