@@ -1337,11 +1337,11 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
             if not dst:
-                raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
+                raise RuntimeError(f"Cannot open SARDEMProjected file {inputpath!r} to collect scan direction metadata.")
             meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
             meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
             if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
-                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
+                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file {inputpath!r}")
             del dst
         else:
             meta['directiontoscandeml'] = 42
