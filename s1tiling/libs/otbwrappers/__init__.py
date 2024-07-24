@@ -71,7 +71,6 @@ from .lia import (
 
 from .gamma_area import (
     ApplyGammaNaughtRTCCalibration,
-    filter_GAMMA_AREA,
 
     AgglomerateDEMOnS1,
     ResampleDEM,

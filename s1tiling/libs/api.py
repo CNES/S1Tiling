@@ -67,7 +67,7 @@ from .otbwrappers import (
         ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Gamma Area related Step Factories
         ResampleDEM, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
-        OrthoRectifyGAMMA_AREA, filter_GAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
+        OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
         ApplyGammaNaughtRTCCalibration,
         # Filter Step Factories
         SpatialDespeckle)
@@ -654,7 +654,7 @@ def register_GAMMA_AREA_pipelines(
 
     # ortho gamma area
     ortho_gamma_area = pipelines.register_pipeline(
-            [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
+            [OrthoRectifyGAMMA_AREA],
             'OrthoGAMMA_AREA',
             inputs={'in': gamma_area},
             is_name_incremental=True,
@@ -824,18 +824,9 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             GammaNaughtArea_registration = gamma_area_process or register_GAMMA_AREA_pipelines
             gammanaughtareas = GammaNaughtArea_registration(pipelines, config.produce_gamma_area_map, config)
 
-            # This steps helps forwarding GAMMA AREA (only) to the next step
-            # that corrects the β° with GAMMA AREA map.
-            GAMMA_AREA = pipelines.register_pipeline(
-                    [filter_GAMMA_AREA('GAMMA_AREA')],
-                    'SelectGAMMA_AREA',
-                    is_name_incremental=True,
-                    inputs={'in': gammanaughtareas},
-            )
-            # TODO: Merge filter_GAMMA_AREA in apply_GAMMA_AREA_seq!
             apply_GAMMA_AREA = pipelines.register_pipeline(
                     apply_GAMMA_AREA_seq, product_required=True,
-                    inputs={'GAMMA_AREA': GAMMA_AREA, 'concat_S2': concat_S2},
+                    inputs={'GAMMA_AREA': gammanaughtareas, 'concat_S2': concat_S2},
                     is_name_incremental=True,
             )
             last_product_S2 = apply_GAMMA_AREA

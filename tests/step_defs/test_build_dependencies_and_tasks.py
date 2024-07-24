@@ -45,7 +45,7 @@ from s1tiling.libs.otbwrappers import (
         ComputeNormalsOnS2, ComputeLIAOnS2,
         AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation, ComputeNormalsOnS1, ComputeLIAOnS1,
         filter_LIA, OrthoRectifyLIA, ConcatenateLIA, SelectBestCoverage, ApplyLIACalibration,
-        SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation, filter_GAMMA_AREA, OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA,
+        SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation, OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA,
         SelectGammaNaughtAreaBestCoverage, ApplyGammaNaughtRTCCalibration
 )
 from s1tiling.libs.S1DateAcquisition import S1DateAcquisition
@@ -602,7 +602,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
             inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj}
     )
     ortho_gamma_area = pipelines.register_pipeline(
-            [filter_GAMMA_AREA('GAMMA_AREA'), OrthoRectifyGAMMA_AREA],
+            [OrthoRectifyGAMMA_AREA],
             'OrthoGAMMA_AREA',
             product_required=False,
             is_name_incremental=True,

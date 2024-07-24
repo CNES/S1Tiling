@@ -721,27 +721,23 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = '{GAMMA_AREA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
+        fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         fname_fmt = cfg.fname_fmt.get('gamma_area_concatenation', fname_fmt)
         super().__init__(
                 cfg,
                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
                 gen_output_dir=None,  # Use gen_tmp_dir
                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Orthorectified {GAMMA_AREA_kind} Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=None,  # will be set later...
+                image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
+                extended_filename=extended_filename_gamma_area(cfg),
                 pixel_type=None,         # will be set later...
         )
-        self._extended_filenames = {
-                'GAMMA_AREA'     : extended_filename_gamma_area(cfg)
-        }
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Override "update_out_filename" hook to help select the input set with
         the best coverage.
         """
-        assert 'GAMMA_AREA_kind' in meta
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
         # Remove acquisition_time that no longer makes sense
         meta.pop('acquisition_time', None)
@@ -754,13 +750,6 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
         #imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        meta = super().complete_meta(meta, all_inputs)
-        assert 'out_extended_filename_complement' not in meta, f'{meta["out_extended_filename_complement"]=!r} nothing was expected'
-        kind = meta['GAMMA_AREA_kind']
-        meta['out_extended_filename_complement'] = self._extended_filenames[kind]
-        return meta
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
@@ -789,83 +778,6 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         logger.debug('[ConcatenateGAMMA_AREA] => total coverage at %s: %s%%', date, coverage * 100)
         meta['tile_coverage'] = coverage
 
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force GAMMA AREA output pixel type to ``INT16``.
-        """
-        pass
-
-
-class _FilterGAMMA_AREAStepFactory(StepFactory):
-    """
-    Helper root class for all GAMMA_AREA filtering steps.
-
-    This class will be specialized on the fly by :func:`filter_GAMMA_AREA` which
-    will inject the static data ``_GAMMA_AREA_kind``.
-
-    Related step will forward the selected input under a new task-name (that differs from the filename).
-    """
-
-    # Useless definition used to trick pylint in believing self._LIA_kind is set.
-    # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
-    _GAMMA_AREA_kind : Optional[str] = None
-
-    def __init__(self, cfg: Configuration) -> None:
-        """
-        Constructor.
-        Required to ignore the ``cfg`` parameter, and correctly forward the ``name`` parameter.
-        """
-        super().__init__(self.__class__.__name__)
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        meta = super()._update_filename_meta_pre_hook(meta)
-        assert self._GAMMA_AREA_kind, "GAMMA AREA kind should have been set in filter_GAMMA_AREA()"
-        meta['GAMMA_AREA_kind'] = self._GAMMA_AREA_kind
-        return meta
-
-    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
-        """
-        Update task name to avoid collision with inputs as file aren't renamed by this filter.
-        """
-        meta['task_name']        = f'{out_filename(meta)}_FilterGAMMA_AREA'
-
-    def _get_input_image(self, meta: Meta) -> str:
-        # Flatten should be useless, but kept for better error messages
-        related_inputs = [f for f in Utils.flatten_stringlist(in_filename(meta)) if re.search(rf'\b{self._GAMMA_AREA_kind}_', f)]
-        assert len(related_inputs) == 1, (
-            f"Incorrect number ({len(related_inputs)}) of S1 GAMMA AREA products of type '{self._GAMMA_AREA_kind}' in {in_filename(meta)} found: {related_inputs}"
-        )
-        return related_inputs[0]
-
-    def build_step_output_filename(self, meta: Meta) -> str:
-        """
-        Forward the output filename.
-        """
-        inp = self._get_input_image(meta)
-        logger.debug('%s KEEP %s from %s', self.__class__.__name__, inp, in_filename(meta))
-        return inp
-
-    def build_step_output_tmp_filename(self, meta: Meta) -> str:
-        """
-        As there is no producer associated to :class:`_FilterGAMMA_AREAStepFactory`,
-        there is no temporary filename.
-        """
-        return self.build_step_output_filename(meta)
-
-
-def filter_GAMMA_AREA(GAMMA_AREA_kind: str) -> Type[_FilterGAMMA_AREAStepFactory]:
-    """
-    Generates a new :class:`StepFactory` class that filters which GAMMA_AREA product
-    shall be processed: GAMMA_AREA maps.
-    """
-    # We return a new class
-    return type(
-            f"Filter_{GAMMA_AREA_kind}",      # Class name
-            (_FilterGAMMA_AREAStepFactory,),  # Parent
-            {'_GAMMA_AREA_kind': GAMMA_AREA_kind }
-    )
-
-
 class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
@@ -893,30 +805,17 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         Constructor.
         Extract and cache configuration options.
         """
-        fname_fmt = '{GAMMA_AREA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
+        fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_time}.tif'
         fname_fmt = cfg.fname_fmt.get('gamma_area_orthorectification', fname_fmt)
+        extended_filename = extended_filename_gamma_area(cfg)
+        if otb_version() < '8.0.0':
+            extended_filename += '&writegeom=false'
         super().__init__(
                 cfg,
                 fname_fmt,
-                image_description='Orthorectified {GAMMA_AREA_kind} Sentinel-{flying_unit_code_short} IW GRD',
+                image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
+                extended_filename=extended_filename,
         )
-        extra_ef = '&writegeom=false' if otb_version() < '8.0.0' else ''
-        self._extended_filenames = {
-            'GAMMA_AREA'     : extended_filename_gamma_area(cfg) + extra_ef
-        }
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        meta = super()._update_filename_meta_pre_hook(meta)
-        assert 'GAMMA_AREA_kind' in meta, "This StepFactory shall be registered after a call to filter_GAMMA_AREA()"
-        return meta
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        meta = super().complete_meta(meta, all_inputs)
-
-        assert 'out_extended_filename_complement' not in meta, f'{meta["out_extended_filename_complement"]=!r} nothing was expected'
-        kind = meta['GAMMA_AREA_kind']
-        meta['out_extended_filename_complement'] = self._extended_filenames[kind]
-        return meta
 
     def _get_input_image(self, meta: Meta) -> str:
         inp = in_filename(meta)
@@ -925,17 +824,12 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
-        Set GAMMA_AREA kind related information that'll get carried around.
+        Set DATA_TYPE metadata, and prevent PixelSpacing and LineSpacing from beeing discarded
+        (which is :func:`_OrthoRectifierFactory.update_image_metadata` default behaviour)
         """
         super().update_image_metadata(meta, all_inputs)
-        types = {
-            'GAMMA_AREA': 'meters^2'
-        }
-        assert 'GAMMA_AREA_kind' in meta, "This StepFactory shall be registered after a call to filter_GAMMA_AREA()"
-        kind = meta['GAMMA_AREA_kind']
-        assert kind in types, f'The only GAMMA_AREA kind accepted are {types.keys()}'
         imd = meta['image_metadata']
-        imd['DATA_TYPE']    = types[kind]
+        imd['DATA_TYPE']    = 'meters^2'
         # Original Line/PixelSpacing should not be discarded => unregister its removal
         assert 'PixelSpacing' in imd,     "PixelSpacing should have been registered for removal. Let's keep it!"
         assert 'LineSpacing' in imd,      "LineSpacing should have been registered for removal. Let's keep it!"
@@ -943,13 +837,6 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert imd['LineSpacing'] == '',  "LineSpacing should have been registered for removal. Let's keep it!"
         del imd['LineSpacing']
         del imd['PixelSpacing']
-
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
-        """
-        Force GAMMA_AREA output pixel type to some type.
-        """
-        pass
-
 
 class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     """
@@ -969,7 +856,6 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
 
     - `acquisition_day`
     - `tile_coverage`
-    - `GAMMA_AREA_kind`
     - `flying_unit_code`
     - `tile_name`
     - `orbit_direction`
@@ -978,7 +864,7 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     - `dname_fmt`  -- optional key: `gamma_area_product`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = '{GAMMA_AREA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt = cfg.fname_fmt.get('gamma_area', fname_fmt)
         dname_fmt = dname_fmt_gamma_area_product(cfg)
         super().__init__(
