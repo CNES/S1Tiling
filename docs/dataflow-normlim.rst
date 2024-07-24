@@ -463,11 +463,14 @@ LIA specific deprecated processings
          xyz_d1_t1t2 [label="XYZ d1 t1-t2", fillcolor=palegoldenrod];
          xyz_d1_t2t3 [label="XYZ d1 t2-t3", fillcolor=palegoldenrod];
 
+         # LIA on S1
          lia_d1_t1t2 [label="sin(LIA) d1 t1-t2", fillcolor=palegoldenrod];
          lia_d1_t2t3 [label="sin(LIA) d1 t2-t3", fillcolor=palegoldenrod];
 
+         # LIA orthorectified on S2
          o_lia_d1_t1 [label="sin(LIA) d1 t1 on 33NWB", fillcolor=palegoldenrod];
          o_lia_d1_t2 [label="sin(LIA) d1 t2 on 33NWB", fillcolor=palegoldenrod];
+         # LIA concatenated a selected (best coverage)
          nwb_lia     [label="sin(LIA) on 33NWB", fillcolor=gold];
 
          nwb_d1      [label="S2 σ° NORMLIM 33NWB d1", fillcolor=lightblue];
@@ -486,21 +489,21 @@ LIA specific deprecated processings
          raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
          raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
 
-         vrt_d1_t1t2 -> xyz_d1_t1t2;
-         vrt_d1_t2t3 -> xyz_d1_t2t3;
-         raw_d1_t1t2 -> xyz_d1_t1t2;
-         raw_d1_t2t3 -> xyz_d1_t2t3;
+         vrt_d1_t1t2       -> xyz_d1_t1t2;
+         vrt_d1_t2t3       -> xyz_d1_t2t3;
+         raw_d1_t1t2       -> xyz_d1_t1t2;
+         raw_d1_t2t3       -> xyz_d1_t2t3;
          S1_on_DEM_d1_t1t2 -> xyz_d1_t1t2;
          S1_on_DEM_d1_t2t3 -> xyz_d1_t2t3;
 
          xyz_d1_t1t2 -> lia_d1_t1t2 [label=""];
          xyz_d1_t2t3 -> lia_d1_t2t3 [label=""];
 
-         lia_d1_t1t2 -> o_lia_d1_t1;
-         lia_d1_t2t3 -> o_lia_d1_t2;
+         lia_d1_t1t2 -> o_lia_d1_t1 [label="ortho"];
+         lia_d1_t2t3 -> o_lia_d1_t2 [label="ortho"];
 
-         o_lia_d1_t1 -> nwb_lia;
-         o_lia_d1_t2 -> nwb_lia;
+         o_lia_d1_t1 -> nwb_lia [label="concatenation"];
+         o_lia_d1_t2 -> nwb_lia [label="concatenation"];
 
          nwb_lia   -> mult_d1;
          nwb_lia   -> mult_d2;

@@ -75,7 +75,7 @@ GAMMA_AREA specific processings
 
 .. graphviz::
     :name: graph_GAMMA_AREA_v1
-    :caption: Tasks for processing 33NWC and 33NWB with GammaNaughtRTC calibration -- v1.0 workflow
+    :caption: Tasks for processing 33NWC and 33NWB with GammaNaughtRTC calibration -- v1.2 workflow
     :alt: Complete task flow for processing 33NWC and 33NWB with GammaNaughtRTC calibration
     :align: center
 
@@ -135,16 +135,19 @@ GAMMA_AREA specific processings
          S1_on_DEM_d1_t1t2 [label="S1 on DEM d1 t1-t2", fillcolor=palegoldenrod];
          S1_on_DEM_d1_t2t3 [label="S1 on DEM d1 t2-t3", fillcolor=palegoldenrod];
 
-         lia_d1_t1t2 [label="GAMMA_AREA d1 t1-t2", fillcolor=palegoldenrod];
-         lia_d1_t2t3 [label="GAMMA_AREA d1 t2-t3", fillcolor=palegoldenrod];
+         # γ area on S1
+         gamma_area_d1_t1t2 [label="γ AREA d1 t1-t2", fillcolor=palegoldenrod];
+         gamma_area_d1_t2t3 [label="γ AREA d1 t2-t3", fillcolor=palegoldenrod];
 
-         o_lia_d1_t1 [label="GAMMA_AREA d1 t1 on 33NWB", fillcolor=palegoldenrod];
-         o_lia_d1_t2 [label="GAMMA_AREA d1 t2 on 33NWB", fillcolor=palegoldenrod];
-         nwb_gamma_area     [label="GAMMA_AREA on 33NWB", fillcolor=gold];
+         # γ area orthorectified on S2
+         o_gamma_area_d1_t1 [label="γ AREA d1 t1 on 33NWB", fillcolor=palegoldenrod];
+         o_gamma_area_d1_t2 [label="γ AREA d1 t2 on 33NWB", fillcolor=palegoldenrod];
+         # γ area concatenated a selected (best coverage)
+         nwb_gamma_area     [label="γ AREA on 33NWB", fillcolor=gold];
 
-         nwb_d1      [label="S2 γ° GAMMA_AREA 33NWB d1", fillcolor=lightblue];
-         nwb_d2      [label="S2 γ° GAMMA_AREA 33NWB d2", fillcolor=lightblue];
-         nwb_dn      [label="S2 γ° GAMMA_AREA 33NWB dn", fillcolor=lightblue];
+         nwb_d1      [label="S2 γ° RTC 33NWB d1", fillcolor=lightblue];
+         nwb_d2      [label="S2 γ° RTC 33NWB d2", fillcolor=lightblue];
+         nwb_dn      [label="S2 γ° RTC 33NWB dn", fillcolor=lightblue];
 
          mult_d1     [label="X", shape="circle"]
          mult_d2     [label="X", shape="circle"]
@@ -158,18 +161,25 @@ GAMMA_AREA specific processings
          raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
          raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
 
-         gamma_area_d1_t1t2 -> o_lia_d1_t1;
-         gamma_area_d1_t2t3 -> o_lia_d1_t2;
+         vrt_d1_t1t2       -> gamma_area_d1_t1t2;
+         vrt_d1_t2t3       -> gamma_area_d1_t2t3;
+         raw_d1_t1t2       -> gamma_area_d1_t1t2;
+         raw_d1_t2t3       -> gamma_area_d1_t2t3;
+         S1_on_DEM_d1_t1t2 -> gamma_area_d1_t1t2;
+         S1_on_DEM_d1_t2t3 -> gamma_area_d1_t2t3;
 
-         o_gamma_area_d1_t1 -> nwb_gamma_area;
-         o_gamma_area_d1_t2 -> nwb_gamma_area;
+         gamma_area_d1_t1t2 -> o_gamma_area_d1_t1 [label="ortho"];
+         gamma_area_d1_t2t3 -> o_gamma_area_d1_t2 [label="ortho"];
 
-         nwb_gamma_area   -> mult_d1;
-         nwb_gamma_area   -> mult_d2;
-         nwb_gamma_area   -> mult_dn;
-         nwb_d1_b0 -> mult_d1;
-         nwb_d2_b0 -> mult_d2;
-         nwb_dn_b0 -> mult_dn;
+         o_gamma_area_d1_t1 -> nwb_gamma_area [label="concatenation"];
+         o_gamma_area_d1_t2 -> nwb_gamma_area [label="concatenation"];
+
+         nwb_gamma_area -> mult_d1;
+         nwb_gamma_area -> mult_d2;
+         nwb_gamma_area -> mult_dn;
+         nwb_d1_b0      -> mult_d1;
+         nwb_d2_b0      -> mult_d2;
+         nwb_dn_b0      -> mult_dn;
 
          mult_d1 -> nwb_d1;
          mult_d2 -> nwb_d2;
