@@ -612,7 +612,11 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
     return lia
 
 
-def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produce_gamma_area: bool, config: Configuration) -> PipelineDescription:
+def register_GAMMA_AREA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        produce_gamma_area: bool,
+        config: Configuration
+) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     GAMMA AREA map.
@@ -664,7 +668,7 @@ def register_GAMMA_AREA_pipelines(pipelines: PipelineDescriptionSequence, produc
             [SelectGammaNaughtAreaBestCoverage],
             'SelectGAMMA_AREA',
             inputs={'in': concat_ortho_gamma_area},
-            product_required=produce_gamma_area,
+            product_required=True,
     )
 
     return best_concat_ortho_gamma_area
