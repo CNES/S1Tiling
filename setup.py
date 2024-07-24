@@ -140,8 +140,6 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -160,9 +158,9 @@ setup(
     scripts = ['s1tiling/S1Processor.py'],
     entry_points = {
         'console_scripts': [
-            'S1Processor = s1tiling.S1Processor:run',
-            'S1LIAMap    = s1tiling.S1Processor:run_lia',
-            'S1GammaAreaMap    = s1tiling.S1Processor:run_gamma_area'
+            'S1Processor    = s1tiling.S1Processor:run',
+            'S1LIAMap       = s1tiling.S1Processor:run_lia',
+            'S1GammaAreaMap = s1tiling.S1Processor:run_gamma_area'
         ],
     },
 )
