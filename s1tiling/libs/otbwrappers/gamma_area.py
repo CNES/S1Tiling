@@ -36,36 +36,33 @@ the pipeline for GAMMA AREA production needs.
 import logging
 import os
 import re
-from typing import Dict, List, Optional, Type
+from typing import Dict, List
 # from packaging import version
 
 from osgeo import gdal
-import otbApplication as otb
 
 from s1tiling.libs.otbtools import otb_version
 
-from ..file_naming   import (
-        OutputFilenameGeneratorList, TemplateOutputFilenameGenerator,
-)
+from ..file_naming   import TemplateOutputFilenameGenerator
 from ..meta import (
         Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
 )
 from ..steps import (
         InputList, OTBParameters, ExeParameters,
         _check_input_step_type,
-        AbstractStep, StepFactory,
-        _FileProducingStepFactory, AnyProducerStepFactory, ExecutableStepFactory, OTBStepFactory,
+        AbstractStep,
+        _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
         commit_execution,
         ram,
 )
 from ..otbpipeline   import (
-    fetch_input_data, fetch_input_data_all_inputs, TaskInputInfo,
+    fetch_input_data, TaskInputInfo,
 )
 from .helpers        import (
-        does_s2_data_match_s2_tile, does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
+        does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
 )
 from .s1_to_s2       import (
-        s2_tile_extent, _ConcatenatorFactory, _OrthoRectifierFactory,
+        _ConcatenatorFactory, _OrthoRectifierFactory,
 )
 from ..              import Utils
 from ..configuration import (
@@ -188,7 +185,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         inputs = meta['inputs']
         in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
         in_GAMMA_AREA   = fetch_input_data('GAMMA_AREA',   inputs).out_filename
-        params = {
+        params : OTBParameters = {
                 'ram'         : ram(self.ram_per_process),
                 'ingammaarea' : in_GAMMA_AREA,
                 'inbetanaught': in_concat_S2,
@@ -315,9 +312,6 @@ class ResampleDEM(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description="DEM resampling",
         )
-        self.__dem_db_filepath   = cfg.dem_db_filepath
-        self.__dem_field_ids     = cfg.dem_field_ids
-        self.__dem_main_field_id = cfg.dem_main_field_id
         self.factor_x            = cfg.resample_dem_factor_x
         self.factor_y            = cfg.resample_dem_factor_y
 
@@ -343,7 +337,6 @@ class ResampleDEM(OTBStepFactory):
           later to fill-in the image metadata.
         """
         meta = super().complete_meta(meta, all_inputs)
-        append_to(meta, 'post', self.add_image_metadata)
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
@@ -360,17 +353,6 @@ class ResampleDEM(OTBStepFactory):
         imd = meta['image_metadata']
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
 
-    def add_image_metadata(self, meta: Meta, app) -> None:
-        """
-        Post-application hook used to complete GDAL metadata.
-
-        As :func:`update_image_metadata` is not designed to access OTB
-        application information (``directiontoscandeml``...), we need this
-        extra hook to fetch and propagate the PRJ information.
-        """
-        fullpath = out_filename(meta)
-        logger.debug('Set metadata in %s', fullpath)
-
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with
@@ -381,7 +363,7 @@ class ResampleDEM(OTBStepFactory):
         inputs = meta['inputs']
         indem  = fetch_input_data('indem', inputs).out_filename
 
-        params = {
+        params : OTBParameters = {
                 "ram"                      : ram(self.ram_per_process),
                 "in"                       : indem,
                 "transform.type"           : "id",
@@ -529,7 +511,7 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         inputs = meta['inputs']
         indem = fetch_input_data('indem', inputs).out_filename
 
-        params = {
+        params : OTBParameters = {
                 'ram'       : ram(self.ram_per_process),
                 'insar'     : in_filename(meta),
                 'indem'     : indem,
