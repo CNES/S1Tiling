@@ -955,7 +955,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'indirectiondeml' : 12,
             'mlran'           : 1,
             'mlazi'           : 1,
-            'distributearea'  : True,
+            'distributearea'  : False,
             'nostreaming'     : False,
             'nodata'          : -32768,
             'innermarginratiostatus': True,
