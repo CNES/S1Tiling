@@ -521,7 +521,7 @@ class SkippedStep(_OTBStep):
         """
         constructor
         """
-        assert "SkippedStep needs a valid OTB application to forward from a previous Step"
+        assert app, "SkippedStep needs a valid OTB application to forward from a previous Step"
         super().__init__(app, *argv, **kwargs)
 
 
@@ -1143,7 +1143,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             meta['out_extended_filename_complement'] = self._extended_filename
         return meta
 
-    def set_output_pixel_type(self, app, meta: Meta) -> None:
+    def set_output_pixel_type(self, app, meta: Meta) -> None:  # pylint: disable=unused-argument
         """
         Permits to have steps force the output pixel data.
         """

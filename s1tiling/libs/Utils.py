@@ -136,7 +136,7 @@ class DatasetManager:
 def fetch_nodata_value(
         inputpath: Union[str, Path],
         is_running_dry: bool,
-        default_value: Optional[Union[int,float,str]],
+        default_value: Union[int,float,str],
         band_nr: int = 1
 ) -> Union[int,float,str]:
     """
@@ -151,6 +151,7 @@ def fetch_nodata_value(
             if not band:
                 raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
             nodata = band.GetNoDataValue()
+            assert nodata is None or isinstance(nodata, (int, float, str))
             return nodata if nodata is not None else default_value
     else:
         return default_value

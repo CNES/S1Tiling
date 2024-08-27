@@ -763,7 +763,7 @@ class S1FileManager:
         Process with the call to eodag search.
         """
         product_type = 'S1_SAR_GRD'
-        products = SearchResult(None)
+        products = SearchResult([])
         page = 1
         k_dir_assoc = { 'ASC': 'ascending', 'DES': 'descending' }
         assert (not orbit_direction) or (orbit_direction in ['ASC', 'DES'])
@@ -771,7 +771,7 @@ class S1FileManager:
         # In case only 'VV' or 'VH' is requested, we still need to
         # request 'VV VH' to the data provider through eodag.
         dag_polarization_param  = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
-        dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction, None)  # None => all
+        dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction or "", None)  # None => all ; <<or "">> used to silence mypy
         dag_orbit_list_param    = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
         dag_platform_list_param = platform_list[0] if len(platform_list) == 1 else None
         while True:  # While we haven't analysed all search result pages
@@ -810,14 +810,14 @@ class S1FileManager:
 
         # Filter relative_orbits -- if it could not be done earlier in the search() request.
         if len(relative_orbit_list) > 1:
-            filtered_products = SearchResult(None)
+            filtered_products = SearchResult([])
             for rel_orbit in relative_orbit_list:
                 filtered_products.extend(products.filter_property(relativeOrbitNumber=rel_orbit))
             products = filtered_products
 
         # Filter platform -- if it could not be done earlier in the search() request.
         if len(platform_list) > 1:
-            filtered_products = SearchResult(None)
+            filtered_products = SearchResult([])
             for platform in platform_list:
                 filtered_products.extend(products.filter_property(platformSerialIdentifier=platform))
             products = filtered_products

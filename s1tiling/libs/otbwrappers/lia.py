@@ -892,7 +892,7 @@ class _FilterLIAStepFactory(StepFactory):
     # Indeed, it's expected to be set in child classes. But pylint has now way to know that.
     _LIA_kind : Optional[str] = None
 
-    def __init__(self, cfg: Configuration) -> None:
+    def __init__(self, cfg: Configuration) -> None:  # pylint: disable=unused-argument
         """
         Constructor.
         Required to ignore the ``cfg`` parameter, and correctly forward the ``name`` parameter.

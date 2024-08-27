@@ -60,8 +60,7 @@ from ..steps import (
         ram,
 )
 from ..otbpipeline import (
-    TaskInputInfo,
-    fetch_input_data,
+    TaskInputInfo, fetch_input_data,
 )
 from ..otbtools      import otb_version
 from ..              import exceptions

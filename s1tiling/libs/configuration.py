@@ -813,7 +813,7 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def _get_nodata(dict: Dict[str, Optional[Union[str,int,float]]], key: str, default_value: Union[str,int,float]):
+def _get_nodata(d: Dict[str, Optional[Union[str,int,float]]], key: str, default_value: Union[str,int,float]):
     """
     Internal helper to extract nodata value from configuration directionaries.
 
@@ -829,7 +829,7 @@ def _get_nodata(dict: Dict[str, Optional[Union[str,int,float]]], key: str, defau
     >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'H2G2', 42)
     42
     """
-    v = dict.get(key, None)
+    v = d.get(key, None)
     return v if v is not None else default_value
 
 
