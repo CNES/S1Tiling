@@ -95,7 +95,8 @@ setup(
         "pympler", # leaks
         "pyyaml>=5.1",
         # Any way to require OTB ?
-        ],
+        "sentineleof>0.10.0"
+    ],
     extras_require={
         "dev": [
             # "nose",
@@ -115,8 +116,9 @@ setup(
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",
+            "pytest_recording",
             "pylint",
-            ],
+        ],
         "docs": [
             "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
             "jinja2",
@@ -127,8 +129,8 @@ setup(
             "sphinx~=7.1",
             "sphinx_rtd_theme~=1.3.0",
             "sphinx-carousel",
-            ],
-        },
+        ],
+    },
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
     classifiers=[
@@ -148,14 +150,14 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: GIS",
-        ],
+    ],
 
     project_urls={
             "Bug Tracker": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues",
             "Documentation": "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest",
             "Source Code": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
             "Community": "https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11",
-            },
+    },
 
     scripts = ['s1tiling/S1Processor.py'],
     entry_points = {
