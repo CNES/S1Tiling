@@ -50,6 +50,7 @@ def dir_path(path) -> Path:
     else:
         raise argparse.ArgumentTypeError(f"{path} is not a valid directory")
 
+
 def pytest_addoption(parser) -> None:
     crt_dir = pathlib.Path(__file__).parent.absolute()
     src_dir = crt_dir.parent.absolute()
@@ -64,6 +65,7 @@ def pytest_addoption(parser) -> None:
     parser.addoption("--download",    action="store_true", default=False, help="Download the input files with eodag instead of using the compressed ones from the baseline. If true, raw S1 products will be downloaded into {tmpdir}/inputs")
     parser.addoption("--watch_ram",   action="store_true", default=False, help="Watch memory usage")
 
+
 def pytest_generate_tests(metafunc) -> None:
     # print("metafunc ->", metafunc.function)
     # This is called for every test. Only get/set command line arguments
@@ -74,14 +76,16 @@ def pytest_generate_tests(metafunc) -> None:
         # print("%s ===> %s // %s" % (option, value, option in metafunc.fixturenames))
         # value = metafunc.config.option.baselinedir
         if option in metafunc.fixturenames and value is not None:
-            metafunc.parametrize(option, [value])
+            metafunc.parametrize(option, [value], scope="session")
     global the_baseline
     the_baseline = metafunc.config.option.baselinedir
+
 
 crt_dir = pathlib.Path(__file__).parent.absolute()
 the_baseline = crt_dir/'baseline'
 
-@pytest.fixture
+
+@pytest.fixture(scope="module")
 def baseline_dir():
     # pytest_generate_tests doesn't work to expose fixtures to pytest-bdd
     # Hence this dirty workaround. pytest_generate_tests sets the global
