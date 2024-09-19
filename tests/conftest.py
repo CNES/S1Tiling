@@ -76,7 +76,7 @@ def pytest_generate_tests(metafunc) -> None:
         # print("%s ===> %s // %s" % (option, value, option in metafunc.fixturenames))
         # value = metafunc.config.option.baselinedir
         if option in metafunc.fixturenames and value is not None:
-            metafunc.parametrize(option, [value], scope="session")
+            metafunc.parametrize(option, [value])  # scope="session" is bugged as of now => use baseline_dir
     global the_baseline
     the_baseline = metafunc.config.option.baselinedir
 
@@ -85,7 +85,7 @@ crt_dir = pathlib.Path(__file__).parent.absolute()
 the_baseline = crt_dir/'baseline'
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def baseline_dir():
     # pytest_generate_tests doesn't work to expose fixtures to pytest-bdd
     # Hence this dirty workaround. pytest_generate_tests sets the global

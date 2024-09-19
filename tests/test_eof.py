@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 import os
+from pathlib import Path
 
 import pytest
 from pytest_recording._vcr import use_cassette
@@ -49,16 +50,32 @@ def vcr_config():
     Tweak the cassette recorder to remove secrets from queries and responses
     """
     return {
-            "filter_headers": ["authorization", "Cookie"],
-            "filter_query_parameters": ["username", "password", "totp"],
+            "filter_headers"             : ["authorization", "Cookie"],
+            "filter_query_parameters"    : ["username", "password", "totp"],
             "filter_post_data_parameters": ["username", "password", "totp"],
-            "before_record_response": [filter_response],
+            "before_record_response"     : [filter_response],
     }
+
+
+@pytest.fixture(scope="module")  # type: ignore
+def vcr_cassette_dir(request: SubRequest) -> str:
+    """Override vcr_cassette_dir to use cassettes from $BASELINEDIR
+
+    For example each test module could have test function with the same names:
+      - test_users.py:test_create
+      - test_profiles.py:test_create
+    """
+    baseline = request.config.getoption("--baselinedir")
+    assert isinstance(baseline, (str, Path))
+    assert os.path.exists(baseline)
+
+    module = request.node.fspath  # current test file
+    return os.path.join(baseline, "cassettes", module.purebasename)
 
 
 @pytest.fixture(scope="module")
 def cop_access_token(
-        request: SubRequest,
+        # request: SubRequest,
         vcr_cassette_dir: str,
         record_mode: str,
         vcr_config: dict,
@@ -70,7 +87,9 @@ def cop_access_token(
     with use_cassette('cop_access_token', vcr_cassette_dir, record_mode, [], vcr_config, pytestconfig):
         dag = EODataAccessGateway()
         provider = DataspaceProvider(dag)
-        return provider.get_token()
+        token = provider.get_token()
+        assert token, "Invalid (empty) copernicus datasapce access token"
+        return token
 
 
 # =====[ Global Fixtures
@@ -112,8 +131,10 @@ def test_cop_dataspace(dag, tmp_path_factory, cop_access_token):
 
 
 @pytest.mark.vcr
-def test_earthdata(tmp_path_factory):
-    provider = ASFProvider(cache_dir=DATA_DIR)
+def test_earthdata(tmp_path_factory, baseline_dir):
+    assert os.path.exists(baseline_dir)
+    assert os.path.exists(os.path.join(baseline_dir, 'cassettes'))
+    provider = ASFProvider(cache_dir=baseline_dir)
     eofs = provider.search(DT1, DT2, ("S1A",))
     dest = tmp_path_factory.mktemp("s1tiling-asf")
     files = provider.download(eofs, dest)
@@ -149,9 +170,9 @@ DUMMY_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
 DUMMY_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
 
 
-@pytest.mark.vcr("cop_access_token.yaml",
-                 "test_cop_dataspace.yaml",
-                 "test_earthdata.yaml")
+@pytest.mark.vcr(
+        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+)
 @pytest.mark.parametrize(
         "eodag_config,netrc",
         [
@@ -161,7 +182,9 @@ DUMMY_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
         ],
         indirect=["eodag_config"],
 )
-def test_manager_with_provider(eodag_config, netrc, configuration, dag):
+def test_manager_with_provider(eodag_config, netrc, configuration, dag, baseline_dir):
+    assert os.path.exists(baseline_dir)
+    assert os.path.exists(os.path.join(baseline_dir, 'cassettes'))
     logging.debug('test_manager_with_provider(%s, %s)', eodag_config, netrc)
     # dummy-empty => Copernicus not configured
     # Otherwise, we expect the eodag.yaml config file of testing-user is configured for Copernicus Dataspace.
@@ -178,14 +201,11 @@ def test_manager_with_provider(eodag_config, netrc, configuration, dag):
         assert is_configured_for_dataspace or is_configured_for_earthdata
 
         manager = EOFFileManager(configuration, dag)
-        manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=DATA_DIR)
+        manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
         res = manager.download_eof()
         assert len(res) == EXPECTED_NB
 
 
-@pytest.mark.vcr("cop_access_token.yaml",
-                 "test_cop_dataspace.yaml",
-                 "test_earthdata.yaml")
 @pytest.mark.parametrize(
         "eodag_config,netrc",
         [
