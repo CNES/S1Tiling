@@ -46,7 +46,7 @@ function _die()
 
 # =====[ Forge eodag config file
 eodag_config="${HOME}/.config/eodag/eodag.yml"
-[ -f "${eodag_config}" ] || _die "No previous eodag configuration shall exist"
+[ -f "${eodag_config}" ] && _die "No previous eodag configuration shall exist"
 
 # The actual l/p doesn't matter as the cassettes will be played on the CI
 mkdir -p "${HOME}/.config/eodag"
@@ -62,7 +62,7 @@ end_eodag
 
 # =====[ Forge .netrc
 netrc="${HOME}/.netrc"
-[ -f "${netrc}" ] || _die "No previous .netrc configuration shall exist"
+[ -f "${netrc}" ] && _die "No previous .netrc configuration shall exist"
 cat << end_netrc > "${netrc}"
 machine urs.earthdata.nasa.gov
   login    dummy_password
