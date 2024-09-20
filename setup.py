@@ -96,7 +96,7 @@ setup(
         "pyyaml>=5.1",
         # Any way to require OTB ?
         # "sentineleof>0.10.0",
-        "git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
+        "sentineleof @ git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
     ],
     extras_require={
         "dev": [
