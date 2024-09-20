@@ -40,11 +40,13 @@ import re
 import sys
 from timeit import default_timer as timer
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
-import xml.etree.ElementTree as ET
+
 from numpy.lib import math
 from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
+
+from s1tiling.libs.utils.xml import find, find_text, parse
 
 from .S1DateAcquisition import S1DateAcquisition
 
@@ -171,58 +173,6 @@ def test_nodata_for_bandmath(nodata, bandname):
 # ======================================================================
 ## Domain helpers
 
-def _find(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
-) -> ET.Element:
-    """
-    Helper function that finds an XML tag within a node.
-
-    :param element: node/tree where the search is done
-    :param key:     key that identifies the tag name to search
-    :param context: extra information used to report where search failures happen
-    :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
-    :raise RuntimeError: If the requested ``key`` isn't found.
-    :return: The non null node.
-    """
-    node = element.find(key, **kwargs)
-    if node is None:
-        kt = keytext or f"{key} node"
-        raise RuntimeError(f"Cannot find {kt} in {context}")
-    return node
-
-
-def _find_text(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
-) -> str:
-    """
-    Helper function that finds and returns the text contained in an XML tag
-    within a node.
-
-    :param element: node/tree where the search is done
-    :param key:     key that identifies the tag name to search
-    :param context: extra information used to report where search failures happen
-    :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
-    :raise RuntimeError: If the requested ``key`` isn't found.
-    :raise RuntimeError: If the node has non value
-    :return: The non empty text.
-    """
-    node = _find(element, key, context, keytext, **kwargs)
-    if not node.text:
-        kt = keytext or f"{key} node"
-        raise RuntimeError(f"Empty {kt} in {context}")
-    return node.text
-
-
 SAFE = "http://www.esa.int/safe/sentinel-1.0"
 S1   = "http://www.esa.int/safe/sentinel-1.0/sentinel-1"
 
@@ -231,10 +181,10 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
     Returns the relative orbit number of the product.
     """
-    root = ET.parse(manifest)
+    root = parse(manifest)
     url = "{http://www.esa.int/safe/sentinel-1.0}"
     key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
-    return int(_find_text(root, key, manifest, "relativeOrbitNumber"))
+    return int(find_text(root, key, manifest, "relativeOrbitNumber"))
 
 
 def get_orbit_information(manifest: Union[str, Path]) -> Dict:
@@ -246,16 +196,16 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
     """
     ctx_manifest = f"manifest {manifest!r}"
     prefix_map = {"safe": SAFE, "s1": S1}
-    root = ET.parse(manifest)
-    node_orbit = _find(
+    root = parse(manifest)
+    node_orbit = find(
             root,
             "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
             ctx_manifest,
             "orbit reference",
             namespaces=prefix_map)
-    absolute_orbit  = int(_find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
-    relative_orbit  = int(_find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
-    orbit_direction = _find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
+    absolute_orbit  = int(find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
+    relative_orbit  = int(find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
+    orbit_direction = find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
     k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
     if orbit_direction not in k_direction_map:
         raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
@@ -278,8 +228,8 @@ def get_origin(
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
     prefix_map = {"safe": SAFE}
-    root = ET.parse(manifest)
-    node_footprint = _find(
+    root = parse(manifest)
+    node_footprint = find(
             root,
             "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
             f"manifest {manifest!r}",
@@ -369,11 +319,11 @@ def get_s1image_orbit_time_range(
     """
     if not os.path.isfile(annotation_file):
         raise RuntimeError(f"{annotation_file!r} is not a valid file")
-    root = ET.parse(annotation_file)
+    root = parse(annotation_file)
     # Start/Stop times
-    header = _find(root, 'adsHeader', annotation_file)
-    start_time = np.datetime64(_find_text(header, 'startTime', annotation_file), "ns")
-    stop_time  = np.datetime64(_find_text(header, 'stopTime',  annotation_file), "ns")
+    header = find(root, 'adsHeader', annotation_file)
+    start_time = np.datetime64(find_text(header, 'startTime', annotation_file), "ns")
+    stop_time  = np.datetime64(find_text(header, 'stopTime',  annotation_file), "ns")
     # Azimuth times
     t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
     azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
