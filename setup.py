@@ -89,6 +89,7 @@ setup(
         "eodag",
         "gdal=="+request_gdal_version(),
         "graphviz",
+        "lxml",     # already used by eodag actually
         "numpy",
         "objgraph", # leaks
         # "packaging", # version
