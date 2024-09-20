@@ -13,7 +13,8 @@ from _pytest.fixtures import SubRequest
 
 from eodag.api.core import EODataAccessGateway
 
-from s1tiling.libs.EOFFileManager import ASFProvider, DataspaceProvider, EOFFileManager, ProviderKind
+from s1tiling.libs.orbit._providers import ASFProvider, DataspaceProvider
+from s1tiling.libs.orbit._manager import EOFFileManager, ProviderKind
 
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("vcr").setLevel(logging.WARNING)

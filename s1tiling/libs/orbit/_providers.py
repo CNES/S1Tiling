@@ -29,32 +29,28 @@
 #
 # =========================================================================
 
-""" This module defines the EOFFileManager class"""
+""" This sub-module defines access clients to EOF Providers """
 
 from abc import abstractmethod
-from datetime import datetime, timedelta
-from pathlib import Path
-from dateutil.parser import parse
+from datetime import datetime
 import logging
+from pathlib import Path
 import os
-from typing import Dict, List, Optional, Sequence, Tuple, Union
-
+from typing import Dict, List, Optional, Sequence, Union
 from eodag.api.core import EODataAccessGateway
 from eodag.plugins.authentication.base import Authentication
 from eodag.plugins.authentication.openid_connect import CodeAuthorizedAuth
 from eodag.utils.exceptions import MisconfiguredError
 
 from eof._auth import get_netrc_credentials
-from eof.client import Client
-from eof.download import ASFClient, DataspaceClient, Filename
+from eof.client import Client, Filename
+from eof.download import ASFClient, DataspaceClient
 
-from s1tiling.libs.configuration import Configuration
-from s1tiling.libs.exceptions import ConfigurationError
-from s1tiling.libs.outcome import DownloadOutcome
-from enum import Enum
+from ..exceptions import ConfigurationError
 
 
-logger = logging.getLogger('s1tiling.filemanager')
+logger = logging.getLogger('s1tiling.orbit')
+
 
 class Provider:
     """
@@ -185,7 +181,7 @@ class DataspaceProvider(Provider):
 
     def get_token(self) -> str:
         """
-        Obtain the access token from 
+        Obtain the access token from
         """
         if self._token:
             return self._token
@@ -238,122 +234,3 @@ class ASFProvider(Provider):
         except BaseException as e:
             logger.debug("Cannot obtain ASF credentials in .netrc: %s", e)
             return False
-
-
-# =====[ The main public interface
-
-class ProviderKind(Enum):
-    COP_DATASPACE = 1
-    EARTHDATA     = 2
-
-
-class EOFFileManager:
-    # TODO: Don't depend on Configuration
-    def __init__(self, cfg: Configuration, dag: EODataAccessGateway):
-        """
-        constructor
-        """
-        assert(dag)
-        self.__cfg           = cfg
-        self.__dag           = dag
-        self.__first_date    = parse(cfg.first_date)
-        self.__last_date     = parse(cfg.last_date) + timedelta(days=1) - timedelta(seconds=1)
-        self.__dest_dir      = cfg.eof_directory
-        self.__missions      = cfg.platform_list
-        self.__build_options : Dict[ProviderKind, Dict] = {
-                ProviderKind.COP_DATASPACE : {
-                    'class':   DataspaceProvider,
-                    'options': {'dag': dag},
-                },
-                ProviderKind.EARTHDATA     : {
-                    'class': ASFProvider, 
-                    'options': {},
-                },
-        }
-
-    def add_extra_build_option(self, provider: ProviderKind, **kwargs):
-        """
-        Permits to tune construction parameters passed to the :class:`Provider` instances.
-
-        Typically, it can be used to set `cache_dir` when building :class:`ASFProvider`
-        """
-        self.__build_options[provider]['options'].update(**kwargs)
-
-    def _instanciate_provider(self, provider: ProviderKind) -> Provider:
-        """
-        Internal method that do instantiate an EOF provider.
-        """
-        provider_data = self.__build_options[provider]
-        return provider_data['class'](**provider_data['options'])
-
-    def _ensure_workspaces_exist(self) -> None:
-        """
-        Makes sure the directories used for :
-        - eof files
-        all exist
-        """
-        for path in [self.__dest_dir]:
-            if not os.path.isdir(path):
-                os.makedirs(path, exist_ok=True)
-
-    def download_eof(
-            self,
-            missions  : Sequence[str] = (),
-            dryrun    : bool          = False,
-    ) -> List[DownloadOutcome]:
-        """
-        Main entry point to search and download the EOF precise orbit files.
-
-        The orbits files are searched in the specified time range (construction
-        parameters), for the chosen missions (default is set during construction but can
-        be overridden when calling :meth:`download_eof`.
-        """
-        if not self.__cfg.download:
-            logger.info("Using EOF files already downloaded, as per configuration request")
-            # TODO: Should do a glob/ls
-            return []
-
-        self._ensure_workspaces_exist()
-
-        request = f"EOF files between {self.__first_date} and {self.__last_date}"
-        errors : List[DownloadOutcome] = []
-
-        provider_kinds = [p for p in ProviderKind if self.__build_options[p]['class'].is_configured(self.__dag)]
-        if len(provider_kinds) == 0:
-            logger.warning("No data provider has been configured for EOF files")
-            return [DownloadOutcome(RuntimeError("No data provider has been configured for EOF files"), request)]
-        logger.debug(
-                "EOF files will be searched on %s between %s and %s",
-                " and ".join((str(p) for p in provider_kinds)),
-                self.__first_date,
-                self.__last_date,
-        )
-        missions = missions or self.__missions
-        for provider_kind in provider_kinds:
-            try:
-                provider = self._instanciate_provider(provider_kind)
-                eofs = provider.search(self.__first_date, self.__last_date, missions)
-                files = provider.download(eofs, self.__dest_dir)
-                return [DownloadOutcome(f, f) for f in files]
-            except BaseException as e:
-                logger.warning(e, exc_info=False)
-                logger.debug(e, exc_info=True)
-                errors.append(DownloadOutcome(e, request))
-        else:
-            if len(errors) == 0:
-                errors = [DownloadOutcome(RuntimeError("No data provider has been configured for EOF files"), request)]
-            return errors
-
-    def search_for(
-            self,
-            relative_orbit : int,
-            missions       : Sequence[str] = (),
-            dryrun         : bool          = False,
-    ) -> List[DownloadOutcome]:
-        # 1. scan dest_dir for EOF having relative_orbit
-        #    priority to the files in the time range
-        # 2. if not, download files in the time range
-        #    analyse the new files
-        #
-        # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
-        return []
