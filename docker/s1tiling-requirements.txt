@@ -9,7 +9,7 @@ click
 dask[distributed]
 eodag
 graphviz
-numpy
+numpy<2
 objgraph
 pympler
 pyyaml
