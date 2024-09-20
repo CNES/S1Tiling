@@ -39,7 +39,7 @@ import xml.etree.ElementTree as ET
 T = TypeVar('T')
 
 
-def parse(filename: Path) -> ET.ElementTree:
+def parse(filename: Union[str, Path]) -> ET.ElementTree:
     """
     Returns root of XML document.
     """
@@ -106,6 +106,21 @@ def find_as(
         keytext: Optional[str] = None,
         **kwargs,
 ) -> T:
+    """
+    Helper function that finds and returns the text contained in an XML tag
+    within a node and converts it to the requested type.
+
+    :param to:      type to which the text shall be converted to
+    :param element: node/tree where the search is done
+    :param key:     key that identifies the tag name to search
+    :param context: extra information used to report where search failures happen
+    :param keytext: text to use instead of ``key`` to report a missing key
+    :param kwargs:  extra parameters forwarded to :method:`ET.find`
+    :raise RuntimeError: If the requested ``key`` isn't found.
+    :raise RuntimeError: If the node has non value.
+    :raise RuntimeError: If the node text value cannot be converted to a ``to`` instance.
+    :return: The value stored in the node
+    """
     text = find_text(element, key, context, keytext, **kwargs)
     try:
         return to(text)
