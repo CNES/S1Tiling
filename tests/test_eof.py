@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import List
 
 import pytest
 from pytest_recording._vcr import use_cassette
@@ -13,8 +14,16 @@ from _pytest.fixtures import SubRequest
 
 from eodag.api.core import EODataAccessGateway
 
-from s1tiling.libs.orbit._providers import ASFProvider, DataspaceProvider
-from s1tiling.libs.orbit._manager import EOFFileManager, ProviderKind
+from s1tiling.libs.orbit._providers   import ASFProvider, DataspaceProvider
+from s1tiling.libs.orbit._manager     import EOFFileManager, ProviderKind
+from s1tiling.libs.orbit._conversions import ORBIT_CONVERTERS
+from s1tiling.libs.orbit._file        import (
+        SentinelOrbitFile,
+        extract_min_max_abs_orbit_numbers,
+        filter_intersecting_eof_files,
+        filter_eof_files_containing_orbit,
+        glob_eof_files,
+)
 
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("vcr").setLevel(logging.WARNING)
@@ -230,3 +239,128 @@ def test_manager_no_provider(eodag_config, netrc, configuration, dag):
         res = manager.download_eof()
         assert len(res) == 1
         assert not res[0].has_value()
+
+
+# =====[ Tests orbit conversions
+def test_orbit_conversions():
+    s1a_converter = ORBIT_CONVERTERS["S1A"]
+
+    assert s1a_converter.to_relative(30632) == 110
+    assert s1a_converter.to_relative(30704) == 7
+    assert s1a_converter.to_relative(51107) == 110
+
+    assert s1a_converter.closest_absolute(30632, 110) == 30632
+    assert s1a_converter.closest_absolute(30704,   7) == 30704
+    assert s1a_converter.closest_absolute(51107, 110) == 51107
+
+    assert s1a_converter.closest_absolute(30631, 110) == 30632
+    assert s1a_converter.closest_absolute(30806, 110) == 30807
+    # assert s1a_converter.closest_absolute(30633, 110) == 30632 + 175
+
+
+# =====[ Test XML analyse of EOF file
+def eof_id_to_file(dirname: Path, eof_id: str) -> Path:
+    return dirname / f"S1A_OPER_AUX_POEORB_OPOD_{eof_id}.EOF"
+
+
+@pytest.mark.parametrize(
+        "eof_id,expected_abs_min,expected_abs_max,expected_rel_min,expected_rel_max",
+        [
+            ('20231107T080717_V20231017T225942_20231019T005942', 50811, 50827, 164,   5),
+            ('20231127T070702_V20231106T225942_20231108T005942', 51103, 51118, 106, 121),
+            ('20231128T070717_V20231107T225942_20231109T005942', 51117, 51133, 120, 136),
+            ('20231207T070724_V20231116T225942_20231118T005942', 51248, 51264,  76,  92),
+            ('20231208T070704_V20231117T225942_20231119T005942', 51263, 51279,  91, 107),
+        ],
+)
+def test_min_max_orbits(
+        eof_id: str,
+        expected_abs_min: int, expected_abs_max: int,
+        expected_rel_min: int, expected_rel_max: int,
+        baseline_dir: Path
+):
+    full_path = eof_id_to_file(baseline_dir / "eofs", eof_id)
+    abs_min, abs_max = extract_min_max_abs_orbit_numbers(full_path)
+    assert abs_min == expected_abs_min
+    assert abs_max == expected_abs_max
+
+    sof = SentinelOrbitFile(full_path)
+    assert sof.mission         == "S1A"
+    assert sof.first_abs_orbit == expected_abs_min
+    assert sof.last_abs_orbit  == expected_abs_max
+    assert sof.first_rel_orbit == expected_rel_min
+    assert sof.last_rel_orbit  == expected_rel_max
+
+
+# =====[ Test manager search_for
+@pytest.mark.parametrize(
+        "eof_ids",
+        [[
+            '20231107T080717_V20231017T225942_20231019T005942',
+            '20231127T070702_V20231106T225942_20231108T005942',
+            '20231128T070717_V20231107T225942_20231109T005942',
+            '20231207T070724_V20231116T225942_20231118T005942',
+            '20231208T070704_V20231117T225942_20231119T005942',
+        ]],
+)
+def test_manager_dir_analysis(
+        eof_ids     : List[str],
+        baseline_dir: Path,
+        tmp_path_factory,
+):
+    assert len(eof_ids) == 5
+    eof_baseline_dir = baseline_dir / "eofs"
+    orig_eof_files = glob_eof_files(eof_baseline_dir)
+    assert len(orig_eof_files) == 5
+
+    dest_dir = tmp_path_factory.mktemp("s1tiling-out_eofs")
+    eof_files = glob_eof_files(dest_dir)
+    assert len(eof_files) == 0
+
+    for eof_id in eof_ids:
+        eof_file = eof_id_to_file(eof_baseline_dir, eof_id)
+        dest     = eof_id_to_file(dest_dir, eof_id)
+        dest.symlink_to(eof_file)
+
+    eof_files = glob_eof_files(dest_dir)
+    assert len(eof_files) == len(eof_ids)
+
+    dt1 = datetime(2020, 1, 1)   # 00:00:00
+    dt2 = datetime(2020, 1, 2, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    assert len(eof_files_in_range) == 0
+
+    dt1 = datetime(2020, 1, 1)   # 00:00:00
+    dt2 = datetime(2023, 10, 30, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    assert len(eof_files_in_range) == 1
+    assert eof_files_in_range[0].filename == eof_files[0].filename
+    for eof_file in eof_files_in_range:
+        for orbit in orbit_range(eof_file):
+            assert eof_file in filter_eof_files_containing_orbit(eof_files_in_range, orbit), (
+                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+            )
+
+    dt1 = datetime(2023, 11, 1)   # 00:00:00
+    dt2 = datetime(2023, 11, 10, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    assert len(eof_files_in_range) == 2
+    assert eof_files_in_range[0].filename == eof_files[1].filename
+    assert eof_files_in_range[1].filename == eof_files[2].filename
+    for eof_file in eof_files_in_range:
+        for orbit in orbit_range(eof_file):
+            assert eof_file in filter_eof_files_containing_orbit(eof_files_in_range, orbit), (
+                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+            )
+
+    
+
+def orbit_range(eof_file: SentinelOrbitFile):
+    last = eof_file.last_rel_orbit
+    orbit = eof_file.first_rel_orbit
+    if last < orbit:
+        last += 175
+    while orbit <= last:
+        yield (orbit-1) % 175 + 1
+        orbit += 1
+
