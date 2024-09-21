@@ -33,7 +33,6 @@
 
 from datetime import timedelta
 from enum import Enum
-import glob
 import logging
 import os
 from typing import Dict, List, Sequence
@@ -42,7 +41,7 @@ from dateutil.parser import parse
 from eodag.api.core import EODataAccessGateway
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
-# from ._file import SentinelOrbitFile
+from ._file import filter_intersecting_eof_files, glob_eof_files
 from ..configuration import Configuration
 from ..outcome import DownloadOutcome
 
@@ -152,31 +151,33 @@ class EOFFileManager:
                 errors = [DownloadOutcome(RuntimeError("No data provider has been configured for EOF files"), request)]
             return errors
 
-    ## def search_for(
-    ##         self,
-    ##         relative_orbit : int,
-    ##         missions       : Sequence[str] = (),
-    ##         dryrun         : bool          = False,
-    ## ) -> List[DownloadOutcome]:
-    ##     # TODO: handle cache...
-    ##     # 1. scan dest_dir for EOF having relative_orbit
-    ##     #    priority to the files in the time range
-    ##     eof_files = sorted([
-    ##             SentinelOrbitFile(f)
-    ##             for f in glob.glob(os.path.join(self.__dest_dir, "S1*OPER_AUX_POEORB*.EOF"))
-    ##     ])
+    def search_for(
+            self,
+            relative_orbit : int,
+            missions       : Sequence[str] = (),
+            dryrun         : bool          = False,
+    ) -> List[DownloadOutcome]:
+        # TODO: handle cache...
+        # 1. scan dest_dir for EOF having relative_orbit
+        #    priority to the files in the time range
+        eof_files = glob_eof_files(self.__dest_dir)
 
-    ##     eof_files_in_range = [ f for f in eof_files if f.does_intersect(self.__first_date, self.__last_date)]
+        eof_files_in_range = filter_intersecting_eof_files(
+                eof_files,
+                self.__first_date,
+                self.__last_date,
+                missions
+        )
 
-    ##     eof_files_matching = [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit)]
-    ##     if eof_files_matching:
-    ##         return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
+        eof_files_matching = [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit)]
+        if eof_files_matching:
+            return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
 
-    ##     # 2. if not, download files in the time range
-    ##     #    analyse the new files
-    ##     #
-    ##     # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
+        # 2. if not, download files in the time range
+        #    analyse the new files
+        #
+        # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
 
-    ##     return []
+        return []
 
 
