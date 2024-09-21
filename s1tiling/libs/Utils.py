@@ -41,7 +41,8 @@ import sys
 from timeit import default_timer as timer
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
 
-from numpy.lib import math
+# from numpy.lib import math
+import math
 from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
