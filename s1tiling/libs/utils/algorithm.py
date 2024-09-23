@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =========================================================================
 #   Program:   S1Processor
 #
 #   All rights reserved.
 #   Copyright 2017-2024 (c) CNES.
+#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -25,8 +26,39 @@
 #
 # Authors:
 # - Thierry KOLECK (CNES)
-# - Luc HERMITTE (CSGROUP)
+# - Luc HERMITTE (CS Group)
 #
 # =========================================================================
 
-from .algorithm import partition
+""" Collection of generic algorithms """
+
+
+from collections.abc import Callable
+from typing import Iterable, List, Optional, Tuple, TypeVar
+
+
+T = TypeVar('T')
+
+def partition(
+        predicate: Optional[Callable[[T], bool]],
+        inputs:    Iterable[T],
+) -> Tuple[List[T], List[T]]:
+    """
+    Partition a list according to a predicate.
+
+    :param predicate: Boolean predicate used to sort out the elements. If ``None`` then ``bool`` is assumed.
+    :param inputs:    Input list to partition
+    :return: A tuple of the list of the True elements and the False elements
+
+    >>> partition(None, [True, False, False, True, True])
+    ([True, True, True], [False, False])
+
+    >>> partition( lambda i : i % 2 == 0 , [1224, 42, 13, 31, 1426, 5])
+    ([1224, 42, 1426], [13, 31, 5])
+    """
+    yes = []
+    no  = []
+    predicate = predicate or bool
+    for e in inputs:
+        (no, yes)[predicate(e)].append(e)
+    return yes, no
