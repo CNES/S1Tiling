@@ -1,5 +1,33 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# =========================================================================
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
+#
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# =========================================================================
+#
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
+#
+# =========================================================================
 
 from datetime import datetime
 import json
@@ -354,5 +382,40 @@ def test_manager_dir_analysis(
                     f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
 
-    
+def test_filter_orbits_on_the_peripehry(
+        baseline_dir: Path,
+):
+    # When two EOF files follow each others, they should share two orbits.
+    # > Makes sure we obtain only one, and the right one when requesting orbits on the periphery
+    eof_ids = [
+            '20231127T070702_V20231106T225942_20231108T005942',
+            '20231128T070717_V20231107T225942_20231109T005942',
+    ]
+    eof_baseline_dir = baseline_dir / "eofs"
+    eof_files = [SentinelOrbitFile(eof_id_to_file(eof_baseline_dir, eof_id)) for eof_id in eof_ids]
 
+    assert len(eof_files) == 2
+
+    # 1. Make sure the files contain what is required to test the algorithms
+    assert eof_files[0].mission == eof_files[-1].mission, "They are from the same mission"
+    N = eof_files[0].nb_orbits_in_mission
+
+    # eof#1: [... 120, 121]
+    # eof#2:     [120, 121, ...]
+    ultimate_rel_obt_of_1st_eof    = eof_files[0].last_rel_orbit
+    penultimate_rel_obt_of_1st_eof = (ultimate_rel_obt_of_1st_eof - 1 - 1) % N + 1
+
+    first_rel_obt_of_2nd_eof = eof_files[-1].first_rel_orbit
+    second_rel_obt_of_2nd_eof = (first_rel_obt_of_2nd_eof - 1 + 1) % N + 1
+
+    assert penultimate_rel_obt_of_1st_eof == first_rel_obt_of_2nd_eof
+    assert ultimate_rel_obt_of_1st_eof    == second_rel_obt_of_2nd_eof
+
+    # 2. Do test filter_eof_files_containing_orbit with offset
+    files1 = filter_eof_files_containing_orbit(eof_files, first_rel_obt_of_2nd_eof, -1)
+    assert len(files1) == 1
+    assert files1[0] is eof_files[0]
+
+    files2 = filter_eof_files_containing_orbit(eof_files, second_rel_obt_of_2nd_eof, -1)
+    assert len(files2) == 1
+    assert files2[0] is eof_files[1]

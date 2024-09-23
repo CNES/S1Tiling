@@ -82,7 +82,14 @@ class SentinelOrbitFile(SentinelOrbit):
 
     def has_relative_orbit(self, relative_orbit: int, margin: int = 0) -> bool:
         """
-        Tells whether a relative orbit is stored in a EOF file
+        Tells whether a relative orbit is stored in a EOF file.
+
+        A positive margin can be used to relax the constraint.
+        A negative margin can be used to restrict the constraint.
+
+        :param relative_orbit: Target relative orbit searched.
+        :param margin:         Offset margin to tune the search
+        :return: ``self.first_rel_orbit - margin <= relative_orbit <= self.last_rel_orbit + margin``
         """
         min = self.first_rel_orbit - margin
         max = self.last_rel_orbit + margin
@@ -93,6 +100,8 @@ class SentinelOrbitFile(SentinelOrbit):
             return (min <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max)
 
 
+# ===============[ "Internal" functions used to implement the public service
+# This organisation eases the writing of unit tests
 def extract_min_max_abs_orbit_numbers(filename: Union[str, Path]) -> Tuple[int, int]:
     # ~ 80ms with lxml, 2.7s with xml
     root = xml.parse(filename)
@@ -156,11 +165,12 @@ def filter_intersecting_eof_files(
 def filter_eof_files_containing_orbit(
         eof_files     : List[SentinelOrbitFile],
         relative_orbit: int,
+        margin        : int = 0,
 ) -> List[SentinelOrbitFile]:
     """
     Filter orbit files to keep those containing the requested relative orbit number.
     """
-    return [ f for f in eof_files if f.has_relative_orbit(relative_orbit)]
+    return [ f for f in eof_files if f.has_relative_orbit(relative_orbit, margin)]
 
 
 def orbit_range(eof_file: SentinelOrbitFile):

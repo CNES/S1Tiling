@@ -41,7 +41,7 @@ from dateutil.parser import parse
 from eodag.api.core import EODataAccessGateway
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
-from ._file import filter_intersecting_eof_files, glob_eof_files
+from ._file import SentinelOrbitFile, filter_intersecting_eof_files, glob_eof_files
 from ..configuration import Configuration
 from ..outcome import DownloadOutcome
 
@@ -162,22 +162,34 @@ class EOFFileManager:
         #    priority to the files in the time range
         eof_files = glob_eof_files(self.__dest_dir)
 
+        eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
+        if eof_files_matching:
+            # Several results possible as we can request several missions...
+            # But should we be precise with the target mission as we are with the target relative orbit?
+            return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
+
+        # 2. if not, download files in the time range
+        #    analyse the new files
+        # downloaded_products = self.download_eof(missions, dryrun)
+        # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
+
+        return []
+
+
+    def _filter_files(
+            self,
+            eof_files      : List[SentinelOrbitFile],
+            relative_orbit : int,
+            missions       : Sequence[str] = (),
+    ) -> List[SentinelOrbitFile]:
         eof_files_in_range = filter_intersecting_eof_files(
                 eof_files,
                 self.__first_date,
                 self.__last_date,
                 missions
         )
-
-        eof_files_matching = [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit)]
-        if eof_files_matching:
-            return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
-
-        # 2. if not, download files in the time range
-        #    analyse the new files
-        #
-        # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
-
-        return []
+        return [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit, -1)]
 
 
+# ===============[ "Internal" functions used to implement the public service
+# This organisation eases the writing of unit tests
