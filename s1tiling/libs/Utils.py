@@ -584,7 +584,7 @@ def partial_format(format_str: str, **kwargs) -> str:
     Example:
     --------
     >>> s = "{ab}_bla_{cd}"
-    >>> partial_format(s, ab="TOTO")
+    >>> partial_format(s, ab="tot")
     'tot_bla_{cd}'
     """
     return format_str.format_map(_PartialFormatHelper(**kwargs))
