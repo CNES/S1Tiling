@@ -66,6 +66,14 @@ class SentinelOrbitFile(SentinelOrbit):
         self.first_rel_orbit = self.__orbit_converter.to_relative(self.first_abs_orbit)
         self.last_rel_orbit  = self.__orbit_converter.to_relative(self.last_abs_orbit)
 
+    @property
+    def nb_orbits_in_mission(self):
+        """
+        Returns the number of different relative orbit numbers known for the current misions.
+        It's likely to always be 175...
+        """
+        return self.__orbit_converter.modulo
+
     def does_intersect(self, start: datetime, stop: datetime) -> bool:
         """
         Tells whether an EOF file intersect the given time range
@@ -82,7 +90,7 @@ class SentinelOrbitFile(SentinelOrbit):
             return min <= relative_orbit <= max
         else:
             # min is close to 175, and max is close to 0
-            return (min <= relative_orbit <= 175) or (1 <= relative_orbit <= max)
+            return (min <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max)
 
 
 def extract_min_max_abs_orbit_numbers(filename: Union[str, Path]) -> Tuple[int, int]:
@@ -159,7 +167,11 @@ def orbit_range(eof_file: SentinelOrbitFile):
     """
     Generates all possible relativate orbit number between first and last relative numbers in orbit file.
     """
-    return orbit_range_internal(eof_file.first_rel_orbit, eof_file.last_rel_orbit, 175)
+    return orbit_range_internal(
+            eof_file.first_rel_orbit,
+            eof_file.last_rel_orbit,
+            eof_file.nb_orbits_in_mission,
+    )
 
 
 def orbit_range_internal(first: int , last: int, nb_orbits: int):
