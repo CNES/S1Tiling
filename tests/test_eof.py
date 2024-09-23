@@ -23,6 +23,7 @@ from s1tiling.libs.orbit._file        import (
         filter_intersecting_eof_files,
         filter_eof_files_containing_orbit,
         glob_eof_files,
+        orbit_range,
 )
 
 logging.getLogger("urllib3").setLevel(logging.INFO)
@@ -354,13 +355,4 @@ def test_manager_dir_analysis(
             )
 
     
-
-def orbit_range(eof_file: SentinelOrbitFile):
-    last = eof_file.last_rel_orbit
-    orbit = eof_file.first_rel_orbit
-    if last < orbit:
-        last += 175
-    while orbit <= last:
-        yield (orbit-1) % 175 + 1
-        orbit += 1
 
