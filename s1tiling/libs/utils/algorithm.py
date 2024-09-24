@@ -33,11 +33,11 @@
 """ Collection of generic algorithms """
 
 
-from collections.abc import Callable
-from typing import Iterable, List, Optional, Tuple, TypeVar
-
+from collections.abc import Callable, Iterable
+from typing import List, Optional, Tuple, TypeVar
 
 T = TypeVar('T')
+
 
 def partition(
         predicate: Optional[Callable[[T], bool]],
@@ -56,8 +56,8 @@ def partition(
     >>> partition( lambda i : i % 2 == 0 , [1224, 42, 13, 31, 1426, 5])
     ([1224, 42, 1426], [13, 31, 5])
     """
-    yes = []
-    no  = []
+    yes : List[T] = []
+    no  : List[T] = []
     predicate = predicate or bool
     for e in inputs:
         (no, yes)[predicate(e)].append(e)

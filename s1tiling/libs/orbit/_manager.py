@@ -31,22 +31,38 @@
 
 """ This sub-module defines the EOFFileManager """
 
+from collections.abc import Sequence
 from datetime import timedelta
+from dateutil.parser import parse
 from enum import Enum
 import logging
 import os
-from typing import Dict, List, Sequence
-from dateutil.parser import parse
+from typing import Dict, List, Optional, Protocol
 
 from eodag.api.core import EODataAccessGateway
+from eof.client import Filename
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file import SentinelOrbitFile, filter_intersecting_eof_files, glob_eof_files
-from ..configuration import Configuration
 from ..outcome import DownloadOutcome
 
 
+EOFOutcome = DownloadOutcome[Filename, Optional[SentinelOrbitFile]]
+
+
 logger = logging.getLogger('s1tiling.orbit')
+
+class EOFConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to EOF configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding EOF data.
+    """
+    first_date    : str
+    last_date     : str
+    eof_directory : Filename
+    platform_list : Sequence[str]
+    download      : bool
 
 
 class ProviderKind(Enum):
@@ -56,7 +72,7 @@ class ProviderKind(Enum):
 
 class EOFFileManager:
     # TODO: Don't depend on Configuration
-    def __init__(self, cfg: Configuration, dag: EODataAccessGateway):
+    def __init__(self, cfg: EOFConfiguration, dag: EODataAccessGateway):
         """
         constructor
         """
@@ -107,7 +123,7 @@ class EOFFileManager:
             self,
             missions  : Sequence[str] = (),
             dryrun    : bool          = False,
-    ) -> List[DownloadOutcome]:
+    ) -> List[EOFOutcome]:
         """
         Main entry point to search and download the EOF precise orbit files.
 
@@ -122,13 +138,13 @@ class EOFFileManager:
 
         self._ensure_workspaces_exist()
 
-        request = f"EOF files between {self.__first_date} and {self.__last_date}"
-        errors : List[DownloadOutcome] = []
+        request = f"between {self.__first_date} and {self.__last_date}"
+        errors : List[EOFOutcome] = []
 
         provider_kinds = [p for p in ProviderKind if self.__build_options[p]['class'].is_configured(self.__dag)]
         if len(provider_kinds) == 0:
             logger.warning("No data provider has been configured for EOF files")
-            return [DownloadOutcome(RuntimeError("No data provider has been configured for EOF files"), request)]
+            return [EOFOutcome(RuntimeError("No data provider has been configured for EOF files {request}"), None)]
         logger.debug(
                 "EOF files will be searched on %s between %s and %s",
                 " and ".join((str(p) for p in provider_kinds)),
@@ -141,14 +157,14 @@ class EOFFileManager:
                 provider = self._instanciate_provider(provider_kind)
                 eofs = provider.search(self.__first_date, self.__last_date, missions)
                 files = provider.download(eofs, self.__dest_dir)
-                return [DownloadOutcome(f, f) for f in files]
+                return [EOFOutcome(f, SentinelOrbitFile(f)) for f in files]
             except BaseException as e:
                 logger.warning(e, exc_info=False)
                 logger.debug(e, exc_info=True)
-                errors.append(DownloadOutcome(e, request))
+                errors.append(EOFOutcome(e, None))
         else:
             if len(errors) == 0:
-                errors = [DownloadOutcome(RuntimeError("No data provider has been configured for EOF files"), request)]
+                errors = [EOFOutcome(RuntimeError("No data provider has been configured for EOF files {request}"), None)]
             return errors
 
     def search_for(
@@ -156,7 +172,7 @@ class EOFFileManager:
             relative_orbit : int,
             missions       : Sequence[str] = (),
             dryrun         : bool          = False,
-    ) -> List[DownloadOutcome]:
+    ) -> List[EOFOutcome]:
         # TODO: handle cache...
         # 1. scan dest_dir for EOF having relative_orbit
         #    priority to the files in the time range
@@ -174,7 +190,6 @@ class EOFFileManager:
         # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
 
         return []
-
 
     def _filter_files(
             self,

@@ -32,8 +32,9 @@
 
 """ This module contains various utility functions related to xml library"""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional, TypeVar, Union
+from typing import Optional, TypeVar, Union
 import xml.etree.ElementTree as ET
 
 T = TypeVar('T')

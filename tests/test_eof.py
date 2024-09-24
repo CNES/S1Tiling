@@ -29,18 +29,20 @@
 #
 # =========================================================================
 
+from collections.abc import Sequence
 from datetime import datetime
 import json
 import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import pytest
 from pytest_recording._vcr import use_cassette
 from _pytest.fixtures import SubRequest
 
 from eodag.api.core import EODataAccessGateway
+from eof.client import Filename
 
 from s1tiling.libs.orbit._providers   import ASFProvider, DataspaceProvider
 from s1tiling.libs.orbit._manager     import EOFFileManager, ProviderKind
@@ -133,12 +135,12 @@ def cop_access_token(
 
 # =====[ Global Fixtures
 @pytest.fixture
-def eodag_config(request):
+def eodag_config(request) -> Optional[str]:
     # This fixture permits to configure the returned result for eodag_config name
     return getattr(request, 'param', None)
 
 @pytest.fixture
-def dag(eodag_config):
+def dag(eodag_config: Optional[str]):
     # logging.debug("dag(%s)", eodag_config)
     res = EODataAccessGateway(eodag_config)
     # logging.debug("=> dag                  = %s", res)
@@ -182,7 +184,14 @@ def test_earthdata(tmp_path_factory, baseline_dir):
 
 # =====[ Tests through public interface
 class MockConfiguration:
-    def __init__(self, first_date, last_date, eof_directory, platform_list, eodag_config):
+    def __init__(
+            self,
+            first_date    : str,
+            last_date     : str,
+            eof_directory : Path,
+            platform_list : Sequence[str],
+            eodag_config  : Optional[str],
+    ):
         self.first_date    = first_date
         self.last_date     = last_date
         self.eof_directory = eof_directory

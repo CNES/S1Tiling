@@ -36,9 +36,9 @@ from datetime import datetime
 import glob
 import logging
 import os
-from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
+from eof.client import Filename
 from eof.download import SentinelOrbit
 
 from ._conversions import ORBIT_CONVERTERS
@@ -51,7 +51,7 @@ class SentinelOrbitFile(SentinelOrbit):
     """
     Extends :class:`eof.SentinelOrbit` with min-max absolute orbit info
     """
-    def __init__(self, filename: Union[str, Path], **kwargs) -> None:
+    def __init__(self, filename: Filename, **kwargs) -> None:
         """
         constructor
         """
@@ -102,7 +102,7 @@ class SentinelOrbitFile(SentinelOrbit):
 
 # ===============[ "Internal" functions used to implement the public service
 # This organisation eases the writing of unit tests
-def extract_min_max_abs_orbit_numbers(filename: Union[str, Path]) -> Tuple[int, int]:
+def extract_min_max_abs_orbit_numbers(filename: Filename) -> Tuple[int, int]:
     # ~ 80ms with lxml, 2.7s with xml
     root = xml.parse(filename)
     if not root:
@@ -128,7 +128,7 @@ def extract_min_max_abs_orbit_numbers(filename: Union[str, Path]) -> Tuple[int, 
     return int(min_obt), int(max_obt)
 
 
-def glob_eof_files(dirname: Union[str, Path]) -> List[SentinelOrbitFile]:
+def glob_eof_files(dirname: Filename) -> List[SentinelOrbitFile]:
     """
     Glob precise orbit files in ``dirname``
     """

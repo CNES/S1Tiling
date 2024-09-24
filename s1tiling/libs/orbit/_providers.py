@@ -32,11 +32,12 @@
 """ This sub-module defines access clients to EOF Providers """
 
 from abc import abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 import logging
 from pathlib import Path
 import os
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Union
 from eodag.api.core import EODataAccessGateway
 from eodag.plugins.authentication.base import Authentication
 from eodag.plugins.authentication.openid_connect import CodeAuthorizedAuth

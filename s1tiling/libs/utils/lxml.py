@@ -32,16 +32,17 @@
 
 """ This module contains various utility functions related to lxml library"""
 
-# lxml is much faster that xml from stdlib
+from collections.abc import Callable
+from typing import List, Optional, TypeVar, Union
+from eof.client import Filename
 
-from pathlib import Path
-from typing import Callable, List, Optional, TypeVar, Union
+# lxml is much faster that xml from stdlib
 from lxml import etree
 
 T = TypeVar('T')
 
 
-def parse(filename: Union[str, Path]) -> etree._ElementTree:
+def parse(filename: Filename) -> etree._ElementTree:
     """
     Returns root of XML document.
     """
@@ -51,7 +52,7 @@ def parse(filename: Union[str, Path]) -> etree._ElementTree:
 def find(
         element            : Union[etree._Element, etree._ElementTree, List[etree._Element]],
         key                : str,
-        context            : Union[str, Path],
+        context            : Filename,
         keytext            : Optional[str] = None,
         a_value_is_expected: bool          = True,
         **kwargs
@@ -83,7 +84,7 @@ def find(
 def find_text(
         element: Union[etree._Element, etree._ElementTree, List[etree._Element]],
         key    : str,
-        context: Union[str, Path],
+        context: Filename,
         keytext: Optional[str] = None,
         **kwargs
 ) -> str:
@@ -112,7 +113,7 @@ def find_as(
         to     : Callable[[str], T],
         element: Union[etree._Element, etree._ElementTree, List[etree._Element]],
         key    : str,
-        context: Union[str, Path],
+        context: Filename,
         keytext: Optional[str] = None,
         **kwargs,
 ) -> T:
