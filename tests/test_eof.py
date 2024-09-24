@@ -443,3 +443,57 @@ def test_filter_orbits_on_the_periphery(
     files2 = filter_eof_files_containing_orbit(eof_files, second_rel_obt_of_2nd_eof, -1)
     assert len(files2) == 1
     assert files2[0] is eof_files[1]
+
+
+@pytest.mark.parametrize(
+        "eof_ids",
+        [[
+            '20231107T080717_V20231017T225942_20231019T005942',
+            '20231127T070702_V20231106T225942_20231108T005942',
+            '20231128T070717_V20231107T225942_20231109T005942',
+            '20231207T070724_V20231116T225942_20231118T005942',
+            '20231208T070704_V20231117T225942_20231119T005942',
+        ]],
+)
+def test_manager_analysis_of_cache(
+        eof_ids         : List[str],
+        eof_baseline_dir: Path,
+        tmp_eof_dir     : Path,
+        dag,
+):
+    assert len(eof_ids) == 5
+    orig_eof_files = glob_eof_files(eof_baseline_dir)
+    assert len(orig_eof_files) == 5
+
+    eof_files = glob_eof_files(tmp_eof_dir)
+    assert len(eof_files) == 0
+
+    prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids)
+
+    eof_files = glob_eof_files(tmp_eof_dir)
+    assert len(eof_files) == len(eof_ids)
+
+    # Wider range, but we're looking for files already in cache
+    cfg = MockConfiguration(
+            "2023-11-01", "2023-11-10",
+            tmp_eof_dir,
+            (),
+            None,
+    )
+    eof_manager = EOFFileManager(cfg, dag)
+
+    obt_file_expectations = [
+            (118, 1),
+            (120, 1),
+            (122, 2),
+            (130, 2),
+    ]
+    for obt, file_id in obt_file_expectations:
+        files = eof_manager.search_for(obt)
+        assert len(files) == 1
+        assert files[0].has_value()
+        file_found    : Filename = files[0].value()
+        file_expected : Filename = eof_files[file_id].filename
+        logging.debug(f"{type(file_found)=}    ; {file_found=!r}") 
+        logging.debug(f"{type(file_expected)=} ; {file_expected=!r}") 
+        assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
