@@ -331,6 +331,26 @@ def test_min_max_orbits(
 
 
 # =====[ Test manager search_for
+@pytest.fixture
+def tmp_eof_dir(tmp_path_factory) -> Path:
+    dest_dir = tmp_path_factory.mktemp("s1tiling-out_eofs")
+    eof_files = glob_eof_files(dest_dir)
+    assert len(eof_files) == 0
+    return dest_dir
+
+
+@pytest.fixture
+def eof_baseline_dir(baseline_dir: Path) -> Path:
+    return baseline_dir / "eofs"
+
+
+def prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids):
+    for eof_id in eof_ids:
+        eof_file = eof_id_to_file(eof_baseline_dir, eof_id)
+        dest     = eof_id_to_file(tmp_eof_dir, eof_id)
+        dest.symlink_to(eof_file)
+
+
 @pytest.mark.parametrize(
         "eof_ids",
         [[
@@ -342,25 +362,20 @@ def test_min_max_orbits(
         ]],
 )
 def test_manager_dir_analysis(
-        eof_ids     : List[str],
-        baseline_dir: Path,
-        tmp_path_factory,
+        eof_ids         : List[str],
+        eof_baseline_dir: Path,
+        tmp_eof_dir     : Path,
 ):
     assert len(eof_ids) == 5
-    eof_baseline_dir = baseline_dir / "eofs"
     orig_eof_files = glob_eof_files(eof_baseline_dir)
     assert len(orig_eof_files) == 5
 
-    dest_dir = tmp_path_factory.mktemp("s1tiling-out_eofs")
-    eof_files = glob_eof_files(dest_dir)
+    eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == 0
 
-    for eof_id in eof_ids:
-        eof_file = eof_id_to_file(eof_baseline_dir, eof_id)
-        dest     = eof_id_to_file(dest_dir, eof_id)
-        dest.symlink_to(eof_file)
+    prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids)
 
-    eof_files = glob_eof_files(dest_dir)
+    eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == len(eof_ids)
 
     dt1 = datetime(2020, 1, 1)   # 00:00:00
@@ -391,7 +406,7 @@ def test_manager_dir_analysis(
                     f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
 
-def test_filter_orbits_on_the_peripehry(
+def test_filter_orbits_on_the_periphery(
         baseline_dir: Path,
 ):
     # When two EOF files follow each others, they should share two orbits.
