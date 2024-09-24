@@ -38,6 +38,7 @@ from pathlib import Path
 import pytest
 
 logging.getLogger("graphviz").setLevel(logging.ERROR)
+logging.getLogger("parse").setLevel(logging.ERROR)
 
 # - ${S1TILING_TEST_DATA_OUTPUT}
 # - ${S1TILING_TEST_DATA_INPUT}
