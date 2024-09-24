@@ -45,6 +45,7 @@ from eof.client import Filename
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file import SentinelOrbitFile, filter_intersecting_eof_files, glob_eof_files
 from ..outcome import DownloadOutcome
+from ..utils import partition
 
 
 EOFOutcome = DownloadOutcome[Filename, Optional[SentinelOrbitFile]]
@@ -173,6 +174,8 @@ class EOFFileManager:
             missions       : Sequence[str] = (),
             dryrun         : bool          = False,
     ) -> List[EOFOutcome]:
+        results : List[EOFOutcome]
+
         # TODO: handle cache...
         # 1. scan dest_dir for EOF having relative_orbit
         #    priority to the files in the time range
@@ -180,16 +183,32 @@ class EOFFileManager:
 
         eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
         if eof_files_matching:
-            # Several results possible as we can request several missions...
-            # But should we be precise with the target mission as we are with the target relative orbit?
-            return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
+            # Several results possible as:
+            # - we can request several missions...
+            # - and sometimes 3 orbits may overlap instead of just 2. e.g.:
+            #   - [30584 .. 30600] + [30598 .. 30614]  <-- 3 overlapping
+            #   - [30598 .. 30614] + [30613 .. 30629]  <-- 2 overlapping
+            #
+            # Still, a question:
+            # ~> should we be precise with the target mission as we are with the target relative orbit?
+            results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+            return results
 
         # 2. if not, download files in the time range
         #    analyse the new files
-        # downloaded_products = self.download_eof(missions, dryrun)
+        downloaded_products = self.download_eof(missions, dryrun)
+        eof_products, eof_errors = partition(bool, downloaded_products)
+        results = []
+        if eof_products:
+            # First: try to see if matching products have been downloaded
+            eof_files = [SentinelOrbitFile(prod.value()) for prod in eof_products]
+            eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
+            results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+        results.extend(eof_errors)
+
         # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
 
-        return []
+        return results
 
     def _filter_files(
             self,
