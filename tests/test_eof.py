@@ -497,3 +497,65 @@ def test_manager_analysis_of_cache(
         logging.debug(f"{type(file_found)=}    ; {file_found=!r}") 
         logging.debug(f"{type(file_expected)=} ; {file_expected=!r}") 
         assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
+
+
+
+@pytest.mark.vcr(
+        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+)
+@pytest.mark.parametrize(
+        "eof_ids",
+        [[
+            '20210315T155112_V20191230T225942_20200101T005942',
+            '20210316T161714_V20191231T225942_20200102T005942',
+            '20210316T184157_V20200101T225942_20200103T005942',
+            '20210316T190114_V20200102T225942_20200104T005942',
+        ]],
+)
+def test_manager_eof_retrieval(
+        eof_ids         : List[str],
+        baseline_dir: Path,
+        eof_baseline_dir: Path,
+        configuration,
+        dag,
+):
+    assert configuration.eodag_config is None
+    assert len(eof_ids) == 4
+
+    tmp_eof_dir = configuration.eof_directory
+    eof_files = glob_eof_files(tmp_eof_dir)
+    assert len(eof_files) == 0, "Cache dir should be empty when test starts"
+
+    eof_manager = EOFFileManager(configuration, dag)
+    eof_manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
+
+    obt_file_expectations = [
+            ( 65, 0),
+            ( 76, 0),
+            ( 78, 1),
+            ( 91, 1),
+            ( 92, 2),
+            (106, 2),
+            (107, 3),
+            (110, 3),
+            (121, None)
+    ]
+    for obt, file_id in obt_file_expectations:
+        files = eof_manager.search_for(obt)
+        logging.debug(f"Files found for obt %s => %s", obt, files) 
+        assert len(files) <= 2
+        if file_id is not None:
+            assert len(files) >= 1
+            assert files[0].has_value()
+            file_found    : Filename = files[0].value()
+            file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
+            logging.debug(f"{type(file_found)=}    ; {file_found=!r}") 
+            logging.debug(f"{type(file_expected)=} ; {file_expected=!r}") 
+            assert str(file_found) == str(file_expected), f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
+        else:
+            assert not files[0].has_value()
+
+    eof_files = [SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_id)) for eof_id in eof_ids]
+    assert eof_files == glob_eof_files(tmp_eof_dir), "They should have been downloaded eventually"
+
+

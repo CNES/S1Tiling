@@ -41,10 +41,13 @@ from typing import Dict, List, Optional, Protocol
 
 from eodag.api.core import EODataAccessGateway
 from eof.client import Filename
+from portion import closed as interval
+from portion import empty as empty_interval
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file import SentinelOrbitFile, filter_intersecting_eof_files, glob_eof_files
 from ..outcome import DownloadOutcome
+from ..utils import partition
 
 
 EOFOutcome = DownloadOutcome[Filename, Optional[SentinelOrbitFile]]
@@ -173,23 +176,71 @@ class EOFFileManager:
             missions       : Sequence[str] = (),
             dryrun         : bool          = False,
     ) -> List[EOFOutcome]:
+        results : List[EOFOutcome]
+        """
+        Search for the precise orbit files within the time range contain the requested orbit.
+
+        :param relative_orbit: Relative orbit number designating the searched orbit
+        :param missions:       List of missions searched. By defaut search in all!
+        :param dryrun:         Set to True to inhibit actual downloading
+        """
         # TODO: handle cache...
+
         # 1. scan dest_dir for EOF having relative_orbit
         #    priority to the files in the time range
         eof_files = glob_eof_files(self.__dest_dir)
 
         eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
         if eof_files_matching:
-            # Several results possible as we can request several missions...
-            # But should we be precise with the target mission as we are with the target relative orbit?
-            return [DownloadOutcome(f.filename, f) for f in eof_files_matching]
+            # Several results possible as:
+            # - we can request several missions...
+            # - and sometimes 3 orbits may overlap instead of just 2. e.g.:
+            #   - [30584 .. 30600] + [30598 .. 30614]  <-- 3 overlapping
+            #   - [30598 .. 30614] + [30613 .. 30629]  <-- 2 overlapping
+            #
+            # Still, a question:
+            # ~> should we be precise (in the configuration file) with thetarget mission as we
+            #    are with the target relative orbit?
+            results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+            return results
 
         # 2. if not, download files in the time range
         #    analyse the new files
-        # downloaded_products = self.download_eof(missions, dryrun)
+        logger.debug(
+                "No precise orbit files found in cache that contains OSV for the orbit %s within the time range [%s .. %s]",
+                relative_orbit, self.__first_date, self.__last_date)
+
+
+        # 2.1. First: There may be no files matching the requested relative orbit number, yet the
+        #      time range may be fully covered by the files in cache. In that case, no need to download
+        the_period_is_fully_covered_in_cache = self._has_the_period_fully_covered_in_cache(eof_files)
+        if the_period_is_fully_covered_in_cache:
+            msg = (f"No occurrence of the requested relative orbit {relative_orbit} found in the request time range."
+                   f" [{self.__first_date} .. {self.__last_date}]")
+            logger.warning("%s", msg)
+            return [EOFOutcome(RuntimeError(msg), None)]
+
+        # 2.2. Download if requested or if it would make a difference
+        results = []
+        if self.__cfg.download:
+            downloaded_products = self.download_eof(missions, dryrun)
+            eof_products, eof_errors = partition(bool, downloaded_products)
+            if eof_products:
+                # First: try to see if matching products have been downloaded
+                eof_files = [SentinelOrbitFile(prod.value()) for prod in eof_products]
+                eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
+                results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+            results.extend(eof_errors)
+
         # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
 
-        return []
+        if len(results) == 0:
+            msg = (f"No precise orbit files found containing OSVs for orbit {relative_orbit} in the time range" 
+                   f" [{self.__first_date} .. {self.__last_date}]")
+            logger.warning("%s", msg)
+
+            results.append(EOFOutcome(RuntimeError(msg), None))
+        return results
 
     def _filter_files(
             self,
@@ -197,6 +248,10 @@ class EOFFileManager:
             relative_orbit : int,
             missions       : Sequence[str] = (),
     ) -> List[SentinelOrbitFile]:
+        """
+        Filter EOF files that intersect the requested time range, and that contain the requested relative orbit
+        with a margin of 1 (in order to handle cases around ascending crossing node.
+        """
         eof_files_in_range = filter_intersecting_eof_files(
                 eof_files,
                 self.__first_date,
@@ -205,6 +260,25 @@ class EOFFileManager:
         )
         return [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit, -1)]
 
+    def _has_the_period_fully_covered_in_cache(self, eof_files: List[SentinelOrbitFile]) -> bool:
+        """
+        Returns whether the request time range is fully contained by the union of the
+        time span of all the EOF files.
+        """
+        tgt_interval = interval(self.__first_date, self.__last_date)
+        cumulated_interval = empty_interval()
+        for eof_file in eof_files:
+            cumulated_interval |= to_interval(eof_file)
+        the_period_is_fully_covered_in_cache = tgt_interval in cumulated_interval
+        logger.debug(f"{the_period_is_fully_covered_in_cache=} <== {tgt_interval=} ⊂ {cumulated_interval=}")
+        return the_period_is_fully_covered_in_cache
+
 
 # ===============[ "Internal" functions used to implement the public service
 # This organisation eases the writing of unit tests
+def to_interval(eof_file: SentinelOrbitFile) -> interval:
+    return interval(
+            eof_file.start_time,
+            eof_file.stop_time,
+    )
+

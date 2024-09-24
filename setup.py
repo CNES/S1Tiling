@@ -93,6 +93,7 @@ setup(
         "numpy",
         "objgraph", # leaks
         # "packaging", # version
+        "portion",  # intervals
         "pympler", # leaks
         "pyyaml>=5.1",
         # Any way to require OTB ?

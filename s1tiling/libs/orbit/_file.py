@@ -94,10 +94,12 @@ class SentinelOrbitFile(SentinelOrbit):
         min = self.first_rel_orbit - margin
         max = self.last_rel_orbit + margin
         if min < max:
-            return min <= relative_orbit <= max
+            does_contain = min <= relative_orbit <= max
         else:
             # min is close to 175, and max is close to 0
-            return (min <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max)
+            does_contain = (min <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max)
+        # logger.debug("¿ %s == %s ∈ [%s, %s] ('%s')", does_contain, relative_orbit, min, max, self.filename)
+        return does_contain
 
 
 # ===============[ "Internal" functions used to implement the public service
