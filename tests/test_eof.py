@@ -494,8 +494,8 @@ def test_manager_analysis_of_cache(
         assert files[0].has_value()
         file_found    : Filename = files[0].value()
         file_expected : Filename = eof_files[file_id].filename
-        logging.debug(f"{type(file_found)=}    ; {file_found=!r}") 
-        logging.debug(f"{type(file_expected)=} ; {file_expected=!r}") 
+        logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
+        logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
         assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
 
 
@@ -542,15 +542,15 @@ def test_manager_eof_retrieval(
     ]
     for obt, file_id in obt_file_expectations:
         files = eof_manager.search_for(obt)
-        logging.debug(f"Files found for obt %s => %s", obt, files) 
+        logging.debug(f"Files found for obt %s => %s", obt, files)
         assert len(files) <= 2
         if file_id is not None:
             assert len(files) >= 1
             assert files[0].has_value()
             file_found    : Filename = files[0].value()
             file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
-            logging.debug(f"{type(file_found)=}    ; {file_found=!r}") 
-            logging.debug(f"{type(file_expected)=} ; {file_expected=!r}") 
+            logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
+            logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
             assert str(file_found) == str(file_expected), f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
         else:
             assert not files[0].has_value()

@@ -29,7 +29,7 @@
 #
 # =========================================================================
 
-""" This sub-module defines the Sentinel1 Orbit file class """
+"""This sub-module defines the Sentinel1 Orbit file class"""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -45,20 +45,22 @@ from ._conversions import ORBIT_CONVERTERS
 from ..utils import lxml as xml
 
 
-logger = logging.getLogger('s1tiling.orbit')
+logger = logging.getLogger("s1tiling.orbit")
+
 
 class SentinelOrbitFile(SentinelOrbit):
     """
     Extends :class:`eof.SentinelOrbit` with min-max absolute orbit info
     """
+
     def __init__(self, filename: Filename, **kwargs) -> None:
         """
         constructor
         """
         super().__init__(filename, **kwargs)
-        assert self.mission in ORBIT_CONVERTERS, (
-                f"Unexpected mission ID {self.mission!r}. Only {ORBIT_CONVERTERS.keys()} are supported."
-        )
+        assert (
+            self.mission in ORBIT_CONVERTERS
+        ), f"Unexpected mission ID {self.mission!r}. Only {ORBIT_CONVERTERS.keys()} are supported."
 
         self.first_abs_orbit, self.last_abs_orbit = extract_min_max_abs_orbit_numbers(filename)
 
@@ -91,20 +93,25 @@ class SentinelOrbitFile(SentinelOrbit):
         :param margin:         Offset margin to tune the search
         :return: ``self.first_rel_orbit - margin <= relative_orbit <= self.last_rel_orbit + margin``
         """
-        min = self.first_rel_orbit - margin
-        max = self.last_rel_orbit + margin
-        if min < max:
-            does_contain = min <= relative_orbit <= max
+        min_obt = self.first_rel_orbit - margin
+        max_obt = self.last_rel_orbit + margin
+        if min_obt < max_obt:
+            does_contain = min_obt <= relative_orbit <= max_obt
         else:
-            # min is close to 175, and max is close to 0
-            does_contain = (min <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max)
-        # logger.debug("¿ %s == %s ∈ [%s, %s] ('%s')", does_contain, relative_orbit, min, max, self.filename)
+            # min_obt is close to 175, and max_obt is close to 0
+            does_contain = (min_obt <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max_obt)
+        # logger.debug("¿ %s == %s ∈ [%s, %s] ('%s')", does_contain, relative_orbit, min_obt, max_obt, self.filename)
         return does_contain
 
 
 # ===============[ "Internal" functions used to implement the public service
 # This organisation eases the writing of unit tests
 def extract_min_max_abs_orbit_numbers(filename: Filename) -> Tuple[int, int]:
+    """
+    Extract the first and the last absolute orbit numbers found in the EOF file.
+
+    :param filename: Name of an XML .EOF file.
+    """
     # ~ 80ms with lxml, 2.7s with xml
     root = xml.parse(filename)
     if not root:
@@ -113,7 +120,7 @@ def extract_min_max_abs_orbit_numbers(filename: Filename) -> Tuple[int, int]:
             root,
             "Data_Block/List_of_OSVs",
             str(filename) + "<Earth_Explorer_File/>",
-    );
+    )
 
     min_obt = xml.find_as(
             int,
@@ -154,7 +161,8 @@ def filter_intersecting_eof_files(
     """
     if missions:
         return [
-                f for f in eof_files
+                f
+                for f in eof_files
                 if f.does_intersect(first_date, last_date) and f.mission in missions
         ]
     else:
@@ -172,7 +180,7 @@ def filter_eof_files_containing_orbit(
     """
     Filter orbit files to keep those containing the requested relative orbit number.
     """
-    return [ f for f in eof_files if f.has_relative_orbit(relative_orbit, margin)]
+    return [f for f in eof_files if f.has_relative_orbit(relative_orbit, margin)]
 
 
 def orbit_range(eof_file: SentinelOrbitFile):
@@ -186,7 +194,7 @@ def orbit_range(eof_file: SentinelOrbitFile):
     )
 
 
-def orbit_range_internal(first: int , last: int, nb_orbits: int):
+def orbit_range_internal(first: int, last: int, nb_orbits: int):
     """
     Generates all possible relativate orbit number between ``first`` and ``last``.
     >>> list(orbit_range_internal(1, 9, 175))
@@ -209,5 +217,5 @@ def orbit_range_internal(first: int , last: int, nb_orbits: int):
     if last < first:
         last += nb_orbits
     while first <= last:
-        yield (first-1) % nb_orbits + 1
+        yield (first - 1) % nb_orbits + 1
         first += 1

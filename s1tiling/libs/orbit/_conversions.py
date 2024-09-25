@@ -29,13 +29,14 @@
 #
 # =========================================================================
 
-""" This sub-module defines how to compute relative orbit number from the absolute orbit number """
+"""This sub-module defines how to compute relative orbit number from the absolute orbit number"""
 
 
 class OrbitConverter:
     """
     helper class used to convert an absolute orbit number into relative orbit number.
     """
+
     def __init__(self, offset, modulo):
         """
         Constructor
@@ -47,7 +48,7 @@ class OrbitConverter:
         """
         Applies the offset and modulo to operate the conversion.
         """
-        return (absolute_orbit_number - self.offset) % self.modulo + 1;
+        return (absolute_orbit_number - self.offset) % self.modulo + 1
 
     def closest_absolute(self, first_absolute: int, tgt_relative: int) -> int:
         """
@@ -59,15 +60,15 @@ class OrbitConverter:
         to the requested target relative number.
         """
         # TODO: check the cases around rel_orb == 0 // 175
-        first_relative = self.to_relative(first_absolute);
-        res = first_absolute + (tgt_relative - first_relative);
-        assert self.to_relative(res) == tgt_relative;
+        first_relative = self.to_relative(first_absolute)
+        res = first_absolute + (tgt_relative - first_relative)
+        assert self.to_relative(res) == tgt_relative
         return res
 
 
 #: Modulo and offset tables for Sentinel-1A and Sentinel-1B
 #: Eventually, this should be patched to support Sentinel-1C...
 ORBIT_CONVERTERS = {
-        "S1A" : OrbitConverter(73, 175),
-        "S1B" : OrbitConverter(27, 175),
+    "S1A": OrbitConverter(73, 175),
+    "S1B": OrbitConverter(27, 175),
 }

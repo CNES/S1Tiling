@@ -29,4 +29,8 @@
 #
 # =========================================================================
 
+""" Public interface of s1tiling.libs.utils """
+
 from .algorithm import partition
+
+__all__ = ['partition']

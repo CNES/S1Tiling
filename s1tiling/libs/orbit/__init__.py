@@ -29,6 +29,6 @@
 #
 # =========================================================================
 
-""" This public API of the orbit sub-module """
+"""This public API of the orbit sub-module"""
 
 from ._manager import EOFFileManager

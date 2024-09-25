@@ -29,7 +29,7 @@
 #
 # =========================================================================
 
-""" This sub-module defines access clients to EOF Providers """
+"""This sub-module defines access clients to EOF Providers"""
 
 from abc import abstractmethod
 from collections.abc import Sequence
@@ -50,15 +50,17 @@ from eof.download import ASFClient, DataspaceClient
 from ..exceptions import ConfigurationError
 
 
-logger = logging.getLogger('s1tiling.orbit')
+logger = logging.getLogger("s1tiling.orbit")
 
 
 class Provider:
     """
     Abstract class for wrapping all :class:`eof.client.Client` kinds.
     """
+
     def __init__(self, provider_name: str):
         self._provider_name = provider_name
+        self._client = None
 
     @property
     def provider_name(self) -> str:
@@ -84,7 +86,7 @@ class Provider:
 
         .. warning: This list can only be used with the :meth:`download_all` method of the provider of the same type.
         """
-        assert isinstance(missions, (list,tuple))
+        assert isinstance(missions, (list, tuple))
         self._client = self._instantiate_client()
         eofs = self._client.query_orbits_by_dt_range(first_date, last_date, missions)
         logger.debug("%s EOFs found:", len(eofs))
@@ -115,7 +117,7 @@ class Provider:
         return files
 
     @abstractmethod
-    def _auth_info(self) -> Dict[str,str]:
+    def _auth_info(self) -> Dict[str, str]:
         """
         Internal variation point that returns the dictionary of parameters to use with
         :meth:`eof.clent.Client.authenticate` method.
@@ -142,21 +144,21 @@ class DataspaceProvider(Provider):
       store it into :envvar`$EODAG__COP_DATASPACE__AUTH__TOKEN`.
     """
     def __init__(self, dag: EODataAccessGateway, access_token: Optional[str] = None):
-        super().__init__('cop_dataspace')
-        self._token = os.getenv('EODAG__COP_DATASPACE__AUTH__TOKEN', access_token)
-        if (self._token):
+        super().__init__("cop_dataspace")
+        self._token = os.getenv("EODAG__COP_DATASPACE__AUTH__TOKEN", access_token)
+        if self._token:
             self._authentication_plugin  = None
             self._authorization          = None
         else:
             try:
                 self._authentication_plugin = dag._plugins_manager.get_auth_plugin(self.provider_name)
-            except KeyError as e:
-                raise AssertionError(f"provider {self.provider_name!r} not supported by EODAG")
+            except KeyError:
+                raise AssertionError(f"provider {self.provider_name!r} not supported by EODAG")  # pylint: disable=raise-missing-from
             if not self._authentication_plugin:
                 # Dare we assert self._authentication_plugin to be never None???
                 raise ConfigurationError(
                         f"Cannot authenticate on {self.provider_name}",
-                        os.path.join(dag.conf_dir, "eodag.yml")
+                        os.path.join(dag.conf_dir, "eodag.yml"),
                 )
             assert isinstance(self._authentication_plugin, Authentication)
             try:
@@ -164,7 +166,7 @@ class DataspaceProvider(Provider):
             except MisconfiguredError as e:
                 raise ConfigurationError(
                         f"Cannot authenticate on {self.provider_name}",
-                        os.path.join(dag.conf_dir, "eodag.yml")
+                        os.path.join(dag.conf_dir, "eodag.yml"),
                 ) from e
 
     def _instantiate_client(self) -> DataspaceClient:
@@ -173,12 +175,12 @@ class DataspaceProvider(Provider):
         """
         return DataspaceClient()
 
-    def _auth_info(self) -> Dict[str,str]:
+    def _auth_info(self) -> Dict[str, str]:
         """
         Specialization that returns the already obtained "access_token" parameter for
         :meth:`eof.clent.DataspaceClient.authenticate` method.
         """
-        return {'access_token': self.get_token()}
+        return {"access_token": self.get_token()}
 
     def get_token(self) -> str:
         """
@@ -197,7 +199,7 @@ class DataspaceProvider(Provider):
         Tells whether cop_dataspace credentials have been configured in eodag.yaml configuration file.
         """
         # logger.debug("COP.is_configured -> %s", getattr(dag.providers_config["cop_dataspace"].auth, 'credentials', 'NADA'))
-        return 'username' in getattr(dag.providers_config["cop_dataspace"].auth, 'credentials', {})
+        return "username" in getattr(dag.providers_config["cop_dataspace"].auth, 'credentials', {})
 
 
 class ASFProvider(Provider):
@@ -208,8 +210,9 @@ class ASFProvider(Provider):
     https://github.com/CS-SI/eodag/issues/755 and https://github.com/CS-SI/eodag/issues/8
     As a consequence, we need to fetch the ID elsewhere. Let's depend on :envvar:`$NETRC` for now...
     """
+
     def __init__(self, **kwargs):
-        super().__init__('asf')
+        super().__init__("asf")
         self.__build_options = kwargs
 
     def _instantiate_client(self) -> ASFClient:
@@ -218,20 +221,20 @@ class ASFProvider(Provider):
         """
         return ASFClient(**self.__build_options)
 
-    def _auth_info(self) -> Dict[str,str]:
+    def _auth_info(self) -> Dict[str, str]:
         """
         Specialization that returns no extra parameter for :meth:`eof.clent.ASFClient.authenticate` method.
         """
         return {}
 
     @classmethod
-    def is_configured(cls, dag: EODataAccessGateway) -> bool:
+    def is_configured(cls, dag: EODataAccessGateway) -> bool:  # pylint: disable=unused-argument
         """
         Tells whether EarthData credentials have been configured in $NETRC configuration file.
         """
         try:
-            _, _ = get_netrc_credentials('urs.earthdata.nasa.gov')
+            _, _ = get_netrc_credentials("urs.earthdata.nasa.gov")
             return True
-        except BaseException as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Cannot obtain ASF credentials in .netrc: %s", e)
             return False

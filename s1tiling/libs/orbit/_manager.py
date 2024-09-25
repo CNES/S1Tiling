@@ -29,15 +29,16 @@
 #
 # =========================================================================
 
-""" This sub-module defines the EOFFileManager """
+"""This sub-module defines the EOFFileManager"""
 
 from collections.abc import Sequence
 from datetime import timedelta
-from dateutil.parser import parse
 from enum import Enum
 import logging
 import os
 from typing import Dict, List, Optional, Protocol
+
+from dateutil.parser import parse
 
 from eodag.api.core import EODataAccessGateway
 from eof.client import Filename
@@ -53,7 +54,8 @@ from ..utils import partition
 EOFOutcome = DownloadOutcome[Filename, Optional[SentinelOrbitFile]]
 
 
-logger = logging.getLogger('s1tiling.orbit')
+logger = logging.getLogger("s1tiling.orbit")
+
 
 class EOFConfiguration(Protocol):
     """
@@ -61,6 +63,7 @@ class EOFConfiguration(Protocol):
 
     Can be seen an a ISP compliant concept for Configuration object regarding EOF data.
     """
+
     first_date    : str
     last_date     : str
     eof_directory : Filename
@@ -69,17 +72,31 @@ class EOFConfiguration(Protocol):
 
 
 class ProviderKind(Enum):
+    """
+    List of EOF file providers
+    """
+
     COP_DATASPACE = 1
     EARTHDATA     = 2
 
 
 class EOFFileManager:
+    """
+    EOF files manager.
+
+    The main service is :meth:`search_for` which returns the name of the EOF file that contains the
+    requested orbit information within the required time range.
+
+    Files are firts searched in the cache directory. And if not, they'll be downloaded on-the-fly
+    on the EOF providers for which credential information have been set.
+    """
+
     # TODO: Don't depend on Configuration
     def __init__(self, cfg: EOFConfiguration, dag: EODataAccessGateway):
         """
         constructor
         """
-        assert(dag)
+        assert dag
         self.__cfg           = cfg
         self.__dag           = dag
         self.__first_date    = parse(cfg.first_date)
@@ -88,12 +105,12 @@ class EOFFileManager:
         self.__missions      = cfg.platform_list
         self.__build_options : Dict[ProviderKind, Dict] = {
                 ProviderKind.COP_DATASPACE : {
-                    'class':   DataspaceProvider,
-                    'options': {'dag': dag},
+                    "class":   DataspaceProvider,
+                    "options": {"dag": dag},
                 },
                 ProviderKind.EARTHDATA     : {
-                    'class': ASFProvider,
-                    'options': {},
+                    "class": ASFProvider,
+                    "options": {},
                 },
         }
 
@@ -103,14 +120,14 @@ class EOFFileManager:
 
         Typically, it can be used to set `cache_dir` when building :class:`ASFProvider`
         """
-        self.__build_options[provider]['options'].update(**kwargs)
+        self.__build_options[provider]["options"].update(**kwargs)
 
     def _instanciate_provider(self, provider: ProviderKind) -> Provider:
         """
         Internal method that do instantiate an EOF provider.
         """
         provider_data = self.__build_options[provider]
-        return provider_data['class'](**provider_data['options'])
+        return provider_data["class"](**provider_data["options"])
 
     def _ensure_workspaces_exist(self) -> None:
         """
@@ -144,10 +161,14 @@ class EOFFileManager:
         request = f"between {self.__first_date} and {self.__last_date}"
         errors : List[EOFOutcome] = []
 
-        provider_kinds = [p for p in ProviderKind if self.__build_options[p]['class'].is_configured(self.__dag)]
+        provider_kinds = [
+            p
+            for p in ProviderKind
+            if self.__build_options[p]["class"].is_configured(self.__dag)
+        ]
         if len(provider_kinds) == 0:
             logger.warning("No data provider has been configured for EOF files")
-            return [EOFOutcome(RuntimeError("No data provider has been configured for EOF files {request}"), None)]
+            return [EOFOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"), None)]
         logger.debug(
                 "EOF files will be searched on %s between %s and %s",
                 " and ".join((str(p) for p in provider_kinds)),
@@ -161,14 +182,13 @@ class EOFFileManager:
                 eofs = provider.search(self.__first_date, self.__last_date, missions)
                 files = provider.download(eofs, self.__dest_dir)
                 return [EOFOutcome(f, SentinelOrbitFile(f)) for f in files]
-            except BaseException as e:
+            except BaseException as e:  # pylint: disable=broad-except
                 logger.warning(e, exc_info=False)
                 logger.debug(e, exc_info=True)
                 errors.append(EOFOutcome(e, None))
-        else:
-            if len(errors) == 0:
-                errors = [EOFOutcome(RuntimeError("No data provider has been configured for EOF files {request}"), None)]
-            return errors
+        if len(errors) == 0:
+            errors = [EOFOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"), None)]
+        return errors
 
     def search_for(
             self,
@@ -176,7 +196,6 @@ class EOFFileManager:
             missions       : Sequence[str] = (),
             dryrun         : bool          = False,
     ) -> List[EOFOutcome]:
-        results : List[EOFOutcome]
         """
         Search for the precise orbit files within the time range contain the requested orbit.
 
@@ -184,6 +203,7 @@ class EOFFileManager:
         :param missions:       List of missions searched. By defaut search in all!
         :param dryrun:         Set to True to inhibit actual downloading
         """
+        results: List[EOFOutcome]
         # TODO: handle cache...
 
         # 1. scan dest_dir for EOF having relative_orbit
@@ -235,7 +255,7 @@ class EOFFileManager:
         # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
 
         if len(results) == 0:
-            msg = (f"No precise orbit files found containing OSVs for orbit {relative_orbit} in the time range" 
+            msg = (f"No precise orbit files found containing OSVs for orbit {relative_orbit} in the time range"
                    f" [{self.__first_date} .. {self.__last_date}]")
             logger.warning("%s", msg)
 
@@ -260,7 +280,9 @@ class EOFFileManager:
         )
         return [ f for f in eof_files_in_range if f.has_relative_orbit(relative_orbit, -1)]
 
-    def _has_the_period_fully_covered_in_cache(self, eof_files: List[SentinelOrbitFile]) -> bool:
+    def _has_the_period_fully_covered_in_cache(
+        self, eof_files: List[SentinelOrbitFile]
+    ) -> bool:
         """
         Returns whether the request time range is fully contained by the union of the
         time span of all the EOF files.
@@ -277,8 +299,10 @@ class EOFFileManager:
 # ===============[ "Internal" functions used to implement the public service
 # This organisation eases the writing of unit tests
 def to_interval(eof_file: SentinelOrbitFile) -> interval:
+    """
+    Helper function that returns the time interval associated to a EOF file.
+    """
     return interval(
             eof_file.start_time,
             eof_file.stop_time,
     )
-
