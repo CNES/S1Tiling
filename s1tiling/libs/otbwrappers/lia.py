@@ -399,6 +399,256 @@ class SumAllHeights(OTBStepFactory):
         return params
 
 
+## class FetchPreciseOrbit(ExecutableStepFactory):
+##     def __init__(self, cfg: Configuration) -> None:
+##         fname_fmt = '{flying_unit_code}_OPER_AUX_POEORB_OPOD_{creation_date}_V{orbit_start}_{orbit_end}.EOF'
+##         # fname_fmt = cfg.fname_fmt.get('dem_on_s2', fname_fmt)
+##         dname_fmt = dname_fmt_eof_product(cfg)
+##         super().__init__(
+##                 cfg,
+##                 exename='eof', name='FetchEOF',
+##                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'EOF'),
+##                 gen_output_dir=dname_fmt,
+##                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+##                 image_description=None,
+##         )
+##
+##     def parameters(self, meta: Meta) -> ExeParameters:
+##         """
+##         Returns the parameters to use with :external:std:doc:`eof
+##         <programs/eof>` to fetch precise orbit file.
+##         """
+##         image       = in_filename(meta)
+##         tile_name   = meta['tile_name']
+##         tile_origin = meta['tile_origin']
+##         spacing     = self.__out_spatial_res
+##         logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
+##                 self.__class__.__name__, meta, image, tile_name)
+##
+##         extent = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
+##
+##         parameters = [
+##                 "-wm", str(self.ram_per_process*1024*1024),
+##                 "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
+##                 "-t_srs", f"epsg:{extent['epsg']}",
+##                 "-tr", f"{spacing}", f"-{spacing}",
+##                 "-ot", "Float32",
+##                 # "-crop_to_cutline",
+##                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
+##                 "-r", self.__resampling_method,
+##                 "-dstnodata", str(self.__nodata),
+##                 image,
+##                 tmp_filename(meta),
+##         ]
+##         return parameters
+
+
+class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
+    """
+    Factory that prepares steps that run
+    :external:doc:`Applications/app_SARComputeGroundAndSatPositionsOnDEM`
+    as described in :ref:`Normals computation` documentation to obtain the XYZ
+    ECEF coordinates of the ground and of the satellite positions associated
+    to the pixel from input the `heigth` file.
+
+    :external:doc:`Applications/app_SARDEMProjection` application fills a
+    multi-bands image anchored on the footprint of the input DEM image.
+    In each pixel in the DEM/output image, we store the XYZ ECEF coordinate of
+    the ground point (associated to the pixel), and the XYZ coordinates of the
+    satellite position (associated to the pixel...)
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `dem_db_filepath`   -- to fill-up image metadata
+    - `dem_field_ids`     -- to fill-up image metadata
+    - `dem_main_field_id` -- to fill-up image metadata
+    - `tmp_dir`           -- useless in the in-memory nomical case
+    - `fname_fmt`         -- optional key: `ground_and_sat_s2`, useless in the in-memory nominal case
+    - `nodata.LIA`        -- optional
+
+    Requires the following information from the metadata dictionary
+
+    - `basename`
+    - `input filename`
+    - `output filename`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
+        fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2', fname_fmt)
+        super().__init__(
+                cfg,
+                appname='SARComputeGroundAndSatPositionsOnDEM',
+                name='SARComputeGroundAndSatPositionsOnDEM',
+                param_in=None, param_out='out',
+                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+                gen_output_dir=None,  # Use gen_tmp_dir
+                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+                image_description="XYZ ground and satellite positions on S2 tile",
+        )
+        self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
+        self.__nodata = nodata_XYZ(cfg)
+
+    @staticmethod
+    def reduce_inputs(inputs: List[Meta]) -> List:
+        """
+        TODO: filter EOF inputs
+        Filters which insar input will be kept.
+
+        Given several (usually 2 is the maximum) possible input S1 files
+        ("insar" input channels), select and return the one that maximize its
+        time coverage with the current S2 destination tile.
+
+        Actually, this function returns the first S1 image that time-covers
+        the whole S2 tile. The S1 images are searched in reverse order of
+        their footprint-coverage.
+        """
+        # Sort by coverages (already computed), then return the first that time-covers everything
+        # Or the first if none time-covers
+        sorted_inputs = sorted(inputs, key=lambda inp: inp['tile_coverage'], reverse=True)
+        best_covered_input = sorted_inputs[0]
+        logger.debug('Best coverage is %.2f%% at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_time'])
+        for inp in sorted_inputs:
+            logger.debug(' - %s: %.2f%%', inp['acquisition_time'], inp['tile_coverage'])
+        for inp in sorted_inputs:
+            product = out_filename(inp).replace("measurement", "annotation").replace(".tiff", ".xml")
+            az_start, az_stop, obt_start, obt_stop = Utils.get_s1image_orbit_time_range(product)
+            dt = az_stop - az_start
+            is_enough = (obt_start <= az_start - dt) and (az_stop + dt < obt_stop)
+            logger.debug(" - %s AZ: %s, OBT: %s: 2xAZ ∈ OBT: %s", os.path.dirname(inp['manifest']), [str(az_start), str(az_stop)], [str(obt_start), str(obt_stop)], is_enough)
+            if is_enough:
+                logger.debug(
+                        "Using %s which has orbit data that covers entirelly %s, and with a %.2f%% footprint coverage",
+                        out_filename(best_covered_input), best_covered_input['tile_name'], best_covered_input['tile_coverage']
+                )
+                return [inp]
+        logger.warning(
+                "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
+                best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
+        )
+        return [best_covered_input]
+
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        """
+        Injects the :func:`reduce_inputs_ineof` hook in step metadata, and
+        provide names clear from polar related information.
+        """
+        # Ignore polarization in filenames
+        if 'polarless_basename' in meta:
+            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+        else:
+            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
+
+        meta['reduce_inputs_ineof'] = ComputeGroundAndSatPositionsOnDEMFromEOF.reduce_inputs
+        return meta
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
+        It will tell whether a given heights file on S2 tile input is
+        compatible with the current S2 tile.
+        """
+        meta['accept_as_compatible_input'] = lambda input_meta : does_s2_data_match_s2_tile(meta, input_meta)
+
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
+        """
+        Extract the last inputs to use at the current level from all previous
+        products seens in the pipeline.
+
+        This method is overridden in order to fetch N-2 "ineof" and "inheight" inputs.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        for i, st in enumerate(previous_steps):
+            logger.debug("INPUTS: %s previous step[%s] = %s", self.__class__.__name__, i, st)
+
+        inputs = [fetch_input_data_all_inputs({"ineof", "inheight"}, previous_steps)]
+        _check_input_step_type(inputs)
+        logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
+        return inputs
+
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        assert inputs, "No inputs found in ComputeGroundAndSatPositionsOnDEM"
+        assert 'ineof' in inputs[0], f"'ineof' input is missing from ComputeGroundAndSatPositionsOnDEM inputs: {inputs[0].keys()}"
+        return inputs[0]['ineof']
+
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
+        """
+        Computes dem information and adds them to the meta structure, to be used
+        later to fill-in the image metadata.
+
+        Also register temporary files from previous step for removal.
+        """
+        # logger.debug("ComputeGroundAndSatPositionsOnDEM inputs are: %s", all_inputs)
+        meta = super().complete_meta(meta, all_inputs)
+        meta['inputs'] = all_inputs
+        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
+
+        # Cannot register height_on_s2 for ulterior removal as the file can be
+        # used with different orbits
+        # => TODO count how many XYZ files depend on the height_on_s2 file
+        # height_on_s2  = fetch_input_data('inheight', all_inputs)
+        # meta['files_to_remove'] = [height_on_s2.out_filename]
+        # logger.debug('Register files to remove after ground+satpos XYZ computation: %s', meta['files_to_remove'])
+
+        eof = fetch_input_data('ineof', all_inputs).meta
+
+        # TODO: Check whether the DEM_LIST is already there and automatically propagated!
+        meta['dem_infos'] = self.__cfg.get_dems_covering_s2_tile(meta['tile_name'])
+        meta['dems'] = sorted(meta['dem_infos'].keys())
+
+        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(eof), meta['dems'])
+        _, inbasename = os.path.split(in_filename(eof))
+        meta['inbasename'] = inbasename
+        return meta
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set SARDEMProjection related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_LIST']                 = ', '.join(meta['dems'])
+        imd['band.DirectionToScanDEM*'] = ''
+        imd['band.Gain']                = ''
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with
+        :external:doc:`SARDEMProjection OTB application
+        <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
+        """
+        nodata = self.__nodata
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        assert 'orbit'  in meta, f'Looking for "orbit" in {meta.keys()}'
+        inputs = meta['inputs']
+        inheight = fetch_input_data('inheight', inputs).out_filename
+        ineof    = fetch_input_data('ineof'   , inputs).out_filename
+        # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
+        # from $OTB_GEOID_FILE, indeed geoid information is already in
+        # DEM+Geoid input.
+        return {
+                'ram'        : ram(self.ram_per_process),
+                'ineof'      : ineof,
+                'indem'      : inheight,
+                'inrelorb'   : meta['orbit'],
+                'elev.geoid' : '@',
+                'withxyz'    : True,
+                'withsatpos' : True,
+                # 'withh'      : True,  # uncomment to analyse/debug height computed
+                'nodata'     : str(nodata)
+        }
+
+    def requirement_context(self) -> str:
+        """
+        Return the requirement context that permits to fix missing requirements.
+        SARComputeGroundAndSatPositionsOnDEM comes from normlim_sigma0.
+        """
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+
 class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
@@ -406,7 +656,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     ECEF coordinates of the ground and of the satellite positions associated
     to the pixel from input the `heigth` file.
 
-    :external:doc:`Applications/app_SARDEMProjection` application fill a
+    :external:doc:`Applications/app_SARDEMProjection` application fills a
     multi-bands image anchored on the footprint of the input DEM image.
     In each pixel in the DEM/output image, we store the XYZ ECEF coordinate of
     the ground point (associated to the pixel), and the XYZ coordinates of the

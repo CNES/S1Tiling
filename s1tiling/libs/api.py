@@ -58,7 +58,7 @@ from .otbwrappers import (
         CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
         # LIA relate Step Factories
         AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
-        SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
+        SumAllHeights, ComputeGroundAndSatPositionsOnDEM, ComputeGroundAndSatPositionsOnDEMFromEOF,
         ComputeLIAOnS2, filter_LIA, ComputeNormalsOnS2,
         ApplyLIACalibration,
         # Deprecated LIA related Step Factories
@@ -67,6 +67,7 @@ from .otbwrappers import (
         # Filter Step Factories
         SpatialDespeckle)
 from .outcome import Outcome
+from .orbit import EOFFileManager
 
 
 logger = logging.getLogger('s1tiling.api')
@@ -424,9 +425,13 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
+
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
     # -> we set $OTB_GEOID_FILE
+    if not os.path.exists(config.GeoidFile):
+        raise exceptions.MissingGeoidError(config.GeoidFile)
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
+
     with S1FileManager(config) as s1_file_manager:
         tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
         if len(tiles_to_process) == 0:
@@ -446,9 +451,6 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         if not check_dem_tiles(config, needed_dem_tiles):
             raise exceptions.MissingDEMError()
 
-        if not os.path.exists(config.GeoidFile):
-            raise exceptions.MissingGeoidError(config.GeoidFile)
-
         # Prepare directories where to store temporary files
         # These directories won't be cleaned up automatically
         S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
@@ -459,6 +461,15 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                 config.GeoidFile)
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
+
+        need_to_obtain_eof_files = WorkspaceKinds.LIA in required_workspaces
+        if need_to_obtain_eof_files:
+            eof_manager = EOFFileManager(config, s1_file_manager.dag)
+            eof_files = {}
+            for orbit in config.relative_orbit_list:
+                eof_files[orbit] = eof_manager.search_for(orbit)
+            config.register_eof_files(eof_files)
+
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
@@ -553,7 +564,12 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+def register_LIA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        produce_angles: bool,
+        relative_orbit: int,
+        eof_file,
+) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
@@ -575,24 +591,39 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
             inputs={"in_s2_dem": s2_dem},
     )
 
-    # Notes:
-    # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
-    #   normals production AND LIA production: indeed the XYZ, and satposXYZ
-    #   data needs to be reused several times, and in-memory pipeline can't
-    #   support that (yet?)
-    # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
-    #   all meta are available later on to filter on the coverage.
-    # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
-    #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
-    sar = pipelines.register_pipeline(
-            [ExtractSentinel1Metadata],
-            inputs={'inrawsar': 'basename'}
-    )
-    xyz = pipelines.register_pipeline(
-            [ComputeGroundAndSatPositionsOnDEM],
-            "ComputeGroundAndSatPositionsOnDEM",
-            inputs={'insar': sar, 'inheight': s2_height},
-    )
+    if True:  # V1.1 method
+        # Notes:
+        # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
+        #   normals production AND LIA production: indeed the XYZ, and satposXYZ
+        #   data needs to be reused several times, and in-memory pipeline can't
+        #   support that (yet?)
+        # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
+        #   all meta are available later on to filter on the coverage.
+        # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
+        #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
+        sar = pipelines.register_pipeline(
+                [ExtractSentinel1Metadata],
+                inputs={'inrawsar': 'basename'}
+        )
+        xyz = pipelines.register_pipeline(
+                [ComputeGroundAndSatPositionsOnDEM],
+                "ComputeGroundAndSatPositionsOnDEM",
+                inputs={'insar': sar, 'inheight': s2_height},
+        )
+    else:  # V1.2 method
+        eofs = [FirstStep(
+            relative_orbit=relative_orbit,
+            basename=f"EOFinfo_{relative_orbit}",
+            out_filename=eof_file,
+        )]
+        pipelines.register_inputs('eof', eofs)
+
+        xyz = pipelines.register_pipeline(
+                [ComputeGroundAndSatPositionsOnDEMFromEOF],
+                "ComputeGroundAndSatPositionsOnDEM",
+                inputs={'ineof': 'eof', 'inheight': s2_height},
+        )
+
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
@@ -727,7 +758,13 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 need_to_keep_non_filtered_products = True
 
             LIA_registration = lia_process or register_LIA_pipelines
-            lias = LIA_registration(pipelines, config.produce_lia_map)
+            assert len(config.relative_orbit_list) == 1
+            lias = LIA_registration(
+                pipelines,
+                config.produce_lia_map,
+                config.relative_orbit_list[0],
+                config.get_eof_file(config.relative_orbit_list[0]),
+            )
 
             # This steps helps forwarding sin(LIA) (only) to the next step
             # that corrects the β° with sin(LIA) map.
@@ -914,7 +951,13 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
-        register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
+        assert len(config.relative_orbit_list) == 1
+        register_LIA_pipelines(
+                pipelines,
+                produce_angles=config.produce_lia_map,
+                relative_orbit=config.relative_orbit_list[0],
+                eof_file=config.get_eof_file(config.relative_orbit_list[0]),
+        )
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 

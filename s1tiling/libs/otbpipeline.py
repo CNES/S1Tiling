@@ -597,6 +597,7 @@ class PipelineDescriptionSequence:
         assert cfg
         self.__cfg                  = cfg
         self.__pipelines            : List[PipelineDescription] = []
+        self.__inputs               : Dict[str, List[FirstStep]] = {}
         self.__execution_parameters = {
                 'dryrun'      : dryrun,
                 'debug_caches': debug_caches,
@@ -625,6 +626,14 @@ class PipelineDescriptionSequence:
         self.__pipelines.append(pipeline)
         return pipeline
 
+    def register_inputs(self, kind: str, steps: List[FirstStep]) -> None:
+        """
+        Registers a source of :class:`FirstStep` instances.
+
+        This will permit to extend the list of starting inputs without having to modify main source code.
+        """
+        self.__inputs[kind] = steps
+
     def _build_dependencies(  # pylint: disable=too-many-locals
             self, tile_name: str, raster_list: List[Dict]
     ) -> Tuple[Set[str], Dict, Dict]:
@@ -648,6 +657,9 @@ class PipelineDescriptionSequence:
                         does_product_exist=lambda: True,
                     ).meta],
         }
+        for key in self.__inputs:
+            assert isinstance(self.__inputs[key], FirstStep)
+            pipelines_outputs[key] = [inp.meta for inp in self.__inputs[key]]
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
         required = {}  # (first batch) Final products identified as _needed to be produced_

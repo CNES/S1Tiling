@@ -33,6 +33,7 @@
 Sub-module that manages decoding of S1Processor options.
 """
 
+from collections.abc import Callable
 import configparser
 import copy
 from string import Formatter
@@ -43,9 +44,11 @@ import logging.config
 import os
 from pathlib import Path
 import re
-from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
+from typing import Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
 import otbApplication as otb
 import yaml
+
+from eof.client import Filename
 
 from s1tiling.libs import exceptions
 from .otbtools import otb_version
@@ -250,6 +253,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     ) -> None:
         #: Cache of DEM information covering S2 tiles
         self.__dems_by_s2_tiles : Dict[str, Dict] = {}
+        #: Cache of EOF files covering requested orbit
+        self.__eof_files        : Dict[int, List[Filename]] = {}
 
         config = configparser.ConfigParser(os.environ)
         config.read(config_file)
@@ -298,6 +303,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.lia_directory       = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory       = accessor.get('Paths', 's1_images')
+        #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
+        self.eof_directory       : Filename = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
@@ -351,7 +358,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if unsupported_platforms:
             accessor.throw(f"Non supported requested platforms: {', '.join(unsupported_platforms)}")
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
-        self.platform_list       = platform_list
+        self.platform_list       : List[str] = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
         self.orbit_direction : Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
@@ -670,6 +677,12 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         """
         self.__dems_by_s2_tiles = dems_by_s2_tiles
 
+    def register_eof_files(self, eof_files: Dict[int, List[Filename]]) -> None:
+        """
+        Workaround that helps caching DEM related information for later use.
+        """
+        self.__eof_files = eof_files
+
     def get_dems_covering_s2_tile(self, tile_name: str) -> Dict:
         """
         Retrieve the DEM associated to the specified S2 tile.
@@ -677,6 +690,14 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if tile_name not in self.__dems_by_s2_tiles:
             raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
         return self.__dems_by_s2_tiles[tile_name]
+
+    def get_eof_file(self, orbit: int) -> Filename:
+        """
+        Retrieve the EOF filename associated to the specified relative orbit number.
+        """
+        # TODO: also impose mission!
+        assert len(self.__eof_files[orbit]) >= 1
+        return self.__eof_files[orbit][0]
 
 
 def fname_fmt_concatenation(cfg: Configuration) -> str:
@@ -745,6 +766,14 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
     or its default value.
     """
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
+
+
+def dname_fmt_eof_product(cfg: Configuration) -> str:
+    """
+    Helper function that returns the ``Processing.dname.eof_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('eof_product', '{lia_dir}')
 
 
 def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:

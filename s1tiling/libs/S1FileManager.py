@@ -626,6 +626,13 @@ class S1FileManager:
             self.__tmpdemdir = None
         return False
 
+    @property
+    def dag(self) -> Optional[EODataAccessGateway]:
+        """
+        Return the internal instance of :class:`EODataAccessGateway`, or None if download is inhibited.
+        """
+        return getattr(self, '_dag', None)
+
     def get_skipped_S2_products(self) -> List[str]:
         """
         List of S2 products whose production will be skipped because of a

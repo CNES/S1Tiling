@@ -67,7 +67,7 @@ class EOFConfiguration(Protocol):
     first_date    : str
     last_date     : str
     eof_directory : Filename
-    platform_list : Sequence[str]
+    platform_list : List[str]
     download      : bool
 
 
@@ -92,11 +92,10 @@ class EOFFileManager:
     """
 
     # TODO: Don't depend on Configuration
-    def __init__(self, cfg: EOFConfiguration, dag: EODataAccessGateway):
+    def __init__(self, cfg: EOFConfiguration, dag: Optional[EODataAccessGateway]):
         """
         constructor
         """
-        assert dag
         self.__cfg           = cfg
         self.__dag           = dag
         self.__first_date    = parse(cfg.first_date)
@@ -164,7 +163,7 @@ class EOFFileManager:
         provider_kinds = [
             p
             for p in ProviderKind
-            if self.__build_options[p]["class"].is_configured(self.__dag)
+            if self.__dag and self.__build_options[p]["class"].is_configured(self.__dag)
         ]
         if len(provider_kinds) == 0:
             logger.warning("No data provider has been configured for EOF files")
