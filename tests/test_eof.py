@@ -188,8 +188,8 @@ class MockConfiguration:
             self,
             first_date    : str,
             last_date     : str,
-            eof_directory : Path,
-            platform_list : Sequence[str],
+            eof_directory : Filename,
+            platform_list : List[str],
             eodag_config  : Optional[str],
     ):
         self.first_date    = first_date
@@ -477,7 +477,7 @@ def test_manager_analysis_of_cache(
     cfg = MockConfiguration(
             "2023-11-01", "2023-11-10",
             tmp_eof_dir,
-            (),
+            [],
             None,
     )
     eof_manager = EOFFileManager(cfg, dag)
