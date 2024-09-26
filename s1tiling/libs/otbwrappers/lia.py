@@ -399,50 +399,6 @@ class SumAllHeights(OTBStepFactory):
         return params
 
 
-## class FetchPreciseOrbit(ExecutableStepFactory):
-##     def __init__(self, cfg: Configuration) -> None:
-##         fname_fmt = '{flying_unit_code}_OPER_AUX_POEORB_OPOD_{creation_date}_V{orbit_start}_{orbit_end}.EOF'
-##         # fname_fmt = cfg.fname_fmt.get('dem_on_s2', fname_fmt)
-##         dname_fmt = dname_fmt_eof_product(cfg)
-##         super().__init__(
-##                 cfg,
-##                 exename='eof', name='FetchEOF',
-##                 gen_tmp_dir=os.path.join(cfg.tmpdir, 'EOF'),
-##                 gen_output_dir=dname_fmt,
-##                 gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-##                 image_description=None,
-##         )
-##
-##     def parameters(self, meta: Meta) -> ExeParameters:
-##         """
-##         Returns the parameters to use with :external:std:doc:`eof
-##         <programs/eof>` to fetch precise orbit file.
-##         """
-##         image       = in_filename(meta)
-##         tile_name   = meta['tile_name']
-##         tile_origin = meta['tile_origin']
-##         spacing     = self.__out_spatial_res
-##         logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
-##                 self.__class__.__name__, meta, image, tile_name)
-##
-##         extent = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
-##
-##         parameters = [
-##                 "-wm", str(self.ram_per_process*1024*1024),
-##                 "-multi", "-wo", f"{self.__nb_threads}",  # It's already quite fast...
-##                 "-t_srs", f"epsg:{extent['epsg']}",
-##                 "-tr", f"{spacing}", f"-{spacing}",
-##                 "-ot", "Float32",
-##                 # "-crop_to_cutline",
-##                 "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
-##                 "-r", self.__resampling_method,
-##                 "-dstnodata", str(self.__nodata),
-##                 image,
-##                 tmp_filename(meta),
-##         ]
-##         return parameters
-
-
 class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     """
     Factory that prepares steps that run
@@ -697,44 +653,6 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         self.__nodata = nodata_XYZ(cfg)
-
-    @staticmethod
-    def reduce_inputs(inputs: List[Meta]) -> List:
-        """
-        Filters which insar input will be kept.
-
-        Given several (usually 2 is the maximum) possible input S1 files
-        ("insar" input channels), select and return the one that maximize its
-        time coverage with the current S2 destination tile.
-
-        Actually, this function returns the first S1 image that time-covers
-        the whole S2 tile. The S1 images are searched in reverse order of
-        their footprint-coverage.
-        """
-        # Sort by coverages (already computed), then return the first that time-covers everything
-        # Or the first if none time-covers
-        sorted_inputs = sorted(inputs, key=lambda inp: inp['tile_coverage'], reverse=True)
-        best_covered_input = sorted_inputs[0]
-        logger.debug('Best coverage is %.2f%% at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_time'])
-        for inp in sorted_inputs:
-            logger.debug(' - %s: %.2f%%', inp['acquisition_time'], inp['tile_coverage'])
-        for inp in sorted_inputs:
-            product = out_filename(inp).replace("measurement", "annotation").replace(".tiff", ".xml")
-            az_start, az_stop, obt_start, obt_stop = Utils.get_s1image_orbit_time_range(product)
-            dt = az_stop - az_start
-            is_enough = (obt_start <= az_start - dt) and (az_stop + dt < obt_stop)
-            logger.debug(" - %s AZ: %s, OBT: %s: 2xAZ ∈ OBT: %s", os.path.dirname(inp['manifest']), [str(az_start), str(az_stop)], [str(obt_start), str(obt_stop)], is_enough)
-            if is_enough:
-                logger.debug(
-                        "Using %s which has orbit data that covers entirelly %s, and with a %.2f%% footprint coverage",
-                        out_filename(best_covered_input), best_covered_input['tile_name'], best_covered_input['tile_coverage']
-                )
-                return [inp]
-        logger.warning(
-                "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
-                best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
-        )
-        return [best_covered_input]
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
