@@ -465,10 +465,27 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         need_to_obtain_eof_files = WorkspaceKinds.LIA in required_workspaces
         if need_to_obtain_eof_files:
             eof_manager = EOFFileManager(config, s1_file_manager.dag)
-            eof_files = {}
-            for orbit in config.relative_orbit_list:
-                eof_files[orbit] = eof_manager.search_for(orbit)
-            config.register_eof_files(eof_files)
+            assert len(config.relative_orbit_list) == 1
+            relative_orbit = config.relative_orbit_list[0]
+            eof_files = eof_manager.search_for(relative_orbit)
+            assert len(eof_files) > 0
+            if not eof_files[0]:
+                raise eof_files[0].error()
+            logger.info("Orbit %s OSVs will be taken from '%s'", relative_orbit, eof_files[0].value())
+            # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
+            # TODO: see how to support the case where all inputs are dropped...
+            eofs = []
+            for tilename in tiles_to_process_checked:
+                product = eof_files[0].related_product()
+                assert product, f"Here, we chould have a non null instance for {product=}"
+                step = FirstStep(
+                        orbit=relative_orbit,
+                        basename=eof_files[0].value(),
+                        flying_unit_code=product.mission,
+                        tile_name=tilename,
+                    )
+                eofs.append(step)
+            pipelines.register_inputs('eof', eofs)
 
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
@@ -567,8 +584,6 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
 def register_LIA_pipelines(
         pipelines: PipelineDescriptionSequence,
         produce_angles: bool,
-        relative_orbit: int,
-        eof_file,
 ) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
@@ -591,7 +606,7 @@ def register_LIA_pipelines(
             inputs={"in_s2_dem": s2_dem},
     )
 
-    if True:  # V1.1 method
+    if False:  # V1.1 method
         # Notes:
         # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
         #   normals production AND LIA production: indeed the XYZ, and satposXYZ
@@ -611,13 +626,6 @@ def register_LIA_pipelines(
                 inputs={'insar': sar, 'inheight': s2_height},
         )
     else:  # V1.2 method
-        eofs = [FirstStep(
-            relative_orbit=relative_orbit,
-            basename=f"EOFinfo_{relative_orbit}",
-            out_filename=eof_file,
-        )]
-        pipelines.register_inputs('eof', eofs)
-
         xyz = pipelines.register_pipeline(
                 [ComputeGroundAndSatPositionsOnDEMFromEOF],
                 "ComputeGroundAndSatPositionsOnDEM",
@@ -758,13 +766,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 need_to_keep_non_filtered_products = True
 
             LIA_registration = lia_process or register_LIA_pipelines
-            assert len(config.relative_orbit_list) == 1
-            lias = LIA_registration(
-                pipelines,
-                config.produce_lia_map,
-                config.relative_orbit_list[0],
-                config.get_eof_file(config.relative_orbit_list[0]),
-            )
+            lias = LIA_registration(pipelines, config.produce_lia_map)
 
             # This steps helps forwarding sin(LIA) (only) to the next step
             # that corrects the β° with sin(LIA) map.
@@ -951,13 +953,7 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
-        assert len(config.relative_orbit_list) == 1
-        register_LIA_pipelines(
-                pipelines,
-                produce_angles=config.produce_lia_map,
-                relative_orbit=config.relative_orbit_list[0],
-                eof_file=config.get_eof_file(config.relative_orbit_list[0]),
-        )
+        register_LIA_pipelines(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
