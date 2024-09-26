@@ -648,7 +648,7 @@ class PipelineDescriptionSequence:
 
         pipelines_outputs = {
                 'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
-                'tilename': [
+                'tilename': [  # TODO: see how to pass through registered inputs
                     FirstStep(
                         tile_name=tile_name,
                         tile_origin=tile_origin,  # S2 tile footprint
@@ -658,7 +658,7 @@ class PipelineDescriptionSequence:
                     ).meta],
         }
         for key in self.__inputs:
-            assert isinstance(self.__inputs[key], FirstStep)
+            assert isinstance(self.__inputs[key], list), f"intputs[{key}] is not a list but a {type(self.__inputs[key])}"
             pipelines_outputs[key] = [inp.meta for inp in self.__inputs[key]]
         logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
@@ -738,7 +738,10 @@ class PipelineDescriptionSequence:
 
             # For all new outputs, check which dropped inputs would be compatible
             logger.debug('* Checking dropped inputs: %s', list(dropped_inputs.keys()))
+            # TODO: support case where all inputs have been dropped...
+            # +-> this is what would happen if we don't inject all tilenames into EOF FirstSteps
             for output in outputs:
+                logger.debug("  - regarding output '%s'...", output)
                 for origin, inputs in dropped_inputs.items():
                     for inp in inputs:
                         logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(inp), origin, out_filename(output))
