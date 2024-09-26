@@ -430,7 +430,9 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     - `output filename`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
+        # fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
+        # orbit_direction can be implied from orbit => remove it from the filename
+        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit}.tiff'
         fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2', fname_fmt)
         super().__init__(
                 cfg,
@@ -524,8 +526,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         return inputs
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
-        assert inputs, "No inputs found in ComputeGroundAndSatPositionsOnDEM"
-        assert 'ineof' in inputs[0], f"'ineof' input is missing from ComputeGroundAndSatPositionsOnDEM inputs: {inputs[0].keys()}"
+        assert inputs, "No inputs found in ComputeGroundAndSatPositionsOnDEMFromEOF"
+        assert 'ineof' in inputs[0], f"'ineof' input is missing from ComputeGroundAndSatPositionsOnDEMFromEOF inputs: {inputs[0].keys()}"
         return inputs[0]['ineof']
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -535,7 +537,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
 
         Also register temporary files from previous step for removal.
         """
-        # logger.debug("ComputeGroundAndSatPositionsOnDEM inputs are: %s", all_inputs)
+        # logger.debug("ComputeGroundAndSatPositionsOnDEMFromEOF inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
@@ -553,8 +555,9 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         meta['dem_infos'] = self.__cfg.get_dems_covering_s2_tile(meta['tile_name'])
         meta['dems'] = sorted(meta['dem_infos'].keys())
 
-        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(eof), meta['dems'])
-        _, inbasename = os.path.split(in_filename(eof))
+        eof_file = out_filename(eof)
+        logger.debug("SARDEMProjection: DEM found for %s: %s", eof_file, meta['dems'])
+        _, inbasename = os.path.split(eof_file)
         meta['inbasename'] = inbasename
         return meta
 
@@ -563,12 +566,15 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         Set SARDEMProjection related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
+        inputs = meta['inputs']
+        ineof  = fetch_input_data('ineof', inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)
         imd['DEM_LIST']                 = ', '.join(meta['dems'])
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
+        imd['EOF_FILE']                 = meta['inbasename']
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1031,7 +1037,8 @@ class ComputeLIAOnS2(_ComputeLIA):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        # fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
