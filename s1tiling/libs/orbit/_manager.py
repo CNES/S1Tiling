@@ -183,7 +183,7 @@ class EOFFileManager:
                 return [EOFOutcome(f, SentinelOrbitFile(f)) for f in files]
             except BaseException as e:  # pylint: disable=broad-except
                 logger.warning(e, exc_info=False)
-                logger.debug(e, exc_info=True)
+                # logger.debug(e, exc_info=True)
                 errors.append(EOFOutcome(e, None))
         if len(errors) == 0:
             errors = [EOFOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"), None)]
