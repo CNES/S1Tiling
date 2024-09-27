@@ -481,7 +481,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                 step = FirstStep(
                         orbit=relative_orbit,
                         basename=eof_files[0].value(),
-                        flying_unit_code=product.mission,
+                        flying_unit_code=product.mission.lower(),
                         tile_name=tilename,
                     )
                 eofs.append(step)

@@ -58,7 +58,8 @@ def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) ->
     ``tile_name``, ``flying_unit_code`` and ``orbit`` have to be identical.
     """
     fields = ['flying_unit_code', 'tile_name', 'orbit']
-    return all(input_meta[k] == output_meta[k] for k in fields)
+    # logger.debug("checking %s among %s VS %s", fields, input_meta, output_meta)
+    return all(str(input_meta[k]) == str(output_meta[k]) for k in fields)
 
 
 def does_s2_data_match_s2_tile(output_meta: Meta, input_meta: Meta) -> bool:
