@@ -43,6 +43,7 @@ import pytest
 from s1tiling.libs import Utils
 
 from s1tiling.libs.otbtools import otb_version
+from s1tiling.libs.outcome import DownloadOutcome
 # from unittest.mock import patch
 
 # import pytest_check
@@ -890,6 +891,122 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     })
 
 
+def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
+    tmpdir = file_db.tmpdir
+    exp_dem_names       = file_db.dems_on_s2()
+    exp_out_vrt         = file_db.vrtfile_on_s2(False)
+    exp_out_dem_s2      = file_db.demfile_on_s2(False)
+    # exp_out_geoid_s2  = file_db.geoidfile_on_s2(False)
+    exp_out_height_s2   = file_db.height_on_s2(False)
+    exp_out_xyz_s2      = file_db.xyz_on_s2(False)
+    # exp_out_normals_s2  = file_db.normals_on_s2(False)
+    # TODO: Don't hardcode the mocked tmp subdir for DEMs
+    exp_in_dem_files  = [f"{tmpdir}/TMP_DEM/{dem}.hgt" for dem in exp_dem_names]
+
+    application_mocker.set_expectations(
+            AgglomerateDEMOnS2.agglomerate,
+            [file_db.vrtfile_on_s2(True)] + exp_in_dem_files, None, None)
+
+    # ProjectDEMToS2Tile
+    spacing=10.0
+    extent = file_db.TILE_DATA['33NWB']['extent']
+    application_mocker.set_expectations(
+            'gdalwarp', [
+                "-wm", f'{2048*1024*1024}',
+                "-multi", "-wo", "2",
+                "-t_srs", f"epsg:{extent['epsg']}",
+                "-tr", f"{spacing}", f"-{spacing}",
+                "-ot", "Float32",
+                # "-crop_to_cutline",
+                "-te", f"{extent['xmin']}", f"{extent['ymin']}", f"{extent['xmax']}", f"{extent['ymax']}",
+                "-r", "cubic",
+                "-dstnodata", str(nodata_DEM),
+                exp_out_vrt,
+                file_db.demfile_on_s2(True),
+            ], None, {
+                'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+                'SPATIAL_RESOLUTION'         : f"{spacing}",
+                'DEM_RESAMPLING_METHOD'      : 'cubic',
+                'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
+            }
+    )
+
+    # ProjectGeoidToS2Tile
+    application_mocker.set_expectations('Superimpose', {
+        'ram'                     : param_ram(2048),
+        'inr'                     : exp_out_dem_s2,
+        'inm'                     : file_db.GeoidFile,
+        'interpolator'            : 'nn',
+        'interpolator.bco.radius' : 2,
+        'fv'                      : nodata_DEM,
+        'out'                     : 'BandMath|>' + file_db.height_on_s2(True),
+    }, None, {
+        # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
+        # 'DEM_LIST'                   : ', '.join(exp_dem_names),
+        'S2_TILE_CORRESPONDING_CODE' : '33NWB',
+        'SPATIAL_RESOLUTION'         : f"{spacing}",
+        'TIFFTAG_IMAGEDESCRIPTION'   : 'Geoid superimposed on S2 tile',
+    })
+
+    # Sum DEM + GEOID
+    is_nodata_DEM_bandmath = Utils.test_nodata_for_bandmath(bandname="im2b1", nodata=nodata_DEM)
+    application_mocker.set_expectations('BandMath', {
+        'il'         : [
+            exp_out_dem_s2+"|>Superimpose",
+            exp_out_dem_s2,
+            # exp_out_geoid_s2
+        ],
+        'ram'        : param_ram(2048),
+        'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
+        'out'        : file_db.height_on_s2(True),
+    }, None, {
+        'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
+    })
+    # ComputeGroundAndSatPositionsOnDEM
+    application_mocker.set_expectations('SARComputeGroundAndSatPositionsOnDEM', {
+        'ram'        : param_ram(2048),
+        'ineof'      : 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942',
+        'indem'      : exp_out_height_s2,
+        'elev.geoid' : '@',
+        'withcryz'   : False,
+        'withxyz'    : True,
+        'withsatpos' : True,
+        'nodata'     : nodata_XYZ,
+        'out'        : file_db.xyz_on_s2(True),
+    }, None, {
+        # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
+        'DEM_LIST'                 : ', '.join(exp_dem_names),
+        'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
+        'POLARIZATION'             : '',
+        'band.DirectionToScanDEM*' : '',
+        'band.Gain'                : '',
+    })
+
+    # ExtractNormalVector
+    application_mocker.set_expectations('ExtractNormalVector', {
+        'ram'             : param_ram(2048),
+        'xyz'             : exp_out_xyz_s2,
+        'nodata'          : nodata_XYZ,
+        'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
+    }, None, {
+        'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
+    })
+
+    # ComputeLIA
+    application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+        'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
+        'ram'             : param_ram(2048),
+        'in.xyz'          : file_db.xyz_on_s2(False),
+        'out.lia'         : file_db.deglia_on_s2(True),
+        'out.sin'         : file_db.sinlia_on_s2(True),
+        'nodata'          : nodata_LIA,
+    }, {'out.lia': otb.ImagePixelType_uint16}, {
+        # TODO: 2 files to test!!!
+        # 'DATA_TYPE'                : 'sin(LIA)',
+        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',
+    })
+
+
 def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, outputdir, liadir, tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
@@ -997,10 +1114,17 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
     application_mocker.assert_all_metadata_match()
 
 
+class MockedSentinelOrbitFile:
+    def __init__(self, filename: str, mission: str):
+        self.filename = filename
+        self.mission  = mission
+
+
 @pytest.mark.parametrize("register_expectations,processor",
                          [
                              (mock_LIA_v1_0, s1_process_lia_v0),
                              (mock_LIA_v1_1, s1_process_lia_v1_1),
+                             (mock_LIA_v1_2, s1_process_lia_v1_2),
                          ])
 def test_33NWB_202001_lia_mocked(
         baselinedir, outputdir, liadir, tmpdir, demdir, ram,
@@ -1025,13 +1149,22 @@ def test_33NWB_202001_lia_mocked(
     configuration.lia_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.show_configuration()
+    configuration.relative_orbit_list = [7]
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(inputdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
+    eof_file = 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942.EOF'
+    mocked_eof = DownloadOutcome(
+            eof_file,
+            MockedSentinelOrbitFile(eof_file, 'S1A')
+    )
+    mocker.patch('s1tiling.libs.orbit._manager.EOFFileManager.search_for',
+                 lambda slf, obt: [mocked_eof])
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
+    # known_files.append('./'+eof_file)
     known_dirs = set()
     _declare_know_files(mocker, known_files, known_dirs, tile, ['vv'], file_db, application_mocker)
     assert os.path.isfile(file_db.input_file_vv(0))  # Check mocking
