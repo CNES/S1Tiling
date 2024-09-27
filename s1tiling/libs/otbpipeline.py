@@ -35,7 +35,7 @@ This module provides pipeline for chaining OTB applications, and a pool to execu
 
 from collections.abc import Callable
 import os
-from pprint import pprint
+import pprint
 import re
 import copy
 from itertools import filterfalse

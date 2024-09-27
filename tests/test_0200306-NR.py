@@ -51,7 +51,7 @@ from .mock_otb import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob
 from .mock_data import FileDB
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
-from s1tiling.libs.api         import s1_process, s1_process_lia, s1_process_lia_v0, register_LIA_pipelines_v0
+from s1tiling.libs.api         import s1_process, s1_process_lia_v0, register_LIA_pipelines_v0, s1_process_lia_v1_1, s1_process_lia_v1_2
 from s1tiling.libs.meta        import Meta, out_filename
 from s1tiling.libs.steps       import ram as param_ram, _ProducerStep
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
@@ -1000,7 +1000,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, outputdir, liadir, t
 @pytest.mark.parametrize("register_expectations,processor",
                          [
                              (mock_LIA_v1_0, s1_process_lia_v0),
-                             (mock_LIA_v1_1, s1_process_lia),
+                             (mock_LIA_v1_1, s1_process_lia_v1_1),
                          ])
 def test_33NWB_202001_lia_mocked(
         baselinedir, outputdir, liadir, tmpdir, demdir, ram,

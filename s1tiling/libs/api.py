@@ -560,6 +560,63 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
+def register_LIA_pipelines_v1_1(
+        pipelines: PipelineDescriptionSequence,
+        produce_angles: bool,
+) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'tilename': 'tilename'},
+    )
+
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
+
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
+
+    # Notes:
+    # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
+    #   normals production AND LIA production: indeed the XYZ, and satposXYZ
+    #   data needs to be reused several times, and in-memory pipeline can't
+    #   support that (yet?)
+    # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
+    #   all meta are available later on to filter on the coverage.
+    # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
+    #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
+    sar = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata],
+            inputs={'inrawsar': 'basename'}
+    )
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEM],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'insar': sar, 'inheight': s2_height},
+    )
+
+    # Always generate sin(LIA). If LIA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_LIA step
+    lia = pipelines.register_pipeline(
+            [ComputeNormalsOnS2, ComputeLIAOnS2],
+            'ComputeLIAOnS2',
+            is_name_incremental=True,
+            inputs={'xyz': xyz},
+            product_required=True,
+    )
+    return lia
+
+
 def eof_inputs_hook(
         tile_name    : str,
         configuration: Configuration,
@@ -575,9 +632,10 @@ def eof_inputs_hook(
     :precondition: one and only one relative orbit number must have been requested in the configuration.
     :precondition: one and only one mission must have been requested in the configuration.
     """
-    eof_manager = EOFFileManager(configuration, dag)
     assert len(configuration.relative_orbit_list) == 1
     relative_orbit = configuration.relative_orbit_list[0]
+    logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbit)
+    eof_manager = EOFFileManager(configuration, dag)
     eof_files = eof_manager.search_for(relative_orbit)
     assert len(eof_files) > 0
     if not eof_files[0]:
@@ -621,33 +679,12 @@ def register_LIA_pipelines(
             inputs={"in_s2_dem": s2_dem},
     )
 
-    if False:  # V1.1 method
-        # Notes:
-        # * ComputeGroundAndSatPositionsOnDEM cannot be merged in memory with
-        #   normals production AND LIA production: indeed the XYZ, and satposXYZ
-        #   data needs to be reused several times, and in-memory pipeline can't
-        #   support that (yet?)
-        # * ExtractSentinel1Metadata needs to be in its own pipeline to make sure
-        #   all meta are available later on to filter on the coverage.
-        # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
-        #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
-        sar = pipelines.register_pipeline(
-                [ExtractSentinel1Metadata],
-                inputs={'inrawsar': 'basename'}
-        )
-        xyz = pipelines.register_pipeline(
-                [ComputeGroundAndSatPositionsOnDEM],
-                "ComputeGroundAndSatPositionsOnDEM",
-                inputs={'insar': sar, 'inheight': s2_height},
-        )
-    else:  # V1.2 method
-        pipelines.register_inputs('eof', eof_inputs_hook)
-        xyz = pipelines.register_pipeline(
-                [ComputeGroundAndSatPositionsOnDEMFromEOF],
-                "ComputeGroundAndSatPositionsOnDEM",
-                inputs={'ineof': 'eof', 'inheight': s2_height},
-        )
-
+    pipelines.register_inputs('eof', eof_inputs_hook)
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEMFromEOF],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'ineof': 'eof', 'inheight': s2_height},
+    )
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
@@ -907,7 +944,86 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     )
 
 
-def s1_process_lia(  # pylint: disable=too-many-arguments
+def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
+    generates Local Incidence Angle Maps on S2 geometry.
+
+    It performs the following steps:
+
+    1. Determine the S1 products to process
+        Given a list of S2 tiles, we first determine the day that'll the best
+        coverage of each S2 tile in terms of S1 products.
+
+        In case there is no single day that gives the best coverage for all
+        S2 tiles, we try to determine the best solution that minimizes the
+        number of S1 products to download and process.
+    2. Process these S1 products
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_LIA_pipelines_v1_1(pipelines, produce_angles=config.produce_lia_map)
+        required_workspaces = [WorkspaceKinds.LIA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )
+
+
+def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
@@ -984,3 +1100,6 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
             watch_ram=watch_ram,
             debug_tasks=debug_tasks,
     )
+
+
+s1_process_lia = s1_process_lia_v1_2
