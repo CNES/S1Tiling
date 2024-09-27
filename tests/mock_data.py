@@ -66,11 +66,14 @@ class FileDB:
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
             'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
-            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+            # 'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
             'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
             # TODO: add fmt for orbit direction/number
-            'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
-            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+            'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
+            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
+            # 'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
+            # 'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
     }
     FILES = [
             # 08 jan 2020

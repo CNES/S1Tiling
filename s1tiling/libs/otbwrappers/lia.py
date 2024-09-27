@@ -606,7 +606,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
+        # fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
+        fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit}.tiff'
         fname_fmt = cfg.fname_fmt.get('ground_and_sat_s2', fname_fmt)
         super().__init__(
                 cfg,
