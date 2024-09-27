@@ -31,4 +31,4 @@
 
 """This public API of the orbit sub-module"""
 
-from ._manager import EOFFileManager
+from ._manager import EOFFileManager, EOFConfiguration

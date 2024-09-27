@@ -41,6 +41,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Un
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
+from eodag.api.core import EODataAccessGateway
 
 from s1tiling.libs.vis import SimpleComputationGraph  # Graphs
 from .S1FileManager import (
@@ -462,30 +463,8 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
-        need_to_obtain_eof_files = WorkspaceKinds.LIA in required_workspaces
-        if need_to_obtain_eof_files:
-            eof_manager = EOFFileManager(config, s1_file_manager.dag)
-            assert len(config.relative_orbit_list) == 1
-            relative_orbit = config.relative_orbit_list[0]
-            eof_files = eof_manager.search_for(relative_orbit)
-            assert len(eof_files) > 0
-            if not eof_files[0]:
-                raise eof_files[0].error()
-            logger.info("Orbit %s OSVs will be taken from '%s'", relative_orbit, eof_files[0].value())
-            # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
-            # TODO: see how to support the case where all inputs are dropped...
-            eofs = []
-            for tilename in tiles_to_process_checked:
-                product = eof_files[0].related_product()
-                assert product, f"Here, we chould have a non null instance for {product=}"
-                step = FirstStep(
-                        orbit=relative_orbit,
-                        basename=eof_files[0].value(),
-                        flying_unit_code=product.mission.lower(),
-                        tile_name=tilename,
-                    )
-                eofs.append(step)
-            pipelines.register_inputs('eof', eofs)
+        # Used by eof
+        pipelines.register_extra_parameters_for_input_factory(dag=s1_file_manager.dag)
 
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
@@ -581,6 +560,42 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
+def eof_inputs_hook(
+        tile_name    : str,
+        configuration: Configuration,
+        dag          : EODataAccessGateway,
+        **kwargs,
+) -> List[FirstStep]:
+    """
+    :class:`FirstStepFactory` hook dedicated to precise orbit inputs.
+
+    It takes takes of returning or downloading the EOF files on-the-fly according to the single
+    relative_orbit number requested in the configuration.
+
+    :precondition: one and only one relative orbit number must have been requested in the configuration.
+    :precondition: one and only one mission must have been requested in the configuration.
+    """
+    eof_manager = EOFFileManager(configuration, dag)
+    assert len(configuration.relative_orbit_list) == 1
+    relative_orbit = configuration.relative_orbit_list[0]
+    eof_files = eof_manager.search_for(relative_orbit)
+    assert len(eof_files) > 0
+    if not eof_files[0]:
+        raise eof_files[0].error()
+    logger.info("Orbit %s OSVs will be taken from '%s'", relative_orbit, eof_files[0].value())
+    # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
+    # TODO: see how to support the case where all inputs are dropped...
+    product = eof_files[0].related_product()
+    assert product, f"Here, we chould have a non null instance for {product=}"
+    step = FirstStep(
+            orbit=relative_orbit,
+            basename=eof_files[0].value(),
+            flying_unit_code=product.mission.lower(),
+            tile_name=tile_name,
+    )
+    return [step]
+
+
 def register_LIA_pipelines(
         pipelines: PipelineDescriptionSequence,
         produce_angles: bool,
@@ -626,6 +641,7 @@ def register_LIA_pipelines(
                 inputs={'insar': sar, 'inheight': s2_height},
         )
     else:  # V1.2 method
+        pipelines.register_inputs('eof', eof_inputs_hook)
         xyz = pipelines.register_pipeline(
                 [ComputeGroundAndSatPositionsOnDEMFromEOF],
                 "ComputeGroundAndSatPositionsOnDEM",

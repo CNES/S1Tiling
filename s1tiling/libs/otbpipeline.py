@@ -33,14 +33,16 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
+from collections.abc import Callable
 import os
+from pprint import pprint
 import re
 import copy
 from itertools import filterfalse
 import logging
 import logging.handlers
 import multiprocessing
-from typing import Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runtime_checkable
 
 # memory leaks
 from distributed import get_worker
@@ -64,10 +66,26 @@ from .steps             import (
 )
 # from ..__meta__         import __version__
 
+
 logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
+
+
+@runtime_checkable
+class FirstStepFactory(Protocol):
+    """
+    Defines the prototype of functions accepted in :func:`PipelineInputs.register_inputs`.
+
+    :return: A list of instanciated :class:`FirstStep`
+    """
+    def __call__(
+            self,
+            tile_name     : str,
+            configuration : Configuration,
+            **kwargs,
+    ) -> List[FirstStep]: ...
 
 
 class Pipeline:
@@ -584,6 +602,61 @@ def _register_new_input_and_update_out_filename(
         logger.debug('    The %s task depends on one more input, but only one will be kept.\n    %s has been updated.', task_name, new_task_meta)
 
 
+class PipelineInputs:
+    """
+    Internal helper class used to centralize the instanciation of :class:`FirstStep`
+    according to the exact pipeline instanciated.
+
+    This will help to keep all the pipeline classes independant of the exact data flow.
+    """
+    def __init__(self) -> None:
+        """
+        Constructor.
+        """
+        self.__inputs                   : Dict[str, Union[FirstStepFactory, List[FirstStep]]] = {}
+        self.__factory_extra_parameters : Dict = {}
+    
+    def register_inputs(self, kind: str, steps: Union[FirstStepFactory, List[FirstStep]]) -> None:
+        """
+        Registers a source of :class:`FirstStep` instances.
+
+        This will permit to extend the list of starting inputs without having to modify main source code.
+        """
+        self.__inputs[kind] = steps
+
+    def register_extra_parameters(self, **extra) -> None:
+        """
+        Registers extra parameters for hooks.
+        """
+        self.__factory_extra_parameters = extra
+
+    def instanciate_all(
+            self,
+            tile_name: str,
+            configuration: Configuration,
+            raster_list: List[Dict],
+    ) -> Dict[str, List[Meta]]:
+        """
+        Returns all the :class:`FirstStep` instances organized by their associated sourced id.
+        Factory hooks will be executed on the fly with current context parameters.
+        """
+        inputs : Dict[str, List[Meta]] = {}
+        for key, inp in self.__inputs.items():
+            assert isinstance(self.__inputs[key], (FirstStepFactory, list)), f"intputs[{key}] is not a FirstStepFactory nor a list but a {type(self.__inputs[key])}"
+            steps : List[FirstStep]
+            if isinstance(inp, FirstStepFactory):
+                steps = inp(
+                    tile_name=tile_name,
+                    configuration=configuration,
+                    raster_list=raster_list,
+                    **self.__factory_extra_parameters,
+                )
+            else:
+                steps = inp
+            inputs[key] = [inp.meta for inp in steps]
+        return inputs
+
+
 class PipelineDescriptionSequence:
     """
     This class is the main entry point to describe pipelines.
@@ -597,7 +670,7 @@ class PipelineDescriptionSequence:
         assert cfg
         self.__cfg                  = cfg
         self.__pipelines            : List[PipelineDescription] = []
-        self.__inputs               : Dict[str, List[FirstStep]] = {}
+        self.__inputs               = PipelineInputs()
         self.__execution_parameters = {
                 'dryrun'      : dryrun,
                 'debug_caches': debug_caches,
@@ -626,13 +699,19 @@ class PipelineDescriptionSequence:
         self.__pipelines.append(pipeline)
         return pipeline
 
-    def register_inputs(self, kind: str, steps: List[FirstStep]) -> None:
+    def register_inputs(self, kind: str, steps: Union[FirstStepFactory, List[FirstStep]]) -> None:
         """
         Registers a source of :class:`FirstStep` instances.
 
         This will permit to extend the list of starting inputs without having to modify main source code.
         """
-        self.__inputs[kind] = steps
+        self.__inputs.register_inputs(kind, steps)
+
+    def register_extra_parameters_for_input_factory(self, **extra) -> None:
+        """
+        Registers extra parameters for :class:`FirstStep` factory hooks.
+        """
+        self.__inputs.register_extra_parameters(**extra)
 
     def _build_dependencies(  # pylint: disable=too-many-locals
             self, tile_name: str, raster_list: List[Dict]
@@ -646,7 +725,7 @@ class PipelineDescriptionSequence:
         # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
         tile_origin = first_inputs[0]["tile_origin"]
 
-        pipelines_outputs = {
+        pipelines_outputs : Dict[str, List[Meta]] = {
                 'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
                 'tilename': [  # TODO: see how to pass through registered inputs
                     FirstStep(
@@ -657,10 +736,13 @@ class PipelineDescriptionSequence:
                         does_product_exist=lambda: True,
                     ).meta],
         }
-        for key in self.__inputs:
-            assert isinstance(self.__inputs[key], list), f"intputs[{key}] is not a list but a {type(self.__inputs[key])}"
-            pipelines_outputs[key] = [inp.meta for inp in self.__inputs[key]]
-        logger.debug('FIRST: %s', pipelines_outputs['basename'])
+        pipelines_outputs.update(self.__inputs.instanciate_all(
+            tile_name=tile_name,
+            configuration=self.__cfg,
+            raster_list=raster_list,
+        ))
+        logger.debug("FIRST: %s", pprint.pformat(pipelines_outputs))
+        # logger.debug('FIRST: %s', pipelines_outputs['basename'])
 
         required = {}  # (first batch) Final products identified as _needed to be produced_
         previous : Dict[str, TaskInputInfo] = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
@@ -898,7 +980,7 @@ class PipelineDescriptionSequence:
 def _generate_first_steps_from_manifests(
     raster_list:  List[Dict],
     tile_name:    str,
-) -> List[Dict]:  # List[meta(FirstStep)]
+) -> List[Meta]:  # List[meta(FirstStep)]
     """
     Flatten all rasters from the manifest as a list of :class:`FirstStep`
     """
