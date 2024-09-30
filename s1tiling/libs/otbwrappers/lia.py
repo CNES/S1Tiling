@@ -36,7 +36,7 @@ the pipeline for LIA production needs.
 import logging
 import os
 import re
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type, Union
 # from packaging import version
 
 from osgeo import gdal
@@ -919,12 +919,17 @@ class _ComputeLIA(OTBStepFactory):
             fname_fmt_lia     : str,
             gen_tmp_dir       : str,
             gen_output_dir    : Optional[str],
-            image_description : str,
+            image_description : Union[str, List[str]],
     ) -> None:
+        types = {
+                'sin_LIA': 'sin(LIA)',
+                'LIA': '100 * degrees(LIA)'
+        }
         fname_fmt          = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
         param_out          = ['out.sin']
         extended_filenames = [ extended_filename_lia_sin(cfg) ]
         pixel_types        = [ pixel_type(cfg, 'lia_sin') ]
+        self.__data_types  = [types['sin_LIA']]
         if cfg.produce_lia_map:
             # We always produce out.sin, and optionally we produce out.lia.
             # Anyway, their production is always done in output_dir!
@@ -932,6 +937,7 @@ class _ComputeLIA(OTBStepFactory):
             param_out.append('out.lia')
             extended_filenames.append(extended_filename_lia_degree(cfg))
             pixel_types.append(pixel_type(cfg, 'lia_deg', 'uint16'))
+            self.__data_types.append(types['LIA'])
         super().__init__(
                 cfg,
                 appname='SARComputeLocalIncidenceAngle', name='ComputeLIA',
@@ -968,6 +974,15 @@ class _ComputeLIA(OTBStepFactory):
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
         return meta
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set σ° normlim calibration related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['DATA_TYPE'] = self.__data_types
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1049,7 +1064,7 @@ class ComputeLIAOnS2(_ComputeLIA):
                 gen_output_dir=dname_fmt,
                 fname_fmt_lia=fname_fmt_lia,
                 fname_fmt_sin=fname_fmt_sin,
-                image_description='LIA on S2 grid',
+                image_description=['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
         )
 
 
@@ -1757,8 +1772,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         """
         super().update_image_metadata(meta, all_inputs)
         types = {
-                'sin_LIA': 'SIN(LIA)',
-                'LIA': '100 * degree(LIA)'
+                'sin_LIA': 'sin(LIA)',
+                'LIA': '100 * degrees(LIA)'
         }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']

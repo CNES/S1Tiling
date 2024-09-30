@@ -355,13 +355,16 @@ class _ProducerStep(AbstractStep):
             logger.debug('No metadata to update in %s', fullpath)
             return
 
-        def do_log(fullpath, img_meta) -> None:
+        def do_log(fullpath, img_meta: Dict[str, Union[str, List[str]]], idx: int = -1) -> None:
             logger.debug('(dryrun) Set metadata in %s', fullpath)
             for (kw, val) in img_meta.items():
+                if isinstance(val, list):
+                    assert 0 <= idx < len(val)
+                    val = val[idx]
                 logger.debug('(dryrun)  - %s -> %s', kw, val)
             logger.debug('(dryrun) Metadata Set! (%s)', fullpath)
 
-        def do_write(fullpath, img_meta) -> None:
+        def do_write(fullpath, img_meta: Dict[str, Union[str, List[str]]], idx: int = -1) -> None:
             logger.debug('Set metadata in %s', fullpath)
             if not img_meta:
                 return  # Nothing to update
@@ -377,15 +380,19 @@ class _ProducerStep(AbstractStep):
                     all_metadata.pop(key, None)
 
             for (kw, val) in img_meta.items():
-                assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                 logger.debug(' - %s -> %s', kw, val)
                 if kw.endswith('*'):
+                    assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                     if not val:  # Expected scenario: we clear the keys.*
                         all_metadata = {m: all_metadata[m] for m in all_metadata if not fnmatch.fnmatch(m, kw)}
                     else:        # Unlikely scenario: new & same value for all
                         updated_kws = {m: val for m in all_metadata if fnmatch.fnmatch(m, kw)}
                         all_metadata.update(updated_kws)
                 else:
+                    if isinstance(val, list):
+                        assert 0 <= idx < len(val)
+                        val = val[idx]
+                    assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
                     set_or_del(kw, val)
 
             dst.SetMetadata(all_metadata)
@@ -396,9 +403,9 @@ class _ProducerStep(AbstractStep):
         do_apply = do_log if dryrun else do_write
         if isinstance(fullpath, list):
             # Case of applications that produce several files like ComputeLIA
-            for fp in fullpath:
+            for idx, fp in enumerate(fullpath):
                 # TODO: how to specialize DESCRIPTION for each output image
-                do_apply(fp, img_meta)
+                do_apply(fp, img_meta, idx)
         else:
             do_apply(fullpath, img_meta)
 
@@ -564,7 +571,7 @@ class StepFactory(ABC):
         return self._name
 
     @property
-    def image_description(self) -> str:
+    def image_description(self) -> Union[str, List[str]]:
         """
         Property image_description, used to fill ``TIFFTAG_IMAGEDESCRIPTION``
         """
@@ -702,9 +709,17 @@ class StepFactory(ABC):
         imd['TIFFTAG_DATETIME'] = str(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))
         imd['TIFFTAG_SOFTWARE'] = f'S1 Tiling v{__version__}'
         if self.image_description:
-            imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
-                    **meta,
-                    flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
+            if isinstance(self.image_description, list):
+                imd['TIFFTAG_IMAGEDESCRIPTION'] = [
+                        id.format(
+                            **meta,
+                            flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
+                        for id in self.image_description
+                ]
+            else:
+                imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
+                        **meta,
+                        flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """

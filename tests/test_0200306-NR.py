@@ -637,8 +637,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             # 'nodata'          : '-32768',
             }, {'out.lia': otb.ImagePixelType_uint16},
             {
-                # TODO: 2 files to test!!!
-                # 'DATA_TYPE'                : 'sin(LIA)',
+                'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
                 'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
             })
 
@@ -661,7 +660,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'io.out'          : file_db.orthoLIAfile(idx, True),
             }, {'io.out': otb.ImagePixelType_int16},
             {
-                'DATA_TYPE'                 : '100 * degree(LIA)',
+                'DATA_TYPE'                 : '100 * degrees(LIA)',
                 'ORTHORECTIFIED'            : 'true',
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
@@ -712,7 +711,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'io.out'          : file_db.orthosinLIAfile(idx, True),
             }, None,
             {
-                'DATA_TYPE'                 : 'SIN(LIA)',
+                'DATA_TYPE'                 : 'sin(LIA)',
                 'ORTHORECTIFIED'            : 'true',
                 'S2_TILE_CORRESPONDING_CODE': '33NWB',
                 'SPATIAL_RESOLUTION'        : '10.0',
@@ -885,9 +884,8 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'out.sin'         : file_db.sinlia_on_s2(True),
         'nodata'          : nodata_LIA,
     }, {'out.lia': otb.ImagePixelType_uint16}, {
-        # TODO: 2 files to test!!!
-        # 'DATA_TYPE'                : 'sin(LIA)',
-        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',
+        'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
+        'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
     })
 
 
@@ -1002,9 +1000,8 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'out.sin'         : file_db.sinlia_on_s2(True),
         'nodata'          : nodata_LIA,
     }, {'out.lia': otb.ImagePixelType_uint16}, {
-        # TODO: 2 files to test!!!
-        # 'DATA_TYPE'                : 'sin(LIA)',
-        'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on S2 grid',
+        'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
+        'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
     })
 
 
