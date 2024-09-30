@@ -90,12 +90,18 @@ Regarding options, the only difference with previous scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that needs to be
   ``normlim``,
+- the :ref:`directory <Paths.eof_dir>` where EOF files will be searched for, or
+  downloaded to.
 - the :ref:`directory <Paths.lia>` where LIA maps will be searched for, or
   produced in.
-
+- a single pair of :ref:`platform <DataSource.platform_list>` + :ref:`relative
+  orbit <datasource.relative_orbit_list>` to which the Local Incidence Angles
+  will be calculated,
 
 S1Tiling will then automatically take care of:
 
+- obtaining the precise orbit files (EOF), if none match the request
+  parameters,
 - producing, or using existing, maps of sin(LIA) for each Sentinel-2 tiles --
   given an orbit and it direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
@@ -155,6 +161,11 @@ S1Tiling will then automatically take care of:
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
 
+.. note::
+   This scenario requires to configure either ``cop_dataspace`` data provider
+   in :ref:`eodag configuration file <datasource.eodag_config>`, or to enter
+   valid EarthData credentials in your :file:`~/.netrc` file (can be overriden
+   with :envvar:`$NETRC`).
 
 .. _scenario.S1LIAMap:
 
@@ -168,7 +179,15 @@ ranges -- as described in ":ref:`scenario.parallelize_date`" scenario.
 A different program is provided to compute the LIA maps beforehand:
 :program:`S1LIAMap`. It takes the exact same parameter files as
 :program:`S1Processor`. A few options will be ignored though: calibration type,
-masking....
+masking.... But the following (non obvious) options are mandatory:
+
+- :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
+  single value shall be used
+- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>` --
+  but only a single value shall be used
+- :ref:`[DataSource].first_date <datasource.first_date>` and
+  :ref:`[DataSource].last_date <datasource.last_date>` if
+  :ref:`[DataSource].download <datasource.download>` it ``True``.
 
 .. code:: bash
 
@@ -349,6 +368,15 @@ You can use this :download:`this template
   * - ``srtm``
     - **(deprecated)** Use :ref:`[PATHS].dem_dir <paths.dem_dir>`. Path to SRTM files.
 
+      .. _paths.eof_dir:
+  * - ``eof_dir``
+    - Where precise orbit orbit files (EOF) are expected to be found, or where
+      they would be downloaded on the fly.
+      Default value is ``{output}/_EOF``.
+
+      See also :ref:`faq.eof`.
+
+
 .. _DataSource:
 
 ``[DataSource]`` section
@@ -392,7 +420,6 @@ You can use this :download:`this template
                       username: THEUSERNAME
                       password: THEPASSWORD
 
-
       .. _DataSource.nb_parallel_downloads:
   * - ``nb_parallel_downloads``
     - Number of parallel downloads (+ unzip) of source products.
@@ -401,7 +428,6 @@ You can use this :download:`this template
 
           Don't abuse this setting as the data provider may not support too many
           parallel requests.
-
 
       .. _DataSource.roi_by_tiles:
   * - ``roi_by_tiles``
@@ -420,6 +446,9 @@ You can use this :download:`this template
     - Defines the list of platforms from where come the products to download
       and process.
       Valid values are ``S1A`` or ``S1B``.
+
+      .. warning::
+        A single value is expected in NORMLIM scenarios.
 
       .. _DataSource.polarisation:
   * - ``polarisation``
@@ -449,6 +478,8 @@ You can use this :download:`this template
         :ref:`orbit_direction <DataSource.orbit_direction>` and
         :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
         considered as exclusive.
+      .. warning::
+        A single value is expected in NORMLIM scenarios.
 
       .. _DataSource.first_date:
   * - ``first_date``
