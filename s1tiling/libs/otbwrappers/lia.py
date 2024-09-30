@@ -555,7 +555,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
                 'ram'        : ram(self.ram_per_process),
                 'ineof'      : ineof,
                 'indem'      : inheight,
-                'inrelorb'   : meta['orbit'],
+                'inrelorb'   : int(meta['orbit']),
                 'elev.geoid' : '@',
                 'withxyz'    : True,
                 'withsatpos' : True,

@@ -646,7 +646,7 @@ def eof_inputs_hook(
     product = eof_files[0].related_product()
     assert product, f"Here, we chould have a non null instance for {product=}"
     step = FirstStep(
-            orbit=relative_orbit,
+            orbit=f"{relative_orbit:0>3d}",
             basename=eof_files[0].value(),
             flying_unit_code=product.mission.lower(),
             tile_name=tile_name,
