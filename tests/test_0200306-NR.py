@@ -975,8 +975,11 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
         'DEM_LIST'                 : ', '.join(exp_dem_names),
         'EOF_FILE'                 : os.path.basename(file_db.eof_for_s2()),
+        'FLYING_UNIT_CODE'         : 's1a',
+        'IMAGE_TYPE'               : 'GRD',
         'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
         'POLARIZATION'             : '',
+        'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(file_db.relorb_for_s2()),
         'band.DirectionToScanDEM*' : '',
         'band.Gain'                : '',
     })

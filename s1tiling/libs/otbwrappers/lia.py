@@ -535,6 +535,9 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
         imd['EOF_FILE']                 = meta['inbasename']
+        imd['FLYING_UNIT_CODE']         = meta['flying_unit_code']
+        imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
+        imd['IMAGE_TYPE']               = 'GRD'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """

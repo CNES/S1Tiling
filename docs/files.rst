@@ -247,21 +247,17 @@ Local Incidence Angle map files
       * - Metadata
         - Value
 
-      * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image (in UTC format since v1.1)
-      * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image (in UTC format since v1.1)
-      * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image (in UTC format since v1.1)
       * - ``DATA_TYPE``
         - :samp:`100 * degrees(LIA)` / :samp:`sin(LIA)`
+      * - ``DEM_LIST``
+        - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
         - :samp:`GRD`
-      * - ``INPUT_S1_IMAGES``
-        - List of the input Sentinel-1 images used to generate this product
-      * - ``ORBIT``
+      * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
