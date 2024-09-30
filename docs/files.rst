@@ -221,12 +221,12 @@ Local Incidence Angle map files
 
 :File names:
 
-    - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
-    - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
+    - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
+    - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
 
 :File name format:
 
-    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
+    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
 :Product encoding:
 
@@ -263,8 +263,6 @@ Local Incidence Angle map files
         - List of the input Sentinel-1 images used to generate this product
       * - ``ORBIT``
         - :samp:`{{orbitnumber}}`
-      * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
