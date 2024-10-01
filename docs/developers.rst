@@ -247,7 +247,7 @@ These processings permit to produce Local Incidence Angles Maps for
    s1tiling.libs.otbwrappers.ProjectDEMToS2Tile
    s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile
    s1tiling.libs.otbwrappers.SumAllHeights
-   s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEM
+   s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF
    s1tiling.libs.otbwrappers.ComputeNormalsOnS2
    s1tiling.libs.otbwrappers.ComputeLIAOnS2
    s1tiling.libs.otbwrappers.filter_LIA

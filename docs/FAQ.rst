@@ -80,17 +80,7 @@ In case you have to cope with an earlier version of EODAG, you can still run
 Q: How can I configure precise orbit files retrieval?
 -----------------------------------------------------
 
-Precise orbit files will be searched in :ref:`[PATHS].eof_dir <paths.eof_dir>`
-in NORMLIM related scenarios.
-
-If no EOF file matching the requested :ref:`platform
-<datasource.platform_list>` + :ref:`relative orbit number
-<datasource.relative_orbit_list>`, and if :ref:`[Datasource].download
-<datasource.download>` is set to ``True``, then all EOF files matching the
-platform and within the requested :ref:`time range <datasource.first_date>`
-will be download.
-
-The download can be done either:
+EOF files will be downloaded either:
 
 * on Copernicus Dataspace. In that case, add your ``cop_dataspace``
   credentials in :ref:`eodag configuration file <datasource.eodag_config>`.
@@ -109,7 +99,7 @@ The download can be done either:
         and use it in :envvar:`$EODAG__COP_DATASPACE__AUTH__TOKEN`. It should be
         valid a bit more longer.
 
-* or on EarthData. In that case add your earthdata creadentials in your
+* or on EarthData. In that case add your earthdata credentials in your
   :file:`~/.netrc` file (default location can be overriden with
   :envvar:`$NETRC`). e.g.
 
@@ -118,6 +108,10 @@ The download can be done either:
         machine urs.earthdata.nasa.gov
           login your.login
           password YoURpAssWoRd
+
+If credentials are provided for both data providers, they will be interrogated
+in order: Copernicus Dataspace first, then EarthData if no connexion could be
+established to the former.
 
 Q: How can I ask another question?
 ----------------------------------

@@ -469,6 +469,9 @@ Height (DEM+Geoid) projected on S2 tile
 Ground and sensor position in XYZ ECEF coordinates
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
+These XYZ ECEF are produced starting from S1Tiling 1.2 from precise orbit
+files.
+
 :Content:          Six bands 64 bits float image that contains ground pixel
                    coordinates and associated sensor position coordinates
                    expressed as XYZ cartesian pixels in `ECEF
@@ -476,8 +479,8 @@ Ground and sensor position in XYZ ECEF coordinates
                    spatial reference.
                    The image footprint matches the associated S2 tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
-:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit}}.tif`
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian
@@ -491,26 +494,16 @@ Ground and sensor position in XYZ ECEF coordinates
       * - Metadata
         - Value
 
-      * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image (in UTC format since v1.1)
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
         - :samp:`GRD`
-      * - ``INPUT_S1_IMAGES``
-        - List of the input Sentinel-1 images used to generate this product
-      * - ``ORBIT``
+      * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
-      * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
-      * - ``PRJ.DIRECTIONTOSCANDEMC``
-        - Range direction for DEM scan.
-      * - ``PRJ.DIRECTIONTOSCANDEML``
-        - Azimuth direction for DEM scan.
-      * - ``PRJ.GAIN``
-        - Gain value
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
@@ -736,4 +729,60 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
     .. warning::
        These files still **need** to be cleaned manually. This should change
        eventually, or it may be conditionned to an option.
+
+.. _ground_and_sat_S2-files_v1_1:
+
+Ground and sensor position in XYZ ECEF coordinates (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+These XYZ ECEF files were produced by S1Tiling v1.1 from orbit information
+present in Sentinel-1 SAR input products.
+
+:Content:          Six bands 64 bits float image that contains ground pixel
+                   coordinates and associated sensor position coordinates
+                   expressed as XYZ cartesian pixels in `ECEF
+                   <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
+                   spatial reference.
+                   The image footprint matches the associated S2 tile.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+:Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
+                   ZCartesian. SensorXCartesian, SensorXCartesian,
+                   SensorZCartesian
+:Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``ACQUISITION_DATETIME``
+        - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_LIST``
+        - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``FLYING_UNIT_CODE``
+        - :samp:`s1{{a|b}}`
+      * - ``IMAGE_TYPE``
+        - :samp:`GRD`
+      * - ``INPUT_S1_IMAGES``
+        - List of the input Sentinel-1 images used to generate this product
+      * - ``ORBIT``
+        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbitdirection}}`
+      * - ``PRJ.DIRECTIONTOSCANDEMC``
+        - Range direction for DEM scan.
+      * - ``PRJ.DIRECTIONTOSCANDEML``
+        - Azimuth direction for DEM scan.
+      * - ``PRJ.GAIN``
+        - Gain value
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`XYZ ground and satellite positions on S2 tile`
+
+:Cleanup: These files are cleaned automatically.
+
 

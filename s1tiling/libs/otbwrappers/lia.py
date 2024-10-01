@@ -403,9 +403,9 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     """
     Factory that prepares steps that run
     :external:doc:`Applications/app_SARComputeGroundAndSatPositionsOnDEM`
-    as described in :ref:`Normals computation` documentation to obtain the XYZ
-    ECEF coordinates of the ground and of the satellite positions associated
-    to the pixel from input the `heigth` file.
+    as described in :ref:`Compute ECEF ground and satellite positions on S2`
+    documentation to obtain the XYZ ECEF coordinates of the ground and of the
+    satellite positions associated to the pixel from input the `heigth` file.
 
     :external:doc:`Applications/app_SARDEMProjection` application fills a
     multi-bands image anchored on the footprint of the input DEM image.
@@ -422,6 +422,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     - `tmp_dir`           -- useless in the in-memory nomical case
     - `fname_fmt`         -- optional key: `ground_and_sat_s2`, useless in the in-memory nominal case
     - `nodata.LIA`        -- optional
+    - DEM intersecting S2 tiles
 
     Requires the following information from the metadata dictionary
 

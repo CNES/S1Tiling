@@ -108,7 +108,7 @@ any order compatible with the dependencies represented in the graph),
 The processings
 ---------------
 
-.. _downloading:
+.. _downloading_s1:
 .. index:: downloading
 
 Downloading of S1 products

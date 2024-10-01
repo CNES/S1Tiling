@@ -21,26 +21,24 @@ Two data flows are possibles:
 NormLim global processing
 -------------------------
 
-The following processing is the new default precessing from S1Tiling v1.1.
+The following processing is the new default processing from S1Tiling v1.2.
 
 S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading>` a single S1 image: the one with the
-   best footprint coverage of S2 tile, and that is within the specified
-   time range.
-   The download is done on condition  the image is not already available
-   in :ref:`input data cache <paths.s1_images>` (Pure LIA producing
-   scenarios)
+1. It :ref:`downloads S1 images <downloading_s1>` (S1Processor scenario only)
+   The download is done on condition  the images are not already available
+   in :ref:`input data cache <paths.s1_images>`.
 
-2. Then, it makes sure the :ref:`associated sine LIA map <lia-files>`
+2. It :ref:`downloads precise orbit files (EOF) <downloading_eof>` that cover
+   the specified time range and the specified S1 platform.
+   The download is done on condition the requested relative orbit number is not
+   found in the EOF files already available in the :ref:`eof data cache
+   <paths.eof_dir>`.
+
+3. Then, it makes sure the :ref:`associated sine LIA map <lia-files>`
    exists (all scenarios),
-
-   0. It selects the first :ref:`input S1 image <paths.s1_images>` that
-      contains orbit information wide enough to cover the full S2 tile.
-      In case case several S1 images match, the one with the best
-      footprint coverage is used.
 
    1. It :ref:`prepares a VRT <prepare_VRT_s2-proc>` of the DEM files that
       cover the S2 image.
@@ -51,9 +49,9 @@ For each S2 tile,
    4. It :ref:`sums both elevation information
       <sum_dem_geoid_on_s2-proc>` on the S2 geometry.
    5. It produces a `image` of ECEF coordinates for the ground points and their
-      associated satellite positions in the S2 geometry
-   6. It :ref:`computes the normal <compute_normals-proc>` of each ground point,
-   7. It :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point,
+      associated satellite positions in the S2 geometry.
+   6. It :ref:`computes the normal <compute_normals-proc>` of each ground point.
+   7. It :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point.
 
 3. Then, for each polarisation (S1Processor scenario only),
 
@@ -96,6 +94,8 @@ LIA specific processings
 
          raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
          raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+
+         eof_dx      [label="EOF dn",         href="files.html#eof",    shape="doublecircle", fillcolor=cyan]
 
          # =====[ Classic workflow
          # β° calibrated + orthorectified nodes
@@ -151,8 +151,8 @@ LIA specific processings
          vrt_nwb       -> DEM_on_S2;
          DEM_on_S2     -> heights_on_S2;
 
+         eof_dx        -> xyz_d1_t1;
          heights_on_S2 -> xyz_d1_t1;
-         raw_d1_t1t2   -> xyz_d1_t1;
          xyz_d1_t1     -> normals_on_S2;
          normals_on_S2 -> nwb_lia;
          xyz_d1_t1     -> nwb_lia;
@@ -171,13 +171,42 @@ LIA specific processings
          # =====[ Align
          {
              rank = same ;
-             vrt_nwb raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3
+             vrt_nwb raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3 eof_dx
              edge[ style=invis];
-             vrt_nwb -> raw_d1_t1t2 -> raw_d1_t2t3 -> raw_d2_t1t2 -> raw_d2_t2t3 -> raw_dn_t1t2 -> raw_dn_t2t3
+             eof_dx -> vrt_nwb -> raw_d1_t1t2 -> raw_d1_t2t3 -> raw_d2_t1t2 -> raw_d2_t2t3 -> raw_dn_t1t2 -> raw_dn_t2t3
 
          }
      }
 
+.. _downloading_eof:
+.. index:: downloading
+
+Downloading of EOF precise orbit files
+++++++++++++++++++++++++++++++++++++++
+
+Precise orbit files will be searched in :ref:`[PATHS].eof_dir <paths.eof_dir>`
+in NORMLIM related scenarios.
+
+An EOF file is a match when:
+
+- it matches the requested S1 :ref:`platform <datasource.platform_list>`,
+- and `Orbit State Vectors` matching the requested :ref:`relative orbit number
+  <datasource.relative_orbit_list>` are found in the file -- actually a ± 1
+  margin is taken into account in order to handle tiles around the ANX when the
+  orbit number changes.
+
+If no matching EOF file is found, then on the condition
+:ref:`[Datasource].download <datasource.download>` is ``True``, all EOF files
+matching the platform and within the requested :ref:`time range
+<datasource.first_date>` will be downloaded.
+EOF files are downloaded with `sentineleof
+<https://github.com/scottstanie/sentineleof>`_ on Copernicus Dataspace or on
+Earthdata. See the FAQ regarding how credentials should be configured:
+":ref:`faq.eof`".
+
+Downloaded files are stored into the directory specified by
+:ref:`[Paths].eof_dir <Paths.eof_dir>` option. If the directory doesn't
+exist, it's created on the fly.
 
 .. _prepare_VRT_s2-proc:
 .. index:: Agglomerate DEMs over S2 tile
@@ -248,15 +277,14 @@ This step sums both DEM and GEOID information projected in S2 tile geometry.
 Compute ECEF ground and satellite positions on S2
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
-:Inputs:         - An original :ref:`input S1 image <paths.s1_images>`
-                   (for the embedded trajectory information)
+:Inputs:         - A :ref:`matching EOF file <downloading_eof>`
                  - The :ref:`height information <height_on_s2-files>` of the S2
                    tile.
 :Output:         :ref:`ECEF Ground and satellite positions
                  <ground_and_sat_s2-files>` on the S2 tile.
 :OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection
                  <Applications/app_SARDEMProjection>`
-:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEM`
+:StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
 This steps computes the ground positions of the pixels in the S2 geometry, and
 searches their associated zero dopplers to also issue the coordinates of the
@@ -351,7 +379,7 @@ S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading>` the necessary S1 images that intersect the
+1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect the
    S2 tile, within the specified time range, that are not already available in
    :ref:`input data cache <paths.s1_images>`
    (all scenarios)

@@ -573,6 +573,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("[Paths]")
         logging.info("- geoid_file                       : %s",     self.GeoidFile)
         logging.info("- s1_images                        : %s",     self.raw_directory)
+        logging.info("- eof_directory                    : %s",     self.eof_directory)
         logging.info("- output                           : %s",     self.output_preprocess)
         logging.info("- LIA                              : %s",     self.lia_directory)
         logging.info("- dem directory                    : %s",     self.dem)
