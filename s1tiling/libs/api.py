@@ -42,6 +42,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Un
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client, LocalCluster
 from eodag.api.core import EODataAccessGateway
+from s1tiling.libs.utils.layer import check_dem_coverage, filter_existing_tiles
 
 from s1tiling.libs.vis import SimpleComputationGraph  # Graphs
 from .S1FileManager import (
@@ -84,40 +85,33 @@ def remove_files(files: List[Union[str, Path]], what: str) -> None:
             os.remove(file_it)
 
 
-def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager) -> List[str]:
+def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
     logger.info('Requested tiles: %s', cfg.tile_list)
 
-    all_requested = False
     tiles_to_process = []
     if cfg.tile_list[0] == "ALL":
-        all_requested = True
-    else:
-        for tile in cfg.tile_list:
-            # TODO: In order to avoid opening the Layer 42 times, Check all tiles at once
-            if s1_file_manager.tile_exists(tile):
-                tiles_to_process.append(tile)
-            else:
-                logger.warning("Tile %s does not exist, skipping ...", tile)
-
-    # We can not require both to process all tiles covered by downloaded products
-    # and and download all tiles
-
-    if all_requested:
+        if not s1_file_manager:
+            raise exceptions.ConfigurationError("tile_list=ALL mode is not compatible with this scenario", "")
         # Check already done in the configuration object
         assert not (cfg.download and "ALL" in cfg.roi_by_tiles), \
             "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
         tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
         logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                 100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
+    else:
+        tiles_to_process = filter_existing_tiles(cfg.output_grid, cfg.tile_list)
+
+    # We can not require both to process all tiles covered by downloaded products
+    # and download all tiles
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str, Dict]]:
+def check_tiles_to_process(tiles_to_process: List[str], cfg: Configuration) -> Tuple[List[str], Dict, Dict[str, Dict]]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
@@ -125,7 +119,13 @@ def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileM
     tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
 
     # Analyse DEM coverage for MGRS tiles to be processed
-    dem_tiles_check = s1_file_manager.check_dem_coverage(tiles_to_process)
+    dem_tiles_check = check_dem_coverage(
+            cfg.output_grid,
+            cfg.dem_db_filepath,
+            tiles_to_process,
+            cfg.dem_field_ids,
+            cfg.dem_main_field_id,
+    )
 
     # For each MGRS tile to process
     for tile in tiles_to_process:
@@ -439,7 +439,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
             raise exceptions.NoS2TileError()
 
         tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
-                tiles_to_process, s1_file_manager)
+                tiles_to_process, config)
 
         logger.info("%s images to process on %s tiles",
                 s1_file_manager.nb_images, tiles_to_process_checked)

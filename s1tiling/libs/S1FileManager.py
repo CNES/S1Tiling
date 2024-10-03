@@ -64,7 +64,7 @@ import numpy as np
 from s1tiling.libs      import exceptions
 from .Utils             import (
     Layer,
-    extract_product_start_time, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name,
+    extract_product_start_time,
     get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
 )
 from .S1DateAcquisition import S1DateAcquisition
@@ -1300,24 +1300,6 @@ class S1FileManager:
         pol_images = all_images if self.cfg.polarisation in k_polarisation_associations[polarisation] else []
         return len(all_images), pol_images
 
-    def tile_exists(self, tile_name_field: str) -> bool:
-        """
-        This method check if a given MGRS tiles exists in the database
-
-        Args:
-          tile_name_field: MGRS tile identifier
-
-        Returns:
-          True if the tile exists, False otherwise
-        """
-        layer = Layer(self.cfg.output_grid)
-
-        for current_tile in layer:
-            # logger.debug("%s", current_tile.GetField('NAME'))
-            if current_tile.GetField('NAME') == tile_name_field:
-                return True
-        return False
-
     def get_tiles_covered_by_products(self) -> List[str]:
         """
         This method returns the list of MGRS tiles covered
@@ -1393,34 +1375,6 @@ class S1FileManager:
                 })
 
         return intersect_raster
-
-    def check_dem_coverage(self, tiles_to_process: List[str]) -> Dict[str, Dict]:
-        """
-        Given a set of MGRS tiles to process, this method
-        returns the needed DEM tiles and the corresponding coverage.
-
-        Args:
-          tile_to_process: The list of MGRS tiles identifiers to process
-
-        Return:
-          A list of tuples (DEM tile id, coverage of MGRS tiles).
-          Coverage range is [0,1]
-        """
-        dem_layer  = Layer(self.cfg.dem_db_filepath)
-        mgrs_layer = Layer(self.cfg.output_grid)
-
-        needed_dem_tiles = {}
-
-        for tile in tiles_to_process:
-            logger.debug("Check DEM tiles for %s", tile)
-            mgrs_footprint = get_mgrs_tile_geometry_by_name(tile, mgrs_layer)
-            logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
-            dem_tiles = find_dem_intersecting_poly(
-                    mgrs_footprint, dem_layer, self.cfg.dem_field_ids, self.cfg.dem_main_field_id)
-            needed_dem_tiles[tile] = dem_tiles
-            logger.info("S2 tile %s is covered by %s DEM tiles", tile, len(dem_tiles))
-        logger.info("DEM ok")
-        return needed_dem_tiles
 
     def get_processed_filenames(self) -> List[str]:
         """ Read back the list of processed filenames (DEPRECATED)"""
