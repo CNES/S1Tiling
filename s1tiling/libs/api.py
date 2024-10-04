@@ -44,6 +44,7 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
 
+
 from .S1FileManager import (
         S1FileManager, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -70,6 +71,7 @@ from .otbwrappers import (
 from .outcome import Outcome
 from .orbit import EOFFileManager
 from .utils.dask import DaskContext
+from .utils import eodag
 from .utils.layer import check_dem_coverage, filter_existing_tiles
 from .vis import SimpleComputationGraph  # Graphs
 from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tile_workspaces_exist
@@ -348,7 +350,8 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         raise exceptions.MissingGeoidError(config.GeoidFile)
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
 
-    s1_file_manager = S1FileManager(config)
+    dag = eodag.create(config)
+    s1_file_manager = S1FileManager(config, dag)
     tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
     if len(tiles_to_process) == 0:
         raise exceptions.NoS2TileError()
@@ -380,7 +383,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         # Used by eof
-        pipelines.register_extra_parameters_for_input_factory(dag=s1_file_manager.dag)
+        pipelines.register_extra_parameters_for_input_factory(dag=dag)
 
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 

@@ -416,7 +416,7 @@ def given_a_dname_fmt_filtered_has_a_different_value(configuration) -> None:
 
 def _search(configuration, image_list, polarisation) -> None:
     configuration.polarisation = polarisation
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     manager._refresh_s1_product_list()
     manager._update_s1_img_list_for('33NWB')
     logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
@@ -457,7 +457,7 @@ def when_searching_which_S1_to_download(configuration, mocker, downloads) -> Non
 
     default_polarisation = 'VV VH'
     configuration.polarisation = configuration.polarisation or default_polarisation
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     manager._refresh_s1_product_list()
 
     origin_33NWB = file_db.tile_origins('33NWB')
@@ -545,7 +545,7 @@ def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx) -> None:
 @when('Filtering products to use')
 def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_kepts, mocker, known_files, known_dirs) -> None:
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     # `manager._products_info` is filled-up during manager construction
     # from the scanned (mocked) directories
     assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p["product"] for p in manager._products_info]},\nDownloading: {dl_successes}'

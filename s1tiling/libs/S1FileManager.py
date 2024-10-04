@@ -551,7 +551,7 @@ class S1FileManager:
     tiff_pattern     = "measurement/*.tiff"
     manifest_pattern = "manifest.safe"
 
-    def __init__(self, cfg: Configuration) -> None:
+    def __init__(self, cfg: Configuration, dag: Optional[EODataAccessGateway]) -> None:
         # Configuration
         self.cfg              = cfg
         self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE)
@@ -574,20 +574,9 @@ class S1FileManager:
         self.first_date = cfg.first_date
         self.last_date  = cfg.last_date
         self._refresh_s1_product_list()
+        self._dag       = dag
+        assert self.cfg.download == (self._dag is not None), f"EODAG object {dag=} expected when downloading is required {self.cfg.download=}"
         if self.cfg.download:
-            logger.debug('Using %s EODAG configuration file', self.cfg.eodag_config or 'user default')
-            self._dag = EODataAccessGateway(self.cfg.eodag_config)
-            # TODO: update once eodag directly offers "DL directory setting" feature v1.7? +?
-            dest_dir = os.path.abspath(self.cfg.raw_directory)
-            logger.debug('Override EODAG output directory to %s', dest_dir)
-            for provider in self._dag.providers_config.keys():
-                if hasattr(self._dag.providers_config[provider], 'download'):
-                    self._dag.providers_config[provider].download.update(
-                            {'outputs_prefix': dest_dir})
-                    logger.debug(' - for %s', provider)
-                else:
-                    logger.debug(' - NOT for %s', provider)
-
             self.roi_by_tiles = self.cfg.roi_by_tiles
 
     @property
@@ -595,7 +584,15 @@ class S1FileManager:
         """
         Return the internal instance of :class:`EODataAccessGateway`, or None if download is inhibited.
         """
-        return getattr(self, '_dag', None)
+        return self._dag
+
+    @property
+    def download_is_enabled(self) -> bool:
+        """
+        Returns whether download is enabled
+        """
+        assert self.cfg.download == (self._dag is not None), f"EODAG object {self._dag=} expected when downloading is required {self.cfg.download=}"
+        return self._dag is not None
 
     def get_skipped_S2_products(self) -> List[str]:
         """
@@ -888,9 +885,10 @@ class S1FileManager:
         tiles:  Optional[List[str]] = None
     ) -> None:
         """ This method downloads the required images if download is True"""
-        if not self.cfg.download:
+        if not self.download_is_enabled:
             logger.info("Using images already downloaded, as per configuration request")
             return
+        assert self._dag  # Silence pyright warning
 
         # TODO: Fix the logic behind these tests and the fonction interface/calls
         # -> i.e. download_images is always called with tiles=[one_tile_name]
