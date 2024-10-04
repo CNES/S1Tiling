@@ -41,6 +41,7 @@ class SimpleComputationGraph:
                      format : Optional[str] = None):
 
         if hasattr(x, 'dask'):
+            assert hasattr(x, '__dask_optimize__') and hasattr(x, '__dask_keys__')
             dsk = x.__dask_optimize__(x.dask, x.__dask_keys__())
         else:
             dsk = x
