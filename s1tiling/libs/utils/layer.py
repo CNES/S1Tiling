@@ -34,9 +34,9 @@
 import logging
 from typing import Dict, List
 
-from s1tiling.libs.Utils import Layer, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name
+from ..Utils import Layer, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name
 
-logger = logging.getLogger('s1tiling.utils')
+logger = logging.getLogger('s1tiling.utils.layer')
 
 
 def tile_exists(mgrs_grid_name: str, tile_name_field: str) -> bool:

@@ -32,7 +32,7 @@
 
 """ This module contains the S1FileManager class"""
 
-from enum import Enum
+from collections.abc import Callable
 import fnmatch
 from functools import partial
 import glob
@@ -40,11 +40,9 @@ import logging
 import logging.handlers
 import multiprocessing
 import os
-from pathlib import Path
 import re
 import shutil
-import tempfile
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from osgeo import ogr
 from requests.exceptions     import ReadTimeout
@@ -69,7 +67,7 @@ from .Utils             import (
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import (
-        Configuration, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+        Configuration, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
@@ -84,20 +82,6 @@ EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in min
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
 EODAG_DEFAULT_SEARCH_MAX_RETRIES    = 5   #: If search fails on timeout, number of retries attempted
 EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
-
-
-class WorkspaceKinds(Enum):
-    """
-    Enum used to list the kinds of "workspaces" needed.
-    A workspace is a directory where products will be stored.
-
-    :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
-        Indeed At this moment, only two kinds of workspaces are supported.
-    """
-    TILE   = 1
-    LIA    = 2
-    FILTER = 3
-    MASK   = 4
 
 
 def product_property(prod: EOProduct, key: str, default=None):
@@ -584,10 +568,6 @@ class S1FileManager:
         self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[DownloadOutcome]] = {}  # by S2 unique id: date + rel_orbit
         self.__skipped_S2_products            : List[str]                        = []
 
-        self.__tmpdemdir      : Optional[tempfile.TemporaryDirectory] = None
-        self.__caching_option = cfg.cache_dem_by
-        assert self.__caching_option in ['copy', 'symlink']
-
         self._ensure_workspaces_exist()
         self.processed_filenames = self.get_processed_filenames()
 
@@ -609,22 +589,6 @@ class S1FileManager:
                     logger.debug(' - NOT for %s', provider)
 
             self.roi_by_tiles = self.cfg.roi_by_tiles
-
-    def __enter__(self) -> "S1FileManager":
-        """
-        Turn the S1FileManager into a context manager, context acquisition function
-        """
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback):
-        """
-        Turn the S1FileManager into a context manager, cleanup function
-        """
-        if self.__tmpdemdir:
-            logger.debug('Cleaning temporary DEM diretory (%s)', self.__tmpdemdir)
-            self.__tmpdemdir.cleanup()
-            self.__tmpdemdir = None
-        return False
 
     @property
     def dag(self) -> Optional[EODataAccessGateway]:
@@ -667,77 +631,6 @@ class S1FileManager:
         for path in [self.cfg.raw_directory, self.cfg.tmpdir, self.cfg.output_preprocess]:
             if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
-
-    def ensure_tile_workspaces_exist(self, tile_name: str, required_workspaces: List[WorkspaceKinds]) -> None:
-        """
-        Makes sure the directories used for :
-        - output data/{tile},
-        - temporary data/S2/{tile}
-        - and LIA data (if required)
-        all exist
-        """
-        directories = {
-                'out_dir': self.cfg.output_preprocess,
-                'tmp_dir': self.cfg.tmpdir,
-                'lia_dir': self.cfg.lia_directory,
-        }
-
-        working_directory = os.path.join(self.cfg.tmpdir, 'S2', tile_name)
-        os.makedirs(working_directory, exist_ok=True)
-
-        if WorkspaceKinds.TILE in required_workspaces:
-            wdir = dname_fmt_tiled(self.cfg).format(**directories, tile_name=tile_name)
-            os.makedirs(wdir, exist_ok=True)
-
-        if WorkspaceKinds.MASK in required_workspaces:
-            wdir = dname_fmt_mask(self.cfg).format(**directories, tile_name=tile_name)
-            os.makedirs(wdir, exist_ok=True)
-
-        if WorkspaceKinds.FILTER in required_workspaces:
-            wdir = dname_fmt_filtered(self.cfg).format(**directories, tile_name=tile_name)
-            os.makedirs(wdir, exist_ok=True)
-
-        # if self.cfg.calibration_type == 'normlim':
-        if WorkspaceKinds.LIA in required_workspaces:
-            wdir = dname_fmt_lia_product(self.cfg).format(**directories, tile_name=tile_name)
-            os.makedirs(wdir, exist_ok=True)
-
-    def tmpdemdir(self, dem_tile_infos: Dict, dem_filename_format: str, geoid_file: str) -> str:
-        """
-        Generate the temporary directory for DEM tiles on the fly,
-        and either populate it with symbolic links to the actual DEM
-        tiles, or copies of the actual DEM tiles.
-        """
-        assert self.__caching_option in ['copy', 'symlink']
-        if not self.__tmpdemdir:
-            # copy all needed DEM & geoid files in a temp directory for orthorectification processing
-            self.__tmpdemdir = tempfile.TemporaryDirectory(dir=self.cfg.tmpdir)
-            logger.debug('Create temporary DEM directory (%s) for needed tiles %s', self.__tmpdemdir.name, list(dem_tile_infos.keys()))
-            assert Path(self.__tmpdemdir.name).is_dir()
-            def do_symlink(src: Union[Path, str], dst: Path):
-                logger.debug('- ln -s %s <-- %s', src, dst)
-                dst.symlink_to(src)
-            def do_copy(src: Union[Path, str], dst: Path):
-                logger.debug('- cp %s --> %s', src, dst)
-                shutil.copy2(src, dst)
-            do_localize = do_symlink if self.__caching_option == 'symlink' else do_copy
-
-            for _, dem_tile_info in dem_tile_infos.items():
-                dem_file          = dem_filename_format.format_map(dem_tile_info)
-                dem_tile_filepath = Path(self.cfg.dem, dem_file)
-                dem_tile_filelink = Path(self.__tmpdemdir.name, os.path.basename(dem_file))  # for copernicus dem
-                dem_tile_filelink.parent.mkdir(parents=True, exist_ok=True)
-                do_localize(dem_tile_filepath, dem_tile_filelink)
-            # + copy/link geoid
-            geoid_filelink = Path(self.cfg.tmpdir, 'geoid', os.path.basename(geoid_file))
-            if not geoid_filelink.exists():
-                geoid_filelink.parent.mkdir(parents=True, exist_ok=True)
-                do_localize(geoid_file, geoid_filelink)
-                # in case there is an associated file like (egm96.grd.hdr), copy/symlink it as well
-                if os.path.isfile(with_hdr := f"{geoid_file}.hdr"):
-                    do_localize(with_hdr, geoid_filelink.with_suffix(geoid_filelink.suffix+'.hdr'))
-
-        return self.__tmpdemdir.name
 
     def keep_X_latest_S1_files(self, threshold: int, tile_name: str) -> None:
         """

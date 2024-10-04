@@ -46,6 +46,7 @@ from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runt
 
 # memory leaks
 from distributed import get_worker
+from eodag.api.core import EODataAccessGateway
 import objgraph
 from pympler import tracker  # , muppy
 # from memory_profiler import profile
@@ -84,6 +85,7 @@ class FirstStepFactory(Protocol):
             self,
             tile_name     : str,
             configuration : Configuration,
+            dag           : EODataAccessGateway,
             **kwargs,
     ) -> List[FirstStep]: ...
 

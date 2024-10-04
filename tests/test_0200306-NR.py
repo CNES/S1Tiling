@@ -285,7 +285,7 @@ def _declare_know_files(
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     # known_dirs.update([dirname(fn, 1) for fn in known_files])
     logging.debug('Mocking w/ %s --> %s', patterns, files)
-    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
+    mocker.patch('s1tiling.libs.workspace.DEMWorkspace.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
     mocker.patch('glob.glob',        lambda pat  : glob(pat, known_files))

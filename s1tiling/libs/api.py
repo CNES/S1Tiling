@@ -33,20 +33,19 @@
 Submodule that defines all API related functions and classes.
 """
 
+from collections.abc import Callable
 import logging
 import logging.config
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from distributed.scheduler import KilledWorker
-from dask.distributed import Client, LocalCluster
+from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
-from s1tiling.libs.utils.layer import check_dem_coverage, filter_existing_tiles
 
-from s1tiling.libs.vis import SimpleComputationGraph  # Graphs
 from .S1FileManager import (
-        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        S1FileManager, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
 )
 from . import exits
@@ -70,19 +69,13 @@ from .otbwrappers import (
         SpatialDespeckle)
 from .outcome import Outcome
 from .orbit import EOFFileManager
+from .utils.dask import DaskContext
+from .utils.layer import check_dem_coverage, filter_existing_tiles
+from .vis import SimpleComputationGraph  # Graphs
+from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tile_workspaces_exist
 
 
 logger = logging.getLogger('s1tiling.api')
-
-
-def remove_files(files: List[Union[str, Path]], what: str) -> None:
-    """
-    Removes the files from the disk
-    """
-    logger.debug("Remove %s: %s", what, files)
-    for file_it in files:
-        if os.path.exists(file_it):
-            os.remove(file_it)
 
 
 def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
@@ -165,84 +158,6 @@ def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
             res = False
             logger.critical("%s is missing!", tile_path_hgt)
     return res
-
-
-def clean_logs(config: Dict, nb_workers: int) -> None:
-    """
-    Clean all the log files.
-    Meant to be called once, at startup
-    """
-    filenames = []
-    for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '{kind}' in cfg['filename']:
-            filenames += [cfg['filename'].format(kind=f"worker-{w}") for w in range(nb_workers)]
-    remove_files(filenames, "logs")
-
-
-def setup_worker_logs(config: Dict, dask_worker) -> None:
-    """
-    Set-up the logger on Dask Worker.
-    """
-    d_logger = logging.getLogger('distributed.worker')
-    r_logger = logging.getLogger()
-    old_handlers = d_logger.handlers[:]
-
-    for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '{kind}' in cfg['filename']:
-            cfg['mode']     = 'a'  # Make sure to not reset worker log file
-            cfg['filename'] = cfg['filename'].format(kind=f"worker-{dask_worker.name}")
-
-    logging.config.dictConfig(config)
-    # Restore old dask.distributed handlers, and inject them in root handler as well
-    for hdlr in old_handlers:
-        d_logger.addHandler(hdlr)
-        r_logger.addHandler(hdlr)  # <-- this way we send s1tiling messages to dask channel
-
-    # From now on, redirect stdout/stderr messages to s1tiling
-    Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
-
-
-the_config : Configuration
-
-
-class DaskContext:
-    """
-    Custom context manager for :class:`dask.distributed.Client` +
-    :class:`dask.distributed.LocalCluster` classes.
-    """
-    def __init__(self, config: Configuration, debug_otb: bool) -> None:
-        self.__client    : Optional[Client]       = None
-        self.__cluster   : Optional[LocalCluster] = None
-        self.__config    : Configuration          = config
-        self.__debug_otb : bool                   = debug_otb
-
-    def __enter__(self) -> "DaskContext":
-        if not self.__debug_otb:
-            clean_logs(self.__config.log_config, self.__config.nb_procs)
-            self.__cluster = LocalCluster(
-                    threads_per_worker=1, processes=True, n_workers=self.__config.nb_procs,
-                    silence_logs=False)
-            self.__client = Client(self.__cluster)
-            # Work around: Cannot pickle local object in lambda...
-            global the_config
-            the_config = self.__config
-            self.__client.register_worker_callbacks(
-                    lambda dask_worker: setup_worker_logs(the_config.log_config, dask_worker))
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
-        if self.__client:
-            self.__client.close()
-            assert self.__cluster, "client existence implies cluster existence"
-            self.__cluster.close()
-        return False
-
-    @property
-    def client(self) -> Optional[Client]:
-        """
-        Return a :class:`dask.distributed.Client`
-        """
-        return self.__client
 
 
 def _how2str(how: Union[Tuple, AbstractStep]) -> str:
@@ -336,7 +251,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
     """
-    s1_file_manager.ensure_tile_workspaces_exist(tile_name, required_workspaces)
+    ensure_tile_workspaces_exist(s1_file_manager.cfg, tile_name, required_workspaces)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
@@ -433,31 +348,32 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         raise exceptions.MissingGeoidError(config.GeoidFile)
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
 
-    with S1FileManager(config) as s1_file_manager:
-        tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
-        if len(tiles_to_process) == 0:
-            raise exceptions.NoS2TileError()
+    s1_file_manager = S1FileManager(config)
+    tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
+    if len(tiles_to_process) == 0:
+        raise exceptions.NoS2TileError()
 
-        tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
-                tiles_to_process, config)
+    tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
+            tiles_to_process, config)
 
-        logger.info("%s images to process on %s tiles",
-                s1_file_manager.nb_images, tiles_to_process_checked)
+    logger.info("%s images to process on %s tiles",
+            s1_file_manager.nb_images, tiles_to_process_checked)
 
-        if len(tiles_to_process_checked) == 0:
-            raise exceptions.NoS1ImageError()
+    if len(tiles_to_process_checked) == 0:
+        raise exceptions.NoS1ImageError()
 
-        logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
+    logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
 
-        if not check_dem_tiles(config, needed_dem_tiles):
-            raise exceptions.MissingDEMError()
+    if not check_dem_tiles(config, needed_dem_tiles):
+        raise exceptions.MissingDEMError()
 
-        # Prepare directories where to store temporary files
-        # These directories won't be cleaned up automatically
-        S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
-        os.makedirs(S1_tmp_dir, exist_ok=True)
+    # Prepare directories where to store temporary files
+    # These directories won't be cleaned up automatically
+    S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
+    os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        config.tmp_dem_dir = s1_file_manager.tmpdemdir(
+    with DEMWorkspace(config) as dem_workspace:
+        config.tmp_dem_dir = dem_workspace.tmpdemdir(
                 needed_dem_tiles, config.dem_filename_format,
                 config.GeoidFile)
 
