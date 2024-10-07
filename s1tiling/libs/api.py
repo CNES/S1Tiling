@@ -238,6 +238,37 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     return []
 
 
+IntersectingS1FilesOutcome = Outcome[List[Dict]]
+
+def get_s1_files_for_tile(
+        s1_file_manager: S1FileManager,
+        tile_name:       str,
+        dryrun:          bool,
+) -> IntersectingS1FilesOutcome:
+    """
+    Returns the list of all S1 files intersecting the given S2 MGRS tile name.
+
+    :return: An :class:`Outcome` of list of S1 image information, or the :class:`RuntimeError` that has happened.
+    :raise DownloadS1FileError: if a critical error occurs
+    """
+    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
+
+    try:
+        s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
+        # download_images will have updated the list of know products
+    except RuntimeError as e:
+        logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
+        return IntersectingS1FilesOutcome(e)
+
+    except BaseException as e:
+        logger.debug('Download error intercepted: %s', e)
+        raise exceptions.DownloadS1FileError(tile_name) from e
+
+    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+    logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
+    return IntersectingS1FilesOutcome(intersect_raster_list)
+
+
 @timethis("Processing of tile {tile_name}", log_level=logging.INFO)
 def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_name:               str,
@@ -252,7 +283,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     dryrun:                  bool = False,
     do_watch_ram:            bool = False,
     debug_tasks:             bool = False
-) -> List:
+) -> List[Outcome]:
     """
     Process one S2 tile.
 
@@ -262,21 +293,10 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
-
-    try:
-        s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
-        # download_images will have updated the list of know products
-    except RuntimeError as e:
-        logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
-        return [Outcome(e)]
-
-    except BaseException as e:
-        logger.debug('Download error intercepted: %s', e)
-        raise exceptions.DownloadS1FileError(tile_name)
-
-    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
-    logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
+    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
+    if not matching_rasters:
+        return [matching_rasters]
+    intersect_raster_list = matching_rasters.value()
 
     if len(intersect_raster_list) == 0:
         logger.info("No intersection with tile %s", tile_name)
