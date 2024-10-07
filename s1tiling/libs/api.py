@@ -108,12 +108,14 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1Fil
     return tiles_to_process
 
 
-def check_tiles_to_process(tiles_to_process: List[str], cfg: Configuration) -> Tuple[List[str], Dict, Dict[str, Dict]]:
+def search_dems_covering_tiles(
+        tiles_to_process: List[str],
+        cfg             : Configuration
+) -> Tuple[Dict, Dict[str, Dict]]:
     """
     Search the DEM tiles required to process the tiles to process.
     """
     needed_dem_tiles = {}
-    tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
 
     # Analyse DEM coverage for MGRS tiles to be processed
     dem_tiles_check = check_dem_coverage(
@@ -135,7 +137,6 @@ def check_tiles_to_process(tiles_to_process: List[str], cfg: Configuration) -> T
             current_coverage += dem_info['_coverage']
         needed_dem_tiles.update(dem_tiles)
         # If DEM coverage of MGRS tile is enough, process it
-        tiles_to_process_checked.append(tile)
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
@@ -145,7 +146,7 @@ def check_tiles_to_process(tiles_to_process: List[str], cfg: Configuration) -> T
             logger.info("-> %s coverage = %s => OK", tile, current_coverage)
 
     # Remove duplicates
-    return tiles_to_process_checked, needed_dem_tiles, dem_tiles_check
+    return needed_dem_tiles, dem_tiles_check
 
 
 def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
@@ -355,17 +356,13 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     dag = eodag.create(config)
     s1_file_manager = S1FileManager(config, dag)
     tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
-    if len(tiles_to_process) == 0:
+    nb_tiles = len(tiles_to_process)
+    logger.info("%s images to process on %s tiles: %s", s1_file_manager.nb_images, nb_tiles, tiles_to_process)
+
+    if nb_tiles == 0:
         raise exceptions.NoS2TileError()
 
-    tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
-            tiles_to_process, config)
-
-    logger.info("%s images to process on %s tiles",
-            s1_file_manager.nb_images, tiles_to_process_checked)
-
-    if len(tiles_to_process_checked) == 0:
-        raise exceptions.NoS1ImageError()
+    needed_dem_tiles, dems_by_s2_tiles = search_dems_covering_tiles(tiles_to_process, config)
 
     logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
 
@@ -392,9 +389,9 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
         with DaskContext(config, debug_otb) as dask_client:
-            for idx, tile_it in enumerate(tiles_to_process_checked):
+            for idx, tile_it in enumerate(tiles_to_process):
                 res = process_one_tile(
-                        tile_it, idx, len(tiles_to_process_checked),
+                        tile_it, idx, nb_tiles,
                         s1_file_manager, config, pipelines, dask_client.client,
                         required_workspaces,
                         debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
