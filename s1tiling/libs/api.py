@@ -76,7 +76,7 @@ from .utils.timer import timethis
 
 
 from .vis import SimpleComputationGraph  # Graphs
-from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tile_workspaces_exist
+from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tiled_workspaces_exist
 
 
 logger = logging.getLogger('s1tiling.api')
@@ -257,7 +257,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
     """
-    ensure_tile_workspaces_exist(cfg, tile_name, required_workspaces)
+    ensure_tiled_workspaces_exist(cfg, tile_name, required_workspaces)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 

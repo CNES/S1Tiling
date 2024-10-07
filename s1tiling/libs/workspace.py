@@ -139,7 +139,7 @@ class WorkspaceKinds(Enum):
     MASK   = 4
 
 
-def ensure_tile_workspaces_exist(
+def ensure_tiled_workspaces_exist(
         cfg: Configuration,
         tile_name: str,
         required_workspaces: List[WorkspaceKinds]
