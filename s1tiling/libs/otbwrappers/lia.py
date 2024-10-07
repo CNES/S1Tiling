@@ -527,8 +527,6 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         Set SARDEMProjection related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
-        inputs = meta['inputs']
-        ineof  = fetch_input_data('ineof', inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)

@@ -176,4 +176,3 @@ def ensure_tile_workspaces_exist(
     if WorkspaceKinds.LIA in required_workspaces:
         wdir = dname_fmt_lia_product(cfg).format(**directories, tile_name=tile_name)
         os.makedirs(wdir, exist_ok=True)
-

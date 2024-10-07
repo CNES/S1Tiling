@@ -541,7 +541,7 @@ def eof_inputs_hook(
         tile_name    : str,
         configuration: Configuration,
         dag          : EODataAccessGateway,
-        **kwargs,
+        **kwargs,  # pylint: disable=unused-argument
 ) -> List[FirstStep]:
     """
     :class:`FirstStepFactory` hook dedicated to precise orbit inputs.

@@ -89,4 +89,3 @@ def timethis(fmt: str = "", log_level: Optional[int] = logging.DEBUG, do_measure
                 return func(*args, **kwargs)
         return wrapper
     return decorator
-

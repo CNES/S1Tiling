@@ -33,7 +33,6 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
-from collections.abc import Callable
 import os
 import pprint
 import re
@@ -618,7 +617,7 @@ class PipelineInputs:
         """
         self.__inputs                   : Dict[str, Union[FirstStepFactory, List[FirstStep]]] = {}
         self.__factory_extra_parameters : Dict = {}
-    
+
     def register_inputs(self, kind: str, steps: Union[FirstStepFactory, List[FirstStep]]) -> None:
         """
         Registers a source of :class:`FirstStep` instances.
@@ -645,7 +644,7 @@ class PipelineInputs:
         """
         inputs : Dict[str, List[Meta]] = {}
         for key, inp in self.__inputs.items():
-            assert isinstance(self.__inputs[key], (FirstStepFactory, list)), f"intputs[{key}] is not a FirstStepFactory nor a list but a {type(self.__inputs[key])}"
+            assert isinstance(inp, (FirstStepFactory, list)), (f"intputs[{key}] is not a FirstStepFactory nor a list but a {type(inp)}")
             steps : List[FirstStep]
             if isinstance(inp, FirstStepFactory):
                 steps = inp(

@@ -115,4 +115,3 @@ def check_dem_coverage(
         logger.info("S2 tile %s is covered by %s DEM tiles", tile, len(dem_tiles))
     logger.info("DEM ok")
     return needed_dem_tiles
-

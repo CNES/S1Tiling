@@ -51,10 +51,11 @@ class DaskConfiguration(Protocol):
 
     Can be seen an a ISP compliant concept for Configuration object regarding dask context.
     """
+    nb_procs: int
+
     @property
     def log_config(self) -> Dict:
         ...
-    nb_procs: int
 
 
 the_config : DaskConfiguration
