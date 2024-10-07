@@ -240,6 +240,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_idx:                int,
     tiles_nb:                int,
     s1_file_manager:         S1FileManager,
+    cfg:                     Configuration,
     pipelines:               PipelineDescriptionSequence,
     client:                  Optional[Client],
     required_workspaces:     List[WorkspaceKinds],
@@ -253,7 +254,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
     """
-    ensure_tile_workspaces_exist(s1_file_manager.cfg, tile_name, required_workspaces)
+    ensure_tile_workspaces_exist(cfg, tile_name, required_workspaces)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
@@ -394,7 +395,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                 with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
                     res = process_one_tile(
                             tile_it, idx, len(tiles_to_process_checked),
-                            s1_file_manager, pipelines, dask_client.client,
+                            s1_file_manager, config, pipelines, dask_client.client,
                             required_workspaces,
                             debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
                             debug_tasks=debug_tasks)
