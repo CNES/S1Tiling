@@ -32,14 +32,14 @@
 
 """ This module contains various utility functions"""
 
+from collections.abc import Callable, Generator, Iterator, KeysView, Set
 import fnmatch
 import logging
 import os
 from pathlib import Path
 import re
 import sys
-from timeit import default_timer as timer
-from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 # from numpy.lib import math
 import math
@@ -47,7 +47,7 @@ from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
 
-from s1tiling.libs.utils.xml import find, find_text, parse
+from .utils.xml import find, find_text, parse
 
 from .S1DateAcquisition import S1DateAcquisition
 
@@ -603,29 +603,6 @@ def flatten_stringlist(itr) -> Generator[str, None, None]:
                 yield from flatten_stringlist(x)
             except TypeError:
                 yield x
-
-
-class ExecutionTimer:
-    """Context manager to help measure execution times
-
-    Example:
-    with ExecutionTimer("the code", True) as t:
-        Code_to_measure()
-    """
-    def __init__(self, text, do_measure, log_level=None) -> None:
-        self._text       = text
-        self._do_measure = do_measure
-        self._log_level  = log_level or logging.INFO
-
-    def __enter__(self) -> "ExecutionTimer":
-        self._start = timer()  # pylint: disable=attribute-defined-outside-init
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
-        if self._do_measure:
-            end = timer()
-            logger.log(self._log_level, "%s took %ssec", self._text, end - self._start)
-        return False
 
 
 def list_files(directory: str, pattern=None) -> List[os.DirEntry]:

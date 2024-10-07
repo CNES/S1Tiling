@@ -44,7 +44,6 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
 
-
 from .S1FileManager import (
         S1FileManager, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -68,11 +67,14 @@ from .otbwrappers import (
         ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
         # Filter Step Factories
         SpatialDespeckle)
-from .outcome import Outcome
-from .orbit import EOFFileManager
-from .utils.dask import DaskContext
-from .utils import eodag
+from .outcome     import Outcome
+from .orbit       import EOFFileManager
+from .utils.dask  import DaskContext
+from .utils       import eodag
 from .utils.layer import check_dem_coverage, filter_existing_tiles
+from .utils.timer import timethis
+
+
 from .vis import SimpleComputationGraph  # Graphs
 from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tile_workspaces_exist
 
@@ -235,6 +237,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     return []
 
 
+@timethis("Processing of tile {tile_name}", log_level=logging.INFO)
 def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_name:               str,
     tile_idx:                int,
@@ -261,9 +264,8 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
 
     try:
-        with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
-            # download_images will have updated the list of know products
+        s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
+        # download_images will have updated the list of know products
     except RuntimeError as e:
         logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
         return [Outcome(e)]
@@ -272,9 +274,8 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name)
 
-    with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
-        intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
-        logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
+    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+    logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
 
     if len(intersect_raster_list) == 0:
         logger.info("No intersection with tile %s", tile_name)
@@ -392,14 +393,13 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         results = []
         with DaskContext(config, debug_otb) as dask_client:
             for idx, tile_it in enumerate(tiles_to_process_checked):
-                with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
-                    res = process_one_tile(
-                            tile_it, idx, len(tiles_to_process_checked),
-                            s1_file_manager, config, pipelines, dask_client.client,
-                            required_workspaces,
-                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
-                            debug_tasks=debug_tasks)
-                    results += res
+                res = process_one_tile(
+                        tile_it, idx, len(tiles_to_process_checked),
+                        s1_file_manager, config, pipelines, dask_client.client,
+                        required_workspaces,
+                        debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
+                        debug_tasks=debug_tasks)
+                results.append(res)
 
         nb_errors_detected = sum(not bool(res) for res in results)
 

@@ -66,6 +66,7 @@ from .steps             import (
         files_exist,
 )
 # from ..__meta__         import __version__
+from .utils.timer       import timethis
 
 
 logger = logging.getLogger('s1tiling.pipeline')
@@ -715,6 +716,7 @@ class PipelineDescriptionSequence:
         """
         self.__inputs.register_extra_parameters(**extra)
 
+    @timethis("Building dependencies", logging.DEBUG)
     def _build_dependencies(  # pylint: disable=too-many-locals
             self, tile_name: str, raster_list: List[Dict]
     ) -> Tuple[Set[str], Dict, Dict]:
@@ -862,6 +864,7 @@ class PipelineDescriptionSequence:
                 logger.debug('- %s already exists, no need to produce it', task_name)
         return required_task_names, previous, task_names_to_output_files_table
 
+    @timethis("Building tasks from dependencies", logging.DEBUG)
     def _build_tasks_from_dependencies(  # pylint: disable=too-many-locals
         self,
         required :                        Set[str],
@@ -949,8 +952,9 @@ class PipelineDescriptionSequence:
         else:
             logger.debug('All required applications are correctly available')
 
+    @timethis("Generating tasks for {tile_name}", logging.DEBUG)
     def generate_tasks(
-        self, tile_name:    str, raster_list:  List[Dict], do_watch_ram=False
+        self, tile_name: str, raster_list: List[Dict], do_watch_ram=False
     ) -> Tuple[Dict[str, Union[Tuple, "FirstStep"]], List[str]]:
         """
         Generate the minimal list of tasks that can be passed to Dask

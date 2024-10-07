@@ -53,6 +53,8 @@ from .meta          import (
         Meta, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
+from .utils.timer   import ExecutionTimer
+
 from ..__meta__     import __version__
 
 logger = logging.getLogger('s1tiling.rootsteps')
@@ -167,7 +169,7 @@ def execute(params: List[str], dryrun: bool) -> None:
     msg = ' '.join([f"{p!r}" for p in params])
     logging.info(f'$> {msg}')
     if not dryrun:
-        with Utils.ExecutionTimer(msg, True):
+        with ExecutionTimer(msg, True):
             subprocess.run(args=params, check=True)
 
 
@@ -286,7 +288,7 @@ class _ProducerStep(AbstractStep):
             # and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
-        with Utils.ExecutionTimer('-> pipe << ' + pipeline_name + ' >>', do_measure, logging.DEBUG):
+        with ExecutionTimer(f'-> pipe << {pipeline_name} >>', do_measure, logging.DEBUG):
             self._do_execute(parameters, dryrun)
             self._write_image_metadata(dryrun)
             if not dryrun:

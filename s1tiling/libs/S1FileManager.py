@@ -52,6 +52,7 @@ from eodag.api.search_result import SearchResult
 from eodag.utils             import get_geometry_from_various
 from eodag.utils.exceptions  import NotAvailableError
 from eodag.utils.logging     import setup_logging
+
 try:
     from shapely.errors import TopologicalError
 except ImportError:
@@ -71,6 +72,7 @@ from .configuration     import (
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
+from .utils.timer       import timethis
 
 setup_logging(verbose=1)
 
@@ -879,6 +881,7 @@ class S1FileManager:
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         return paths
 
+    @timethis("Downloading images related to {tiles}", logging.INFO)
     def download_images(
         self,
         dryrun: bool                = False,
@@ -1232,6 +1235,7 @@ class S1FileManager:
                 product, is_in_range, self.first_date, start, self.last_date)
         return is_in_range
 
+    @timethis("Intersecting raster list w/ {tile_name_field}", logging.INFO)
     def get_s1_intersect_by_tile(self, tile_name_field: str) -> List[Dict]:
         """
         This method returns the list of S1 product intersecting a given MGRS tile
