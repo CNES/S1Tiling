@@ -577,7 +577,8 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     })
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
-    dependencies.extend(pipelines._build_dependencies(TILE, raster_list))
+    first_inputs = pipelines._prepare_inputs(TILE, raster_list)
+    dependencies.extend(pipelines._build_dependencies(first_inputs))
 
 @when('tasks are generated')
 def when_tasks_are_generated(pipelines, dependencies, tasks, mocker) -> None:

@@ -43,9 +43,9 @@ import logging.handlers
 import multiprocessing
 from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runtime_checkable
 
-# memory leaks
 from distributed import get_worker
 from eodag.api.core import EODataAccessGateway
+# memory leaks
 import objgraph
 from pympler import tracker  # , muppy
 # from memory_profiler import profile
@@ -632,6 +632,7 @@ class PipelineInputs:
         """
         self.__factory_extra_parameters = extra
 
+    @timethis("instanciate_all inputs")
     def instanciate_all(
             self,
             tile_name: str,
@@ -715,20 +716,16 @@ class PipelineDescriptionSequence:
         """
         self.__inputs.register_extra_parameters(**extra)
 
-    @timethis("Building dependencies", logging.DEBUG)
-    def _build_dependencies(  # pylint: disable=too-many-locals
+    @timethis("Prepare inputs {tile_name}", logging.DEBUG)
+    def _prepare_inputs(
             self, tile_name: str, raster_list: List[Dict]
-    ) -> Tuple[Set[str], Dict, Dict]:
-        """
-        Runs the inputs through all pipeline descriptions to build the full list
-        of intermediary and final products and what they require to be built.
-        """
+    ) -> Dict[str, List[Meta]]:
         first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
         assert first_inputs, "A non empty list of raster inputs is expected"
         # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
         tile_origin = first_inputs[0]["tile_origin"]
 
-        pipelines_outputs : Dict[str, List[Meta]] = {
+        inputs : Dict[str, List[Meta]] = {
                 'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
                 'tilename': [  # TODO: see how to pass through registered inputs
                     FirstStep(
@@ -739,13 +736,24 @@ class PipelineDescriptionSequence:
                         does_product_exist=lambda: True,
                     ).meta],
         }
-        pipelines_outputs.update(self.__inputs.instanciate_all(
+        inputs.update(self.__inputs.instanciate_all(
             tile_name=tile_name,
             configuration=self.__cfg,
             raster_list=raster_list,
         ))
-        logger.debug("FIRST: %s", pprint.pformat(pipelines_outputs))
+        logger.debug("FIRST: %s", pprint.pformat(inputs))
         # logger.debug('FIRST: %s', pipelines_outputs['basename'])
+        return inputs
+
+    @timethis("Building dependencies", logging.DEBUG)
+    def _build_dependencies(  # pylint: disable=too-many-locals
+            self, first_inputs: Dict[str, List[Meta]]
+    ) -> Tuple[Set[str], Dict, Dict]:
+        """
+        Runs the inputs through all pipeline descriptions to build the full list
+        of intermediary and final products and what they require to be built.
+        """
+        pipelines_outputs = first_inputs
 
         required = {}  # (first batch) Final products identified as _needed to be produced_
         previous : Dict[str, TaskInputInfo] = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
@@ -964,9 +972,8 @@ class PipelineDescriptionSequence:
 
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
-        required, previous, task_names_to_output_files_table = self._build_dependencies(
-                tile_name=tile_name,
-                raster_list=raster_list)
+        inputs = self._prepare_inputs(tile_name, raster_list)
+        required, previous, task_names_to_output_files_table = self._build_dependencies(inputs)
 
         # Generate the actual list of tasks
         final_products = [to_dask_key(p) for p in required]
