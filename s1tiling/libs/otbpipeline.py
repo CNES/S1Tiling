@@ -989,6 +989,7 @@ class PipelineDescriptionSequence:
         return tasks, final_products
 
 
+@timethis("_generate_first_steps_from_manifests({tile_name})")
 def _generate_first_steps_from_manifests(
     raster_list:  List[Dict],
     tile_name:    str,

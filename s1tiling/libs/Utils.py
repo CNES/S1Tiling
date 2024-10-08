@@ -47,6 +47,8 @@ from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
 
+from .utils.timer import timethis
+
 from .utils.xml import find, find_text, parse
 
 from .S1DateAcquisition import S1DateAcquisition
@@ -95,6 +97,7 @@ class Layer:
         """
         self.__layer.ResetReading()
 
+    @timethis("find_layer_named: {tile_name_field}")
     def find_tile_named(self, tile_name_field: str) -> Optional[ogr.Feature]:
         """
         Search for a tile that maches the name.

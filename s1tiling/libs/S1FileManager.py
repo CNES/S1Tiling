@@ -274,6 +274,7 @@ def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-l
     return kept_products
 
 
+# @timethis("_keep_products_with_enough_coverage")  # This is fast enough
 def _keep_products_with_enough_coverage(
     content_info: List[Dict],
     target_cover: float,
@@ -1106,6 +1107,7 @@ class S1FileManager:
                     f'Download failure: {s2_product_name} cannot be produced because of the following issues with the inputs: {missing}')
         return s1_products_info
 
+    @timethis("_filter_products_with_enough_coverage({tile_name})")
     def _filter_products_with_enough_coverage(self, tile_name: str, products_info: List[Dict]) -> List[Dict]:
         """
         Filter products (/pairs of products) that provide enough coverage for
@@ -1162,7 +1164,8 @@ class S1FileManager:
             l_hv, hv_images = self._filter_images_or_ortho_according_to_conf('hv', all_tiffs)
             l_hh, hh_images = self._filter_images_or_ortho_according_to_conf('hh', all_tiffs)
 
-            for image in vv_images + vh_images + hv_images + hh_images:
+            all_images = vv_images + vh_images + hv_images + hh_images
+            for image in all_images:
                 if image not in self.processed_filenames:
                     acquisition.add_image(image)
                     self.nb_images += 1
@@ -1267,7 +1270,7 @@ class S1FileManager:
                 'tile_coverage'  : image.product_info['coverage'],
                 # 'orbit_direction': get_orbit_direction(manifest),
                 # 'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
-                })
+            })
 
         return intersect_raster
 
