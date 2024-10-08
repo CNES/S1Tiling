@@ -85,7 +85,7 @@ class FirstStepFactory(Protocol):
             self,
             tile_name     : str,
             configuration : Configuration,
-            dag           : EODataAccessGateway,
+            # dag           : EODataAccessGateway,
             **kwargs,
     ) -> List[FirstStep]: ...
 
@@ -624,6 +624,7 @@ class PipelineInputs:
 
         This will permit to extend the list of starting inputs without having to modify main source code.
         """
+        logger.debug("Pipelines.register_inputs(%s) = %s", kind, steps)
         self.__inputs[kind] = steps
 
     def register_extra_parameters(self, **extra) -> None:
@@ -727,14 +728,6 @@ class PipelineDescriptionSequence:
 
         inputs : Dict[str, List[Meta]] = {
                 'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
-                'tilename': [  # TODO: see how to pass through registered inputs
-                    FirstStep(
-                        tile_name=tile_name,
-                        tile_origin=tile_origin,  # S2 tile footprint
-                        basename=f"S2info_{tile_name}",
-                        out_filename=self.__cfg.output_grid,  # Trick existing file detection
-                        does_product_exist=lambda: True,
-                    ).meta],
         }
         inputs.update(self.__inputs.instanciate_all(
             tile_name=tile_name,
@@ -972,8 +965,8 @@ class PipelineDescriptionSequence:
 
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
-        inputs = self._prepare_inputs(tile_name, raster_list)
-        required, previous, task_names_to_output_files_table = self._build_dependencies(inputs)
+        first_inputs = self._prepare_inputs(tile_name, raster_list)
+        required, previous, task_names_to_output_files_table = self._build_dependencies(first_inputs)
 
         # Generate the actual list of tasks
         final_products = [to_dask_key(p) for p in required]

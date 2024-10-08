@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
+from s1tiling.libs.api import tilename_first_inputs_factory
 
 from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
@@ -360,6 +361,7 @@ def given_pipeline_mask(pipelines, builds, pipeline_ids) -> None:
 @given('A pipeline that computes LIA in S2')
 def given_pipeline_that_computes_LIA_in_s2(pipelines, pipeline_ids) -> None:
     # The following is a copy-paste of register_LIA_pipelines...
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
             inputs={'tilename': 'tilename'},

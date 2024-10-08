@@ -79,6 +79,9 @@ from .vis import SimpleComputationGraph  # Graphs
 from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tiled_workspaces_exist
 
 
+IntersectingS1FilesOutcome = Outcome[List[Dict]]
+
+
 logger = logging.getLogger('s1tiling.api')
 
 
@@ -237,8 +240,6 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
                 raise
     return []
 
-
-IntersectingS1FilesOutcome = Outcome[List[Dict]]
 
 def get_s1_files_for_tile(
         s1_file_manager: S1FileManager,
@@ -505,6 +506,7 @@ def register_LIA_pipelines_v1_1(
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
             inputs={'tilename': 'tilename'},
@@ -554,7 +556,37 @@ def register_LIA_pipelines_v1_1(
     return lia
 
 
-def eof_inputs_hook(
+def tilename_first_inputs_factory(
+        tile_name    : str,
+        configuration: Configuration,
+        # dag          : EODataAccessGateway,
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[FirstStep]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S2 MGRS tile information: name and footprint origin.
+    """
+    # TODO: avoid to search this information multiple times
+    tiles_db  = configuration.output_grid
+    layer     = Utils.Layer(tiles_db)
+    tile_info = layer.find_tile_named(tile_name)
+    if not tile_info:
+        raise RuntimeError(f"Tile {tile_name} cannot be found in {tiles_db!r}")
+    tile_footprint = tile_info.GetGeometryRef()
+    area_polygon   = tile_footprint.GetGeometryRef(0)
+    points         = area_polygon.GetPoints()
+    tile_origin    = [(point[0], point[1]) for point in points[:-1]]
+    return [
+            FirstStep(
+                tile_name=tile_name,
+                tile_origin=tile_origin,  # S2 tile footprint
+                basename=f"S2info_{tile_name}",
+                out_filename=tiles_db,  # Trick existing file detection
+                does_product_exist=lambda: True,
+            ),
+    ]
+
+
+def eof_first_inputs_factory(
         tile_name    : str,
         configuration: Configuration,
         dag          : EODataAccessGateway,
@@ -599,6 +631,7 @@ def register_LIA_pipelines(
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
             inputs={'tilename': 'tilename'},
@@ -616,7 +649,7 @@ def register_LIA_pipelines(
             inputs={"in_s2_dem": s2_dem},
     )
 
-    pipelines.register_inputs('eof', eof_inputs_hook)
+    pipelines.register_inputs('eof', eof_first_inputs_factory)
     xyz = pipelines.register_pipeline(
             [ComputeGroundAndSatPositionsOnDEMFromEOF],
             "ComputeGroundAndSatPositionsOnDEM",
