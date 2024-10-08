@@ -60,7 +60,7 @@ class ExecutionTimer:
     def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
         if self._do_measure:
             end = timer()
-            logger.log(self._log_level, "%s took %ssec", self._text, end - self._start)
+            logger.log(self._log_level, "%s took %fsec", self._text, end - self._start)
         return False
 
 
@@ -85,6 +85,7 @@ def timethis(fmt: str = "", log_level: Optional[int] = logging.DEBUG, do_measure
                 # inpect...arguments returns a dict with all parameter names and their values
                 kw = inspect.signature(func).bind(*args, **kwargs).arguments
                 message = fmt.format(**kw)
+
             with ExecutionTimer(message, log_level=log_level, do_measure=do_measure):
                 return func(*args, **kwargs)
         return wrapper
