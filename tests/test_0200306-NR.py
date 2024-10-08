@@ -308,7 +308,7 @@ def _declare_know_files(
 
         logging.debug('Set metadata in %s', fullpath)
         for (kw, val) in img_meta.items():
-            assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
+            assert isinstance(val, (str, list)), f'GDAL metadata shall be strings or lists of strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
     mocker.patch('s1tiling.libs.steps.commit_execution',    lambda tmp, out : True)
@@ -638,6 +638,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             }, {'out.lia': otb.ImagePixelType_uint16},
             {
                 'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
+                'IMAGE_TYPE'               : 'LIA',
                 'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
             })
 
@@ -811,6 +812,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'SPATIAL_RESOLUTION'         : f"{spacing}",
                 'DEM_RESAMPLING_METHOD'      : 'cubic',
                 'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
+                'ORTHORECTIFIED'             : 'true',
             }
     )
 
@@ -844,6 +846,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'out'        : file_db.height_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
+        'ORTHORECTIFIED'             : 'true',
     })
     # ComputeGroundAndSatPositionsOnDEM
     application_mocker.set_expectations('SARDEMProjection2', {
@@ -859,7 +862,9 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     }, None, {
         # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
         'DEM_LIST'                 : ', '.join(exp_dem_names),
+        'IMAGE_TYPE'               : 'XYZ',
         'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
+        'ORTHORECTIFIED'           : 'true',
         'POLARIZATION'             : '',
         'band.DirectionToScanDEM*' : '',
         'band.Gain'                : '',
@@ -885,6 +890,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'nodata'          : nodata_LIA,
     }, {'out.lia': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
+        'IMAGE_TYPE'               : 'LIA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
     })
 
@@ -926,6 +932,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'SPATIAL_RESOLUTION'         : f"{spacing}",
                 'DEM_RESAMPLING_METHOD'      : 'cubic',
                 'TIFFTAG_IMAGEDESCRIPTION'   : 'Warped DEM to S2 tile',
+                'ORTHORECTIFIED'             : 'true',
             }
     )
 
@@ -959,6 +966,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'out'        : file_db.height_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION'   : 'DEM + GEOID height info projected on S2 tile',
+        'ORTHORECTIFIED'             : 'true',
     })
     # ComputeGroundAndSatPositionsOnDEM
     application_mocker.set_expectations('SARComputeGroundAndSatPositionsOnDEM', {
@@ -976,8 +984,9 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'DEM_LIST'                 : ', '.join(exp_dem_names),
         'EOF_FILE'                 : os.path.basename(file_db.eof_for_s2()),
         'FLYING_UNIT_CODE'         : 's1a',
-        'IMAGE_TYPE'               : 'GRD',
+        'IMAGE_TYPE'               : 'XYZ',
         'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
+        'ORTHORECTIFIED'           : 'true',
         'POLARIZATION'             : '',
         'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(file_db.relorb_for_s2()),
         'band.DirectionToScanDEM*' : '',
@@ -1004,6 +1013,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'nodata'          : nodata_LIA,
     }, {'out.lia': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
+        'IMAGE_TYPE'               : 'LIA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
     })
 
@@ -1237,6 +1247,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
         }, None,
         {
             'CALIBRATION'              : 'Normlim',
+            'IMAGE_TYPE'               : 'GRD',
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
@@ -1313,6 +1324,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
             }, None,
         {
             'CALIBRATION'              : 'Normlim',
+            'IMAGE_TYPE'               : 'GRD',
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })

@@ -256,7 +256,7 @@ Local Incidence Angle map files
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
+        - :samp:`LIA`
       * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
       * - ``ORTHORECTIFIED``
@@ -428,6 +428,8 @@ DEM data projected on S2 tile
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
@@ -445,7 +447,7 @@ Height (DEM+Geoid) projected on S2 tile
 :File name:        :samp:`DEM+GEOID_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
 :Product encoding: Float32 GeoTIFF, uncompressed.
-:Metadata:         The following metadata changed from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
+:Metadata:         The following metadata change from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
 
     .. list-table::
       :widths: auto
@@ -484,7 +486,7 @@ files.
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian
-:Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+:Metadata:         The following metadata change from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
 
     .. list-table::
       :widths: auto
@@ -501,7 +503,9 @@ files.
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
+        - :samp:`XYZ`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
@@ -750,7 +754,7 @@ present in Sentinel-1 SAR input products.
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian
-:Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+:Metadata:         The following metadata change from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
 
     .. list-table::
       :widths: auto

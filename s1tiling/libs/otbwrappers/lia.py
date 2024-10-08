@@ -200,8 +200,8 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
         imd['DEM_RESAMPLING_METHOD']      = self.__resampling_method
-        # TODO: shall we set "ORTHORECTIFIED = True" ??
-        # TODO: DEM_LIST
+        imd['ORTHORECTIFIED']             = 'true'
+        # TODO: Import DEM_LIST from input VRT image
 
     def parameters(self, meta: Meta) -> ExeParameters:
         """
@@ -284,6 +284,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['ORTHORECTIFIED']             = 'true'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -536,7 +537,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         imd['EOF_FILE']                 = meta['inbasename']
         imd['FLYING_UNIT_CODE']         = meta['flying_unit_code']
         imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
-        imd['IMAGE_TYPE']               = 'GRD'
+        imd['IMAGE_TYPE']               = 'XYZ'
+        imd['ORTHORECTIFIED']           = 'true'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -747,6 +749,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         imd['DEM_LIST']                 = ', '.join(meta['dems'])
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
+        imd['IMAGE_TYPE']               = 'XYZ'
+        imd['ORTHORECTIFIED']           = 'true'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -838,6 +842,15 @@ class _ComputeNormals(OTBStepFactory):
         meta['files_to_remove'] = [in_file]
         logger.debug('Register files to remove after normals computation: %s', meta['files_to_remove'])
         return meta
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set Normals related information.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE'] = 'NORMALS'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -985,6 +998,7 @@ class _ComputeLIA(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['DATA_TYPE'] = self.__data_types
+        imd['IMAGE_TYPE'] = 'LIA'
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1219,6 +1233,7 @@ class ApplyLIACalibration(OTBStepFactory):
         imd = meta['image_metadata']
         imd['CALIBRATION'] = meta['calibration_type']
         imd['LIA_FILE']    = os.path.basename(in_sin_LIA)
+        imd['IMAGE_TYPE']  = 'GRD'
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
