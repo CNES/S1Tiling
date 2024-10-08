@@ -88,6 +88,7 @@ class Provider:
         """
         assert isinstance(missions, (list, tuple))
         self._client = self._instantiate_client()
+        assert self._client
         eofs = self._client.query_orbits_by_dt_range(first_date, last_date, missions)
         logger.debug("%s EOFs found:", len(eofs))
         for eof in eofs:
@@ -104,6 +105,7 @@ class Provider:
         """
         auth_info = self._auth_info()
         # logger.debug("client.authenticate(%s)", auth_info)
+        assert self._client
         session = self._client.authenticate(**auth_info)
         files = session.download_all(
                 eofs,
