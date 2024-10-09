@@ -234,8 +234,10 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
             client.restart()
             # Update the list of remaining tasks
             if run_attempt < nb_tries:
-                dsk, required_products = pipelines.generate_tasks(tile_name,
+                dsk, required_products, errors = pipelines.generate_tasks(tile_name,
                         intersect_raster_list, do_watch_ram=do_watch_ram)
+                # it's unlikely for errors to appear here
+                assert not errors, f"No errors regarding task generation shall appear here: {errors}"
             else:
                 raise
     return []
@@ -294,6 +296,11 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
+    first_step_factory_parameters = {
+            'tile_name': tile_name,
+            's1_file_manager': s1_file_manager,
+            'dryrun': dryrun
+    }
     matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
     if not matching_rasters:
         return [matching_rasters]
@@ -303,7 +310,9 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
         logger.info("No intersection with tile %s", tile_name)
         return []
 
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
+    dsk, required_products, errors = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
+    if errors:
+        return errors
     logger.debug('######################################################################')
     logger.debug('Summary of %s tasks related to S1 -> S2 transformations of %s', len(dsk), tile_name)
     for product, how in dsk.items():
@@ -556,12 +565,34 @@ def register_LIA_pipelines_v1_1(
     return lia
 
 
+# def s1_raster_first_inputs_factory(
+#         tile_name      : str,
+#         configuration  : Configuration,
+#         s1_file_manager: S1FileManager,
+#         dryrun         : bool,
+#         **kwargs,  # pylint: disable=unused-argument
+# ) -> List[FirstStep]:
+#     """
+#     :class:`FirstStepFactory` hook dedicated to S1 images.
+#     """
+#     matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
+#     if not matching_rasters:
+#         return [matching_rasters]
+#     intersect_raster_list = matching_rasters.value()
+
+#     if len(intersect_raster_list) == 0:
+#         logger.info("No intersection with tile %s", tile_name)
+#         return []
+#     first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=intersect_raster_list)
+#     return first_inputs
+
+
 def tilename_first_inputs_factory(
         tile_name    : str,
         configuration: Configuration,
         # dag          : EODataAccessGateway,
         **kwargs,  # pylint: disable=unused-argument
-) -> List[FirstStep]:
+) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S2 MGRS tile information: name and footprint origin.
     """
@@ -576,13 +607,13 @@ def tilename_first_inputs_factory(
     points         = area_polygon.GetPoints()
     tile_origin    = [(point[0], point[1]) for point in points[:-1]]
     return [
-            FirstStep(
+            Outcome(FirstStep(
                 tile_name=tile_name,
                 tile_origin=tile_origin,  # S2 tile footprint
                 basename=f"S2info_{tile_name}",
                 out_filename=tiles_db,  # Trick existing file detection
                 does_product_exist=lambda: True,
-            ),
+            )),
     ]
 
 
@@ -591,7 +622,7 @@ def eof_first_inputs_factory(
         configuration: Configuration,
         dag          : EODataAccessGateway,
         **kwargs,  # pylint: disable=unused-argument
-) -> List[FirstStep]:
+) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to precise orbit inputs.
 
@@ -620,7 +651,7 @@ def eof_first_inputs_factory(
             flying_unit_code=product.mission.lower(),
             tile_name=tile_name,
     )
-    return [step]
+    return [Outcome(step)]
 
 
 def register_LIA_pipelines(

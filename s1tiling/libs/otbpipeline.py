@@ -33,6 +33,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
+from dataclasses import dataclass
 import os
 import pprint
 import re
@@ -44,7 +45,6 @@ import multiprocessing
 from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runtime_checkable
 
 from distributed import get_worker
-from eodag.api.core import EODataAccessGateway
 # memory leaks
 import objgraph
 from pympler import tracker  # , muppy
@@ -59,7 +59,7 @@ from .meta              import (
         Meta, accept_as_compatible_input, is_running_dry, get_task_name, product_exists, out_filename,
 )
 from .node_queue        import node_queue
-from .outcome           import PipelineOutcome
+from .outcome           import Outcome, PipelineOutcome, filter_outcome_dict
 from .steps             import (
         AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
         files_exist,
@@ -68,10 +68,25 @@ from .steps             import (
 from .utils.timer       import timethis
 
 
+# Typing hints
+TaskNode     = Union[Tuple, "FirstStep"]
+TaskNodeDict = Dict[str, Union[Tuple, "FirstStep"]]
+
+
+# Globals
 logger = logging.getLogger('s1tiling.pipeline')
 
 re_tiff    = re.compile(r'\.tiff?$')
 re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
+
+
+@dataclass
+class AnalysedTasks:
+    """
+    Core aggregated result of :meth:`PipelineDescriptionSequence.generate_tasks`
+    """
+    tasks            : TaskNodeDict
+    required_products: List[str]
 
 
 @runtime_checkable
@@ -85,9 +100,8 @@ class FirstStepFactory(Protocol):
             self,
             tile_name     : str,
             configuration : Configuration,
-            # dag           : EODataAccessGateway,
             **kwargs,
-    ) -> List[FirstStep]: ...
+    ) -> List[Outcome[FirstStep]]: ...
 
 
 class Pipeline:
@@ -615,10 +629,10 @@ class PipelineInputs:
         """
         Constructor.
         """
-        self.__inputs                   : Dict[str, Union[FirstStepFactory, List[FirstStep]]] = {}
+        self.__inputs                   : Dict[str, FirstStepFactory] = {}
         self.__factory_extra_parameters : Dict = {}
 
-    def register_inputs(self, kind: str, steps: Union[FirstStepFactory, List[FirstStep]]) -> None:
+    def register_inputs(self, kind: str, steps: FirstStepFactory) -> None:
         """
         Registers a source of :class:`FirstStep` instances.
 
@@ -639,25 +653,23 @@ class PipelineInputs:
             tile_name: str,
             configuration: Configuration,
             raster_list: List[Dict],
-    ) -> Dict[str, List[Meta]]:
+    ) -> Dict[str, List[Outcome[Meta]]]:
         """
         Returns all the :class:`FirstStep` instances organized by their associated sourced id.
         Factory hooks will be executed on the fly with current context parameters.
         """
-        inputs : Dict[str, List[Meta]] = {}
+        inputs : Dict[str, List[Outcome[Meta]]] = {}
         for key, inp in self.__inputs.items():
-            assert isinstance(inp, (FirstStepFactory, list)), (f"intputs[{key}] is not a FirstStepFactory nor a list but a {type(inp)}")
-            steps : List[FirstStep]
-            if isinstance(inp, FirstStepFactory):
-                steps = inp(
-                    tile_name=tile_name,
-                    configuration=configuration,
-                    raster_list=raster_list,
-                    **self.__factory_extra_parameters,
-                )
-            else:
-                steps = inp
-            inputs[key] = [inp.meta for inp in steps]
+            assert isinstance(inp, FirstStepFactory), f"intputs[{key}] is not a FirstStepFactory"
+            steps : List[Outcome[FirstStep]]
+            steps = inp(
+                tile_name=tile_name,
+                configuration=configuration,
+                raster_list=raster_list,
+                **self.__factory_extra_parameters,
+            )
+            outcomes = [step.transform(lambda s : s.meta) for step in steps]
+            inputs[key] = outcomes
         return inputs
 
 
@@ -703,13 +715,13 @@ class PipelineDescriptionSequence:
         self.__pipelines.append(pipeline)
         return pipeline
 
-    def register_inputs(self, kind: str, steps: Union[FirstStepFactory, List[FirstStep]]) -> None:
+    def register_inputs(self, kind: str, first_steps_factory: FirstStepFactory) -> None:
         """
         Registers a source of :class:`FirstStep` instances.
 
         This will permit to extend the list of starting inputs without having to modify main source code.
         """
-        self.__inputs.register_inputs(kind, steps)
+        self.__inputs.register_inputs(kind, first_steps_factory)
 
     def register_extra_parameters_for_input_factory(self, **extra) -> None:
         """
@@ -720,19 +732,20 @@ class PipelineDescriptionSequence:
     @timethis("Prepare inputs {tile_name}", logging.DEBUG)
     def _prepare_inputs(
             self, tile_name: str, raster_list: List[Dict]
-    ) -> Dict[str, List[Meta]]:
+    ) -> Dict[str, List[Outcome[Meta]]]:
         first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
         assert first_inputs, "A non empty list of raster inputs is expected"
         # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
         tile_origin = first_inputs[0]["tile_origin"]
 
-        inputs : Dict[str, List[Meta]] = {
-                'basename': first_inputs,  # TODO: find the right name _0/__/_firststeps/...?
+        inputs : Dict[str, List[Outcome[Meta]]] = {
+                'basename': [Outcome(fi) for fi in first_inputs],  # TODO: find the right name _0/__/_firststeps/...?
         }
-        inputs.update(self.__inputs.instanciate_all(
-            tile_name=tile_name,
-            configuration=self.__cfg,
-            raster_list=raster_list,
+        inputs.update(
+                self.__inputs.instanciate_all(
+                    tile_name=tile_name,
+                    configuration=self.__cfg,
+                    raster_list=raster_list,
         ))
         logger.debug("FIRST: %s", pprint.pformat(inputs))
         # logger.debug('FIRST: %s', pipelines_outputs['basename'])
@@ -871,7 +884,7 @@ class PipelineDescriptionSequence:
         previous :                        Dict,
         task_names_to_output_files_table: Dict,
         do_watch_ram:                     bool
-    ) -> Dict[str, Union[Tuple, "FirstStep"]]:  # Dict of FirstStep or Tuple parameter for execute4dask
+    ) -> TaskNodeDict:  # Dict of FirstStep or Tuple parameter for execute4dask
         """
         Generates the actual list of tasks for :func:`dask.client.get()`.
 
@@ -921,7 +934,7 @@ class PipelineDescriptionSequence:
                     register_task(tasks, to_dask_key(tn), FirstStep(**t))
         return tasks
 
-    def _check_static_task_requirements(self, tasks: Dict[str, Union[Tuple, "FirstStep"]]) -> None:
+    def _check_static_task_requirements(self, tasks: TaskNodeDict) -> None:
         """
         Check all tasks have their requirement fulfilled for being generated.
         Typically that the related applications are installed and can be
@@ -955,7 +968,7 @@ class PipelineDescriptionSequence:
     @timethis("Generating tasks for {tile_name}", logging.DEBUG)
     def generate_tasks(
         self, tile_name: str, raster_list: List[Dict], do_watch_ram=False
-    ) -> Tuple[Dict[str, Union[Tuple, "FirstStep"]], List[str]]:
+    ) -> Tuple[TaskNodeDict, List[str], List[Outcome]]:
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -965,7 +978,10 @@ class PipelineDescriptionSequence:
 
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
-        first_inputs = self._prepare_inputs(tile_name, raster_list)
+        possible_first_inputs = self._prepare_inputs(tile_name, raster_list)
+        first_inputs, errors_on_inputs = filter_outcome_dict(possible_first_inputs)
+        if errors_on_inputs:
+            return {}, [], errors_on_inputs  # Outcome is 1 error, not a list of errors...
         required, previous, task_names_to_output_files_table = self._build_dependencies(first_inputs)
 
         # Generate the actual list of tasks
@@ -979,7 +995,7 @@ class PipelineDescriptionSequence:
 
         for final_product in final_products:
             assert final_product in tasks
-        return tasks, final_products
+        return tasks, final_products, []
 
 
 @timethis("_generate_first_steps_from_manifests({tile_name})")
