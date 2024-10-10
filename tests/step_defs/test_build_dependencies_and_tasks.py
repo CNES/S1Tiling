@@ -34,7 +34,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
-from s1tiling.libs.api import tilename_first_inputs_factory
+from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.api import s1_raster_first_inputs_factory, s1_raster_first_inputs_factory_from_rasters, tilename_first_inputs_factory
+from s1tiling.libs.outcome import filter_outcomes
 
 from s1tiling.libs.steps import MergeStep, FirstStep
 from s1tiling.libs.otbpipeline import PipelineDescriptionSequence, Pipeline, to_dask_key
@@ -270,6 +272,7 @@ class Configuration():
         self.dname_fmt                         = {}
         self.creation_options                  = {}
 
+
 def isfile(filename, existing_files) -> bool:
     # assert False
     res = filename in existing_files
@@ -330,10 +333,12 @@ def tasks() -> Dict:
 
 @given(parsers.parse('A pipeline that {calibration} calibrates and orthorectifies'))
 def given_pipeline_ortho(pipelines, pipeline_ids, calibration) -> None:
-    pipeline = pipelines.register_pipeline([ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
+    pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+    pipeline = pipelines.register_pipeline(
+            [ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
             'FullOrtho', product_required=False, is_name_incremental=True
             # , inputs={'in': 'basename'}
-            )
+    )
     pipeline_ids['FullOrtho'] = pipeline
     pipeline_ids['last'] = pipeline
 
@@ -579,7 +584,14 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     })
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
-    first_inputs = pipelines._prepare_inputs(TILE, raster_list)
+    pipelines.register_extra_parameters_for_input_factory(
+            tile_name=TILE,
+            raster_list=raster_list,
+    )
+    pipelines.register_inputs('basename', s1_raster_first_inputs_factory_from_rasters)
+    # possible_first_inputs = pipelines._prepare_inputs(TILE, raster_list)
+    possible_first_inputs = pipelines._prepare_inputs()
+    first_inputs, errors_on_inputs = filter_outcomes(possible_first_inputs)
     dependencies.extend(pipelines._build_dependencies(first_inputs))
 
 @when('tasks are generated')

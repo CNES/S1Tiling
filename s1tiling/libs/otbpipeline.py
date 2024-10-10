@@ -645,14 +645,12 @@ class PipelineInputs:
         """
         Registers extra parameters for hooks.
         """
-        self.__factory_extra_parameters = extra
+        self.__factory_extra_parameters.update(**extra)
 
     @timethis("instanciate_all inputs")
     def instanciate_all(
             self,
-            tile_name: str,
             configuration: Configuration,
-            raster_list: List[Dict],
     ) -> Dict[str, List[Outcome[Meta]]]:
         """
         Returns all the :class:`FirstStep` instances organized by their associated sourced id.
@@ -663,9 +661,7 @@ class PipelineInputs:
             assert isinstance(inp, FirstStepFactory), f"intputs[{key}] is not a FirstStepFactory"
             steps : List[Outcome[FirstStep]]
             steps = inp(
-                tile_name=tile_name,
                 configuration=configuration,
-                raster_list=raster_list,
                 **self.__factory_extra_parameters,
             )
             outcomes = [step.transform(lambda s : s.meta) for step in steps]
@@ -729,24 +725,9 @@ class PipelineDescriptionSequence:
         """
         self.__inputs.register_extra_parameters(**extra)
 
-    @timethis("Prepare inputs {tile_name}", logging.DEBUG)
-    def _prepare_inputs(
-            self, tile_name: str, raster_list: List[Dict]
-    ) -> Dict[str, List[Outcome[Meta]]]:
-        first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=raster_list)
-        assert first_inputs, "A non empty list of raster inputs is expected"
-        # the tile_origin meta from all input is actually the same and it's actually the S2 tile footprint
-        tile_origin = first_inputs[0]["tile_origin"]
-
-        inputs : Dict[str, List[Outcome[Meta]]] = {
-                'basename': [Outcome(fi) for fi in first_inputs],  # TODO: find the right name _0/__/_firststeps/...?
-        }
-        inputs.update(
-                self.__inputs.instanciate_all(
-                    tile_name=tile_name,
-                    configuration=self.__cfg,
-                    raster_list=raster_list,
-        ))
+    @timethis("Prepare inputs", logging.DEBUG)
+    def _prepare_inputs(self) -> Dict[str, List[Outcome[Meta]]]:
+        inputs : Dict[str, List[Outcome[Meta]]] = self.__inputs.instanciate_all(configuration=self.__cfg)
         logger.debug("FIRST: %s", pprint.pformat(inputs))
         # logger.debug('FIRST: %s', pipelines_outputs['basename'])
         return inputs
@@ -965,10 +946,8 @@ class PipelineDescriptionSequence:
         else:
             logger.debug('All required applications are correctly available')
 
-    @timethis("Generating tasks for {tile_name}", logging.DEBUG)
-    def generate_tasks(
-        self, tile_name: str, raster_list: List[Dict], do_watch_ram=False
-    ) -> Tuple[TaskNodeDict, List[str], List[Outcome]]:
+    @timethis("Generating tasks", logging.DEBUG)
+    def generate_tasks(self, do_watch_ram=False) -> Tuple[TaskNodeDict, List[str], List[Outcome]]:
         """
         Generate the minimal list of tasks that can be passed to Dask
 
@@ -978,7 +957,7 @@ class PipelineDescriptionSequence:
 
         TODO: Move into another dedicated class instead of PipelineDescriptionSequence
         """
-        possible_first_inputs = self._prepare_inputs(tile_name, raster_list)
+        possible_first_inputs = self._prepare_inputs()
         first_inputs, errors_on_inputs = filter_outcome_dict(possible_first_inputs)
         if errors_on_inputs:
             return {}, [], errors_on_inputs  # Outcome is 1 error, not a list of errors...

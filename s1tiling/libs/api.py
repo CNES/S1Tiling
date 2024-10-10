@@ -44,6 +44,7 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
 
+from .S1DateAcquisition import S1DateAcquisition
 from .S1FileManager import (
         S1FileManager, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -204,7 +205,6 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     dsk:                   Dict[str, Union[Tuple, "FirstStep"]],
     tile_name:             str,
     tile_idx:              int,
-    intersect_raster_list: List[Dict],
     required_products:     List[str],
     client:                Client,
     pipelines:             PipelineDescriptionSequence,
@@ -234,8 +234,7 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
             client.restart()
             # Update the list of remaining tasks
             if run_attempt < nb_tries:
-                dsk, required_products, errors = pipelines.generate_tasks(tile_name,
-                        intersect_raster_list, do_watch_ram=do_watch_ram)
+                dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram=do_watch_ram)
                 # it's unlikely for errors to appear here
                 assert not errors, f"No errors regarding task generation shall appear here: {errors}"
             else:
@@ -277,13 +276,11 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,
-    s1_file_manager:         S1FileManager,
     cfg:                     Configuration,
     pipelines:               PipelineDescriptionSequence,
     client:                  Optional[Client],
     required_workspaces:     List[WorkspaceKinds],
     debug_otb:               bool = False,
-    dryrun:                  bool = False,
     do_watch_ram:            bool = False,
     debug_tasks:             bool = False
 ) -> List[Outcome]:
@@ -296,21 +293,10 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    first_step_factory_parameters = {
-            'tile_name': tile_name,
-            's1_file_manager': s1_file_manager,
-            'dryrun': dryrun
-    }
-    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
-    if not matching_rasters:
-        return [matching_rasters]
-    intersect_raster_list = matching_rasters.value()
-
-    if len(intersect_raster_list) == 0:
-        logger.info("No intersection with tile %s", tile_name)
-        return []
-
-    dsk, required_products, errors = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
+    pipelines.register_extra_parameters_for_input_factory(
+            tile_name=tile_name
+    )
+    dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram)
     if errors:
         return errors
     logger.debug('######################################################################')
@@ -322,7 +308,8 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
         return _execute_tasks_debug(dsk, tile_name)
     else:
         assert client, "Dask client shall exist when not debugging calls to OTB applications"
-        return _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list,
+        return _execute_tasks_with_dask(
+                dsk, tile_name, tile_idx,
                 required_products, client, pipelines, do_watch_ram, debug_tasks)
 
 
@@ -412,7 +399,12 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         # Used by eof
-        pipelines.register_extra_parameters_for_input_factory(dag=dag)
+        pipelines.register_extra_parameters_for_input_factory(
+                dag=dag,
+                s1_file_manager=s1_file_manager,
+                dryrun=dryrun,
+                # tile_name will be done in process_one_tile
+        )
 
         config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
@@ -422,9 +414,9 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
             for idx, tile_it in enumerate(tiles_to_process):
                 res = process_one_tile(
                         tile_it, idx, nb_tiles,
-                        s1_file_manager, config, pipelines, dask_client.client,
+                        config, pipelines, dask_client.client,
                         required_workspaces,
-                        debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
+                        debug_otb=debug_otb, do_watch_ram=watch_ram,
                         debug_tasks=debug_tasks)
                 results.append(res)
 
@@ -565,32 +557,57 @@ def register_LIA_pipelines_v1_1(
     return lia
 
 
-# def s1_raster_first_inputs_factory(
-#         tile_name      : str,
-#         configuration  : Configuration,
-#         s1_file_manager: S1FileManager,
-#         dryrun         : bool,
-#         **kwargs,  # pylint: disable=unused-argument
-# ) -> List[FirstStep]:
-#     """
-#     :class:`FirstStepFactory` hook dedicated to S1 images.
-#     """
-#     matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
-#     if not matching_rasters:
-#         return [matching_rasters]
-#     intersect_raster_list = matching_rasters.value()
+def s1_raster_first_inputs_factory(
+        tile_name      : str,
+        configuration  : Configuration,
+        s1_file_manager: S1FileManager,
+        dryrun         : bool,
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S1 images.
+    """
+    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
+    if not matching_rasters:
+        return [matching_rasters]
+    intersect_raster_list = matching_rasters.value()
 
-#     if len(intersect_raster_list) == 0:
-#         logger.info("No intersection with tile %s", tile_name)
-#         return []
-#     first_inputs = _generate_first_steps_from_manifests(tile_name=tile_name, raster_list=intersect_raster_list)
-#     return first_inputs
+    if len(intersect_raster_list) == 0:
+        logger.info("No intersection with tile %s", tile_name)
+        return []
+    return s1_raster_first_inputs_factory_from_rasters(tile_name, intersect_raster_list)
+
+
+def s1_raster_first_inputs_factory_from_rasters(
+        tile_name      : str,
+        raster_list : List[Dict],
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S1 images.
+    """
+    assert raster_list
+    first_inputs = []
+    for raster_info in raster_list:
+        raster: S1DateAcquisition = raster_info['raster']
+
+        manifest = raster.get_manifest()
+        for image in raster.get_images_list():
+            start = FirstStep(tile_name=tile_name,
+                              tile_origin=raster_info['tile_origin'],
+                              tile_coverage=raster_info['tile_coverage'],
+                              manifest=manifest,
+                              basename=image)
+            first_inputs.append(Outcome(start))
+
+    # Log commented and kept for filling in unit tests
+    # logger.debug('Generate first steps from: %s', intersect_raster_list)
+    return first_inputs
 
 
 def tilename_first_inputs_factory(
         tile_name    : str,
         configuration: Configuration,
-        # dag          : EODataAccessGateway,
         **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
@@ -777,6 +794,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         chain_concat_and_despeckle_inmemory = False  # See issue #118
 
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
 
         # Calibration ... OrthoRectification
         calib_seq = [ExtractSentinel1Metadata, AnalyseBorders, Calibrate]
@@ -928,6 +946,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
         register_LIA_pipelines_v0(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
@@ -1007,6 +1026,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
         register_LIA_pipelines_v1_1(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
