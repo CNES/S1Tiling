@@ -42,7 +42,7 @@ import multiprocessing
 import os
 import re
 import shutil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Protocol, Tuple, Union
 
 from osgeo import ogr
 from requests.exceptions     import ReadTimeout
@@ -68,7 +68,7 @@ from .Utils             import (
 )
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import (
-        Configuration, dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
+        dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import DownloadOutcome
@@ -84,6 +84,32 @@ EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in min
 EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
 EODAG_DEFAULT_SEARCH_MAX_RETRIES    = 5   #: If search fails on timeout, number of retries attempted
 EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
+
+
+class S1FileManagerConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related :class:`S1FileManager` configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding S1 file managing.
+    """
+    first_date                   : str
+    last_date                    : str
+    download                     : bool
+    roi_by_tiles                 : str
+    raw_directory                : str
+    tmpdir                       : str
+    output_preprocess            : str
+    nb_download_processes        : int
+    tile_list                    : List[str]
+    output_grid                  : str
+    platform_list                : List[str]
+    orbit_direction              : Optional[str]
+    relative_orbit_list          : List[int]
+    polarisation                 : str
+    tile_to_product_overlap_ratio: int
+    calibration_type             : str
+    fname_fmt                    : Dict
+    dname_fmt                    : Dict
 
 
 def product_property(prod: EOProduct, key: str, default=None):
@@ -151,7 +177,7 @@ def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-loc
     product:       EOProduct,
     tile_name:     str,
     polarizations: List[str],
-    cfg:           Configuration,
+    cfg:           S1FileManagerConfiguration,
     s2images:      List[str]
 ) -> bool:
     """
@@ -554,7 +580,7 @@ class S1FileManager:
     tiff_pattern     = "measurement/*.tiff"
     manifest_pattern = "manifest.safe"
 
-    def __init__(self, cfg: Configuration, dag: Optional[EODataAccessGateway]) -> None:
+    def __init__(self, cfg: S1FileManagerConfiguration, dag: Optional[EODataAccessGateway]) -> None:
         # Configuration
         self.cfg              = cfg
         self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE)

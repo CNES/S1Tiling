@@ -44,7 +44,7 @@ import logging.config
 import os
 from pathlib import Path
 import re
-from typing import Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
+from typing import Dict, List, NoReturn, Optional, Protocol, Union, Tuple, TypeVar
 import otbApplication as otb
 import yaml
 
@@ -685,7 +685,18 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         return self.__dems_by_s2_tiles[tile_name]
 
 
-def fname_fmt_concatenation(cfg: Configuration) -> str:
+class NameFormattingConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to name generation configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding name generation.
+    """
+    calibration_type: str
+    fname_fmt: Dict
+    dname_fmt: Dict
+
+
+def fname_fmt_concatenation(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fnmatch.concatenation`` actual
     value, or its default value according to the calibration kind.
@@ -703,7 +714,7 @@ def fname_fmt_concatenation(cfg: Configuration) -> str:
     return fname_fmt
 
 
-def fname_fmt_filtered(cfg: Configuration) -> str:
+def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fnmatch.filtered`` actual value,
     or its default value according to the calibration kind.
@@ -721,7 +732,7 @@ def fname_fmt_filtered(cfg: Configuration) -> str:
     return fname_fmt
 
 
-def dname_fmt_tiled(cfg: Configuration) -> str:
+def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.tiled`` actual
     value, or its default value.
@@ -729,7 +740,7 @@ def dname_fmt_tiled(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
 
 
-def dname_fmt_mask(cfg: Configuration) -> str:
+def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.mask`` actual value,
     or its default value.
@@ -737,7 +748,7 @@ def dname_fmt_mask(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
 
 
-def dname_fmt_filtered(cfg: Configuration) -> str:
+def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.filtered`` actual value,
     or its default value.
@@ -745,7 +756,7 @@ def dname_fmt_filtered(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
 
 
-def dname_fmt_lia_product(cfg: Configuration) -> str:
+def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.lia_product`` actual value,
     or its default value.
@@ -753,7 +764,7 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
 
 
-def dname_fmt_eof_product(cfg: Configuration) -> str:
+def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.eof_product`` actual value,
     or its default value.
