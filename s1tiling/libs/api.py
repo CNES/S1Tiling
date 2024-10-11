@@ -418,7 +418,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                         required_workspaces,
                         debug_otb=debug_otb, do_watch_ram=watch_ram,
                         debug_tasks=debug_tasks)
-                results.append(res)
+                results.extend(res)
 
         nb_errors_detected = sum(not bool(res) for res in results)
 
