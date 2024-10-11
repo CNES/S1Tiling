@@ -46,28 +46,57 @@ from eodag.api.core import EODataAccessGateway
 
 from .S1DateAcquisition import S1DateAcquisition
 from .S1FileManager import (
-        S1FileManager, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    S1FileManager,
+    EODAG_DEFAULT_DOWNLOAD_WAIT,
+    EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
 )
 from . import exits
 from . import exceptions
 from . import Utils
 from .configuration import Configuration
-from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence, StepFactory, AbstractStep
+from .otbpipeline import (
+    FirstStep,
+    PipelineDescription,
+    PipelineDescriptionSequence,
+    StepFactory,
+    AbstractStep,
+)
 from .otbwrappers import (
-        # Main S1 -> S2 Step Factories
-        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
-        CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        # LIA relate Step Factories
-        AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
-        SumAllHeights, ComputeGroundAndSatPositionsOnDEM, ComputeGroundAndSatPositionsOnDEMFromEOF,
-        ComputeLIAOnS2, filter_LIA, ComputeNormalsOnS2,
-        ApplyLIACalibration,
-        # Deprecated LIA related Step Factories
-        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
-        ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
-        # Filter Step Factories
-        SpatialDespeckle)
+    # Main S1 -> S2 Step Factories
+    ExtractSentinel1Metadata,
+    AnalyseBorders,
+    Calibrate,
+    CorrectDenoising,
+    CutBorders,
+    OrthoRectify,
+    Concatenate,
+    BuildBorderMask,
+    SmoothBorderMask,
+    # LIA relate Step Factories
+    AgglomerateDEMOnS2,
+    ProjectDEMToS2Tile,
+    ProjectGeoidToS2Tile,
+    SumAllHeights,
+    ComputeGroundAndSatPositionsOnDEM,
+    ComputeGroundAndSatPositionsOnDEMFromEOF,
+    ComputeLIAOnS2,
+    filter_LIA,
+    ComputeNormalsOnS2,
+    ApplyLIACalibration,
+    # Deprecated LIA related Step Factories
+    AgglomerateDEMOnS1,
+    SARDEMProjection,
+    SARCartesianMeanEstimation,
+    ComputeNormalsOnS1,
+    OrthoRectifyLIA,
+    ComputeLIAOnS1,
+    ConcatenateLIA,
+    SelectBestCoverage,
+    # Filter Step Factories
+    SpatialDespeckle,
+)
 from .outcome     import Outcome
 from .orbit       import EOFFileManager
 from .utils.dask  import DaskContext
@@ -97,8 +126,9 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1Fil
         if not s1_file_manager:
             raise exceptions.ConfigurationError("tile_list=ALL mode is not compatible with this scenario", "")
         # Check already done in the configuration object
-        assert not (cfg.download and "ALL" in cfg.roi_by_tiles), \
-            "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
+        assert not (
+            cfg.download and "ALL" in cfg.roi_by_tiles
+        ), "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
         tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
         logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                 100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
@@ -293,9 +323,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    pipelines.register_extra_parameters_for_input_factory(
-            tile_name=tile_name
-    )
+    pipelines.register_extra_parameters_for_input_factory(tile_name=tile_name)
     dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram)
     if errors:
         return errors
