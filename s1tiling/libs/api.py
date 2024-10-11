@@ -656,7 +656,8 @@ def eof_first_inputs_factory(
     eof_files = eof_manager.search_for(relative_orbit)
     assert len(eof_files) > 0
     if not eof_files[0]:
-        raise eof_files[0].error()
+        error = eof_files[0].error()
+        raise exceptions.DownloadEOFFileError(str(error)) from error
     logger.info("Orbit %s OSVs will be taken from '%s'", relative_orbit, eof_files[0].value())
     # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
     # TODO: see how to support the case where all inputs are dropped...
