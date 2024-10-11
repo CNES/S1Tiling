@@ -975,6 +975,15 @@ class Concatenate(_ConcatenatorFactory):
                 return exist_task_name or exist_file_name
             meta['does_product_exist'] = lambda : check_product(meta)
 
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set concatenation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE'] = 'BACKSCATTERING'
+
 
 # ----------------------------------------------------------------------
 # Mask related applications
@@ -1006,6 +1015,15 @@ class BuildBorderMask(OTBStepFactory):
                 pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
         )
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set mask related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE'] = 'MASK'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1155,6 +1173,7 @@ class SpatialDespeckle(OTBStepFactory):
             imd['FILTERING_DERAMP']    = str(self.__deramp)
         if self.__nblooks:
             imd['FILTERING_NBLOOKS']   = str(self.__nblooks)
+        imd['IMAGE_TYPE']              = 'BACKSCATTERING'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """

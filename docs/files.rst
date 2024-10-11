@@ -71,7 +71,7 @@ Orthorectified S2 tiles
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
+        - :samp:`BACKSCATTERING`
       * - ``INPUT_S1_IMAGES``
         - List of the input Sentinel-1 images used to generate this product
       * - ``LIA_FILE``
@@ -133,6 +133,8 @@ Mask files
       * - Metadata
         - Value
 
+      * - ``IMAGE_TYPE``
+        - :samp:`MASK`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile`
 
