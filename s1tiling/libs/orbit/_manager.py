@@ -51,7 +51,7 @@ from ..outcome import DownloadOutcome
 from ..utils import partition
 
 
-EOFOutcome = DownloadOutcome[Filename, Optional[SentinelOrbitFile]]
+EOFOutcome = DownloadOutcome[str, Optional[SentinelOrbitFile]]
 
 
 logger = logging.getLogger("s1tiling.orbit")
@@ -180,7 +180,7 @@ class EOFFileManager:
                 provider = self._instanciate_provider(provider_kind)
                 eofs = provider.search(self.__first_date, self.__last_date, missions)
                 files = provider.download(eofs, self.__dest_dir)
-                return [EOFOutcome(f, SentinelOrbitFile(f)) for f in files]
+                return [EOFOutcome(str(f), SentinelOrbitFile(f)) for f in files]
             except BaseException as e:  # pylint: disable=broad-except
                 logger.warning(e, exc_info=False)
                 # logger.debug(e, exc_info=True)
@@ -220,7 +220,7 @@ class EOFFileManager:
             # Still, a question:
             # ~> should we be precise (in the configuration file) with thetarget mission as we
             #    are with the target relative orbit?
-            results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+            results = [EOFOutcome(str(f.filename), f) for f in eof_files_matching]
             return results
 
         # 2. if not, download files in the time range
@@ -248,7 +248,7 @@ class EOFFileManager:
                 # First: try to see if matching products have been downloaded
                 eof_files = [SentinelOrbitFile(prod.value()) for prod in eof_products]
                 eof_files_matching = self._filter_files(eof_files, relative_orbit, missions)
-                results = [EOFOutcome(f.filename, f) for f in eof_files_matching]
+                results = [EOFOutcome(str(f.filename), f) for f in eof_files_matching]
             results.extend(eof_errors)
 
         # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
