@@ -68,18 +68,20 @@ def filter_existing_tiles(mgrs_grid_name: str, tile_names: List[str]) -> List[st
 
     :return: list of all tile names that exist in MGRS grid database.
     """
-    valid_tiles = []
+    valid_tiles = set()
 
     layer = Layer(mgrs_grid_name)
 
     for current_tile in layer:
         # logger.debug("%s", current_tile.GetField('NAME'))
         if (tile_name := current_tile.GetField('NAME')) in tile_names:
-            valid_tiles.append(tile_name)
-        else:
-            logger.warning("Tile %s does not exist, skipping ...", tile_name)
+            valid_tiles.add(tile_name)
 
-    return valid_tiles
+    unknown_tiles = set(tile_names) - valid_tiles
+    for tile_name in unknown_tiles:
+        logger.warning("Tile '%s' does not exist, skipping ...", tile_name)
+
+    return list(valid_tiles)
 
 
 def check_dem_coverage(
