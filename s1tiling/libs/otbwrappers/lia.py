@@ -1233,7 +1233,7 @@ class ApplyLIACalibration(OTBStepFactory):
         imd = meta['image_metadata']
         imd['CALIBRATION'] = meta['calibration_type']
         imd['LIA_FILE']    = os.path.basename(in_sin_LIA)
-        imd['IMAGE_TYPE']  = 'GRD'
+        imd['IMAGE_TYPE']  = 'BACKSCATTERING'
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """

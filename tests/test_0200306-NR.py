@@ -141,7 +141,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
     assert EX == 0
     descr_ortho = 'sigma calibrated orthorectified Sentinel-1A IW GRD'
     descr_mask  = 'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile'
-    for kind, descr in zip(['', '_BorderMask'], [descr_ortho, descr_mask]):
+    for kind, descr, image_type in zip(['', '_BorderMask'], [descr_ortho, descr_mask], ['BACKSCATTERING', 'MASK']):
         for polar in ['vh', 'vv']:
             im = f'33NWB/s1a_33NWB_{polar}_DES_007_20200108txxxxxx{kind}.tif'
             expected = baseline_path / im
@@ -157,7 +157,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
                     'AREA_OR_POINT'              : 'Area',
                     'CALIBRATION'                : 'sigma',
                     'FLYING_UNIT_CODE'           : 's1a',
-                    'IMAGE_TYPE'                 : 'GRD',
+                    'IMAGE_TYPE'                 : image_type,
                     'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                     'NOISE_REMOVED'              : 'False',
                     'ORBIT_DIRECTION'            : 'DES',
@@ -240,7 +240,7 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
                 'AREA_OR_POINT'              : 'Area',
                 'CALIBRATION'                : 'sigma',
                 'FLYING_UNIT_CODE'           : 's1a',
-                'IMAGE_TYPE'                 : 'GRD',
+                'IMAGE_TYPE'                 : 'MASK',
                 'INPUT_S1_IMAGES'            : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5, S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
                 # For now, the start points don't have this...
                 'NOISE_REMOVED'              : 'False',
@@ -517,6 +517,7 @@ def mock_upto_concat_S2(
                     'ACQUISITION_DATETIME'     : file_db.start_time_for_two(i),
                     'ACQUISITION_DATETIME_1'   : file_db.start_time(2*i),
                     'ACQUISITION_DATETIME_2'   : file_db.start_time(2*i+1),
+                    'IMAGE_TYPE'               : 'BACKSCATTERING',
                     'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(2*i), file_db.product_name(2*i+1)),
                     'TIFFTAG_IMAGEDESCRIPTION' : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
                     })
@@ -547,10 +548,12 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
             'il'       : [infile(i, False)],
             'exp'      : 'im1b1==0?0:1',
             'out'      : 'BinaryMorphologicalOperation|>'+out_mask,
-            }, {'out': otb.ImagePixelType_uint8},
-            {
-                'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD border mask S2 tile',
-                })
+        }, {
+            'out': otb.ImagePixelType_uint8
+        }, {
+            'IMAGE_TYPE'                : 'MASK',
+            'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD border mask S2 tile',
+        })
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [infile(i, False)+'|>BandMath'],
             'ram'      : param_ram(2048),
@@ -559,10 +562,11 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
             'yradius'  : 5,
             'filter'   : 'opening',
             'out'      : out_mask,
-            }, {'out': otb.ImagePixelType_uint8},
-            {
-                'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
-                })
+        }, {
+            'out': otb.ImagePixelType_uint8
+        }, {
+            'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
+        })
 
 
 def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
@@ -1244,18 +1248,18 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
         'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
         'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
-        }, None,
-        {
-            'CALIBRATION'              : 'Normlim',
-            'IMAGE_TYPE'               : 'GRD',
-            'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
-            'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
-            })
+    }, None,
+    {
+        'CALIBRATION'              : 'Normlim',
+        'IMAGE_TYPE'               : 'BACKSCATTERING',
+        'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
+        'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
+    })
 
     s1_process(
-            config_opt=configuration, searched_items_per_page=0,
-            dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
-            lia_process=register_LIA_pipelines_v0,
+        config_opt=configuration, searched_items_per_page=0,
+        dryrun=False, debug_otb=True, watch_ram=False, debug_tasks=False,
+        lia_process=register_LIA_pipelines_v0,
     )
     application_mocker.assert_all_have_been_executed()
     application_mocker.assert_all_metadata_match()
@@ -1324,7 +1328,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
             }, None,
         {
             'CALIBRATION'              : 'Normlim',
-            'IMAGE_TYPE'               : 'GRD',
+            'IMAGE_TYPE'               : 'BACKSCATTERING',
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
             })
