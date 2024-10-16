@@ -359,7 +359,7 @@ class _ProducerStep(AbstractStep):
 
         def do_log(fullpath, img_meta: Dict[str, Union[str, List[str]]], idx: int = -1) -> None:
             logger.debug('(dryrun) Set metadata in %s', fullpath)
-            for (kw, val) in img_meta.items():
+            for kw, val in img_meta.items():
                 if isinstance(val, list):
                     assert 0 <= idx < len(val)
                     val = val[idx]
@@ -381,7 +381,7 @@ class _ProducerStep(AbstractStep):
                 else:
                     all_metadata.pop(key, None)
 
-            for (kw, val) in img_meta.items():
+            for kw, val in img_meta.items():
                 logger.debug(' - %s -> %s', kw, val)
                 if kw.endswith('*'):
                     assert isinstance(val, str), f'GDAL metadata shall be strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
@@ -648,16 +648,17 @@ class StepFactory(ABC):
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
-        meta['in_filename']        = out_filename(meta)
-        meta['out_filename']       = self.build_step_output_filename(meta)
-        meta['pipe']               = meta.get('pipe', []) + [self.__class__.__name__]
+        meta['in_filename']  = out_filename(meta)
+        meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['pipe']         = meta.get('pipe', []) + [self.__class__.__name__]
 
         def check_product(meta: Meta) -> bool:
             filename        = out_filename(meta)
             exist_file_name = os.path.isfile(filename)
             logger.debug('Checking %s product: %s => %s', self.__class__.__name__, filename, '∃' if exist_file_name else '∅')
             return exist_file_name
-        meta['does_product_exist'] = lambda : check_product(meta)
+
+        meta['does_product_exist'] = lambda: check_product(meta)
         meta.pop('task_name',                  None)
         meta.pop('task_basename',              None)
         meta.pop('update_out_filename',        None)
@@ -713,15 +714,15 @@ class StepFactory(ABC):
         if self.image_description:
             if isinstance(self.image_description, list):
                 imd['TIFFTAG_IMAGEDESCRIPTION'] = [
-                        id.format(
-                            **meta,
-                            flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
-                        for id in self.image_description
+                    id.format(
+                        **meta,
+                        flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
+                    for id in self.image_description
                 ]
             else:
                 imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
-                        **meta,
-                        flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
+                    **meta,
+                    flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -759,9 +760,9 @@ class StepFactory(ABC):
             raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
     def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+        self,
+        execution_parameters: Dict,
+        previous_steps: List[InputList]
     ) -> AbstractStep:
         """
         Instanciates the step related to the current :class:`StepFactory`,
@@ -793,7 +794,7 @@ class StepFactory(ABC):
         return self._do_create_actual_step(execution_parameters, input_step, meta)
 
     def _do_create_actual_step(  # pylint: disable=unused-argument
-            self, execution_parameters: Dict, input_step: AbstractStep, meta: Meta
+        self, execution_parameters: Dict, input_step: AbstractStep, meta: Meta
     ) -> AbstractStep:
         """
         Generic variation point for the exact step creation.
@@ -869,7 +870,12 @@ class StoreStep(_ProducerStep):
 # Some specific steps
 class FirstStep(AbstractStep):
     """
-    First Step:
+    First step instances are the pipeline staring points.
+    They store meta data that'll be used by the :class:`StepFactories
+    <s1tiling.libs.steps.StepFactory>` to:
+
+    1. first tell what could be be produced
+    2. then to instanciate the :class:`steps <s1tiling.libs.steps.Step>`
 
     - no application executed
     """
@@ -981,10 +987,10 @@ class _FileProducingStepFactory(StepFactory):
           This case will make sense for steps that don't produce required products
         """
         return str(self.__gen_output_dir).format(
-                **meta,
-                out_dir=self.__outdir,
-                tmp_dir=self.__tmpdir,
-                lia_dir=self.__liadir,
+            **meta,
+            out_dir=self.__outdir,
+            tmp_dir=self.__tmpdir,
+            lia_dir=self.__liadir,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
@@ -1071,16 +1077,16 @@ class OTBStepFactory(_FileProducingStepFactory):
     :class:`OTBStepFactory`.
     """
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            cfg                : Configuration,
-            appname            : str,
-            gen_tmp_dir        : str,
-            gen_output_dir     : Optional[str],
-            gen_output_filename: OutputFilenameGenerator,
-            extended_filename  : Optional[Union[str, List[str]]] = None,
-            pixel_type         : Optional[Union[int, List[int]]] = None,
-            # *argv,  # param_in/_out, name, image_description
-            **kwargs
+        self,
+        cfg                : Configuration,
+        appname            : str,
+        gen_tmp_dir        : str,
+        gen_output_dir     : Optional[str],
+        gen_output_filename: OutputFilenameGenerator,
+        extended_filename  : Optional[Union[str, List[str]]] = None,
+        pixel_type         : Optional[Union[int, List[int]]] = None,
+        # *argv,  # param_in/_out, name, image_description
+        **kwargs,
     ) -> None:
         """
         Constructor.
@@ -1178,10 +1184,10 @@ class OTBStepFactory(_FileProducingStepFactory):
             do_set(self.param_out, self._pixel_type)
 
     def _do_create_actual_step(
-            self,
-            execution_parameters: Dict,
-            input_step: AbstractStep,
-            meta: Meta
+        self,
+        execution_parameters: Dict,
+        input_step: AbstractStep,
+        meta: Meta
     ) -> AbstractStep:
         """
         Instanciates the step related to the current :class:`StepFactory`,
@@ -1221,9 +1227,12 @@ class OTBStepFactory(_FileProducingStepFactory):
             left_over_parameters : Set[str] = set()
             if input_step.is_first_step:
                 if not files_exist(input_step.out_filename):
-                    logger.critical("Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input_step.out_filename)
+                    logger.critical(
+                        "Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input_step.out_filename
+                    )
                     raise RuntimeError(
-                            f"Cannot create OTB pipeline starting with {self.appname}: some input files don't exist ({input_step.out_filename})")
+                        f"Cannot create OTB pipeline starting with {self.appname}: some input files don't exist ({input_step.out_filename})"
+                    )
                 # parameters[self.param_in] = input_step.out_filename
                 lg_from = input_step.out_filename
             else:
@@ -1250,10 +1259,14 @@ class OTBStepFactory(_FileProducingStepFactory):
                 lg_from = 'app'
 
             self.set_output_pixel_type(app, meta)
-            logger.debug('Register app: %s (from %s) %s -%s %s',
-                    self.appname, lg_from,
-                    ' '.join(f'-{k} {v!r}' for k, v in parameters.items()),
-                    self.param_out, as_app_shell_param(meta.get('out_filename', '???')))
+            logger.debug(
+                'Register app: %s (from %s) %s -%s %s',
+                self.appname,
+                lg_from,
+                ' '.join(f'-{k} {v!r}' for k, v in parameters.items()),
+                self.param_out,
+                as_app_shell_param(meta.get('out_filename', '???')),
+            )
             try:
                 app.SetParameters(parameters)
 
@@ -1261,7 +1274,9 @@ class OTBStepFactory(_FileProducingStepFactory):
                     logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
                     app.AddParameterStringList(self.param_in, input_param)
             except Exception:
-                logger.exception("Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items()))
+                logger.exception(
+                    "Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items())
+                )
                 raise
 
         meta['param_out'] = self.param_out
@@ -1305,7 +1320,8 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         gen_tmp_dir:         str,
         gen_output_dir:      Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv, **kwargs
+        *argv,
+        **kwargs,
     ) -> None:
         """
         Constructor
@@ -1314,14 +1330,14 @@ class ExecutableStepFactory(_FileProducingStepFactory):
             :func:`_FileProducingStepFactory.__init__`
         """
         super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
-        self._exename              = exename
+        self._exename = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
     def _do_create_actual_step(
-            self,
-            execution_parameters: Dict,
-            input_step: AbstractStep,
-            meta: Meta
+        self,
+        execution_parameters: Dict,
+        input_step: AbstractStep,
+        meta: Meta
     ) -> ExecutableStep:
         """
         This Step creation method does more than just creating the step.
@@ -1363,10 +1379,10 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         logger.debug("new AnyProducerStepFactory(%s)", self.name)
 
     def _do_create_actual_step(
-            self,
-            execution_parameters: Dict,
-            input_step: AbstractStep,
-            meta: Meta
+        self,
+        execution_parameters: Dict,
+        input_step: AbstractStep,
+        meta: Meta
     ) -> AnyProducerStep:
         """
         This Step creation method does more than just creating the step.
@@ -1394,9 +1410,9 @@ class Store(StepFactory):
         # logger.debug('Creating Store Factory: %s', appname)
 
     def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+        self,
+        execution_parameters: Dict,
+        previous_steps: List[InputList]
     ) -> Union[AbstractStep, StoreStep]:
         """
         Specializes :func:`StepFactory.create_step` to trigger

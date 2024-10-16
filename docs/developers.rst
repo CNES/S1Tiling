@@ -24,19 +24,27 @@ Pipelines
 ---------
 Internally S1 Tiling defines a series of pipelines. Actually, it distinguishes
 **pipeline descriptions** from actual pipelines. The actual pipelines are
-generated from their description and input files, and handled internally; they
-won't be described.
+generated from their description and input files, and they are handled
+internally; they won't be described here.
 
 Each pipeline corresponds to a series of :ref:`processings <processing classes>`.
 The intended and original design is to have a direct match: one processing ==
 one OTB application, and to permit to chain OTB applications in memory through
 OTB Python bindings.
 
-Actually, a processing doesn't always turn into the execution of an OTB
-application, sometimes we need to do other computations.
+However, a processing doesn't always turn into the execution of an OTB
+application, sometimes we need to do other computations like calling a python
+function or executing an external program. Other times, we just need to do some
+analysis that will be reused later on in the pipeline.
 
 When we need to have files produced at some point, we end a pipeline, the next
 one(s) can take over from that point.
+
+.. autosummary::
+   :toctree: api
+
+   s1tiling.libs.otbpipeline.PipelineDescriptionSequence
+   s1tiling.libs.otbpipeline.FirstStepFactory
 
 Simple pipelines
 ++++++++++++++++
@@ -122,6 +130,61 @@ For instance, LIA producing pipelines are described this way
         inputs={'in': concat_sin})
 
 
+.. _dev_pipeline_inputs:
+
+Pipeline inputs
++++++++++++++++
+
+In order to buid the `Direct Acyclic Graph (DAG)` of tasks, that will be
+executed through the pipelines described, we need to inject inputs.
+
+Pipeline inputs need to be registered explicitly. This is done through
+``FirstStepFactories`` passed to
+:func:`PipelineDescriptionSequence.register_inputs
+<s1tiling.libs.otbpipeline.PipelineDescriptionSequence.register_inputs>`.
+Each :class:`FirstStepFactory <s1tiling.libs.otbpipeline.FirstStepFactory>`
+takes care of returning a list of :class:`FirstSteps
+<s1tiling.libs.steps.FirstStep>`. These ``FirstSteps`` are expected to hold
+metadata that will be used to generate the DAG of tasks. They may also obtain
+related products on-the-fly. For instance:
+:func:`s1_raster_first_inputs_factory` and :func:`eof_first_inputs_factory`
+first check which products are already on disk before trying to download the
+missing ones.
+
+e.g.:
+
+.. code:: python
+
+   pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+   pipelines.register_inputs('basename', tilename_first_inputs_factory)
+   pipelines.register_inputs('basename', eof_first_inputs_factory)
+
+As the ``PipelineDescriptionSequence`` tries to be as independant of the actual
+domain as possible, it doesn't know which information is expected by all the
+registered ``FirstStepFactories``. By default,
+:class:`Configuration <s1tiling.libs.configuration.Configuration>` information
+is passed. But some other information needs to be declared in one or several
+calls to
+:func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factory
+<s1tiling.libs.otbpipeline.PipelineDescriptionSequence.register_extra_parameters_for_input_factory>`.
+
+e.g.:
+
+.. code:: python
+
+    pipelines.register_extra_parameters_for_input_factory(
+        tile_name=tilename,               # Used by all
+    )
+    
+    pipelines.register_extra_parameters_for_input_factory(
+        dag=dag,                          # Used by eof_first_inputs_factory
+        s1_file_manager=s1_file_manager,  # Used by s1_raster_first_inputs_factory
+        dryrun=dryrun,                    # Used by all
+    )
+
+.. note:: In simplified developer jardon, we use `Factory Method` design
+   pattern to inverse dependencies.
+
 Dask: tasks
 -----------
 
@@ -144,8 +207,10 @@ Step Factories
 ++++++++++++++
 
 Step factories are the main entry point to add new processings. They are meant
-to inherit from either one of :class:`OTBStepFactory`,
-:class:`AnyProducerStepFactory`, or :class:`ExecutableStepFactory`.
+to inherit from either one of :class:`OTBStepFactory
+<s1tiling.libs.steps.OTBStepFactory>`, :class:`AnyProducerStepFactory
+<s1tiling.libs.steps.AnyProducerStepFactory>`, or :class:`ExecutableStepFactory
+<s1tiling.libs.steps.ExecutableStepFactory>`.
 
 They describe processings, and they are used to instanciate the actual
 :ref:`step <Steps>` that do the processing.
@@ -215,8 +280,9 @@ Existing processings
 ++++++++++++++++++++
 
 The :ref:`domain processings <processings>` are defined through
-:class:`StepFactory` subclasses, which in turn will instantiate domain unaware
-subclasses of :class:`AbstractStep` for the actual processing.
+:class:`StepFactory <s1tiling.libs.steps.StepFactory>` subclasses, which in
+turn will instantiate domain unaware subclasses of :class:`AbstractStep
+<s1tiling.libs.steps.AbstractStep>` for the actual processing.
 
 Main processings
 ~~~~~~~~~~~~~~~~

@@ -83,7 +83,7 @@ re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
 @dataclass
 class AnalysedTasks:
     """
-    Core aggregated result of :meth:`PipelineDescriptionSequence.generate_tasks`
+    Core aggregated result of :func:`PipelineDescriptionSequence.generate_tasks`
     """
     tasks            : TaskNodeDict
     required_products: List[str]
@@ -92,9 +92,25 @@ class AnalysedTasks:
 @runtime_checkable
 class FirstStepFactory(Protocol):
     """
-    Defines the prototype of functions accepted in :func:`PipelineInputs.register_inputs`.
+    Defines the prototype of :class:`FirstStep <s1tiling.libs.steps.FirstStep>` factory functions accepted in
+    :func:`PipelineDescriptionSequence.register_inputs`.
 
-    :return: A list of instanciated :class:`FirstStep`
+    :param str tile_name: Name of the tile the :class:`FirstSteps <s1tiling.libs.steps.FirstStep>`
+                          built relate to.
+
+                          .. todo:: Drop ``tile_name`` from expectations of generic pipeline
+
+    :param Configuration configuration: List of configuration options 
+    :param dict kwargs:                 Any other named parameters into which the actual factory can
+                                        search it specific parameters.
+    :return: A list of instanciated :class:`FirstStep <s1tiling.libs.steps.FirstStep>`
+
+
+    When calling a ``FirstStepFactory``, the :class:`PipelineDescriptionSequence` is already able to
+    fill in a few parameters like the ``configuration``. Other specific parameters are expected to
+    be filled through
+    :func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factory`.
+
     """
     def __call__(
             self,
@@ -108,9 +124,8 @@ class Pipeline:
     """
     Pipeline of OTB applications.
 
-    It's instanciated as a list of :class:`AbstractStep` s.
-    :func:`Step.execute_and_write_output()` will be executed on the last step
-    of the pipeline.
+    It's instanciated as a list of :class:`AbstractSteps <AbstractStep>`.
+    :func:`Step.execute_and_write_output()` will be executed on the last step of the pipeline.
 
     Internal class only meant to be used by :class:`PipelineDescriptionSequence`.
     """
@@ -135,8 +150,8 @@ class Pipeline:
     def set_inputs(self, inputs: Dict) -> None:
         """
         Set the input(s) of the instanciated pipeline.
-        The `inputs` is parameter expected to be a list of {'key': [metas...]} that'll
-        get tranformed into a dictionary of {'key': :class:`AbstractStep`}.
+        The `inputs` is parameter expected to be a list of {'key': [metas...]} that'll get
+        tranformed into a dictionary of {'key': :class:`AbstractStep`}.
 
         Some :class:`AbstractStep` will actually be :class:`MergeStep` instances.
         """
@@ -171,8 +186,8 @@ class Pipeline:
     def name(self) -> str:
         """
         Name of the pipeline.
-        It's either user registered or automatically generated from the
-        registered :class:`StepFactory` s.
+        It's either user registered or automatically generated from the registered
+        :class:`StepFactory` s.
         """
         return f'{self.appname} -> {self.__output} from {self._input_filenames}'
 
@@ -199,12 +214,10 @@ class Pipeline:
 
     def check_requirements(self) -> Optional[Tuple[str, Set]]:
         """
-        Check all the :class:`StepFactory`'s registered in the pipeline can be
-        exexuted.
+        Check all the :class:`StepFactory`'s registered in the pipeline can be exexuted.
 
         :return: ``None`` if requirements are fulfilled.
-        :return: A message indicating what is missing otherwise, and some
-                 context how to fix it.
+        :return: A message indicating what is missing otherwise, and some context how to fix it.
         """
         sing_plur = {True: 'are', False: 'is'}
         reqs : List[Tuple[str, str]] = list(filter(None, (sf.check_requirements() for sf in self.__pipeline)))
@@ -393,8 +406,8 @@ class PipelineDescription:
         """
         Instanciates the pipeline specified.
 
-        Note: It systematically registers a :class:`Store` step at the end
-        if any :class:`StepFactory` is actually an :class:`OTBStepFactory`
+        Note: It systematically registers a :class:`Store` step at the end if any
+        :class:`StepFactory` is actually an :class:`OTBStepFactory`
 
         Returns:
             A :class:`Pipeline` instance
@@ -461,12 +474,10 @@ class TaskInputInfo:
         Several situations are possible:
 
         - No input has been registered yet => simply register it
-        - If current task has a "reduce_inputs_{origin}" key in its meta
-          information, => use that function to filter which input is actually
-          kept.
-          This scenario is usefull in case several sets of inputs permit to
-          obtain a same product (e.g. when we don't actually need the data, but
-          only the geometry, etc).
+        - If current task has a "reduce_inputs_{origin}" key in its meta information, => use that
+          function to filter which input is actually kept.
+          This scenario is usefull in case several sets of inputs permit to obtain a same product
+          (e.g. when we don't actually need the data, but only the geometry, etc).
         - Otherwise, stack the new input with the previous ones.
         """
         if origin not in self._inputs:
@@ -543,8 +554,8 @@ class TaskInputInfo:
 
 def fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
     """
-    Helper function that extract the meta data associated to a key from a
-    multiple-inputs list of inputs.
+    Helper function that extract the meta data associated to a key from a multiple-inputs list of
+    inputs.
     """
     keys = set().union(*(input.keys() for input in inputs))
     assert key in keys, f"Cannot find input '{key}' among {keys}"
@@ -553,11 +564,11 @@ def fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
 
 def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> Dict[str, AbstractStep]:
     """
-    Helper function that extract the meta data associated to a key from a
-    multiple-inputs list of list of inputs.
+    Helper function that extract the meta data associated to a key from a multiple-inputs list of
+    list of inputs.
 
-    Unlike :func:`fetch_input_data`, this flavor is able to dig in inputs from
-    all levels to find the requested one.
+    Unlike :func:`fetch_input_data`, this flavor is able to dig in inputs from all levels to find
+    the requested one.
     """
     data : Dict[str, List] = {k: [] for k in keys}  # NB: can't use dict.fromkeys(keys, []) as [] is mutable and will be shared
     # for inputs in all_inputs:
@@ -576,8 +587,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
 def _update_out_filename(updated_meta, with_meta) -> None:
     """
     Helper function to update the `out_filename` from metadata.
-    Meant to be used metadata associated to products made of several inputs
-    like Concatenate.
+    Meant to be used metadata associated to products made of several inputs like Concatenate.
     """
     if 'update_out_filename' in updated_meta:
         updated_meta['update_out_filename'](updated_meta, with_meta)
@@ -591,8 +601,8 @@ def _register_new_input_and_update_out_filename(
     outputs:       List[Dict],  # List<Meta>
 ) -> None:
     """
-    Helper function to register a new input to a :class:`TaskInputInfo` and
-    update the current task output filename if required.
+    Helper function to register a new input to a :class:`TaskInputInfo` and update the current task
+    output filename if required.
     """
     task_name = get_task_name(new_task_meta)
     if isinstance(task_name, list):
@@ -620,8 +630,8 @@ def _register_new_input_and_update_out_filename(
 
 class PipelineInputs:
     """
-    Internal helper class used to centralize the instanciation of :class:`FirstStep`
-    according to the exact pipeline instanciated.
+    Internal helper class used to centralize the instanciation of :class:`FirstStep` according to
+    the exact pipeline instanciated.
 
     This will help to keep all the pipeline classes independant of the exact data flow.
     """
@@ -677,7 +687,7 @@ class PipelineDescriptionSequence:
     """
     def __init__(self, cfg: Configuration, dryrun: bool, debug_caches: bool) -> None:
         """
-        constructor
+        Constructor.
         """
         assert cfg
         self.__cfg                  = cfg
@@ -690,16 +700,17 @@ class PipelineDescriptionSequence:
 
     def register_pipeline(self, factory_steps: List[Type], *args, **kwargs) -> PipelineDescription:
         """
-        Register a pipeline description from:
+        Registers a pipeline description from:
 
-        Parameters:
-            :factory_steps:       List of non-instanciated :class:`StepFactory` classes
-            :name:                Optional name for the pipeline
-            :product_required:    Tells whether the pipeline product is expected as a
-                                  final product
-            :is_name_incremental: Tells whether `expected` filename needs evaluations of
-                                  each intermediary steps of whether it can be directly
-                                  deduced from the last step.
+        :param list(type) factory_steps: List of non-instanciated :class:`StepFactory
+                                         <s1tiling.libs.steps.StepFactory>` classes.
+        :param Optional[str] name:       Optional name for the pipeline.
+        :param bool product_required:    Tells whether the pipeline product is expected as a final
+                                         product -- and not an intermediary product.
+        :param bool is_name_incremental: Tells whether `expected` filename needs evaluations of each
+                                         intermediary steps of whether it can be directly deduced
+                                         from the last step.
+        :return: The :class:`PipelineDescription` built.
         """
         steps = [FS(self.__cfg) for FS in factory_steps]
         assert 'dryrun' not in kwargs
@@ -713,20 +724,51 @@ class PipelineDescriptionSequence:
 
     def register_inputs(self, kind: str, first_steps_factory: FirstStepFactory) -> None:
         """
-        Registers a source of :class:`FirstStep` instances.
+        Registers a :class:`FirstStepFactory <s1tiling.libs.otbpipeline.FirstStepFactory>` that will
+        act as a source of :class:`FirstSteps <s1tiling.libs.steps.FirstStep>`.
 
-        This will permit to extend the list of starting inputs without having to modify main source code.
+        :param kind:                :class:`FirstStep <s1tiling.libs.steps.FirstStep>` source name
+        :type kind:                 str
+        :param first_steps_factory: Hook that'll build :class:`FirstSteps
+                                    <s1tiling.libs.steps.FirstStep>` on the fly from the registered
+                                    :class:`Configuration
+                                    <s1tiling.libs.configuration.Configuration>` and the :func:`registered
+                                    extra parameters <register_extra_parameters_for_input_factory>`.
+        :type first_steps_factory:  FirstStepFactory
+
+        .. note::
+            This will permit to extend the list of starting inputs without having to modify main
+            source code.
         """
         self.__inputs.register_inputs(kind, first_steps_factory)
 
     def register_extra_parameters_for_input_factory(self, **extra) -> None:
         """
-        Registers extra parameters for :class:`FirstStep` factory hooks.
+        Registers extra parameters that will be passed to all the for :class:`FirstStep factories
+        <FirstStepFactory>` registered.
+
+        e.g.
+
+        .. code:: python
+
+            pipelines.register_extra_parameters_for_input_factory(
+                dag=dag,
+                s1_file_manager=s1_file_manager,
+                dryrun=dryrun,
+            )
         """
         self.__inputs.register_extra_parameters(**extra)
 
     @timethis("Prepare inputs", logging.DEBUG)
     def _prepare_inputs(self) -> Dict[str, List[Outcome[Meta]]]:
+        """
+        Takes care of instanciating all :class:`FirstSteps <s1tiling.libs.steps.FirstStep>` with the
+        registered :class:`FirstStepFactories <FirstStepFactory>`.
+
+        Only one parameter is assumed the registered :class:`Configuration
+        <s1tiling.libs.configuration.Configuration>` object. Other parameters are assumed from the
+        :func:`registered extra parameters <register_extra_parameters_for_input_factory>`.
+        """
         inputs : Dict[str, List[Outcome[Meta]]] = self.__inputs.instanciate_all(configuration=self.__cfg)
         logger.debug("FIRST: %s", pprint.pformat(inputs))
         # logger.debug('FIRST: %s', pipelines_outputs['basename'])
@@ -737,8 +779,8 @@ class PipelineDescriptionSequence:
             self, first_inputs: Dict[str, List[Meta]]
     ) -> Tuple[Set[str], Dict, Dict]:
         """
-        Runs the inputs through all pipeline descriptions to build the full list
-        of intermediary and final products and what they require to be built.
+        Runs the inputs through all pipeline descriptions to build the full list of intermediary and
+        final products and what they require to be built.
         """
         pipelines_outputs = first_inputs
 
@@ -918,8 +960,7 @@ class PipelineDescriptionSequence:
     def _check_static_task_requirements(self, tasks: TaskNodeDict) -> None:
         """
         Check all tasks have their requirement fulfilled for being generated.
-        Typically that the related applications are installed and can be
-        executed.
+        Typically that the related applications are installed and can be executed.
 
         If any requirement is missing, the execution is stopped.
         :todo: throw an exception instead of existing the process. See #96
@@ -949,13 +990,17 @@ class PipelineDescriptionSequence:
     @timethis("Generating tasks", logging.DEBUG)
     def generate_tasks(self, do_watch_ram=False) -> Tuple[TaskNodeDict, List[str], List[Outcome]]:
         """
-        Generate the minimal list of tasks that can be passed to Dask
+        Generates the minimal list of tasks that can be passed to Dask
 
-        Parameters:
-            :tile_name:   Name of the current S2 tile
-            :raster_list: List of rasters that intersect the tile.
+        :param bool do_watch_ram: Debug oriented parameter used to watch RAM usage.
+        :return: A tuple made of:
 
-        TODO: Move into another dedicated class instead of PipelineDescriptionSequence
+                 1. the dictionary of tasks
+                 2. the list of expected final products
+                 3. a list of observed errors (that could happen while instanciating
+                    :class:`FirstSteps <s1tiling.libs.steps.FirstStep>`
+
+        :todo: Move into another dedicated class instead of PipelineDescriptionSequence
         """
         possible_first_inputs = self._prepare_inputs()
         first_inputs, errors_on_inputs = filter_outcome_dict(possible_first_inputs)
@@ -975,31 +1020,6 @@ class PipelineDescriptionSequence:
         for final_product in final_products:
             assert final_product in tasks
         return tasks, final_products, []
-
-
-@timethis("_generate_first_steps_from_manifests({tile_name})")
-def _generate_first_steps_from_manifests(
-    raster_list:  List[Dict],
-    tile_name:    str,
-) -> List[Meta]:  # List[meta(FirstStep)]
-    """
-    Flatten all rasters from the manifest as a list of :class:`FirstStep`
-    """
-    inputs = []
-    # Log commented and kept for filling in unit tests
-    # logger.debug('Generate first steps from: %s', raster_list)
-    for raster_info in raster_list:
-        raster: S1DateAcquisition = raster_info['raster']
-
-        manifest = raster.get_manifest()
-        for image in raster.get_images_list():
-            start = FirstStep(tile_name=tile_name,
-                              tile_origin=raster_info['tile_origin'],
-                              tile_coverage=raster_info['tile_coverage'],
-                              manifest=manifest,
-                              basename=image)
-            inputs.append(start.meta)
-    return inputs
 
 
 # ======================================================================
