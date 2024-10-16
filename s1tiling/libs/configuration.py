@@ -40,6 +40,7 @@ from string import Formatter
 import logging
 import logging.handlers
 import logging.config
+
 # import multiprocessing
 import os
 from pathlib import Path
@@ -59,17 +60,17 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
 PIXEL_TYPES = {
-        'uint8'   : otb.ImagePixelType_uint8,
-        'int16'   : otb.ImagePixelType_int16,
-        'uint16'  : otb.ImagePixelType_uint16,
-        'int32'   : otb.ImagePixelType_int32,
-        'uint32'  : otb.ImagePixelType_uint32,
-        'float'   : otb.ImagePixelType_float,
-        'double'  : otb.ImagePixelType_double,
-        'cint16'  : otb.ImagePixelType_cint16,
-        'cint32'  : otb.ImagePixelType_cint32,
-        'cfloat'  : otb.ImagePixelType_cfloat,
-        'cdouble' : otb.ImagePixelType_cdouble,
+    'uint8'   : otb.ImagePixelType_uint8,
+    'int16'   : otb.ImagePixelType_int16,
+    'uint16'  : otb.ImagePixelType_uint16,
+    'int32'   : otb.ImagePixelType_int32,
+    'uint32'  : otb.ImagePixelType_uint32,
+    'float'   : otb.ImagePixelType_float,
+    'double'  : otb.ImagePixelType_double,
+    'cint16'  : otb.ImagePixelType_cint16,
+    'cint32'  : otb.ImagePixelType_cint32,
+    'cfloat'  : otb.ImagePixelType_cfloat,
+    'cdouble' : otb.ImagePixelType_cdouble,
 }
 
 
@@ -141,7 +142,7 @@ def getboolean_opt(cfg, config_filename: Path, section: str, name: str, **kwargs
 
 # Helper functions related to logs
 def add_missing(dst: List[str], entry: str):
-    """ Add entry to list if not already there """
+    """Add entry to list if not already there"""
     if entry not in dst:
         dst.append(entry)
 
@@ -210,14 +211,14 @@ class _ConfigAccessor:
 
     @property
     def config_file(self):
-        """ Property config_file """
+        """Property config_file"""
         return self.__config_file
 
     def has_section(self, section: str) -> bool:
-        """ Tells whether the configuration has the requested section """
+        """Tells whether the configuration has the requested section"""
         return self.__config.has_section(section)
 
-    def throw(self, message: str, e : Optional[BaseException] = None) -> NoReturn:
+    def throw(self, message: str, e: Optional[BaseException] = None) -> NoReturn:
         """
         Raises a :class:`exceptions.ConfigurationError` filles with everything
 
@@ -229,24 +230,24 @@ class _ConfigAccessor:
             raise exceptions.ConfigurationError(message, self.config_file)
 
     def get(self, section: str, name: str, **kwargs) -> str:
-        """ Helper function to report errors while extracting string configuration options """
+        """Helper function to report errors while extracting string configuration options"""
         return get_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getint(self, section: str, name: str, **kwargs) -> int:
-        """ Helper function to report errors while extracting int configuration options """
+        """Helper function to report errors while extracting int configuration options"""
         return getint_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getfloat(self, section: str, name: str, **kwargs) -> float:
-        """ Helper function to report errors while extracting floatting point configuration options """
+        """Helper function to report errors while extracting floatting point configuration options"""
         return getfloat_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getboolean(self, section: str, name: str, **kwargs) -> bool:
-        """ Helper function to report errors while extracting boolean configuration options """
+        """Helper function to report errors while extracting boolean configuration options"""
         return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
 
 
 # The configuration decoding specific to S1Tiling application
-class Configuration():  # pylint: disable=too-many-instance-attributes
+class Configuration:  # pylint: disable=too-many-instance-attributes
     """This class handles the parameters from the cfg file"""
     def __init__(
             self, config_file : Union[str, Path], do_show_configuration=True
@@ -273,7 +274,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
         # Other options
         #: Type of images handled
-        self.type_image         = "GRD"
+        self.type_image = "GRD"
 
         # Extra checks
         all_requested = self.tile_list[0] == "ALL"
@@ -296,13 +297,13 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     # ----------------------------------------------------------------------
     def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
-        self.output_preprocess   = accessor.get('Paths', 'output')
+        self.output_preprocess       = accessor.get('Paths', 'output')
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory       = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.lia_directory           = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
-        self.raw_directory       = accessor.get('Paths', 's1_images')
+        self.raw_directory           = accessor.get('Paths', 's1_images')
         #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
-        self.eof_directory       : Filename = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
+        self.eof_directory: Filename = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
@@ -336,8 +337,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     # ----------------------------------------------------------------------
     def __init_data_source(self, accessor: _ConfigAccessor) -> None:
         if accessor.has_section('PEPS'):
-            accessor.throw(
-                    'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
+            accessor.throw('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
         self.eodag_config        = accessor.get('DataSource', 'eodag_config', fallback=None) or \
                                    accessor.get('DataSource', 'eodagConfig',  fallback=None)
@@ -356,10 +356,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if unsupported_platforms:
             accessor.throw(f"Non supported requested platforms: {', '.join(unsupported_platforms)}")
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
-        self.platform_list       : List[str] = platform_list
+        self.platform_list: List[str] = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
-        self.orbit_direction : Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
+        self.orbit_direction: Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
             accessor.throw("Parameter [orbit_direction] must be either unset or DES, or ASC")
         relative_orbit_list_str  = accessor.get('DataSource', 'relative_orbit_list', fallback='')
@@ -394,13 +394,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
         self.cache_dem_by         = accessor.get('Processing', 'cache_dem_by', fallback='symlink')
         if self.cache_dem_by not in ['symlink', 'copy']:
-            accessor.throw(
-                    f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
+            accessor.throw(f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
 
         # - - - - - - - - - -[ Cut margins
         try:
-            self.override_azimuth_cut_threshold_to : Optional[bool] = accessor.getboolean(
-                    'Processing', 'override_azimuth_cut_threshold_to')
+            self.override_azimuth_cut_threshold_to: Optional[bool] = accessor.getboolean('Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
@@ -419,8 +417,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Minimal signal value to set after on "denoised" pixels: See :ref:`[Processing.lower_signal_value] <Processing.lower_signal_value>`
         self.lower_signal_value   = accessor.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
-            accessor.throw(
-                "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
+            accessor.throw("'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
@@ -492,27 +489,26 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
             #: Dictionary of filter options: {'rad': :ref:`[Filtering.window_radius] <Filtering.window_radius>`, 'deramp': :ref:`[Filtering.deramp] <Filtering.deramp>`, 'nblooks': :ref:`[Filtering.nblooks] <Filtering.nblooks>`}
             self.filter_options : Dict = {
-                    'rad': accessor.getint('Filtering', 'window_radius')
+                'rad': accessor.getint('Filtering', 'window_radius')
             }
             if self.filter == 'frost':
                 self.filter_options['deramp']  = accessor.getfloat('Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:
                 self.filter_options['nblooks'] = accessor.getfloat('Filtering', 'nblooks')
             else:
-                accessor.throw(
-                    f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
+                accessor.throw(f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
 
     # ----------------------------------------------------------------------
     def __init_fname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         fname_fmt_keys = [
-                'calibration', 'correct_denoising', 'cut_borders',
-                'orthorectification', 'concatenation', 'filtered',
-                'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
-                'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
-                # Keys to deprecated workflow
-                'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
-                'lia_orthorectification', 'lia_concatenation',
+            'calibration', 'correct_denoising', 'cut_borders',
+            'orthorectification', 'concatenation', 'filtered',
+            'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
+            'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+            # Keys to deprecated workflow
+            'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
+            'lia_orthorectification', 'lia_concatenation',
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
@@ -525,8 +521,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_dname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         dname_fmt_keys = [
-                'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_product',
+            'tiled', 'filtered', 'mask',
+            's1_lia',  's1_sin_lia', 'lia_product',
         ]
         self.dname_fmt = {}
         for key in dname_fmt_keys:
@@ -539,8 +535,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_creation_options(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         creation_options_keys = [
-                'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin',
+            'tiled', 'filtered', 'mask',
+            's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin',
         ]
         self.creation_options = {}
         for key in creation_options_keys:
@@ -681,7 +677,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         Retrieve the DEM associated to the specified S2 tile.
         """
         if tile_name not in self.__dems_by_s2_tiles:
-            raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
+            raise AssertionError(
+                f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}"
+            )
         return self.__dems_by_s2_tiles[tile_name]
 
 
@@ -838,7 +836,7 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def _get_nodata(d: Dict[str, Optional[Union[str,int,float]]], key: str, default_value: Union[str,int,float]):
+def _get_nodata(d: Dict[str, Optional[Union[str, int, float]]], key: str, default_value: Union[str, int, float]):
     """
     Internal helper to extract nodata value from configuration directionaries.
 

@@ -542,7 +542,7 @@ def test_manager_eof_retrieval(
     ]
     for obt, file_id in obt_file_expectations:
         files = eof_manager.search_for(obt)
-        logging.debug(f"Files found for obt %s => %s", obt, files)
+        logging.debug("Files found for obt %s => %s", obt, files)
         assert len(files) <= 2
         if file_id is not None:
             assert len(files) >= 1

@@ -302,7 +302,7 @@ def get_s1_files_for_tile(
 
 
 @timethis("Processing of tile {tile_name}", log_level=logging.INFO)
-def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
+def process_one_tile(  # pylint: disable=too-many-arguments
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,

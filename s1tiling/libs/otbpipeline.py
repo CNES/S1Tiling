@@ -52,7 +52,6 @@ from pympler import tracker  # , muppy
 
 from .                  import Utils
 from .                  import exceptions
-from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import Configuration
 from .file_naming       import CannotGenerateFilename
 from .meta              import (

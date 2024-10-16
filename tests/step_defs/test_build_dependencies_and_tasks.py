@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
-from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs.api import s1_raster_first_inputs_factory, s1_raster_first_inputs_factory_from_rasters, tilename_first_inputs_factory
 from s1tiling.libs.outcome import filter_outcomes
 
