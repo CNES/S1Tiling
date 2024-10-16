@@ -83,6 +83,10 @@ loggers:
         level: INFO
         handlers: [console, file, important]
         propagate: yes
+    urlib3:
+        level: INFO
+    graphviz._tools:
+        level: INFO
 root:
     level: INFO
     handlers: [console, file, important]
