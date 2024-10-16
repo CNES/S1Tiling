@@ -37,7 +37,6 @@ import logging
 import os
 import re
 from typing import Dict, List, Optional, Type, Union
-# from packaging import version
 
 from osgeo import gdal
 import otbApplication as otb
@@ -169,8 +168,8 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
 
 class ProjectDEMToS2Tile(ExecutableStepFactory):
     """
-    Factory that produces a :class:`ExecutableStep` that projects DEM onto target S2 tile
-    as described in :ref:`Project DEM to S2 tile <project_dem_to_s2-proc>`.
+    Factory that produces a :class:`ExecutableStep` that projects DEM onto target S2 tile as
+    described in :ref:`Project DEM to S2 tile <project_dem_to_s2-proc>`.
 
     It requires the following information from the configuration object:
 
@@ -259,14 +258,13 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
 
 class ProjectGeoidToS2Tile(OTBStepFactory):
     """
-    Factory that produces a :class:`Step` that projects any kind of Geoid onto
-    target S2 tile as described in :ref:`Project Geoid to S2 tile
-    <project_geoid_to_s2-proc>`.
+    Factory that produces a :class:`Step` that projects any kind of Geoid onto target S2 tile as
+    described in :ref:`Project Geoid to S2 tile <project_geoid_to_s2-proc>`.
 
-    This particular implementation uses another file in the expected geometry
-    and :external:std:doc:`super impose <Applications/app_Superimpose>` the
-    Geoid onto it. Unlike :external:std:doc:`gdalwarp <programs/gdalwarp>`,
-    OTB application supports non-raster geoid formats.
+    This particular implementation uses another file in the expected geometry and
+    :external:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
+    :external:std:doc:`gdalwarp <programs/gdalwarp>`, OTB application supports non-raster geoid
+    formats.
 
     It requires the following information from the configuration object:
 
@@ -330,9 +328,8 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
 
 class SumAllHeights(OTBStepFactory):
     """
-    Factory that produces a :class:`Step` that adds DEM + Geoid that cover a
-    same footprint, as described in :ref:`Sum DEM + Geoid
-    <sum_dem_geoid_on_s2-proc>`.
+    Factory that produces a :class:`Step` that adds DEM + Geoid that cover a same footprint, as
+    described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
 
     It requires the following information from the configuration object:
 
@@ -365,8 +362,8 @@ class SumAllHeights(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs, and
-        register temporary files from previous step for removal.
+        Complete meta information with inputs, and register temporary files from previous step for
+        removal.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
@@ -379,8 +376,8 @@ class SumAllHeights(OTBStepFactory):
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
-        Extract the last inputs to use at the current level from all previous
-        products seens in the pipeline.
+        Extract the last inputs to use at the current level from all previous products seens in the
+        pipeline.
 
         This method is overridden in order to fetch N-1 "in_s2_dem" input.
         It has been specialized for S1Tiling exact pipelines.
@@ -401,8 +398,8 @@ class SumAllHeights(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "in_s2_geoid"
-        step instanciated in :func:`s1tiling.s1_process_lia` pipeline builder.
+        In current case, the canonical input comes from the "in_s2_geoid" step instanciated in
+        :func:`s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -412,9 +409,8 @@ class SumAllHeights(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB
-        application <Applications/app_BandMath>` for additionning DEM and Geoid
-        data projected on S2.
+        Returns the parameters to use with :external:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S2.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -476,19 +472,6 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         self.__nodata = nodata_XYZ(cfg)
 
-    # def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-    #     """
-    #     Injects the :func:`reduce_inputs_ineof` hook in step metadata, and
-    #     provide names clear from polar related information.
-    #     """
-    #     # Ignore polarization in filenames
-    #     if 'polarless_basename' in meta:
-    #         assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-    #     else:
-    #         meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
-    #     return meta
-
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Register ``accept_as_compatible_input`` hook for
@@ -521,8 +504,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Computes dem information and adds them to the meta structure, to be used
-        later to fill-in the image metadata.
+        Computes dem information and adds them to the meta structure, to be used later to fill-in
+        the image metadata.
 
         .. note::
             Don't register previously produced height/S2 files for removal as they could be used for
@@ -605,16 +588,14 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
 
 class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
-    as described in :ref:`Normals computation` documentation to obtain the XYZ
-    ECEF coordinates of the ground and of the satellite positions associated
-    to the pixels from the input `height` file.
+    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection` as
+    described in :ref:`Normals computation` documentation to obtain the XYZ ECEF coordinates of the
+    ground and of the satellite positions associated to the pixels from the input `height` file.
 
-    :external:doc:`Applications/app_SARDEMProjection` application fills a
-    multi-bands image anchored on the footprint of the input DEM image.
-    In each pixel in the DEM/output image, we store the XYZ ECEF coordinate of
-    the ground point (associated to the pixel), and the XYZ coordinates of the
-    satellite position (associated to the pixel...)
+    :external:doc:`Applications/app_SARDEMProjection` application fills a multi-bands image anchored
+    on the footprint of the input DEM image.  In each pixel in the DEM/output image, we store the
+    XYZ ECEF coordinate of the ground point (associated to the pixel), and the XYZ coordinates of
+    the satellite position (associated to the pixel...)
 
     Requires the following information from the configuration object:
 
@@ -632,10 +613,9 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     - `input filename`
     - `output filename`
 
-    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
-    DEM information already registered in dask worker (through
-    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
-    the Geoid.
+    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
+    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
+    for instance) and only use the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
         # fname_fmt = 'XYZ_projected_on_{tile_name}_{orbit_direction}_{orbit}.tiff'
@@ -661,13 +641,12 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         TODO: filter EOF inputs
         Filters which insar input will be kept.
 
-        Given several (usually 2 is the maximum) possible input S1 files
-        ("insar" input channels), select and return the one that maximize its
-        time coverage with the current S2 destination tile.
+        Given several (usually 2 is the maximum) possible input S1 files ("insar" input channels),
+        select and return the one that maximize its time coverage with the current S2 destination
+        tile.
 
-        Actually, this function returns the first S1 image that time-covers
-        the whole S2 tile. The S1 images are searched in reverse order of
-        their footprint-coverage.
+        Actually, this function returns the first S1 image that time-covers the whole S2 tile. The
+        S1 images are searched in reverse order of their footprint-coverage.
         """
         # Sort by coverages (already computed), then return the first that time-covers everything
         # Or the first if none time-covers
@@ -697,8 +676,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
+        polar related information.
         """
         # Ignore polarization in filenames
         if 'polarless_basename' in meta:
@@ -713,15 +692,15 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         """
         Register ``accept_as_compatible_input`` hook for
         :func:`s1tiling.libs.meta.accept_as_compatible_input`.
-        It will tell whether a given heights file on S2 tile input is
-        compatible with the current S2 tile.
+        It will tell whether a given heights file on S2 tile input is compatible with the current S2
+        tile.
         """
         meta['accept_as_compatible_input'] = lambda input_meta: does_s2_data_match_s2_tile(meta, input_meta)
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
-        Extract the last inputs to use at the current level from all previous
-        products seens in the pipeline.
+        Extract the last inputs to use at the current level from all previous products seens in the
+        pipeline.
 
         This method is overridden in order to fetch N-2 "insar" and "inheight" inputs.
         It has been specialized for S1Tiling exact pipelines.
@@ -741,8 +720,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Computes dem information and adds them to the meta structure, to be used
-        later to fill-in the image metadata.
+        Computes dem information and adds them to the meta structure, to be used later to fill-in
+        the image metadata.
 
         Also register temporary files from previous step for removal.
         """
@@ -819,12 +798,12 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
 
 class _ComputeNormals(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    as described in :ref:`Normals computation <compute_normals-proc>` documentation.
+    Abstract factory that prepares steps that run :external:doc:`ExtractNormalVector
+    <Applications/app_ExtractNormalVector>` as described in :ref:`Normals computation
+    <compute_normals-proc>` documentation.
 
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    computes surface normals.
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>` computes surface
+    normals.
 
     Requires the following information from the configuration object:
 
@@ -857,15 +836,6 @@ class _ComputeNormals(OTBStepFactory):
         )
         self.__nodata = nodata_XYZ(cfg)
 
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects ``polarless_basename`` -- Old LIA workflow case
-        """
-        # Ignore polarization in filenames
-        assert 'polarless_basename' in meta
-        assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        return meta
-
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Override :func:`complete_meta()` to inject files to remove
@@ -887,10 +857,9 @@ class _ComputeNormals(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`ExtractNormalVector OTB application
-        <Applications/app_ExtractNormalVector>` to generate surface normals
-        for each point of the origin S1 image.
+        Returns the parameters to use with :external:doc:`ExtractNormalVector OTB application
+        <Applications/app_ExtractNormalVector>` to generate surface normals for each point of the
+        origin S1 image.
         """
         nodata = self.__nodata
         xyz = in_filename(meta)
@@ -911,13 +880,12 @@ class _ComputeNormals(OTBStepFactory):
 
 class ComputeNormalsOnS2(_ComputeNormals):
     """
-    Factory that prepares steps that run
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    on images in S2 geometry as described in :ref:`Normals
+    Factory that prepares steps that run :external:doc:`ExtractNormalVector
+    <Applications/app_ExtractNormalVector>` on images in S2 geometry as described in :ref:`Normals
     computation <compute_normals-proc>` documentation.
 
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    computes surface normals.
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>` computes surface
+    normals.
 
     Requires the following information from the configuration object:
 
@@ -943,9 +911,9 @@ class ComputeNormalsOnS2(_ComputeNormals):
 
 class _ComputeLIA(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
+    Abstract factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
+    <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`LIA maps computation
+    <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -1001,24 +969,16 @@ class _ComputeLIA(OTBStepFactory):
         )
         self.__nodata = nodata_LIA(cfg)
 
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects ``polarless_basename``.
-        """
-        assert 'polarless_basename' in meta
-        assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        return meta
-
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
-        Override "does_product_exist" hook to take into account the multiple
-        output files produced by ComputeLIA
+        Override "does_product_exist" hook to take into account the multiple output files produced
+        by ComputeLIA.
         """
         meta['does_product_exist'] = lambda: all(os.path.isfile(of) for of in out_filename(meta))
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs
+        Complete meta information with inputs.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs'] = all_inputs
@@ -1036,8 +996,8 @@ class _ComputeLIA(OTBStepFactory):
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
-        Extract the last inputs to use at the current level from all previous
-        products seens in the pipeline.
+        Extract the last inputs to use at the current level from all previous products seens in the
+        pipeline.
 
         This method is overridden in order to fetch N-1 "xyz" input.
         It has been specialized for S1Tiling exact pipelines.
@@ -1055,9 +1015,8 @@ class _ComputeLIA(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`SARComputeLocalIncidenceAngle OTB application
-        <Applications/app_SARComputeLocalIncidenceAngle>`.
+        Returns the parameters to use with :external:doc:`SARComputeLocalIncidenceAngle OTB
+        application <Applications/app_SARComputeLocalIncidenceAngle>`.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -1082,9 +1041,9 @@ class _ComputeLIA(OTBStepFactory):
 
 class ComputeLIAOnS2(_ComputeLIA):
     """
-    Factory that prepares steps that run
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    on images in S2 geometry as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
+    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
+    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S2 geometry as described in
+    :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -1180,8 +1139,8 @@ class _FilterLIAStepFactory(StepFactory):
 
 def filter_LIA(LIA_kind: str) -> Type[_FilterLIAStepFactory]:
     """
-    Generates a new :class:`StepFactory` class that filters which LIA product
-    shall be processed: LIA maps or sin LIA maps.
+    Generates a new :class:`StepFactory` class that filters which LIA product shall be processed:
+    LIA maps or sin LIA maps.
     """
     # We return a new class
     return type(
@@ -1195,9 +1154,8 @@ class ApplyLIACalibration(OTBStepFactory):
     """
     Factory that concludes σ0 with NORMLIM calibration.
 
-    It builds steps that multiply images calibrated with β0 LUT, and
-    orthorectified to S2 grid, with the sin(LIA) map for the same S2 tile (and
-    orbit number and direction).
+    It builds steps that multiply images calibrated with β0 LUT, and orthorectified to S2 grid, with
+    the sin(LIA) map for the same S2 tile (and orbit number and direction).
 
     Requires the following information from the configuration object:
 
@@ -1246,8 +1204,7 @@ class ApplyLIACalibration(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs, and set compression method to
-        DEFLATE.
+        Complete meta information with inputs, and set compression method to DEFLATE.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs']           = all_inputs
@@ -1278,8 +1235,8 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "concat_S2"
-        pipeline defined in :func:`s1tiling.s1_process` pipeline builder.
+        In current case, the canonical input comes from the "concat_S2" pipeline defined in
+        :func:`s1tiling.s1_process` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -1291,8 +1248,7 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         Register ``accept_as_compatible_input`` hook for
         :func:`s1tiling.libs.meta.accept_as_compatible_input`.
-        It will tell whether a given sin_LIA input is compatible with the
-        current S2 tile.
+        It will tell whether a given sin_LIA input is compatible with the current S2 tile.
         """
         meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
         meta['basename']                   = self._get_nominal_output_basename(meta)
@@ -1301,8 +1257,8 @@ class ApplyLIACalibration(OTBStepFactory):
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated
-        image orthorectified to S2 tile.
+        <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated image orthorectified to
+        S2 tile.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -1340,8 +1296,8 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
 
-    The choice has been made to name the VRT file after the basename of the
-    root S1 product and not the names of the DEM tiles.
+    The choice has been made to name the VRT file after the basename of the root S1 product and not
+    the names of the DEM tiles.
     """
 
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
@@ -1378,8 +1334,8 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
+        polar related information.
         """
         # Ignore polarization in filenames
         assert 'polarless_basename' not in meta
@@ -1418,13 +1374,12 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
 
 class SARDEMProjection(OTBStepFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection`
-    as described in :ref:`Normals computation` documentation.
+    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection` as
+    described in :ref:`Normals computation` documentation.
 
-    :external:doc:`Applications/app_SARDEMProjection` application puts a DEM file
-    into SAR geometry and estimates two additional coordinates.
-    For each point of the DEM input four components are calculated:
-    C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
+    :external:doc:`Applications/app_SARDEMProjection` application puts a DEM file into SAR geometry
+    and estimates two additional coordinates.  For each point of the DEM input four components are
+    calculated: C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
     components into projection are also computed for our needs.
 
     Requires the following information from the configuration object:
@@ -1443,10 +1398,9 @@ class SARDEMProjection(OTBStepFactory):
     - `output filename`
     - `nodata` -- optional
 
-    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
-    DEM information already registered in dask worker (through
-    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
-    the Geoid.
+    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
+    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
+    for instance) and only use the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
@@ -1482,10 +1436,10 @@ class SARDEMProjection(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        - Complete meta information with hook for updating image metadata
-          w/ directiontoscandemc, directiontoscandeml and gain.
-        - Computes dem information and add them to the meta structure, to be used
-          later to fill-in the image metadata.
+        - Complete meta information with hook for updating image metadata w/ directiontoscandemc,
+          directiontoscandeml and gain.
+        - Computes dem information and add them to the meta structure, to be used later to fill-in
+          the image metadata.
         """
         meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
@@ -1519,9 +1473,9 @@ class SARDEMProjection(OTBStepFactory):
         """
         Post-application hook used to complete GDAL metadata.
 
-        As :func:`update_image_metadata` is not designed to access OTB
-        application information (``directiontoscandeml``...), we need this
-        extra hook to fetch and propagate the PRJ information.
+        As :func:`update_image_metadata` is not designed to access OTB application information
+        (``directiontoscandeml``...), we need this extra hook to fetch and propagate the PRJ
+        information.
         """
         fullpath = out_filename(meta)
         logger.debug('Set metadata in %s', fullpath)
@@ -1541,8 +1495,7 @@ class SARDEMProjection(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`SARDEMProjection OTB application
+        Returns the parameters to use with :external:doc:`SARDEMProjection OTB application
         <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
         """
         nodata = meta.get('nodata', -32768)
@@ -1568,13 +1521,11 @@ class SARDEMProjection(OTBStepFactory):
 
 class SARCartesianMeanEstimation(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_SARCartesianMeanEstimation` as described in
-    :ref:`Normals computation` documentation.
+    Factory that prepares steps that run :external:doc:`Applications/app_SARCartesianMeanEstimation`
+    as described in :ref:`Normals computation` documentation.
 
-
-    :external:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated
-    cartesian mean image thanks to a DEM file.
+    :external:doc:`Applications/app_SARCartesianMeanEstimation` estimates a simulated cartesian mean
+    image thanks to a DEM file.
 
     Requires the following information from the configuration object:
 
@@ -1604,8 +1555,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
+        polar related information.
         """
         # Ignore polarization in filenames
         if 'polarless_basename' in meta:
@@ -1619,9 +1570,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In :class:`SARCartesianMeanEstimation` case, the canonical input comes
-        from the "indem" pipeline defined in :func:s1tiling.s1_process_lia`
-        pipeline builder.
+        In :class:`SARCartesianMeanEstimation` case, the canonical input comes from the "indem"
+        pipeline defined in :func:s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -1631,8 +1581,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with hook for updating image metadata
-        w/ directiontoscandemc, directiontoscandeml and gain.
+        Complete meta information with hook for updating image metadata w/ directiontoscandemc,
+        directiontoscandeml and gain.
         """
         inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
         meta = super().complete_meta(meta, all_inputs)
@@ -1679,10 +1629,9 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`SARCartesianMeanEstimation OTB application
-        <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
-        coordinates of each point of the origin S1 image.
+        Returns the parameters to use with :external:doc:`SARCartesianMeanEstimation OTB application
+        <Applications/app_SARCartesianMeanEstimation>` to compute cartesian coordinates of each
+        point of the origin S1 image.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -1710,13 +1659,12 @@ class SARCartesianMeanEstimation(OTBStepFactory):
 
 class ComputeNormalsOnS1(_ComputeNormals):
     """
-    Factory that prepares steps that run
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    on images in S1 geometry as described in :ref:`Normals
+    Factory that prepares steps that run :external:doc:`ExtractNormalVector
+    <Applications/app_ExtractNormalVector>` on images in S1 geometry as described in :ref:`Normals
     computation <compute_normals-proc>` documentation.
 
-    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>`
-    computes surface normals.
+    :external:doc:`ExtractNormalVector <Applications/app_ExtractNormalVector>` computes surface
+    normals.
 
     Requires the following information from the configuration object:
 
@@ -1741,9 +1689,9 @@ class ComputeNormalsOnS1(_ComputeNormals):
 
 class ComputeLIAOnS1(_ComputeLIA):
     """
-    Factory that prepares steps that run
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    on images in S1 geometry as described in :ref:`LIA maps computation <compute_lia-proc>` documentation.
+    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
+    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S1 geometry as described in
+    :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -1774,8 +1722,8 @@ class ComputeLIAOnS1(_ComputeLIA):
 
 class OrthoRectifyLIA(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` on LIA maps.
+    Factory that prepares steps that run :external:doc:`Applications/app_OrthoRectification` on LIA
+    maps.
 
     Requires the following information from the configuration object:
 
@@ -1854,8 +1802,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
 
 class ConcatenateLIA(_ConcatenatorFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` on LIA images.
+    Factory that prepares steps that run :external:doc:`Applications/app_Synthetize` on LIA images.
 
     Requires the following information from the configuration object:
 
@@ -1885,8 +1832,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
-        Override "update_out_filename" hook to help select the input set with
-        the best coverage.
+        Override "update_out_filename" hook to help select the input set with the best coverage.
         """
         assert 'LIA_kind' in meta
         meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
@@ -1910,14 +1856,12 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
-        Unlike usual :class:`Concatenate`, the output filename will always ends
-        in "txxxxxx".
+        Unlike usual :class:`Concatenate`, the output filename will always ends in "txxxxxx".
 
-        However we want to update the coverage of the current pair as a new
-        input file has been registered.
+        However we want to update the coverage of the current pair as a new input file has been
+        registered.
 
-        TODO: Find a better name for the hook as it handles two different
-        services.
+        TODO: Find a better name for the hook as it handles two different services.
         """
         inputs = with_task_info.inputs['in']
         dates = {re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs}
@@ -1945,17 +1889,15 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
 class SelectBestCoverage(_FileProducingStepFactory):
     """
-    StepFactory that helps select only one path after LIA concatenation:
-    the one that have the best coverage of the S2 tile target.
+    StepFactory that helps select only one path after LIA concatenation: the one that have the best
+    coverage of the S2 tile target.
 
-    If several concatenated products have the same coverage, the oldest one
-    will be selected.
+    If several concatenated products have the same coverage, the oldest one will be selected.
 
     The coverage is extracted from ``tile_coverage`` step metadata.
 
-    The step produced does nothing: it only only rename the selected product
-    into the final expected name. Note: in LIA case two files will actually
-    renamed.
+    The step produced does nothing: it only only rename the selected product into the final expected
+    name. Note: in LIA case two files will actually renamed.
 
     Requires the following information from the metadata dictionary
 
