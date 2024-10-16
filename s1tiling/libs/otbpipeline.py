@@ -109,7 +109,7 @@ class FirstStepFactory(Protocol):
     When calling a ``FirstStepFactory``, the :class:`PipelineDescriptionSequence` is already able to
     fill in a few parameters like the ``configuration``. Other specific parameters are expected to
     be filled through
-    :func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factory`.
+    :func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factories`.
 
     """
     def __call__(
@@ -733,7 +733,7 @@ class PipelineDescriptionSequence:
                                     <s1tiling.libs.steps.FirstStep>` on the fly from the registered
                                     :class:`Configuration
                                     <s1tiling.libs.configuration.Configuration>` and the :func:`registered
-                                    extra parameters <register_extra_parameters_for_input_factory>`.
+                                    extra parameters <register_extra_parameters_for_input_factories>`.
         :type first_steps_factory:  FirstStepFactory
 
         .. note::
@@ -742,7 +742,7 @@ class PipelineDescriptionSequence:
         """
         self.__inputs.register_inputs(kind, first_steps_factory)
 
-    def register_extra_parameters_for_input_factory(self, **extra) -> None:
+    def register_extra_parameters_for_input_factories(self, **extra) -> None:
         """
         Registers extra parameters that will be passed to all the for :class:`FirstStep factories
         <FirstStepFactory>` registered.
@@ -751,7 +751,7 @@ class PipelineDescriptionSequence:
 
         .. code:: python
 
-            pipelines.register_extra_parameters_for_input_factory(
+            pipelines.register_extra_parameters_for_input_factories(
                 dag=dag,
                 s1_file_manager=s1_file_manager,
                 dryrun=dryrun,
@@ -767,7 +767,7 @@ class PipelineDescriptionSequence:
 
         Only one parameter is assumed the registered :class:`Configuration
         <s1tiling.libs.configuration.Configuration>` object. Other parameters are assumed from the
-        :func:`registered extra parameters <register_extra_parameters_for_input_factory>`.
+        :func:`registered extra parameters <register_extra_parameters_for_input_factories>`.
         """
         inputs : Dict[str, List[Outcome[Meta]]] = self.__inputs.instanciate_all(configuration=self.__cfg)
         logger.debug("FIRST: %s", pprint.pformat(inputs))

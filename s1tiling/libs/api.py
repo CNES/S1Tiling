@@ -323,7 +323,7 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    pipelines.register_extra_parameters_for_input_factory(tile_name=tile_name)
+    pipelines.register_extra_parameters_for_input_factories(tile_name=tile_name)
     dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram)
     if errors:
         return errors
@@ -427,7 +427,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
         # Used by eof
-        pipelines.register_extra_parameters_for_input_factory(
+        pipelines.register_extra_parameters_for_input_factories(
                 dag=dag,
                 s1_file_manager=s1_file_manager,
                 dryrun=dryrun,

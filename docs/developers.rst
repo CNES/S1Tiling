@@ -165,18 +165,18 @@ registered ``FirstStepFactories``. By default,
 :class:`Configuration <s1tiling.libs.configuration.Configuration>` information
 is passed. But some other information needs to be declared in one or several
 calls to
-:func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factory
-<s1tiling.libs.otbpipeline.PipelineDescriptionSequence.register_extra_parameters_for_input_factory>`.
+:func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factories
+<s1tiling.libs.otbpipeline.PipelineDescriptionSequence.register_extra_parameters_for_input_factories>`.
 
 e.g.:
 
 .. code:: python
 
-    pipelines.register_extra_parameters_for_input_factory(
+    pipelines.register_extra_parameters_for_input_factories(
         tile_name=tilename,               # Used by all
     )
     
-    pipelines.register_extra_parameters_for_input_factory(
+    pipelines.register_extra_parameters_for_input_factories(
         dag=dag,                          # Used by eof_first_inputs_factory
         s1_file_manager=s1_file_manager,  # Used by s1_raster_first_inputs_factory
         dryrun=dryrun,                    # Used by all

@@ -584,7 +584,7 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
     })
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
-    pipelines.register_extra_parameters_for_input_factory(
+    pipelines.register_extra_parameters_for_input_factories(
             tile_name=TILE,
             raster_list=raster_list,
     )
