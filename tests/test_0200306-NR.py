@@ -552,7 +552,7 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
             'out': otb.ImagePixelType_uint8
         }, {
             'IMAGE_TYPE'                : 'MASK',
-            'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD border mask S2 tile',
+            'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified Sentinel-1A IW GRD border mask S2 tile',
         })
         application_mocker.set_expectations('BinaryMorphologicalOperation', {
             'in'       : [infile(i, False)+'|>BandMath'],
@@ -565,7 +565,7 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
         }, {
             'out': otb.ImagePixelType_uint8
         }, {
-            'TIFFTAG_IMAGEDESCRIPTION'  : f'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
+            'TIFFTAG_IMAGEDESCRIPTION'  : 'Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile',
         })
 
 
