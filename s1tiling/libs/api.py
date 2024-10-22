@@ -677,27 +677,35 @@ def eof_first_inputs_factory(
     :precondition: one and only one relative orbit number must have been requested in the configuration.
     :precondition: one and only one mission must have been requested in the configuration.
     """
-    assert len(configuration.relative_orbit_list) == 1
-    relative_orbit = configuration.relative_orbit_list[0]
-    logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbit)
+    # assert len(configuration.relative_orbit_list) == 1
+    relative_orbits = configuration.relative_orbit_list
+    logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbits)
     eof_manager = EOFFileManager(configuration, dag)
-    eof_files = eof_manager.search_for(relative_orbit)
-    assert len(eof_files) > 0
-    if not eof_files[0]:
-        error = eof_files[0].error()
+    eof_founds = eof_manager.search_for(relative_orbits)
+    assert len(eof_founds) > 0
+    if not eof_founds[0]:
+        error = eof_founds[0].error()
         raise exceptions.DownloadEOFFileError(str(error)) from error
-    logger.info("Orbit %s OSVs will be taken from '%s'", relative_orbit, eof_files[0].value())
+    logger.info("Orbit %s OSVs will be taken from %s", relative_orbits, ",".join([f"{eof_file.value()}" for eof_file in eof_founds]))
     # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
     # TODO: see how to support the case where all inputs are dropped...
-    product = eof_files[0].related_product()
-    assert product, f"Here, we chould have a non null instance for {product=}"
-    step = FirstStep(
-            orbit=f"{relative_orbit:0>3d}",
-            basename=eof_files[0].value(),
-            flying_unit_code=product.mission.lower(),
-            tile_name=tile_name,
-    )
-    return [Outcome(step)]
+    # TODO: keep only one eof_file per series of consecutive files related to a same orbit
+    #       => associate orbit+mission to a single EOF file
+    steps = []
+    for eof_entry in eof_founds:
+        if not eof_entry:
+            error = eof_entry.error()
+            raise exceptions.DownloadEOFFileError(str(error)) from error
+        for relorb, product in eof_entry.value().items():
+            assert product, f"Here, we chould have a non null instance for {product=}"
+            step = FirstStep(
+                    orbit=f"{relorb:0>3d}",
+                    basename=product.filename,
+                    flying_unit_code=product.mission.lower(),
+                    tile_name=tile_name,
+            )
+            steps.append(step)
+    return [Outcome(step) for step in steps]
 
 
 def register_LIA_pipelines(

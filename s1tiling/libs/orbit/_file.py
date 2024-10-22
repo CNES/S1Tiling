@@ -36,7 +36,7 @@ from datetime import datetime
 import glob
 import logging
 import os
-from typing import List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 from eof.client import Filename
 from eof.download import SentinelOrbit
@@ -148,11 +148,37 @@ def glob_eof_files(dirname: Filename) -> List[SentinelOrbitFile]:
     return eof_files
 
 
-def filter_intersecting_eof_files(
-        eof_files : List[SentinelOrbitFile],
-        first_date: datetime,
-        last_date : datetime,
-        missions  : Sequence[str] = (),
+def filter_intersecting_eof_file_dict(
+        eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
+        first_date          : datetime,
+        last_date           : datetime,
+        missions            : Sequence[str] = (),
+) -> List[Dict[int, SentinelOrbitFile]]:
+    """
+    Filter orbit files to keep those intersecting the time range.
+
+    If ``mission`` is set, it's also used as a filtering parameter.
+    """
+    if missions:
+        return [
+                f
+                for f in eof_files_per_orbit
+                for relorb in f
+                if f[relorb].does_intersect(first_date, last_date) and f[relorb].mission in missions
+        ]
+    else:
+        return [
+                f for f in eof_files_per_orbit
+                for relorb in f
+                if f[relorb].does_intersect(first_date, last_date)
+        ]
+
+
+def filter_intersecting_eof_file_list(
+        eof_files  : Iterable[SentinelOrbitFile],
+        first_date : datetime,
+        last_date  : datetime,
+        missions   : Sequence[str] = (),
 ) -> List[SentinelOrbitFile]:
     """
     Filter orbit files to keep those intersecting the time range.
@@ -172,8 +198,29 @@ def filter_intersecting_eof_files(
         ]
 
 
+def filter_eof_files_according_to_orbit_and_mission(
+        eof_files      : Iterable[SentinelOrbitFile],
+        relative_orbits: Sequence[int],
+        margin         : int = 0,
+        missions       : Sequence[str] = (),
+) -> List[Dict[int, SentinelOrbitFile]]:
+    """
+    Filter orbit files to keep those containing the requested relative orbit numbers and missions.
+    """
+    if missions:  # First filter missions
+        eof_files = (f for f in eof_files if f.mission in missions)
+
+    # Then filter according to relative orbit
+    return [
+        {ro: f}
+        for f in eof_files
+        for ro in relative_orbits
+        if f.has_relative_orbit(ro, margin)
+    ]
+
+
 def filter_eof_files_containing_orbit(
-        eof_files     : List[SentinelOrbitFile],
+        eof_files     : Iterable[SentinelOrbitFile],
         relative_orbit: int,
         margin        : int = 0,
 ) -> List[SentinelOrbitFile]:

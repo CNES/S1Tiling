@@ -50,7 +50,7 @@ from s1tiling.libs.orbit._conversions import ORBIT_CONVERTERS
 from s1tiling.libs.orbit._file        import (
         SentinelOrbitFile,
         extract_min_max_abs_orbit_numbers,
-        filter_intersecting_eof_files,
+        filter_intersecting_eof_file_list,
         filter_eof_files_containing_orbit,
         glob_eof_files,
         orbit_range,
@@ -380,12 +380,12 @@ def test_manager_dir_analysis(
 
     dt1 = datetime(2020, 1, 1)   # 00:00:00
     dt2 = datetime(2020, 1, 2, 23, 59, 59)   # 00:00:00
-    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    eof_files_in_range = filter_intersecting_eof_file_list(eof_files, dt1, dt2)
     assert len(eof_files_in_range) == 0
 
     dt1 = datetime(2020, 1, 1)   # 00:00:00
     dt2 = datetime(2023, 10, 30, 23, 59, 59)   # 00:00:00
-    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    eof_files_in_range = filter_intersecting_eof_file_list(eof_files, dt1, dt2)
     assert len(eof_files_in_range) == 1
     assert eof_files_in_range[0].filename == eof_files[0].filename
     for eof_file in eof_files_in_range:
@@ -396,7 +396,7 @@ def test_manager_dir_analysis(
 
     dt1 = datetime(2023, 11, 1)   # 00:00:00
     dt2 = datetime(2023, 11, 10, 23, 59, 59)   # 00:00:00
-    eof_files_in_range = filter_intersecting_eof_files(eof_files, dt1, dt2)
+    eof_files_in_range = filter_intersecting_eof_file_list(eof_files, dt1, dt2)
     assert len(eof_files_in_range) == 2
     assert eof_files_in_range[0].filename == eof_files[1].filename
     assert eof_files_in_range[1].filename == eof_files[2].filename
@@ -489,14 +489,17 @@ def test_manager_analysis_of_cache(
             (130, 2),
     ]
     for obt, file_id in obt_file_expectations:
-        files = eof_manager.search_for(obt)
-        assert len(files) == 1
-        assert files[0].has_value()
-        file_found    : Filename = files[0].value()
+        files_found = eof_manager.search_for([obt])
+        assert len(files_found) == 1
+        assert files_found[0].has_value()
+        obt_found, eof_found = list(files_found[0].value().items())[0]
+        # file_found    : Filename = files[0].value()
+        file_found    : Filename = eof_found.filename
         file_expected : Filename = eof_files[file_id].filename
         logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
         logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
-        assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
+        assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files_found[0]!r}"
+        assert obt_found == obt
 
 
 
@@ -541,19 +544,21 @@ def test_manager_eof_retrieval(
             (121, None)
     ]
     for obt, file_id in obt_file_expectations:
-        files = eof_manager.search_for(obt)
-        logging.debug("Files found for obt %s => %s", obt, files)
-        assert len(files) <= 2
+        files_found = eof_manager.search_for([obt])
+        logging.debug("Files found for obt %s => %s", obt, files_found)
+        assert len(files_found) <= 2
         if file_id is not None:
-            assert len(files) >= 1
-            assert files[0].has_value()
-            file_found    : Filename = files[0].value()
+            assert len(files_found) >= 1
+            assert files_found[0].has_value()
+            obt_found, eof_found = list(files_found[0].value().items())[0]
+            # file_found    : Filename = files_found[0].value()
+            file_found    : Filename = eof_found.filename
             file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
             logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
             logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
-            assert str(file_found) == str(file_expected), f"Orbit {obt} not found in #{file_id} -> {files[0]!r}"
+            assert str(file_found) == str(file_expected), f"Orbit {obt} not found in #{file_id} -> {files_found[0]!r}"
         else:
-            assert not files[0].has_value()
+            assert not files_found[0].has_value()
 
     eof_files = [SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_id)) for eof_id in eof_ids]
     assert eof_files == glob_eof_files(tmp_eof_dir), "They should have been downloaded eventually"

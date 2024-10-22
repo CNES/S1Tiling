@@ -1170,12 +1170,9 @@ def test_33NWB_202001_lia_mocked(
     file_db = FileDB(inputdir, eofdir, tmpdir.absolute(), outputdir.absolute(), liadir.absolute(), tile, demdir, configuration.GeoidFile)
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
     eof_file = os.path.join(eofdir, 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942.EOF')
-    mocked_eof = DownloadOutcome(
-            eof_file,
-            MockedSentinelOrbitFile(eof_file, 'S1A')
-    )
+    mocked_eof = MockedSentinelOrbitFile(eof_file, 'S1A')
     mocker.patch('s1tiling.libs.orbit._manager.EOFFileManager.search_for',
-                 lambda slf, obt: [mocked_eof])
+                 lambda slf, obts: [DownloadOutcome({obt: mocked_eof}) for obt in obts])
 
     application_mocker = OTBApplicationsMockContext(configuration, mocker, file_db.tmp_to_out_map, file_db.dem_files)
     known_files = application_mocker.known_files
