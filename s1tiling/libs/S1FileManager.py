@@ -71,7 +71,7 @@ from .configuration     import (
         dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered
 )
 from .otbpipeline       import mp_worker_config
-from .outcome           import DownloadOutcome
+from .outcome           import S1DownloadOutcome
 from .utils.timer       import timethis
 
 setup_logging(verbose=1)
@@ -443,7 +443,7 @@ def _download_and_extract_one_product(
     dl_wait:       int,
     dl_timeout:    int,
     product:       EOProduct
-) -> DownloadOutcome[str, EOProduct]:
+) -> S1DownloadOutcome[str, EOProduct]:
     """
     Takes care of downloading exactly one remote product and unzipping it,
     if required.
@@ -454,9 +454,9 @@ def _download_and_extract_one_product(
     ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
     zip_file = os.path.join(raw_directory, prod_id) + '.zip'
-    path: DownloadOutcome[str, EOProduct]
+    path: S1DownloadOutcome[str, EOProduct]
     try:
-        path = DownloadOutcome(
+        path = S1DownloadOutcome(
                 dag.download(
                     product,            # EODAG will clear this variable
                     extract=True,       # Let's eodag do the job
@@ -477,7 +477,7 @@ def _download_and_extract_one_product(
         if not os.path.exists(manifest):
             logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
             e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
-            path = DownloadOutcome(e, product)
+            path = S1DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -488,7 +488,7 @@ def _download_and_extract_one_product(
         # logger.exception(e)
         ## Traceback (most recent call last):
         ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
-        ##     path = DownloadOutcome(dag.download(
+        ##     path = S1DownloadOutcome(dag.download(
         ##   File "site-packages/eodag/api/core.py", line 1487, in download
         ##     path = product.download(
         ##   File "site-packages/eodag/api/product/_product.py", line 288, in download
@@ -498,7 +498,7 @@ def _download_and_extract_one_product(
         ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E
         ##                                           is not available (OFFLINE) and could not be downloaded, timeout reached
 
-        path = DownloadOutcome(e, product)
+        path = S1DownloadOutcome(e, product)
 
     return path
 
@@ -511,15 +511,15 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
     tile_name:     str,
     dl_wait:       int,
     dl_timeout:    int,
-) -> List[DownloadOutcome]:
+) -> List[S1DownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
 
-    Returns :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
+    Returns :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
     """
     nb_products = len(products)
-    paths : List[DownloadOutcome] = []
+    paths : List[S1DownloadOutcome] = []
     log_queue : multiprocessing.Queue = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
     dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
@@ -531,7 +531,7 @@ def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-a
             # -> IOW, downloading instability justifies trying again.
             # /> On the contrary, on a complete network failure, we should not try again and again...
             while len(products) > 0:
-                products_in_timeout : List[DownloadOutcome] = []
+                products_in_timeout : List[S1DownloadOutcome] = []
                 nb_successes_since_timeout = 0
                 for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
                     # logger.debug('DL -> %s', result)
@@ -593,9 +593,9 @@ class S1FileManager:
 
         # Failures related to download (e.g. missing products)
         self.__search_failures                = 0
-        self.__download_failures              : List[DownloadOutcome]            = []
-        self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[DownloadOutcome]] = {}  # by S2 unique id: date + rel_orbit
-        self.__skipped_S2_products            : List[str]                        = []
+        self.__download_failures              : List[S1DownloadOutcome]            = []
+        self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[S1DownloadOutcome]] = {}  # by S2 unique id: date + rel_orbit
+        self.__skipped_S2_products            : List[str]                          = []
 
         self._ensure_workspaces_exist()
         self.processed_filenames = self.get_processed_filenames()
@@ -634,15 +634,15 @@ class S1FileManager:
         """Returns the number of times querying matching products failed"""
         return self.__search_failures
 
-    def get_download_failures(self) -> List[DownloadOutcome]:
+    def get_download_failures(self) -> List[S1DownloadOutcome]:
         """
-        Returns the list of download failures as a list of :class:DownloadOutcome`
+        Returns the list of download failures as a list of :class:S1DownloadOutcome`
         """
         return self.__download_failures
 
-    def get_download_timeouts(self) -> List[DownloadOutcome]:
+    def get_download_timeouts(self) -> List[S1DownloadOutcome]:
         """
-        Returns the list of download timeours as a list of :class:DownloadOutcome`
+        Returns the list of download timeours as a list of :class:S1DownloadOutcome`
         """
         return list(filter(lambda f: isinstance(f.error(), NotAvailableError), self.__download_failures))
 
@@ -860,11 +860,11 @@ class S1FileManager:
         polarization:            str,
         cover:                   float,
         dryrun:                  bool,
-    ) -> List[DownloadOutcome]:
+    ) -> List[S1DownloadOutcome]:
         """
         Process with the call to eodag search + filter + download.
 
-        :rtype: :class:`DownloadOutcome` of :class:`EOProduct` or Exception.
+        :rtype: :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
         :raises RuntimeError: If the search fails
         """
         extent = {
@@ -931,7 +931,7 @@ class S1FileManager:
         logger.debug("Tiles requested to download: %s", tile_list)
 
         self.__failed_S1_downloads_by_S2_uid = {}  # Needs to be reset for each tile!
-        downloaded_products: List[DownloadOutcome] = []
+        downloaded_products: List[S1DownloadOutcome] = []
         layer = Layer(self.cfg.output_grid)  # TODO: This could be cached
         for current_tile in layer:
             name = current_tile.GetField('NAME')
@@ -956,13 +956,13 @@ class S1FileManager:
                         cover=self.cfg.tile_to_product_overlap_ratio,
                         dryrun=dryrun)
         if downloaded_products:
-            failed_products: List[DownloadOutcome] = list(filter(lambda p: not p, downloaded_products))
+            failed_products: List[S1DownloadOutcome] = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
                 self._analyse_download_failures(failed_products)
             success_products = [p.value() for p in filter(lambda p: p.has_value(), downloaded_products)]
             self._refresh_s1_product_list(success_products)  # incremental update
 
-    def _analyse_download_failures(self, failed_products: List[DownloadOutcome]) -> None:
+    def _analyse_download_failures(self, failed_products: List[S1DownloadOutcome]) -> None:
         """
         Record the download failures and mark S2 products that cannot be generated.
         """

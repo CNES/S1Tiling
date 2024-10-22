@@ -45,7 +45,7 @@ from tests.mock_otb  import isdir, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager     import S1FileManager
-from s1tiling.libs.outcome           import DownloadOutcome
+from s1tiling.libs.outcome           import S1DownloadOutcome
 
 from eodag.utils.exceptions import (
     # AuthenticationError,
@@ -441,9 +441,9 @@ def when_searching_VH(configuration, image_list) -> None:
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> DownloadOutcome:
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> S1DownloadOutcome:
     logging.debug('mock: download1 -> %s', product)
-    return DownloadOutcome(product, product)
+    return S1DownloadOutcome(product, product)
 
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, mocker, downloads) -> None:
@@ -535,7 +535,7 @@ def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_di
 @given(parsers.parse('S1 product {idx} download has timed-out'))
 def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx) -> None:
     missing_product = MockEOProduct(int(idx))
-    failed = DownloadOutcome(
+    failed = S1DownloadOutcome(
             NotAvailableError(
                 f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"),
             missing_product)

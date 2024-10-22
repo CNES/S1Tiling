@@ -163,10 +163,22 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
             return msg
 
 
-class DownloadOutcome(Outcome[Value], Generic[Value, Product]):
+class DownloadOutcome(Outcome[Value]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
     downloaded products for better error messages.
+
+    It stores tasks results which could be:
+    - high-level information about the product downloaded,
+    - or the error message that leads to the task failure.
+    """
+    pass
+
+
+class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
+    """
+    Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
+    Sentinel-1 downloaded products for better error messages.
 
     It stores tasks results which could be:
     - either the path to the downloaded product,
