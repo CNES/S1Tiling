@@ -31,7 +31,7 @@
 
 """This sub-module defines the EOFFileManager"""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from enum import Enum
 import logging
@@ -46,7 +46,7 @@ from portion import closed as interval
 from portion import empty as empty_interval
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
-from ._file import SentinelOrbitFile, filter_intersecting_eof_file_dict, filter_intersecting_eof_file_list, glob_eof_files, filter_eof_files_according_to_orbit_and_mission, filter_eof_files_containing_orbit
+from ._file import SentinelOrbitFile, filter_intersecting_eof_file_dict, filter_intersecting_eof_file_list, glob_eof_files, filter_eof_files_according_to_orbit_and_mission, keep_one_eof_per_orbit
 from ..outcome import DownloadOutcome
 from ..utils import partition
 
@@ -141,7 +141,7 @@ class EOFFileManager:
 
     def download_eof(
             self,
-            missions  : Sequence[str] = (),
+            missions  : Iterable[str] = (),
             dryrun    : bool          = False,
     ) -> List[EOFDownloadOutcome]:
         """
@@ -190,6 +190,120 @@ class EOFFileManager:
             errors = [EOFDownloadOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"))]
         return errors
 
+    def _search_on_disk(
+        self,
+        relative_orbits: List[int],
+        missions       : Sequence[str] = (),
+    ) -> Dict[str, Dict[int, SentinelOrbitFile]]:
+        # Several results possible for a pair <mission, orbit> as and sometimes 3 orbits may
+        # overlap instead of just 2. e.g.:
+        #   - [30584 .. 30600] + [30598 .. 30614]  <-- 3 overlapping
+        #   - [30598 .. 30614] + [30613 .. 30629]  <-- 2 overlapping
+        #
+        # Still, a question:
+        # ~> should we be precise (in the configuration file) with the target mission as we
+        #    are with the target relative orbit?
+
+        # Scan dest_dir for EOF having relative_orbit
+        # TODO: handle cache as we loop over several tiles
+        eof_files = glob_eof_files(self.__dest_dir)
+
+        # We need to handle missions separately as some time ranges are not covered by every mission
+        missions = missions or ("S1A", "S1B", "S1C")  # TODO: all_missions(time_range)
+        eof_files_for_mission = {}
+        for mission in missions:
+            eof_files_for_mission[mission] = self._filter_eofs_per_mission(
+                eof_files,
+                relative_orbits,
+                mission,
+            )
+        return eof_files_for_mission
+
+    def _filter_eofs_per_mission(
+        self,
+        eof_files      : List[SentinelOrbitFile],
+        relative_orbits: List[int],
+        mission        : str,
+    ) -> Dict[int, SentinelOrbitFile]:
+        # Cached for logs:
+        relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
+
+        eof_files_matching_orbits = filter_eof_files_according_to_orbit_and_mission(
+            eof_files, relative_orbits, margin=-1, missions=[mission])
+
+        if len(eof_files_matching_orbits) > 0:
+            uniq_eof_files = keep_one_eof_per_orbit(eof_files_matching_orbits, self.__first_date, self.__last_date)
+            nb_eof_in_time_range = len(filter_intersecting_eof_file_dict([uniq_eof_files], self.__first_date, self.__last_date))
+            # logger.debug("%d EOF in time range, %d total", nb_eof_in_time_range, len(uniq_eof_files))
+            if len(uniq_eof_files) == len(relative_orbits):
+                # Good: We have one EOF file per requested relative_orbit
+                if len(uniq_eof_files) != nb_eof_in_time_range:
+                    # ... but some weren't observed in the requested time range => just a warning
+                    logger.warning(
+                        "%d precise orbit files matching orbits %s for %s mission have been found, but only %d %s in the requested time range [%s .. %s]",
+                        len(uniq_eof_files),
+                        relative_orbits_4logs,
+                        mission,
+                        nb_eof_in_time_range,
+                        "are" if nb_eof_in_time_range>1 else "is",
+                        self.__first_date,
+                        self.__last_date,
+                    )
+
+                # Good => we have a result
+                return uniq_eof_files
+
+            # Else: not enough were found
+            logger.info(
+                "Only %d matching EOF found have been found for %d orbits. %s orbit(s) are not covered",
+                len(uniq_eof_files),
+                relative_orbits_4logs,
+                ", ".join((f"{ro}" for ro in set(relative_orbits) - uniq_eof_files.keys())),
+            )
+        return {}
+
+    def _fetch_eof_files(
+        self,
+        relative_orbits: List[int],
+        missions       : Iterable[str],
+        dryrun         : bool,
+    ) -> List[EOFOutcome]:
+        if not self.__cfg.download:
+            return []
+        results = []
+        downloaded_products = self.download_eof(missions, dryrun)
+        eof_products, eof_errors = partition(bool, downloaded_products)
+        if eof_products:
+            eof_files = [prod.value() for prod in eof_products]
+            # First. Let's check all files are in the time range, and match the requested missions
+            # if not, there is a download error
+            eof_files_in_range = filter_intersecting_eof_file_list(
+                eof_files,
+                self.__first_date,
+                self.__last_date,
+                missions
+            )
+            if not(eof_files_in_range):
+                # NB: We could also tests whether the lists are identical
+                raise RuntimeError(
+                    f"EOF files downloaded don't match the requested missions {missions} and "
+                    f"time range [{self.__first_date}..{self.__last_date}]: {eof_files}")
+            # Then: try to see if matching products have been downloaded
+            eof_files_matching = filter_eof_files_according_to_orbit_and_mission(
+                eof_files, relative_orbits, -1, missions)
+            results = [EOFOutcome(f) for f in eof_files_matching]
+        results.extend((EOFOutcome(e.error()) for e in eof_errors))
+
+        # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
+        if len(results) == 0:
+            relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
+            msg = (f"No precise orbit files found containing OSVs for orbits {relative_orbits_4logs} in the time range"
+                   f" [{self.__first_date} .. {self.__last_date}]")
+            logger.warning("%s", msg)
+
+            results.append(EOFOutcome(RuntimeError(msg)))
+        return results
+
     def search_for(
             self,
             relative_orbits: List[int],
@@ -214,29 +328,29 @@ class EOFFileManager:
         results: List[EOFOutcome]
 
         # Cached for logs:
-        relative_orbits_4logs = ", ".join(f"{relative_orbits}")
+        relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
 
         # 1. scan dest_dir for EOF having relative_orbit
-        # TODO: handle cache...
-        eof_files = glob_eof_files(self.__dest_dir)
+        eof_files_for_mission = self._search_on_disk(relative_orbits, missions)
+        results = [
+            EOFOutcome({relorb: prod})
+            for mission in eof_files_for_mission
+            for relorb, prod in eof_files_for_mission[mission].items()
+        ]
 
-        eof_files_matching_orbits = filter_eof_files_according_to_orbit_and_mission(
-            eof_files, relative_orbits, margin=-1, missions=missions)
+        # 2. if eof files appear to be missing, download files in the time range for each mission
+        covered_missions = eof_files_for_mission.keys()
+        possible_missions = set(missions or ("S1A", "S1B", "S1C"))  # todo
+        missing_missions = possible_missions - covered_missions
+        if missing_missions:
+            downloaded_eof = self._fetch_eof_files(relative_orbits, missing_missions, dryrun)
+            results.extend(downloaded_eof)
+        return results
 
-        if len(eof_files_matching_orbits) > 0:
-            eof_files_in_time_range = filter_intersecting_eof_file_dict(eof_files_matching_orbits, self.__first_date, self.__last_date)
-            if len(eof_files_in_time_range) == 0:
-                logger.warning(
-                    "Precise orbit files matching orbits %s for %s missions have been found, but not in the requested time range [%s .. %s]",
-                    relative_orbits_4logs,
-                    "and ".join(missions) or "all",
-                    self.__first_date,
-                    self.__last_date,
-                )
-            results = [EOFOutcome(f) for f in eof_files_matching_orbits]
-            return results
+        for mission in eof_files_for_mission:
+            if not eof_files_for_mission[mission]:
+                eof_files_for_mission[mission] = self._fetch_eof_files(mission, relative_orbits, dryrun)
 
-        # 2. if not, download files in the time range
         #    analyse the new files
         logger.debug(
                 "No precise orbit files found in cache that contains OSV for the orbits %s within the time range [%s .. %s]",

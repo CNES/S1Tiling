@@ -148,6 +148,29 @@ def glob_eof_files(dirname: Filename) -> List[SentinelOrbitFile]:
     return eof_files
 
 
+def keep_one_eof_per_orbit(
+        eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
+        first_date          : datetime,
+        last_date           : datetime,
+) -> Dict[int, SentinelOrbitFile]:
+    """
+    Filters list of {orbit: eof_file} to keep only one product per orbit number.
+    If there are several EOF file for a given orbit, we keep in priority the latest eof file that is
+    within the time range.
+
+    :return: A single dictionary of one EOF file per relative orbit
+    """
+    all_eof_per_obt : Dict[int, SentinelOrbitFile] = {}
+    for eof_file in eof_files_per_orbit:
+        assert len(eof_file) == 1
+        obt, product = list(eof_file.items())[0]
+        if obt in all_eof_per_obt:
+            if not product.does_intersect(first_date, last_date):
+                continue
+        all_eof_per_obt[obt] = product
+    return all_eof_per_obt
+
+
 def filter_intersecting_eof_file_dict(
         eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
         first_date          : datetime,

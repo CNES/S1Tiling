@@ -697,6 +697,7 @@ def eof_first_inputs_factory(
             error = eof_entry.error()
             raise exceptions.DownloadEOFFileError(str(error)) from error
         for relorb, product in eof_entry.value().items():
+            logger.debug("#  orb=%03d, product=%s", relorb, product.filename)
             assert product, f"Here, we chould have a non null instance for {product=}"
             step = FirstStep(
                     orbit=f"{relorb:0>3d}",
@@ -705,6 +706,8 @@ def eof_first_inputs_factory(
                     tile_name=tile_name,
             )
             steps.append(step)
+    for step in steps:
+        logger.debug("- EOF FirstStep = %s", step)
     return [Outcome(step) for step in steps]
 
 
