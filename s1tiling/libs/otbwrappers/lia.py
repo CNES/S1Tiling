@@ -669,7 +669,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
                 )
                 return [inp]
         logger.warning(
-            "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. Returning %s which has the best footprint coverage: %.2f%%",
+            "None of the orbit state vector sequence from input S1 products seems wide enough to cover entirelly %s tile. "
+            "Returning %s which has the best footprint coverage: %.2f%%",
             best_covered_input['tile_name'], out_filename(best_covered_input), best_covered_input['tile_coverage']
         )
         return [best_covered_input]

@@ -678,7 +678,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         """
         if tile_name not in self.__dems_by_s2_tiles:
             raise AssertionError(
-                f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}"
+                f"No DEM information has been associated to {tile_name}. "
+                f"Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}"
             )
         return self.__dems_by_s2_tiles[tile_name]
 

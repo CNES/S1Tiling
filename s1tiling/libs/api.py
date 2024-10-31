@@ -38,7 +38,7 @@ import logging
 import logging.config
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client
@@ -597,7 +597,7 @@ def s1_raster_first_inputs_factory(
     """
     matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
     if not matching_rasters:
-        return [matching_rasters]
+        return [cast(Outcome[FirstStep], matching_rasters)]
     intersect_raster_list = matching_rasters.value()
 
     if len(intersect_raster_list) == 0:
@@ -698,7 +698,7 @@ def eof_first_inputs_factory(
             raise exceptions.DownloadEOFFileError(str(error)) from error
         for relorb, product in eof_entry.value().items():
             logger.debug("#  orb=%03d, product=%s", relorb, product.filename)
-            assert product, f"Here, we chould have a non null instance for {product=}"
+            assert product, f"Here, we should have a non null instance for {product=}"
             step = FirstStep(
                     orbit=f"{relorb:0>3d}",
                     basename=product.filename,

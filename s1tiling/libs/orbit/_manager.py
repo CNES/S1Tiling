@@ -43,7 +43,7 @@ from dateutil.parser import parse
 from eodag.api.core import EODataAccessGateway
 from eof.client import Filename
 from portion import Interval, closed as closed_interval
-from portion import empty as empty_interval
+# from portion import empty as empty_interval
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file      import (

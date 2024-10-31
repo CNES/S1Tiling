@@ -121,6 +121,10 @@ setup(
             "pytest-mock",
             "pytest_recording",
             "pylint",
+            # Type hints:
+            "types-python-dateutil",
+            "types-PyYAML",
+            "types-requests",
         ],
         "docs": [
             "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
