@@ -45,6 +45,9 @@ from ._conversions import ORBIT_CONVERTERS
 from ..utils import lxml as xml
 
 
+#: List of all possible missions. Even the yet to be launched S1C is listed
+ALL_MISSIONS = ("S1A", "S1B", "S1C")
+
 logger = logging.getLogger("s1tiling.orbit")
 
 
@@ -67,6 +70,8 @@ class SentinelOrbitFile(SentinelOrbit):
         self.__orbit_converter = ORBIT_CONVERTERS[self.mission]
         self.first_rel_orbit = self.__orbit_converter.to_relative(self.first_abs_orbit)
         self.last_rel_orbit  = self.__orbit_converter.to_relative(self.last_abs_orbit)
+        assert 1 <= self.first_rel_orbit <= 175
+        assert 1 <= self.last_rel_orbit <= 175
 
     @property
     def nb_orbits_in_mission(self):
@@ -102,6 +107,12 @@ class SentinelOrbitFile(SentinelOrbit):
             does_contain = (min_obt <= relative_orbit <= self.nb_orbits_in_mission) or (1 <= relative_orbit <= max_obt)
         # logger.debug("¿ %s == %s ∈ [%s, %s] ('%s')", does_contain, relative_orbit, min_obt, max_obt, self.filename)
         return does_contain
+
+    def __str__(self) -> str:
+        return (
+            f"{self.orbit_type} {self.__class__.__name__} from {self.start_time} to {self.stop_time} "
+            f"[{self.first_rel_orbit:>03d} .. {self.last_rel_orbit:0>03d}]"
+        )
 
 
 # ===============[ "Internal" functions used to implement the public service
@@ -149,17 +160,22 @@ def glob_eof_files(dirname: Filename) -> List[SentinelOrbitFile]:
 
 
 def keep_one_eof_per_orbit(
-        eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
-        first_date          : datetime,
-        last_date           : datetime,
+    eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
+    first_date          : datetime,
+    last_date           : datetime,
+    missions            : Iterable[str],
 ) -> Dict[int, SentinelOrbitFile]:
     """
     Filters list of {orbit: eof_file} to keep only one product per orbit number.
-    If there are several EOF file for a given orbit, we keep in priority the latest eof file that is
-    within the time range.
+    If there are several EOF file for a given orbit, we keep in priority:
+    1. the eof file associated to the mission/platform requested.
+    2. the latest eof file that is within the time range.
 
     :return: A single dictionary of one EOF file per relative orbit
     """
+    assert missions, "At least one mission is expected"
+    assert all(m in ALL_MISSIONS for m in missions), f"Invalid mission names: {missions=}"
+
     all_eof_per_obt : Dict[int, SentinelOrbitFile] = {}
     for eof_file in eof_files_per_orbit:
         assert len(eof_file) == 1
@@ -167,15 +183,17 @@ def keep_one_eof_per_orbit(
         if obt in all_eof_per_obt:
             if not product.does_intersect(first_date, last_date):
                 continue
+            if product.mission not in missions:
+                continue
         all_eof_per_obt[obt] = product
     return all_eof_per_obt
 
 
 def filter_intersecting_eof_file_dict(
-        eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
-        first_date          : datetime,
-        last_date           : datetime,
-        missions            : Sequence[str] = (),
+    eof_files_per_orbit : Iterable[Dict[int, SentinelOrbitFile]],
+    first_date          : datetime,
+    last_date           : datetime,
+    missions            : Sequence[str] = (),
 ) -> List[Dict[int, SentinelOrbitFile]]:
     """
     Filter orbit files to keep those intersecting the time range.
@@ -184,16 +202,16 @@ def filter_intersecting_eof_file_dict(
     """
     if missions:
         return [
-                f
-                for f in eof_files_per_orbit
-                for relorb in f
-                if f[relorb].does_intersect(first_date, last_date) and f[relorb].mission in missions
+            f
+            for f in eof_files_per_orbit
+            for relorb in f
+            if f[relorb].does_intersect(first_date, last_date) and f[relorb].mission in missions
         ]
     else:
         return [
-                f for f in eof_files_per_orbit
-                for relorb in f
-                if f[relorb].does_intersect(first_date, last_date)
+            f for f in eof_files_per_orbit
+            for relorb in f
+            if f[relorb].does_intersect(first_date, last_date)
         ]
 
 
@@ -201,7 +219,7 @@ def filter_intersecting_eof_file_list(
         eof_files  : Iterable[SentinelOrbitFile],
         first_date : datetime,
         last_date  : datetime,
-        missions   : Sequence[str] = (),
+        missions   : Iterable[str] = (),
 ) -> List[SentinelOrbitFile]:
     """
     Filter orbit files to keep those intersecting the time range.
@@ -210,22 +228,22 @@ def filter_intersecting_eof_file_list(
     """
     if missions:
         return [
-                f
-                for f in eof_files
-                if f.does_intersect(first_date, last_date) and f.mission in missions
+            f
+            for f in eof_files
+            if f.does_intersect(first_date, last_date) and f.mission in missions
         ]
     else:
         return [
-                f for f in eof_files
-                if f.does_intersect(first_date, last_date)
+            f for f in eof_files
+            if f.does_intersect(first_date, last_date)
         ]
 
 
 def filter_eof_files_according_to_orbit_and_mission(
-        eof_files      : Iterable[SentinelOrbitFile],
-        relative_orbits: Sequence[int],
-        margin         : int = 0,
-        missions       : Sequence[str] = (),
+    eof_files      : Iterable[SentinelOrbitFile],
+    relative_orbits: Sequence[int],
+    margin         : int = 0,
+    missions       : Iterable[str] = (),
 ) -> List[Dict[int, SentinelOrbitFile]]:
     """
     Filter orbit files to keep those containing the requested relative orbit numbers and missions.
@@ -242,15 +260,58 @@ def filter_eof_files_according_to_orbit_and_mission(
     ]
 
 
-def filter_eof_files_containing_orbit(
-        eof_files     : Iterable[SentinelOrbitFile],
-        relative_orbit: int,
-        margin        : int = 0,
-) -> List[SentinelOrbitFile]:
+def filter_uniq_eofs(
+    eof_files      : List[SentinelOrbitFile],
+    first_date     : datetime,
+    last_date      : datetime,
+    relative_orbits: List[int],
+    missions       : Iterable[str],
+) -> Dict[int, SentinelOrbitFile]:
     """
-    Filter orbit files to keep those containing the requested relative orbit number.
+    Main function used to filter a list of EOF files according to requested orbits, date and
+    missions.
     """
-    return [f for f in eof_files if f.has_relative_orbit(relative_orbit, margin)]
+    assert missions, "At least one mission is expected"
+    assert all(m in ALL_MISSIONS for m in missions), f"Invalid mission names: {missions=}"
+
+    # Cached for logs:
+    relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
+
+    eof_files_matching_orbits = filter_eof_files_according_to_orbit_and_mission(
+        eof_files, relative_orbits, margin=-1, missions=()
+    )  # Keep products from any missions
+
+    if len(eof_files_matching_orbits) > 0:
+        uniq_eof_files = keep_one_eof_per_orbit(eof_files_matching_orbits, first_date, last_date, missions)
+        nb_eof_in_time_range = len(filter_intersecting_eof_file_dict([uniq_eof_files], first_date, last_date))
+        # logger.debug("%d EOF in time range, %d total", nb_eof_in_time_range, len(uniq_eof_files))
+        if len(uniq_eof_files) == len(relative_orbits):
+            # Good: We have one EOF file per requested relative_orbit
+            if len(uniq_eof_files) != nb_eof_in_time_range:
+                # ... but some weren't observed in the requested time range => just a warning
+                logger.warning(
+                    "%d precise orbit files matching orbits %s for %s missions have been found, "
+                    "but only %d %s in the requested time range [%s .. %s]",
+                    len(uniq_eof_files),
+                    relative_orbits_4logs,
+                    missions,
+                    nb_eof_in_time_range,
+                    "are" if nb_eof_in_time_range>1 else "is",
+                    first_date,
+                    last_date,
+                )
+
+            # Good => we have a result
+            return uniq_eof_files
+
+        # Else: not enough were found
+        logger.info(
+            "Only %d matching EOF found have been found for %d orbits. %s orbit(s) are not covered",
+            len(uniq_eof_files),
+            relative_orbits_4logs,
+            ", ".join((f"{ro}" for ro in set(relative_orbits) - uniq_eof_files.keys())),
+        )
+    return {}
 
 
 def orbit_range(eof_file: SentinelOrbitFile):
@@ -266,7 +327,7 @@ def orbit_range(eof_file: SentinelOrbitFile):
 
 def orbit_range_internal(first: int, last: int, nb_orbits: int):
     """
-    Generates all possible relativate orbit number between ``first`` and ``last``.
+    Generates all possible relate orbit number between ``first`` and ``last``.
     >>> list(orbit_range_internal(1, 9, 175))
     [1, 2, 3, 4, 5, 6, 7, 8, 9]
     >>> list(orbit_range_internal(3, 11, 175))

@@ -32,7 +32,7 @@
 """This sub-module defines access clients to EOF Providers"""
 
 from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterable
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -73,7 +73,7 @@ class Provider:
             self,
             first_date: datetime,
             last_date:  datetime,
-            missions:   Sequence[str] = ()
+            missions:   Iterable[str] = ()
     ) -> List:
         """
         Search for precise orbit files in the specified time range in the actual provider.

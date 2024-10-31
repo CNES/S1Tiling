@@ -29,17 +29,17 @@
 #
 # =========================================================================
 
-from collections.abc import Sequence
 from datetime import datetime
 import json
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import pytest
 from pytest_recording._vcr import use_cassette
 from _pytest.fixtures import SubRequest
+import pprint
 
 from eodag.api.core import EODataAccessGateway
 from eof.client import Filename
@@ -50,9 +50,11 @@ from s1tiling.libs.orbit._conversions import ORBIT_CONVERTERS
 from s1tiling.libs.orbit._file        import (
         SentinelOrbitFile,
         extract_min_max_abs_orbit_numbers,
+        filter_eof_files_according_to_orbit_and_mission,
         filter_intersecting_eof_file_list,
-        filter_eof_files_containing_orbit,
+        filter_uniq_eofs,
         glob_eof_files,
+        keep_one_eof_per_orbit,
         orbit_range,
 )
 
@@ -250,7 +252,7 @@ def test_manager_with_provider(eodag_config, netrc, configuration, dag, baseline
 
         manager = EOFFileManager(configuration, dag)
         manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
-        res = manager.download_eof()
+        res = manager.do_download_eof_files()
         assert len(res) == EXPECTED_NB
 
 
@@ -274,7 +276,7 @@ def test_manager_no_provider(eodag_config, netrc, configuration, dag):
         assert os.getenv('NETRC') == netrc
         assert not ASFProvider.is_configured(dag)
         manager = EOFFileManager(configuration, dag)
-        res = manager.download_eof()
+        res = manager.do_download_eof_files()
         assert len(res) == 1
         assert not res[0].has_value()
 
@@ -341,10 +343,19 @@ def tmp_eof_dir(tmp_path_factory) -> Path:
 
 @pytest.fixture
 def eof_baseline_dir(baseline_dir: Path) -> Path:
+    # return Path('/home/lhermitt/dev/S1tiling/tests/20200306-NR/test-montagne/run8.1.2/out/_EOF')
     return baseline_dir / "eofs"
 
 
-def prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids):
+def prepare_tmp_eof_dir_from_files(eof_files: List[SentinelOrbitFile], tmp_eof_dir):
+    for eof_product in eof_files:
+        eof_file = Path(eof_product.filename)
+        eof_name = eof_file.name
+        dest     = tmp_eof_dir / eof_name
+        dest.symlink_to(eof_file)
+
+
+def prepare_tmp_eof_dir_from_ids(eof_baseline_dir, tmp_eof_dir, eof_ids):
     for eof_id in eof_ids:
         eof_file = eof_id_to_file(eof_baseline_dir, eof_id)
         dest     = eof_id_to_file(tmp_eof_dir, eof_id)
@@ -361,19 +372,19 @@ def prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids):
             '20231208T070704_V20231117T225942_20231119T005942',
         ]],
 )
-def test_manager_dir_analysis(
+def test_manager_dir_analysis_simple_filter(
         eof_ids         : List[str],
         eof_baseline_dir: Path,
         tmp_eof_dir     : Path,
 ):
     assert len(eof_ids) == 5
     orig_eof_files = glob_eof_files(eof_baseline_dir)
-    assert len(orig_eof_files) == 5
+    assert len(orig_eof_files) == 6
 
     eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == 0
 
-    prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids)
+    prepare_tmp_eof_dir_from_ids(eof_baseline_dir, tmp_eof_dir, eof_ids)
 
     eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == len(eof_ids)
@@ -390,7 +401,10 @@ def test_manager_dir_analysis(
     assert eof_files_in_range[0].filename == eof_files[0].filename
     for eof_file in eof_files_in_range:
         for orbit in orbit_range(eof_file):
-            assert eof_file in filter_eof_files_containing_orbit(eof_files_in_range, orbit), (
+            filtered_eofs = filter_eof_files_according_to_orbit_and_mission(eof_files, [orbit], 0)
+            assert len(filtered_eofs) == 1
+
+            assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
                     f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
 
@@ -402,9 +416,98 @@ def test_manager_dir_analysis(
     assert eof_files_in_range[1].filename == eof_files[2].filename
     for eof_file in eof_files_in_range:
         for orbit in orbit_range(eof_file):
-            assert eof_file in filter_eof_files_containing_orbit(eof_files_in_range, orbit), (
+            filtered_eofs = filter_eof_files_according_to_orbit_and_mission(eof_files, [orbit], 0)
+
+            assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
                     f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
+            uniq_eofs = keep_one_eof_per_orbit(filtered_eofs, dt1, dt2, ("S1A", "S1B"))
+            assert len(uniq_eofs) == 1
+
+
+@pytest.mark.parametrize(
+        "eof_ids",
+        [[
+            '20231107T080717_V20231017T225942_20231019T005942',
+            '20231127T070702_V20231106T225942_20231108T005942',
+            '20231128T070717_V20231107T225942_20231109T005942',
+            '20231207T070724_V20231116T225942_20231118T005942',
+            '20231208T070704_V20231117T225942_20231119T005942',
+            '20210318T180016_V20201204T225942_20201206T005942',
+        ]],
+)
+def test_manager_dir_analysis_actual_filter(
+        eof_ids         : List[str],
+        eof_baseline_dir: Path,
+        tmp_eof_dir     : Path,
+):
+    assert len(eof_ids) == 6
+    orig_eof_files = glob_eof_files(eof_baseline_dir)
+    # assert len(orig_eof_files) == 6
+
+    eof_files = glob_eof_files(tmp_eof_dir)
+    logging.debug("All baseline/EOF:\n%s", pprint.pformat(orig_eof_files))
+    assert len(eof_files) == 0
+
+    prepare_tmp_eof_dir_from_ids(eof_baseline_dir, tmp_eof_dir, eof_ids)
+    # prepare_tmp_eof_dir_from_files(orig_eof_files, tmp_eof_dir)
+
+    eof_files = glob_eof_files(tmp_eof_dir)
+    logging.debug("All tmp/EOF:\n%s", pprint.pformat(eof_files))
+    assert len(eof_files) == len(eof_ids)
+
+    # Regarding EOF files in the baseline:
+    # - 001 appears once
+    # - 106 & 107 appear at the edge of the baseline EOF files, and twice
+    # - 110 appears once
+    # - 130 appears twice: @ 2020-12-05 and 2023-11-08
+    orbits = [107, 110, 130, 1]
+    # orbits = range(1, 175)
+    missions = ('S1A', 'S1B')
+    obt_filtered_eofs = filter_eof_files_according_to_orbit_and_mission(eof_files, orbits, 0)
+    logging.debug("All EOF containing %s:\n%s", orbits, pprint.pformat(obt_filtered_eofs))
+    assert len(obt_filtered_eofs) == 6
+
+    ## Results will be found, but not in the time range
+    dt1 = datetime(2020, 1, 1)   # 00:00:00
+    dt2 = datetime(2020, 1, 2, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = keep_one_eof_per_orbit(obt_filtered_eofs, dt1, dt2, missions)
+    logging.debug("EOF files for %s .. %s:\n%s", dt1, dt2, pprint.pformat(eof_files_in_range))
+    assert len(eof_files_in_range) == 4
+    assert set(eof_files_in_range.keys()).issuperset(orbits)
+    for obt in eof_files_in_range:
+        assert not eof_files_in_range[obt].does_intersect(dt1, dt2)
+    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    assert eof_files_in_range == fully_filtered_eofs
+
+    ## Results will be found, but not all in requested time range
+    dt1 = datetime(2020, 1, 1)   # 00:00:00
+    dt2 = datetime(2023, 10, 30, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = keep_one_eof_per_orbit(obt_filtered_eofs, dt1, dt2, missions)
+    logging.debug("EOF files for %s .. %s:\n%s", dt1, dt2, pprint.pformat(eof_files_in_range))
+    assert len(eof_files_in_range) == 4
+    assert set(eof_files_in_range.keys()).issuperset(orbits)
+    assert     eof_files_in_range[1].does_intersect(dt1, dt2)
+    assert     eof_files_in_range[130].does_intersect(dt1, dt2)  # take the older in range
+    assert not eof_files_in_range[110].does_intersect(dt1, dt2)
+    assert not eof_files_in_range[107].does_intersect(dt1, dt2)
+    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    assert eof_files_in_range == fully_filtered_eofs
+
+    ## Results will be found, but not all in requested time range
+    dt1 = datetime(2023, 11, 1)   # 00:00:00
+    dt2 = datetime(2023, 11, 10, 23, 59, 59)   # 00:00:00
+    eof_files_in_range = keep_one_eof_per_orbit(obt_filtered_eofs, dt1, dt2, missions)
+    logging.debug("EOF files for %s .. %s:\n%s", dt1, dt2, pprint.pformat(eof_files_in_range))
+    assert len(eof_files_in_range) == 4
+    assert set(eof_files_in_range.keys()).issuperset(orbits)
+    assert not eof_files_in_range[1].does_intersect(dt1, dt2)
+    assert     eof_files_in_range[130].does_intersect(dt1, dt2)  # take the newer in range
+    assert     eof_files_in_range[110].does_intersect(dt1, dt2)
+    assert     eof_files_in_range[107].does_intersect(dt1, dt2)
+    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    assert eof_files_in_range == fully_filtered_eofs
+
 
 def test_filter_orbits_on_the_periphery(
         baseline_dir: Path,
@@ -435,14 +538,14 @@ def test_filter_orbits_on_the_periphery(
     assert penultimate_rel_obt_of_1st_eof == first_rel_obt_of_2nd_eof
     assert ultimate_rel_obt_of_1st_eof    == second_rel_obt_of_2nd_eof
 
-    # 2. Do test filter_eof_files_containing_orbit with offset
-    files1 = filter_eof_files_containing_orbit(eof_files, first_rel_obt_of_2nd_eof, -1)
+    # 2. Do test filter_eof_files_according_to_orbit_and_mission with offset
+    files1 = filter_eof_files_according_to_orbit_and_mission(eof_files, [first_rel_obt_of_2nd_eof], -1)
     assert len(files1) == 1
-    assert files1[0] is eof_files[0]
+    assert files1[0][first_rel_obt_of_2nd_eof] is eof_files[0]
 
-    files2 = filter_eof_files_containing_orbit(eof_files, second_rel_obt_of_2nd_eof, -1)
+    files2 = filter_eof_files_according_to_orbit_and_mission(eof_files, [second_rel_obt_of_2nd_eof], -1)
     assert len(files2) == 1
-    assert files2[0] is eof_files[1]
+    assert files2[0][second_rel_obt_of_2nd_eof] is eof_files[1]
 
 
 @pytest.mark.parametrize(
@@ -463,12 +566,12 @@ def test_manager_analysis_of_cache(
 ):
     assert len(eof_ids) == 5
     orig_eof_files = glob_eof_files(eof_baseline_dir)
-    assert len(orig_eof_files) == 5
+    assert len(orig_eof_files) == 6
 
     eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == 0
 
-    prepare_tmp_eof_dir(eof_baseline_dir, tmp_eof_dir, eof_ids)
+    prepare_tmp_eof_dir_from_ids(eof_baseline_dir, tmp_eof_dir, eof_ids)
 
     eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == len(eof_ids)
