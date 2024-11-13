@@ -36,7 +36,7 @@ from datetime import datetime
 import glob
 import logging
 import os
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from eof.client import Filename
 from eof.download import SentinelOrbit
@@ -164,19 +164,27 @@ def keep_one_eof_per_orbit(
     first_date          : datetime,
     last_date           : datetime,
     missions            : Iterable[str],
+    obt2eof_map         : Optional[Dict[int, SentinelOrbitFile]] = None,
 ) -> Dict[int, SentinelOrbitFile]:
     """
     Filters list of {orbit: eof_file} to keep only one product per orbit number.
-    If there are several EOF file for a given orbit, we keep in priority:
-    1. the eof file associated to the mission/platform requested.
-    2. the latest eof file that is within the time range.
+
+    :param eof_files_per_orbit: List of {orbit: eof_file} maps to filter
+    :param first_date:          Start of the requested time range
+    :param last_date:           End of the requested time range
+    :param missions:            Requested missions -- cannot be empty
+    :param obt2eof_map:         Previously map of unique {orbit: eof_file} to update.
+
+    If there are several EOF files for a given orbit, we keep in priority:
+    1. the latest eof file that is within the time range.
+    2. the eof file associated to the mission/platform requested.
 
     :return: A single dictionary of one EOF file per relative orbit
     """
     assert missions, "At least one mission is expected"
     assert all(m in ALL_MISSIONS for m in missions), f"Invalid mission names: {missions=}"
 
-    all_eof_per_obt : Dict[int, SentinelOrbitFile] = {}
+    all_eof_per_obt : Dict[int, SentinelOrbitFile] = obt2eof_map or {}
     for eof_file in eof_files_per_orbit:
         assert len(eof_file) == 1
         obt, product = list(eof_file.items())[0]
@@ -261,57 +269,64 @@ def filter_eof_files_according_to_orbit_and_mission(
 
 
 def filter_uniq_eofs(
-    eof_files      : List[SentinelOrbitFile],
-    first_date     : datetime,
-    last_date      : datetime,
-    relative_orbits: List[int],
-    missions       : Iterable[str],
-) -> Dict[int, SentinelOrbitFile]:
+    eof_files         : List[SentinelOrbitFile],
+    first_date        : datetime,
+    last_date         : datetime,
+    relative_orbits   : List[int],
+    missions          : Iterable[str],
+    known_obt2eof_map : Optional[Dict[int, SentinelOrbitFile]] = None,
+) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int]]:
     """
     Main function used to filter a list of EOF files according to requested orbits, date and
     missions.
+
+    :return: A single dictionary that maps a :class:`SentinelOrbitFile` to a relative orbit number.
+    :return: A list of missing orbits
     """
     assert missions, "At least one mission is expected"
     assert all(m in ALL_MISSIONS for m in missions), f"Invalid mission names: {missions=}"
-
-    # Cached for logs:
-    relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
 
     eof_files_matching_orbits = filter_eof_files_according_to_orbit_and_mission(
         eof_files, relative_orbits, margin=-1, missions=()
     )  # Keep products from any missions
 
-    if len(eof_files_matching_orbits) > 0:
-        uniq_eof_files = keep_one_eof_per_orbit(eof_files_matching_orbits, first_date, last_date, missions)
-        nb_eof_in_time_range = len(filter_intersecting_eof_file_dict([uniq_eof_files], first_date, last_date))
-        # logger.debug("%d EOF in time range, %d total", nb_eof_in_time_range, len(uniq_eof_files))
-        if len(uniq_eof_files) == len(relative_orbits):
-            # Good: We have one EOF file per requested relative_orbit
-            if len(uniq_eof_files) != nb_eof_in_time_range:
-                # ... but some weren't observed in the requested time range => just a warning
-                logger.warning(
-                    "%d precise orbit files matching orbits %s for %s missions have been found, "
-                    "but only %d %s in the requested time range [%s .. %s]",
-                    len(uniq_eof_files),
-                    relative_orbits_4logs,
-                    missions,
-                    nb_eof_in_time_range,
-                    "are" if nb_eof_in_time_range>1 else "is",
-                    first_date,
-                    last_date,
-                )
+    expected_orbits = set(relative_orbits)
+    if len(eof_files_matching_orbits) == 0:
+        # No results
+        return {}, expected_orbits
 
-            # Good => we have a result
-            return uniq_eof_files
+    # Good => we have results -- may be not enough, but it will be analysed later on
+    obt2eof_map = keep_one_eof_per_orbit(eof_files_matching_orbits, first_date, last_date, missions, known_obt2eof_map)
+    missing_orbits = expected_orbits - obt2eof_map.keys()
 
-        # Else: not enough were found
-        logger.info(
-            "Only %d matching EOF found have been found for %d orbits. %s orbit(s) are not covered",
-            len(uniq_eof_files),
-            relative_orbits_4logs,
-            ", ".join((f"{ro}" for ro in set(relative_orbits) - uniq_eof_files.keys())),
-        )
-    return {}
+    return obt2eof_map, missing_orbits
+
+
+def analyse_obt2eof_map_quality_according_to_request(
+    obt2eof_map    : Dict[int, SentinelOrbitFile],
+    first_date     : datetime,
+    last_date      : datetime,
+    missions       : Iterable[str],
+) -> None:
+    """
+    Analyses the final map of {orbit: eof_file} for precise EOF files from an unrequested mission or
+    outside the requested time range.
+
+    Nothing is returned. Only warnings are issued.
+    """
+    assert missions, "At least one mission is expected"
+    assert all(m in ALL_MISSIONS for m in missions), f"Invalid mission names: {missions=}"
+
+    for obt, eof in obt2eof_map.items():
+        if eof.mission not in missions:
+            logger.info(
+                "Note: Precise orbit file %s matching orbit %s doesn't match the requested missions",
+                eof, obt, missions)
+        if eof.does_intersect(first_date, last_date):
+            logger.info(
+                "Note: Precise orbit file %s matching orbit %s is not in the requested time range [%s .. %s]",
+                eof, obt, first_date, last_date,
+            )
 
 
 def orbit_range(eof_file: SentinelOrbitFile):

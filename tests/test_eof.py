@@ -477,8 +477,9 @@ def test_manager_dir_analysis_actual_filter(
     assert set(eof_files_in_range.keys()).issuperset(orbits)
     for obt in eof_files_in_range:
         assert not eof_files_in_range[obt].does_intersect(dt1, dt2)
-    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    fully_filtered_eofs, missing_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
     assert eof_files_in_range == fully_filtered_eofs
+    assert not missing_eofs
 
     ## Results will be found, but not all in requested time range
     dt1 = datetime(2020, 1, 1)   # 00:00:00
@@ -491,8 +492,9 @@ def test_manager_dir_analysis_actual_filter(
     assert     eof_files_in_range[130].does_intersect(dt1, dt2)  # take the older in range
     assert not eof_files_in_range[110].does_intersect(dt1, dt2)
     assert not eof_files_in_range[107].does_intersect(dt1, dt2)
-    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    fully_filtered_eofs, missing_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
     assert eof_files_in_range == fully_filtered_eofs
+    assert not missing_eofs
 
     ## Results will be found, but not all in requested time range
     dt1 = datetime(2023, 11, 1)   # 00:00:00
@@ -505,8 +507,9 @@ def test_manager_dir_analysis_actual_filter(
     assert     eof_files_in_range[130].does_intersect(dt1, dt2)  # take the newer in range
     assert     eof_files_in_range[110].does_intersect(dt1, dt2)
     assert     eof_files_in_range[107].does_intersect(dt1, dt2)
-    fully_filtered_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
+    fully_filtered_eofs, missing_eofs = filter_uniq_eofs(eof_files, dt1, dt2, orbits, missions)
     assert eof_files_in_range == fully_filtered_eofs
+    assert not missing_eofs
 
 
 def test_filter_orbits_on_the_periphery(
