@@ -85,6 +85,51 @@ GAMMA_AREA specific processings
          node [fontname="Verdana", fontsize="12", shape="note", target="_top", style=filled];
          edge [fontname="Sans", fontsize="9"];
 
+         # ====[ GAMMA_AREA workflow
+         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2", fillcolor=palegoldenrod, group=rtc_t1];
+         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3", fillcolor=palegoldenrod, group=rtc_t2];
+
+         S1_on_DEM_d1_t1t2 [label="S1 on DEM d1 t1-t2", fillcolor=palegoldenrod, group=rtc_t1];
+         S1_on_DEM_d1_t2t3 [label="S1 on DEM d1 t2-t3", fillcolor=palegoldenrod, group=rtc_t2];
+
+         # γ area on S1
+         gamma_area_d1_t1t2 [label="γ AREA d1 t1-t2", fillcolor=palegoldenrod, group=rtc_t1];
+         gamma_area_d1_t2t3 [label="γ AREA d1 t2-t3", fillcolor=palegoldenrod, group=rtc_t2];
+
+         # γ area orthorectified on S2
+         o_gamma_area_d1_t1 [label="γ AREA d1 t1 on 33NWB", fillcolor=palegoldenrod, group=rtc_t1];
+         o_gamma_area_d1_t2 [label="γ AREA d1 t2 on 33NWB", fillcolor=palegoldenrod, group=rtc_t2];
+         # γ area concatenated a selected (best coverage)
+         nwb_gamma_area     [label="γ AREA on 33NWB", fillcolor=gold, group=rtc_t2];
+
+         nwb_d1      [label="S2 γ° RTC 33NWB d1", fillcolor=lightblue];
+         nwb_d2      [label="S2 γ° RTC 33NWB d2", fillcolor=lightblue];
+         nwb_dn      [label="S2 γ° RTC 33NWB dn", fillcolor=lightblue];
+
+         mult_d1     [label="X", shape="circle"]
+         mult_d2     [label="X", shape="circle"]
+         mult_dn     [label="X", shape="circle"]
+
+         raw_d1_t1t2 -> vrt_d1_t1t2 [label=""];
+         raw_d1_t2t3 -> vrt_d1_t2t3 [label=""];
+
+         vrt_d1_t1t2 -> S1_on_DEM_d1_t1t2;
+         vrt_d1_t2t3 -> S1_on_DEM_d1_t2t3;
+         raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
+         raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
+
+         vrt_d1_t1t2       -> gamma_area_d1_t1t2;
+         vrt_d1_t2t3       -> gamma_area_d1_t2t3;
+         raw_d1_t1t2       -> gamma_area_d1_t1t2;
+         raw_d1_t2t3       -> gamma_area_d1_t2t3;
+         S1_on_DEM_d1_t1t2 -> gamma_area_d1_t1t2;
+         S1_on_DEM_d1_t2t3 -> gamma_area_d1_t2t3;
+
+         gamma_area_d1_t1t2 -> o_gamma_area_d1_t1 [label="ortho"];
+         gamma_area_d1_t2t3 -> o_gamma_area_d1_t2 [label="ortho"];
+
+         o_gamma_area_d1_t1 -> nwb_gamma_area [label="concatenation"];
+         o_gamma_area_d1_t2 -> nwb_gamma_area [label="concatenation"];
          # =====[ Inputs nodes
          raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
          raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
@@ -128,51 +173,6 @@ GAMMA_AREA specific processings
          o_nwb_dn_t2 -> nwb_dn_b0 [label="concatenation"];
 
          # ===================================
-         # ====[ GAMMA_AREA workflow
-         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2", fillcolor=palegoldenrod];
-         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3", fillcolor=palegoldenrod];
-
-         S1_on_DEM_d1_t1t2 [label="S1 on DEM d1 t1-t2", fillcolor=palegoldenrod];
-         S1_on_DEM_d1_t2t3 [label="S1 on DEM d1 t2-t3", fillcolor=palegoldenrod];
-
-         # γ area on S1
-         gamma_area_d1_t1t2 [label="γ AREA d1 t1-t2", fillcolor=palegoldenrod];
-         gamma_area_d1_t2t3 [label="γ AREA d1 t2-t3", fillcolor=palegoldenrod];
-
-         # γ area orthorectified on S2
-         o_gamma_area_d1_t1 [label="γ AREA d1 t1 on 33NWB", fillcolor=palegoldenrod];
-         o_gamma_area_d1_t2 [label="γ AREA d1 t2 on 33NWB", fillcolor=palegoldenrod];
-         # γ area concatenated a selected (best coverage)
-         nwb_gamma_area     [label="γ AREA on 33NWB", fillcolor=gold];
-
-         nwb_d1      [label="S2 γ° RTC 33NWB d1", fillcolor=lightblue];
-         nwb_d2      [label="S2 γ° RTC 33NWB d2", fillcolor=lightblue];
-         nwb_dn      [label="S2 γ° RTC 33NWB dn", fillcolor=lightblue];
-
-         mult_d1     [label="X", shape="circle"]
-         mult_d2     [label="X", shape="circle"]
-         mult_dn     [label="X", shape="circle"]
-
-         raw_d1_t1t2 -> vrt_d1_t1t2 [label=""];
-         raw_d1_t2t3 -> vrt_d1_t2t3 [label=""];
-
-         vrt_d1_t1t2 -> S1_on_DEM_d1_t1t2;
-         vrt_d1_t2t3 -> S1_on_DEM_d1_t2t3;
-         raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
-         raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
-
-         vrt_d1_t1t2       -> gamma_area_d1_t1t2;
-         vrt_d1_t2t3       -> gamma_area_d1_t2t3;
-         raw_d1_t1t2       -> gamma_area_d1_t1t2;
-         raw_d1_t2t3       -> gamma_area_d1_t2t3;
-         S1_on_DEM_d1_t1t2 -> gamma_area_d1_t1t2;
-         S1_on_DEM_d1_t2t3 -> gamma_area_d1_t2t3;
-
-         gamma_area_d1_t1t2 -> o_gamma_area_d1_t1 [label="ortho"];
-         gamma_area_d1_t2t3 -> o_gamma_area_d1_t2 [label="ortho"];
-
-         o_gamma_area_d1_t1 -> nwb_gamma_area [label="concatenation"];
-         o_gamma_area_d1_t2 -> nwb_gamma_area [label="concatenation"];
 
          nwb_gamma_area -> mult_d1;
          nwb_gamma_area -> mult_d2;
@@ -184,6 +184,18 @@ GAMMA_AREA specific processings
          mult_d1 -> nwb_d1;
          mult_d2 -> nwb_d2;
          mult_dn -> nwb_dn;
+
+         # =====[ Align
+         {
+             rank = same ;
+             vrt_d1_t1t2 vrt_d1_t2t3 o_nwb_d1_t1 o_nwb_d1_t2 o_nwb_d2_t1 o_nwb_d2_t2 o_nwb_dn_t1 o_nwb_dn_t2
+             edge[ style=invis];
+             vrt_d1_t1t2 -> vrt_d1_t2t3 -> o_nwb_d1_t1 -> o_nwb_d1_t2 -> o_nwb_d2_t1 -> o_nwb_d2_t2 -> o_nwb_dn_t1 -> o_nwb_dn_t2
+         }
+         {
+             edge[ style=invis];
+             raw_d1_t1t2 -> vrt_d1_t1t2 -> gamma_area_d1_t1t2 -> o_gamma_area_d1_t1;
+         }
      }
 
 
