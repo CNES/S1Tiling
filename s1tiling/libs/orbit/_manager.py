@@ -32,7 +32,7 @@
 """This sub-module defines the EOFFileManager"""
 
 from collections.abc import Iterable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import os
@@ -204,7 +204,9 @@ class EOFFileManager:
     def _search_on_disk(
         self,
         relative_orbits: List[int],
-        missions       : Iterable[str] = (),
+        missions       : Iterable[str],
+        first_date     : datetime,
+        last_date      : datetime,
     ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int]]:
         """
         Takes care of analysing the EOF found on disk and filter them according to the requested
@@ -227,11 +229,12 @@ class EOFFileManager:
         # Scan dest_dir for EOF having relative_orbit
         # TODO: handle cache as we loop over several tiles
         eof_files = glob_eof_files(self.__dest_dir)
+        logger.debug("%s EOF files found in %s", len(eof_files), self.__dest_dir)
 
         # Keep only one EOF per orbit
         return filter_uniq_eofs(
             eof_files,
-            self.__first_date, self.__last_date,
+            first_date, last_date,
             relative_orbits,
             missions or ALL_MISSIONS,
         )
@@ -241,6 +244,8 @@ class EOFFileManager:
         relative_orbits   : List[int],
         missions          : Iterable[str],
         known_obt2eof_map : Dict[int, SentinelOrbitFile],
+        first_date        : datetime,
+        last_date         : datetime,
         dryrun            : bool,
     ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int], List[EOFOutcome]]:
         if not self.__cfg.download:
@@ -259,20 +264,20 @@ class EOFFileManager:
             # if not, there is an unexpected download error
             eof_files_in_range = filter_intersecting_eof_file_list(
                 eof_files,
-                self.__first_date,
-                self.__last_date,
+                first_date,
+                last_date,
                 # missions,  # missions will be analysed in filter_uniq_eofs
             )
             if not eof_files_in_range:
                 # NB: We could also tests whether the lists are identical
                 raise RuntimeError(
                     f"EOF files downloaded don't match the requested missions {missions} and "
-                    f"time range [{self.__first_date}..{self.__last_date}]: {eof_files}")
+                    f"time range [{first_date}..{last_date}]: {eof_files}")
             # Then: try to see if matching products have been downloaded
             obt2eof_map, missing_orbits = filter_uniq_eofs(
                 eof_files,
-                self.__first_date,
-                self.__last_date,
+                first_date,
+                last_date,
                 relative_orbits,
                 missions or ALL_MISSIONS,
                 known_obt2eof_map,
@@ -285,7 +290,7 @@ class EOFFileManager:
         # if len(obt2eof_map) == 0:
         #     relative_orbits_4logs = ", ".join((f"{ro}" for ro in relative_orbits))
         #     msg = (f"No precise orbit files found containing OSVs for orbits {relative_orbits_4logs} in the time range"
-        #            f" [{self.__first_date} .. {self.__last_date}]")
+        #            f" [{first_date} .. {last_date}]")
         #     logger.warning("%s", msg)
 
         #     errors.append(EOFOutcome(RuntimeError(msg)))
@@ -295,6 +300,8 @@ class EOFFileManager:
             self,
             relative_orbits: List[int],
             missions       : Iterable[str] = (),
+            first_date     : Optional[datetime] = None,
+            last_date      : Optional[datetime] = None,
             dryrun         : bool          = False,
     ) -> List[EOFOutcome]:
         """
@@ -302,10 +309,14 @@ class EOFFileManager:
 
         :param relative_orbits: List of relative orbit numbers designating the searched orbits
         :param missions:        List of missions searched. By defaut search in all!
+        :param first_date:      Optional date to override time from configuration
+        :param last_date:       Optional date to override time from configuration
         :param dryrun:          Set to True to inhibit actual downloading
         :return:                The list of all the matching precise orbit files available on disk
                                 -- they could have been there or downloaded on-the-fly.
         """
+        first_date = first_date or self.__first_date
+        last_date  = last_date  or self.__last_date
         # Several results possible for a pair <mission, orbit> as and sometimes 3 orbits may
         # overlap instead of just 2. e.g.:
         #   - [30584 .. 30600] + [30598 .. 30614]  <-- 3 overlapping
@@ -313,15 +324,15 @@ class EOFFileManager:
         res : List[EOFOutcome] = []
 
         # 1. scan dest_dir for EOF having relative_orbit
-        obt2eof_map, missing_orbits = self._search_on_disk(relative_orbits, missions)
+        obt2eof_map, missing_orbits = self._search_on_disk(relative_orbits, missions, first_date, last_date)
 
         # 2. if eof files appear to be missing, download files in the time range for each mission
         if missing_orbits:
-            obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, dryrun)
+            obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, first_date, last_date, dryrun)
             res = eof_errors
 
         # 3. Analyse EOF product quality
-        analyse_obt2eof_map_quality_according_to_request(obt2eof_map, self.__first_date, self.__last_date, missions or ALL_MISSIONS,)
+        analyse_obt2eof_map_quality_according_to_request(obt2eof_map, first_date, last_date, missions or ALL_MISSIONS,)
 
         # 4. Convert EOF results and errors into EOFOutcome instances
         res.extend([
@@ -329,7 +340,7 @@ class EOFFileManager:
             for relorb, prod in obt2eof_map.items()
         ])
         res.extend([
-            EOFOutcome(RuntimeError(f"Cannot find precise orbit file for orbit {ro:>03d} between {self.__first_date} and {self.__last_date}"))
+            EOFOutcome(RuntimeError(f"Cannot find precise orbit file for orbit {ro:>03d} between {first_date} and {last_date}"))
             for ro in missing_orbits
         ])
         return res
