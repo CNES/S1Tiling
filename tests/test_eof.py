@@ -29,7 +29,24 @@
 #
 # =========================================================================
 
-from datetime import datetime
+# All the tests for test_eof have been written with the following EOF files.
+# * Disk
+#     around date | orbit range
+#   - 2020-12-05  : 120..136
+#   - 2023-10-18  : 164..005
+#   - 2023-11-07  : 106..121
+#   - 2023-11-08  : 120..136
+#   - 2023-11-17  : 076..092
+#   - 2023-11-18  : 091..107
+# * Cassettes
+#     around date | orbit range
+#   - 2019-12-31  : 062..078
+#   - 2020-01-01  : 076..092
+#   - 2020-01-02  : 091..107
+#   - 2020-01-03  : 106..121
+
+from datetime import datetime, timedelta
+from dateutil.parser import parse
 import json
 import logging
 import os
@@ -65,6 +82,7 @@ logging.getLogger("sentineleof").setLevel(logging.WARNING)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR   = os.path.join(SCRIPT_DIR, 'data')
+K_1D       = timedelta(days=1)
 
 # =====[ VCR Cassettes configuration
 def filter_response(response):
@@ -202,22 +220,32 @@ class MockConfiguration:
         self.download      = True
 
 
-@pytest.fixture
-def configuration(tmp_path_factory, eodag_config):
+def make_configuration(
+    tmp_path_factory,
+    eodag_config,
+    start: str = '2020-01-01',
+    stop: str = '2020-01-02',
+) -> MockConfiguration:
     logging.debug("configuration(%s, %s)", tmp_path_factory, eodag_config)
     assert tmp_path_factory
     return MockConfiguration(
-            '2020-01-01',
-            '2020-01-02',
-            tmp_path_factory.mktemp('config'),
-            ["S1A"],
-            eodag_config,
+        start,
+        stop,
+        tmp_path_factory.mktemp('config'),
+        ["S1A"],
+        eodag_config,
     )
 
+@pytest.fixture
+def configuration(
+    tmp_path_factory,
+    eodag_config,
+) -> MockConfiguration:
+    return make_configuration(tmp_path_factory, eodag_config)
 
 # cassettes names needs to be filenames; relative filenames are OK; => extension are required!!
-DUMMY_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
-DUMMY_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
+NO_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
+NO_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
 
 
 @pytest.mark.vcr(
@@ -226,9 +254,9 @@ DUMMY_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
 @pytest.mark.parametrize(
         "eodag_config,netrc",
         [
-            (None,        None),
-            (None,        DUMMY_NETRC),
-            (DUMMY_EODAG, None),
+            (None,     None),
+            (None,     NO_NETRC),
+            (NO_EODAG, None),
         ],
         indirect=["eodag_config"],
 )
@@ -259,7 +287,7 @@ def test_manager_with_provider(eodag_config, netrc, configuration, dag, baseline
 @pytest.mark.parametrize(
         "eodag_config,netrc",
         [
-            (DUMMY_EODAG, DUMMY_NETRC),
+            (NO_EODAG, NO_NETRC),
         ],
         indirect=["eodag_config"],
 )
@@ -660,6 +688,7 @@ def test_manager_eof_retrieval(
             # file_found    : Filename = files_found[0].value()
             file_found    : Filename = eof_found.filename
             file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
+            logging.debug(f"{file_found=}")
             logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
             logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
             assert str(file_found) == str(file_expected), f"Orbit {obt} not found in #{file_id} -> {files_found[0]!r}"
@@ -670,3 +699,92 @@ def test_manager_eof_retrieval(
     assert eof_files == glob_eof_files(tmp_eof_dir), "They should have been downloaded eventually"
 
 
+@pytest.mark.vcr(
+        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+)
+@pytest.mark.parametrize(
+        "eodag_config,netrc,obt_list,start,stop,expected_found,expected_in_range",
+        [
+            # Checks on disk
+            # - 80 & 100 are covered once
+            (NO_EODAG, NO_NETRC, [80],      "2023-11-17", "2023-11-19", True, True),
+            (NO_EODAG, NO_NETRC, [80, 100], "2023-11-17", "2023-11-19", True, True),
+            # - 130 is covered twice on disk
+            (NO_EODAG, NO_NETRC, [130],     "2023-11-07", "2023-11-09", True, True),
+            (NO_EODAG, NO_NETRC, [130],     "2020-12-05", "2020-12-06", True, True),
+
+            # Stuff on disk, not in time range
+            (NO_EODAG, NO_NETRC, [4],       "2023-11-16", "2023-11-16", True, False),
+            (None,     NO_NETRC, [4],       "2023-11-16", "2023-11-16", True, False),
+
+            # Pure download
+            (NO_EODAG, NO_NETRC, [70],      "2019-12-30", "2020-01-01", False, None),  # no provider, no DL
+            (None,     NO_NETRC, [70],      "2019-12-30", "2020-01-01", True, True),  # do DL
+
+            # Stuff on disk, on cassette, but found on disk
+            (NO_EODAG, NO_NETRC, [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
+            (None,     NO_NETRC, [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
+            (None,     NO_NETRC, [70, 80],  "2019-12-30", "2020-01-01", True, True),  # become in range thanks to DL
+
+            # Orbits not in the time ranges required
+            # - EOF in time range on disk
+            (NO_EODAG, NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None),
+            (None,     NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None), # don't try to DL; would need some mocking to know whether doawnload attempts were made...
+            # - EOF not in time range on disk, but K7 yes
+            (None,     NO_NETRC, [150],      "2019-12-30", "2020-01-01", False, None),  # do DL, but mocking required to test..
+            # TODO: test hybrid sitution with stuff found, and stuff can cannot be found...
+        ],
+        indirect=["eodag_config"],
+)
+def test_manager_eof_retrieval_edge_tests(
+        baseline_dir: Path,
+        eof_baseline_dir: Path,
+        dag,
+        tmp_path_factory,
+        # test fixture-parameters
+        eodag_config,
+        netrc,
+        obt_list: List[int],
+        start: str,
+        stop: str,
+        expected_found: bool,
+        expected_in_range: Optional[bool],
+):
+
+    # Checks on disk
+    logging.debug(f"Testing EDGE {obt_list=} {start=} {stop=}")
+    with pytest.MonkeyPatch.context() as mp:
+        if netrc is not None:
+            mp.setenv('NETRC', netrc)
+        assert os.getenv('NETRC') == netrc
+        config = make_configuration(tmp_path_factory, eodag_config, start, stop)
+        eof_manager = EOFFileManager(config, dag)
+        eof_manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
+
+        baseline_eof_files = glob_eof_files(eof_baseline_dir)
+        tmp_eof_dir = config.eof_directory
+        prepare_tmp_eof_dir_from_files(baseline_eof_files, tmp_eof_dir)
+
+        start_time = parse(start)
+        stop_time = parse(stop)
+        # obt_list = [80]
+        search_results = eof_manager.search_for(obt_list, first_date=start_time, last_date=stop_time)
+        assert len(search_results) == len(obt_list), f"Expected {len(obt_list)} EOF in {start}..{stop} for {obt_list}, got: {search_results}"
+        for result in search_results:
+            if expected_found:
+                assert result
+                result_info = result.value()
+                assert len(result_info.keys()) == 1
+                obt = list(result_info.keys())[0]
+                assert obt in obt_list
+                obt_list.remove(obt)
+                product = result_info[obt]
+                assert product.has_relative_orbit(obt)
+                if expected_in_range:
+                    assert product.start_time <= stop_time + K_1D
+                    assert start_time         <= product.stop_time
+                else:
+                    assert not (product.start_time <= stop_time + K_1D and 
+                                start_time         <= product.stop_time)
+            else:
+                assert not result
