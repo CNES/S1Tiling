@@ -43,7 +43,7 @@ from dateutil.parser import parse
 from eodag.api.core import EODataAccessGateway
 from eof.client import Filename
 from portion import Interval, closed as closed_interval
-# from portion import empty as empty_interval
+from portion import empty as empty_interval
 
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file      import (
@@ -207,7 +207,7 @@ class EOFFileManager:
         missions       : Iterable[str],
         first_date     : datetime,
         last_date      : datetime,
-    ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int]]:
+    ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int], Optional[bool]]:
         """
         Takes care of analysing the EOF found on disk and filter them according to the requested
         orbits.
@@ -220,6 +220,8 @@ class EOFFileManager:
         :return: A single dictionary that maps a :class:`SentinelOrbitFile` to a relative orbit
                  number.
         :return: A list of missing orbits
+        :return: Whether the eof files fully cover the requested time period, when orbits are
+                 missing
         """
         # Several results possible for a pair <mission, orbit> as and sometimes 3 orbits may
         # overlap instead of just 2. e.g.:
@@ -232,12 +234,14 @@ class EOFFileManager:
         logger.debug("%s EOF files found in %s", len(eof_files), self.__dest_dir)
 
         # Keep only one EOF per orbit
-        return filter_uniq_eofs(
+        obt2eof_map, missing_orbits = filter_uniq_eofs(
             eof_files,
             first_date, last_date,
             relative_orbits,
             missions or ALL_MISSIONS,
         )
+        period_is_covered : Optional[bool] = self._is_the_period_fully_covered_in_cache(eof_files, first_date, last_date) if missing_orbits else None
+        return obt2eof_map, missing_orbits, period_is_covered
 
     def _fetch_eof_files(
         self,
@@ -324,12 +328,19 @@ class EOFFileManager:
         res : List[EOFOutcome] = []
 
         # 1. scan dest_dir for EOF having relative_orbit
-        obt2eof_map, missing_orbits = self._search_on_disk(relative_orbits, missions, first_date, last_date)
+        obt2eof_map, missing_orbits, period_is_fully_covered = self._search_on_disk(relative_orbits, missions, first_date, last_date)
 
         # 2. if eof files appear to be missing, download files in the time range for each mission
-        if missing_orbits:
-            obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, first_date, last_date, dryrun)
-            res = eof_errors
+        # unless the time period is fully covered
+        if self.__cfg.download and missing_orbits:
+            if period_is_fully_covered:
+                logger.info(
+                    "Time period [%s..%s] is fully covered by cached EOF files on disk. No download attempt is made for the missing orbits %s",
+                    first_date, last_date, missing_orbits
+                )
+            else:
+                obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, first_date, last_date, dryrun)
+                res = eof_errors
 
         # 3. Analyse EOF product quality
         analyse_obt2eof_map_quality_according_to_request(obt2eof_map, first_date, last_date, missions or ALL_MISSIONS,)
@@ -345,20 +356,23 @@ class EOFFileManager:
         ])
         return res
 
-    # def _has_the_period_fully_covered_in_cache(
-    #     self, eof_files: List[SentinelOrbitFile]
-    # ) -> bool:
-    #     """
-    #     Returns whether the request time range is fully contained by the union of the
-    #     time spans of all the EOF files.
-    #     """
-    #     tgt_interval = closed_interval(self.__first_date, self.__last_date)
-    #     cumulated_interval = empty_interval()
-    #     for eof_file in eof_files:
-    #         cumulated_interval |= to_interval(eof_file)
-    #     the_period_is_fully_covered_in_cache = tgt_interval in cumulated_interval
-    #     logger.debug(f"{the_period_is_fully_covered_in_cache=} <== {tgt_interval=} ⊂ {cumulated_interval=}")
-    #     return the_period_is_fully_covered_in_cache
+    @staticmethod
+    def _is_the_period_fully_covered_in_cache(
+        eof_files  : List[SentinelOrbitFile],
+        first_date : datetime,
+        last_date  : datetime,
+    ) -> bool:
+        """
+        Returns whether the request time range is fully contained by the union of the
+        time spans of all the EOF files.
+        """
+        tgt_interval = closed_interval(first_date, last_date)
+        cumulated_interval = empty_interval()
+        for eof_file in eof_files:
+            cumulated_interval |= to_interval(eof_file)
+        the_period_is_fully_covered_in_cache = tgt_interval in cumulated_interval
+        logger.debug(f"{the_period_is_fully_covered_in_cache=} <== {tgt_interval=} ⊂ {cumulated_interval=}")
+        return the_period_is_fully_covered_in_cache
 
 
 # ===============[ "Internal" functions used to implement the public service
