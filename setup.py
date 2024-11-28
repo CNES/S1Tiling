@@ -86,7 +86,7 @@ setup(
     install_requires=[
         "click",
         "dask[distributed]>=2022.8.1",
-        "eodag<3",
+        "eodag>=3,<4",
         "gdal=="+request_gdal_version(),
         "graphviz",
         "lxml",     # already used by eodag actually
