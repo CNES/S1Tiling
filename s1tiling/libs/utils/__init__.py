@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Copyright 2017-2024 (c) CNES. All rights reserved.
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2024 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -20,22 +23,14 @@
 #
 # =========================================================================
 #
-# Authors: Thierry KOLECK (CNES)
-#          Luc HERMITTE (CS Group)
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
 #
 # =========================================================================
 
-"""
-Holds project meta-information for setup.py
-"""
+""" Public interface of s1tiling.libs.utils """
 
-from __future__ import unicode_literals
+from .algorithm import partition
 
-__title__ = "S1Tiling"
-__description__ = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
-__version__ = "1.2.0alpha"
-__author__ = "Thierry KOLECK"
-__author_email__ = "Thierry.Koleck@cnes.fr"
-__url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
-__license__ = "Apache 2.0"
-__copyright__ = "2017-2024, CNES"
+__all__ = ['partition']

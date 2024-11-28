@@ -22,6 +22,9 @@ max_line_length = 79
 [*.py]
 indent_size = 4
 max_line_length = 150
+p!style.textwidth.default = 150
+p!style.textwidth.comment = 100
+p!style.textwidth.docstring = 100
 
 [Makefile]
 indent_style = tab

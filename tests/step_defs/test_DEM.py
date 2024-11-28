@@ -56,10 +56,11 @@ scenarios(
 TMPDIR = 'TMP'
 INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
+EOFDIR = 'EOFDIR'
 LIADIR = 'LIADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
 
 # ======================================================================
 # Fixtures

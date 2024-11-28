@@ -27,6 +27,7 @@
 #
 # =========================================================================
 
+import fnmatch
 import os
 import sys
 from natsort import natsorted

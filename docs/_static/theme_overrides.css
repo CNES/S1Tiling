@@ -29,3 +29,8 @@
     /* avoid extra space after <ul> element in tables */
     margin-bottom: 0px !important; /* avoid extra space after <ul> element */
 }
+
+/* Justify text */
+section {
+    text-align: justify;
+}

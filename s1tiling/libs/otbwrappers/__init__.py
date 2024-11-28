@@ -55,6 +55,7 @@ from .lia import (
         ProjectGeoidToS2Tile,
         SumAllHeights,
         ComputeGroundAndSatPositionsOnDEM,
+        ComputeGroundAndSatPositionsOnDEMFromEOF,
         ComputeNormalsOnS2,
         ComputeLIAOnS2,
         ApplyLIACalibration,

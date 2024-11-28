@@ -66,11 +66,14 @@ class FileDB:
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
             'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
             'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
-            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+            # 'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
             'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
             # TODO: add fmt for orbit direction/number
-            'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
-            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+            'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
+            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
+            # 'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
+            # 'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
     }
     FILES = [
             # 08 jan 2020
@@ -221,6 +224,8 @@ class FileDB:
                             'ymax': 200040.0000009411,
                             'epsg': 32633},
                 'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
+                'eof'    : 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942.EOF',
+                'relorb' : 7,
             },
     }
     extended_nodata             = '&nodata={nodata}'
@@ -234,7 +239,7 @@ class FileDB:
 
     def __init__(
             self,
-            inputdir, tmpdir, outputdir, liadir,
+            inputdir, eofdir, tmpdir, outputdir, liadir,
             tile, demdir, geoid_file,
             dname_fmt_tiled=None,
     ) -> None:
@@ -242,6 +247,7 @@ class FileDB:
         self.__tmp_dir         = tmpdir
         self.__output_dir      = outputdir
         self.__lia_dir         = liadir
+        self.__eof_dir         = eofdir
         self.__tile            = tile
         self.__dem_dir         = demdir
         self.__GeoidFile       = geoid_file
@@ -635,6 +641,12 @@ class FileDB:
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+    def eof_for_s2(self) ->  str:
+        return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
+
+    def relorb_for_s2(self) -> str:
+        return self.TILE_DATA[self.__tile]["relorb"]
 
     def dems_on_s2(self) -> List[str]:
         return sorted(self.TILE_DATA[self.__tile]['dems'])

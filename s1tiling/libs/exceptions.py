@@ -95,6 +95,24 @@ class DownloadS1FileError(Error):
         return (DownloadS1FileError, (self.tile_name, ))
 
 
+class DownloadEOFFileError(Error):
+    """
+    Error that signals problems to download EOF orbit files.
+    """
+    def __init__(self, msg, *args, **kwargs) -> None:
+        """
+        Constructor
+        """
+        super().__init__(f"Cannot download EOF orbit files: {msg}",
+                         *args, **kwargs)
+        self.msg    = msg
+
+    def __reduce__(self):
+        # __reduce__ is required as this error will be pickled from subprocess
+        # when transported in the :class:`Outcome` object.
+        return (DownloadEOFFileError, (self.msg, ))
+
+
 class NoS2TileError(Error):
     """
     Error that signals incorrect Sentinel-2 tile names.

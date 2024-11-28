@@ -74,6 +74,45 @@ default timeout value thanks to:
 In case you have to cope with an earlier version of EODAG, you can still run
 :program:`S1Processor` with :option:`--nb_max_search_retries`.
 
+
+.. _FAQ.EOF:
+
+Q: How can I configure precise orbit files retrieval?
+-----------------------------------------------------
+
+EOF files will be downloaded either:
+
+* on Copernicus Dataspace. In that case, add your ``cop_dataspace``
+  credentials in :ref:`eodag configuration file <datasource.eodag_config>`.
+
+  .. note::
+      If your account is configured for `Two Factor Authentivcation` (2FA), then
+      you can either:
+
+      * set :envvar:`$EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP` and
+        quickly run :ref:`LIA map production scenario <scenario.s1liamap>`
+        while your `One Time Password` is still valid (< 30sec)
+
+      * request an access token with one of the `methods described on Copernicus
+        Dataspace web site
+        <https://documentation.dataspace.copernicus.eu/APIs/Token.html#by-query-with-curl>`_,
+        and use it in :envvar:`$EODAG__COP_DATASPACE__AUTH__TOKEN`. It should be
+        valid a bit more longer.
+
+* or on EarthData. In that case add your earthdata credentials in your
+  :file:`~/.netrc` file (default location can be overriden with
+  :envvar:`$NETRC`). e.g.
+
+  .. code::
+
+        machine urs.earthdata.nasa.gov
+          login your.login
+          password YoURpAssWoRd
+
+If credentials are provided for both data providers, they will be interrogated
+in order: Copernicus Dataspace first, then EarthData if no connexion could be
+established to the former.
+
 Q: How can I ask another question?
 ----------------------------------
 
