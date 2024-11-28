@@ -170,7 +170,9 @@ def dag(eodag_config: Optional[str]):
     # | I'm not sure why/how several distinct (they have different ids) instances of
     # | plugins_manager.get_auth_plugin('cop_dataspace') may share a same token_info instance
     # | (they all have the same id)
-    res._plugins_manager.get_auth_plugin('cop_dataspace').token_info = {}
+    search_plugins = res._plugins_manager.get_search_plugins('cop_dataspace')
+    if search_plugins:
+        res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
     return res
 
 
