@@ -365,7 +365,6 @@ class Calibrate(OTBStepFactory):
         """
         Constructor
         """
-        self.cfg  = cfg
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
         super().__init__(cfg,

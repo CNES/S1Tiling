@@ -130,7 +130,7 @@ def commit_execution(tmp_fn, out_fn) -> None:
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    assert type(tmp_fn) == type(out_fn)
+    assert type(tmp_fn) is type(out_fn)
     if isinstance(out_fn, list):
         for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
