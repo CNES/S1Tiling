@@ -397,8 +397,8 @@ _execute cd "${prefix_root}" || _die "Can't cd to installation base directory ${
 # ==[ Prepare the virtual env
 _execute python -m pip install --upgrade pip                || _die "Can't upgrade pip"
 # _execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
-_execute python -m pip install --upgrade setuptools         || _die "Can't upgrade setuptools to v57.5.0"
-_execute python -m pip --no-cache-dir install numpy         || _die "Can't install numpy from scratch"
+_execute python -m pip install --upgrade setuptools         || _die "Can't upgrade setuptools"
+_execute python -m pip --no-cache-dir install "numpy<2"     || _die "Can't install numpy from scratch"
 
 # ==[ Extract OTB binaries
 # TODO: support the extra installation of new Modules (OTB 9+)
@@ -438,7 +438,6 @@ _execute chmod +x "${otb_prefix}/bin/gdal-config" \
 
 _execute python -m pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all: \
     || _die "Cannot install GDAL python bindings"
-
 
 # Check if GDAL fulfils all S1Tiling requirements
 echo -e "\n# Check GDAL is compatible with S1Tiling requirements..."

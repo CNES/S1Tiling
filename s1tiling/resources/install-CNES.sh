@@ -2,7 +2,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2024 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -132,7 +132,7 @@ source "${env}/bin/activate"
 _execute python -m pip install --upgrade pip                || _die "Can't upgrade pip"
 # _execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
 _execute python -m pip install --upgrade setuptools || _die "Can't upgrade setuptools to v57.5.0"
-_execute python -m pip --no-cache-dir install numpy         || _die "Can't install numpy from scratch"
+_execute python -m pip --no-cache-dir install "numpy<2"     || _die "Can't install numpy from scratch"
 
 # Check if GDAL fulfils all S1Tiling requirements
 echo -e "\n# Check GDAL is compatible with S1Tiling requirements..."
@@ -217,7 +217,7 @@ whatis("Date d installation : "..installation)
 -- check_os(os_disponible) -- on HAL only, not on TREX...
 
 -- Variable du modulefile
-local home=pathJoin("/softs/projets/s1tiling",rhos,version)
+local home=pathJoin("${projets_root}/s1tiling",rhos,version)
 
 -- Dependances
 depend("otb/${otb_ver}-${python_ml_dep}")
