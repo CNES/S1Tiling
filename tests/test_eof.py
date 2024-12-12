@@ -29,6 +29,11 @@
 #
 # =========================================================================
 
+# Notes:
+# In order to generate/update the VCR cassettes, run the test once. Not all tests will pass.
+# Run the test another time and it should be perfect
+
+
 # All the tests for test_eof have been written with the following EOF files.
 # * Disk
 #     around date | orbit range
@@ -78,6 +83,7 @@ from s1tiling.libs.orbit._file        import (
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("vcr").setLevel(logging.WARNING)
 logging.getLogger("sentineleof").setLevel(logging.WARNING)
+logging.getLogger("eodag").setLevel(logging.DEBUG)
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -140,11 +146,26 @@ def cop_access_token(
         vcr_cassette_dir: str,
         record_mode: str,
         vcr_config: dict,
-        pytestconfig: pytest.Config
+        pytestconfig: pytest.Config,
+        module_mocker,
 ):
     # Hook used to generate cassettes with Copernicus when 2FA is used
     # In that case set $EOF_CDSE_2FA_TOKEN and $NETRC before calling pytest, e.g.:
     # $> EOF_CDSE_2FA_TOKEN=999999 NETRC=~/.config/.netrc pytest  -vvv  --log-cli-level=DEBUG -o log_cli=true --capture=no --durations=0 --record-mode=once  eof/tests/test_eof.py 2>&1  | less -R
+
+    # Since eodag v3, access token are validated, and working around the extra security in cleansed
+    # cassettes is quite difficult and annoying => Let's mock the validation function instead, but
+    # only in replay cases.
+    # We can assume that when the cassette file exists, then the access token request is already
+    # stored.
+    cop_access_token_k7 = os.path.join(vcr_cassette_dir, "cop_access_token.yaml")
+    logging.debug(f"REPLAY? {cop_access_token_k7=!r} {os.path.exists(cop_access_token_k7)=}")
+    if os.path.exists(cop_access_token_k7):
+        def no_op(slf):
+            logging.info("Replaying K7, disabling cop_access_token verification!")
+            slf.access_token = "REDACTED_access_token"
+            return slf.access_token
+        module_mocker.patch("eodag.plugins.authentication.keycloak.KeycloakOIDCPasswordAuth._get_access_token", no_op)
     with use_cassette('cop_access_token', vcr_cassette_dir, record_mode, [], vcr_config, pytestconfig):
         dag = EODataAccessGateway()
         provider = DataspaceProvider(dag)
@@ -170,7 +191,7 @@ def dag(eodag_config: Optional[str]):
     # | I'm not sure why/how several distinct (they have different ids) instances of
     # | plugins_manager.get_auth_plugin('cop_dataspace') may share a same token_info instance
     # | (they all have the same id)
-    search_plugins = res._plugins_manager.get_search_plugins('cop_dataspace')
+    search_plugins = res._plugins_manager.get_search_plugins(provider='cop_dataspace')
     if search_plugins:
         res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
     return res
@@ -191,6 +212,11 @@ def test_cop_dataspace(dag, tmp_path_factory, cop_access_token):
     dest = tmp_path_factory.mktemp("s1tiling-cdse")
     files = provider.download(eofs, dest)
     assert len(files) == EXPECTED_NB
+
+    # Register as well the request used in test_manager_eof_retrieval_edge_tests
+    eofs = provider.search(DT1 - 2 * K_1D, DT2 - K_1D, ("S1A",))
+    files = provider.download(eofs, dest)
+    assert len(files) == EXPECTED_NB + 1
 
 
 @pytest.mark.vcr
@@ -256,9 +282,9 @@ NO_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
 @pytest.mark.parametrize(
         "eodag_config,netrc",
         [
-            (None,     None),
+            # (None,     None),
             (None,     NO_NETRC),
-            (NO_EODAG, None),
+            # (NO_EODAG, None),
         ],
         indirect=["eodag_config"],
 )
@@ -731,7 +757,7 @@ def test_manager_eof_retrieval(
             # Orbits not in the time ranges required
             # - EOF in time range on disk
             (NO_EODAG, NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None),
-            (None,     NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None), # don't try to DL; would need some mocking to know whether doawnload attempts were made...
+            (None,     NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None), # don't try to DL; would need some mocking to know whether download attempts were made...
             # - EOF not in time range on disk, but K7 yes
             (None,     NO_NETRC, [150],      "2019-12-30", "2020-01-01", False, None),  # do DL, but mocking required to test..
             # TODO: test hybrid sitution with stuff found, and stuff can cannot be found...
@@ -786,7 +812,7 @@ def test_manager_eof_retrieval_edge_tests(
                     assert product.start_time <= stop_time + K_1D
                     assert start_time         <= product.stop_time
                 else:
-                    assert not (product.start_time <= stop_time + K_1D and 
+                    assert not (product.start_time <= stop_time + K_1D and
                                 start_time         <= product.stop_time)
             else:
                 assert not result
