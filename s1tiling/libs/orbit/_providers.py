@@ -153,7 +153,9 @@ class DataspaceProvider(Provider):
             self._authorization          = None
         else:
             try:
-                self._authentication_plugin = dag._plugins_manager.get_auth_plugin(self.provider_name)
+                search_plugins = dag._plugins_manager.get_search_plugins(provider=self.provider_name)
+                if search_plugins:
+                    self._authentication_plugin = dag._plugins_manager.get_auth_plugin(next(search_plugins))
             except KeyError:
                 raise AssertionError(f"provider {self.provider_name!r} not supported by EODAG")  # pylint: disable=raise-missing-from
             if not self._authentication_plugin:
