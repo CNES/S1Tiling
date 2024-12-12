@@ -230,6 +230,52 @@ function _version_Mm()
     echo "$1" | gawk -v sep="${separator}" -F. '{ printf("%d%s%d\n", $1,sep,$2); }';
 }
 
+# ==[ _find_in_pathlist      {{{2
+function _find_in_pathlist()
+{
+    file="$1"
+    pathlist="$2"
+    IFS=':'
+    for path in ${pathlist} ; do
+        echo "check in ${path} / ${pathlist}"
+        if [ -f "${path}/${file}" ] ; then
+            echo "${path}/${file}"
+            return 0
+        fi
+    done
+    _die "'${file}' not found in ${pathlist}"
+}
+
+# ==[ GLIBCXX_version        {{{2
+# Return GLIBCXX_ version from libstdc++
+function _GLIBCXX_version()
+{
+    strings "$1" | grep "^GLIBCXX_[13-9]" | sed "s#GLIBCXX_##" | sort -u -V | tail -1
+}
+
+# ==[ __version              {{{2
+function _version()
+{
+    echo "$@" | gawk -F. '{ printf("%04d%04d%04d\n", $1,$2,$3); }';
+}
+
+# ==[ _ge_versions           {{{2
+# Tels whether version1 < version2
+function _lt_versions()
+{
+    local v1="$1"
+    local v2="$2"
+    echo test "$(_version "${v1}")" -lt "$(_version "${v2}")"
+    test "$(_version "${v1}")" -lt "$(_version "${v2}")"
+}
+
+# Tels whether version1 >= version2
+function _ge_versions()
+{
+    local v1="$1"
+    local v2="$2"
+    test "$(_version "${v1}")" -ge "$(_version "${v2}")"
+}
 
 ## ======[ Restore colors, in all cases {{{1
 function _restore_colors
@@ -297,6 +343,10 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
+# Cache system libstdc++ in case system has more recent libraries than conda
+_std_libstdcpp="$(ldconfig -p| awk -v needle="libstdc++.so.6" '$1 == needle {sub(/.* => /, ""); print}')"
+_version_libstdcpp_sys=$(_GLIBCXX_version "${_std_libstdcpp}")
+
 # Analyse binary packages to extract
 # Exacty one shall be set!
 if  _is_set run_script && _is_set archives ; then
@@ -362,6 +412,7 @@ echo "Conda environment ${env_name}"
 echo "Module root:      ${module_root}"
 echo "Module name:      ${mod_name}"
 echo "Binary sources:   ${sources}"
+echo "system libstdc++: ${_version_libstdcpp_sys} <-- ${_std_libstdcpp}"
 
 ml conda
 # type conda
@@ -389,6 +440,28 @@ _execute conda create -n "${env_name}" python==${py_version}
 
 _verbose conda activate "${env_name}"
 [ "${noexec:-0}" = "1" ] || conda activate "${env_name}" || _die "Cannot activate ${env_name}"
+
+# echo "after activate ${env_name} --> LD_LIBRARY_PATH = ${LD_LIBRARY_PATH}"
+# _conda_libstdcpp="$(_find_in_pathlist libstdc++.so.6 "${LD_LIBRARY_PATH}")"
+_conda_pkg="$(_dirname_n 2 "${CONDA_EXE}")"
+_conda_libstdcpp="${_conda_pkg}/envs/${env_name}/lib/libstdc++.so.6"
+[ -f "${_conda_libstdcpp}" ] || _die "can't find libstdc++ from conda env"
+echo "conda libstdc++: ${_conda_libstdcpp}"
+
+_version_libstdcpp_conda=$(_GLIBCXX_version "${_conda_libstdcpp}")
+echo "conda libstc++ version: ${_version_libstdcpp_conda}"
+if _lt_versions "${_version_libstdcpp_conda}" "${_version_libstdcpp_sys}"  ; then
+    echo "Conda version of libstdc++ is older than system's one => remove it"
+    _lib_dir="$(dirname "${_conda_libstdcpp}")"
+    _execute mkdir "${_lib_dir}/old_versions"
+    _execute mv "${_lib_dir}/libstdc++.so"* "${_lib_dir}/old_versions"
+
+    # In that case it's also likelly the conda ncurses version misses
+    # informations => use the version from condaforge
+    _execute conda install -c conda-forge ncurses
+else
+    echo "Keep ${_std_libstdcpp}"
+fi
 
 _execute python --version
 
