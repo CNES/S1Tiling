@@ -13,6 +13,13 @@ v1.2.0 Breaking changes
   S1Tiling may work with older version of OTB, but with no guarantees.
   (`#164 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/164>`_).
 
+v1.2.0 Improvements
++++++++++++++++++++
+
+- Use precise orbit files, downloaded on-the-fly, to compute Local Incidence
+  Angle maps
+  (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_).
+
 
 Version 1.1.0
 -------------
