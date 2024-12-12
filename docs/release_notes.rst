@@ -18,6 +18,8 @@ v1.2.0 Improvements
 
 - Use precise orbit files, downloaded on-the-fly, to compute Local Incidence
   Angle maps
+  (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
+- Support eodag 3
   (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_).
 
 
