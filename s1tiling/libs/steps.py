@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -50,7 +50,7 @@ from .              import Utils
 from .configuration import Configuration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-        Meta, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
+        Meta, check_one_product, check_one_product, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -618,6 +618,15 @@ class StepFactory(ABC):
         # TODO: Move to _ProducerStep ?
         pass
 
+    def has_several_outputs(self) -> bool:
+        """
+        Tells whether this step produces several files.
+
+        :return: False by default. This method is meant to be overridden in
+        :class:`_FileProducingStepFactory`.
+        """
+        return False
+
     def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
@@ -648,24 +657,26 @@ class StepFactory(ABC):
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
-        meta['in_filename']  = out_filename(meta)
-        meta['out_filename'] = self.build_step_output_filename(meta)
-        meta['pipe']         = meta.get('pipe', []) + [self.__class__.__name__]
 
-        def check_product(meta: Meta) -> bool:
-            filename        = out_filename(meta)
-            exist_file_name = os.path.isfile(filename)
-            logger.debug('Checking %s product: %s => %s', self.__class__.__name__, filename, '∃' if exist_file_name else '∅')
-            return exist_file_name
-
-        meta['does_product_exist'] = lambda: check_product(meta)
         meta.pop('task_name',                  None)
         meta.pop('task_basename',              None)
         meta.pop('update_out_filename',        None)
         meta.pop('accept_as_compatible_input', None)
+        meta.pop('does_product_exist',         None)
         # for k in list(meta.keys()):  # Remove all entries associated to reduce_* keys
         #     if k.startswith('reduce_'):
         #         del meta[k]
+
+        meta['in_filename']  = out_filename(meta)
+        meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['current_step'] = self.__class__.__name__
+        meta['pipe']         = meta.get('pipe', []) + [self.__class__.__name__]
+
+        if self.has_several_outputs():
+            meta['does_product_exist'] = lambda: check_several_products(out_filename(meta), meta.get('current_step', '??'))
+        # else:  # this is already what is done by default
+        #     meta['does_product_exist'] = lambda: check_one_product(out_filename(meta), meta.get('current_step', '??'))
+
         self._update_filename_meta_post_hook(meta)
         return meta
 
@@ -971,7 +982,14 @@ class _FileProducingStepFactory(StepFactory):
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
         self.__liadir              = cfg.lia_directory
+        self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
+
+    def has_several_outputs(self) -> bool:
+        """
+        Tells whether this step produces several files
+        """
+        return self.__has_several_outputs
 
     def output_directory(self, meta: Meta) -> str:
         """

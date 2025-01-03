@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -31,8 +31,12 @@
 This module defines steps meta data related helper functions
 """
 
+from collections.abc import Iterable
+import logging
 import os
-from typing import Dict
+from typing import Dict, Union
+
+logger = logging.getLogger('s1tiling.meta')
 
 Meta          = Dict
 
@@ -92,6 +96,24 @@ def get_task_name(meta: Meta) -> str:
         return out_filename(meta)
 
 
+def check_one_product(filename: Union[str, os.PathLike], step_factory_name: str) -> bool:
+    """
+    Helper function that tells whether a filename-like string corresponds to an existing filename.
+    """
+    assert isinstance(filename, (str, os.PathLike)), f"[{step_factory_name}] product name {filename=!r} not a string/pathlike, but a {type(filename)}"
+    exist_file_name = os.path.isfile(filename)
+    logger.debug('Checking %s product: %s => %s', step_factory_name, filename, '∃' if exist_file_name else '∅')
+    return exist_file_name
+
+
+def check_several_products(filenames: Iterable[Union[str, os.PathLike]], step_factory_name: str) -> bool:
+    """
+    Helper function that tells whether a series of filename-like strings corresponds to existing
+    filenames.
+    """
+    return all(check_one_product(f, step_factory_name) for f in filenames)
+
+
 def product_exists(meta: Meta) -> bool:
     """
     Helper accessor that tells whether the product described by the metadata
@@ -100,7 +122,7 @@ def product_exists(meta: Meta) -> bool:
     if 'does_product_exist' in meta:
         return meta['does_product_exist']()
     else:
-        return os.path.isfile(out_filename(meta))
+        return check_one_product(out_filename(meta), meta.get('current_step', '??'))
 
 
 def accept_as_compatible_input(output_meta: Meta, input_meta: Meta) -> bool:
