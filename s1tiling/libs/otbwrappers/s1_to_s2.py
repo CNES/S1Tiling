@@ -232,15 +232,6 @@ class ExtractSentinel1Metadata(StepFactory):
             assert 'insar' in keys
             return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
 
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
-        return meta
-
-
 class AnalyseBorders(StepFactory):
     """
     StepFactory that analyses whether image borders need to be cut as
@@ -448,14 +439,6 @@ class CorrectDenoising(OTBStepFactory):
                 image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
         )
         self.__lower_signal_value = cfg.lower_signal_value
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
-        return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """

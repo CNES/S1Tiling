@@ -708,6 +708,9 @@ class StepFactory(ABC):
         information for the current factory regarding :class:`Step` instanciation.
         """
         meta.pop('out_extended_filename_complement', None)
+        # logger.debug("OLD inputs (%s): %s", self.__class__.__name__, set().union(*(input.keys() for input in meta.get('inputs', []))))
+        meta['inputs'] = all_inputs + meta.get('inputs', [])
+        # logger.debug("NEW inputs (%s): %s", self.__class__.__name__, set().union(*(input.keys() for input in meta['inputs'])))
         meta = self.update_filename_meta(meta)  # copy on-the-fly
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         return meta

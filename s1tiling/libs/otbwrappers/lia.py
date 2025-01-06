@@ -366,7 +366,6 @@ class SumAllHeights(OTBStepFactory):
         removal.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         dem_on_s2 = fetch_input_data('in_s2_dem', all_inputs).out_filename
         meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
         logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
@@ -513,7 +512,6 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         """
         # logger.debug("ComputeGroundAndSatPositionsOnDEMFromEOF inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
         # Cannot register height_on_s2 for ulterior removal as the file can be
@@ -728,7 +726,6 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         """
         # logger.debug("ComputeGroundAndSatPositionsOnDEM inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
         # Cannot register height_on_s2 for ulterior removal as the file can be
@@ -976,14 +973,6 @@ class _ComputeLIA(OTBStepFactory):
         by ComputeLIA.
         """
         meta['does_product_exist'] = lambda: all(os.path.isfile(of) for of in out_filename(meta))
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
-        return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -1445,7 +1434,6 @@ class SARDEMProjection(OTBStepFactory):
         meta = super().complete_meta(meta, all_inputs)
         append_to(meta, 'post', self.add_image_metadata)
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-        # meta['inputs'] = all_inputs
 
         # TODO: The following has been duplicated from AgglomerateDEM.
         # See to factorize this code
@@ -1587,7 +1575,6 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         """
         inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
             self.fetch_direction(inputpath, meta)
         indem     = fetch_input_data('indem',     all_inputs).out_filename
