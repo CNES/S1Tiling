@@ -367,6 +367,7 @@ def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = Fa
 def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
     config_opt             : Union[str, Configuration],
     pipeline_builder,
+    *,
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -759,6 +760,7 @@ def register_LIA_pipelines(
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
+        *,
         dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -926,6 +928,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -1006,6 +1009,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
 
 def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -1086,6 +1090,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
 
 def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dryrun                 : bool = False,
         debug_otb              : bool = False,
         debug_caches           : bool = False,

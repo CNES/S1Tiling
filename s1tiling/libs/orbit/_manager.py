@@ -243,7 +243,7 @@ class EOFFileManager:
         period_is_covered : Optional[bool] = self._is_the_period_fully_covered_in_cache(eof_files, first_date, last_date) if missing_orbits else None
         return obt2eof_map, missing_orbits, period_is_covered
 
-    def _fetch_eof_files(
+    def _fetch_eof_files(  # pylint: disable=too-many-arguments
         self,
         relative_orbits   : List[int],
         missions          : Iterable[str],
@@ -300,7 +300,7 @@ class EOFFileManager:
         #     errors.append(EOFOutcome(RuntimeError(msg)))
         return obt2eof_map, missing_orbits, errors
 
-    def search_for(
+    def search_for(  # pylint: disable=too-many-arguments
             self,
             relative_orbits: List[int],
             missions       : Iterable[str] = (),

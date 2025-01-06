@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -609,6 +609,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
             self,
             cfg              : Configuration,
+            *,
             fname_fmt        : str,
             image_description: str,
             extended_filename: Optional[str] = None,
@@ -744,7 +745,7 @@ class OrthoRectify(_OrthoRectifierFactory):
             extended_filename += '&writegeom=false'
         super().__init__(
                 cfg,
-                fname_fmt,
+                fname_fmt=fname_fmt,
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 extended_filename=extended_filename,
                 pixel_type=cfg_pixel_type(cfg, 'tiled'),

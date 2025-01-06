@@ -50,7 +50,7 @@ from .              import Utils
 from .configuration import Configuration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-        Meta, check_one_product, check_one_product, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
+        Meta, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -702,7 +702,7 @@ class StepFactory(ABC):
         """
         pass
 
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden  # pylint: disable=unused-argument
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
         information for the current factory regarding :class:`Step` instanciation.
@@ -1100,13 +1100,13 @@ class OTBStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg                : Configuration,
+        *,
         appname            : str,
         gen_tmp_dir        : str,
         gen_output_dir     : Optional[str],
         gen_output_filename: OutputFilenameGenerator,
         extended_filename  : Optional[Union[str, List[str]]] = None,
         pixel_type         : Optional[Union[int, List[int]]] = None,
-        # *argv,  # param_in/_out, name, image_description
         **kwargs,
     ) -> None:
         """
@@ -1337,11 +1337,11 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 Configuration,
+        *,
         exename:             str,
         gen_tmp_dir:         str,
         gen_output_dir:      Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv,
         **kwargs,
     ) -> None:
         """
@@ -1350,7 +1350,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         See:
             :func:`_FileProducingStepFactory.__init__`
         """
-        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, **kwargs)
         self._exename = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
@@ -1383,11 +1383,12 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 Configuration,
+        *,
         action:              Callable,
         gen_tmp_dir:         str,
         gen_output_dir:      Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv, **kwargs
+        **kwargs,
     ) -> None:
         """
         Constructor
@@ -1395,7 +1396,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         See:
             :func:`_FileProducingStepFactory.__init__`
         """
-        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, **kwargs)
         self._action = action
         logger.debug("new AnyProducerStepFactory(%s)", self.name)
 

@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -927,13 +927,14 @@ class _ComputeLIA(OTBStepFactory):
     - output filename
     """
     def __init__(  # pylint: disable=too-many-arguments
-                 self,
-                 cfg               : Configuration,
-                 fname_fmt_sin     : str,
-                 fname_fmt_lia     : str,
-                 gen_tmp_dir       : str,
-                 gen_output_dir    : Optional[str],
-                 image_description : Union[str, List[str]],
+        self,
+        cfg               : Configuration,
+        *,
+        fname_fmt_sin     : str,
+        fname_fmt_lia     : str,
+        gen_tmp_dir       : str,
+        gen_output_dir    : Optional[str],
+        image_description : Union[str, List[str]],
                  ) -> None:
         types = {
             'sin_LIA': 'sin(LIA)',
@@ -1739,7 +1740,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         fname_fmt = cfg.fname_fmt.get('lia_orthorectification', fname_fmt)
         super().__init__(
             cfg,
-            fname_fmt,
+            fname_fmt=fname_fmt,
             image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
         )
         extra_ef = '&writegeom=false' if otb_version() < '8.0.0' else ''
