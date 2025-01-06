@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -1086,10 +1086,6 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
 
 def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
         dryrun                 : bool = False,
         debug_otb              : bool = False,
         debug_caches           : bool = False,
@@ -1152,9 +1148,6 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,

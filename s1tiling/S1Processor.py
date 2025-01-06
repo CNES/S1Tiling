@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -95,6 +95,7 @@ def cli_execute(processing, *args, **kwargs):
 
 
 # ======================================================================
+# S1Processor
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @click.option(
@@ -157,7 +158,10 @@ def run(
         **kwargs  # All click parameters that'll directly be forwarded to s1_process
 ) -> NoReturn:
     """
-    This function is used as entry point to create console scripts with setuptools.
+    Calibrates and orthorectifies Sentinel-1 images over S2 MGRS tiles.
+
+    This tools is part of S1Tiling.
+    See also: S1LIAMap
     """
     sys.exit(
             cli_execute(
@@ -169,28 +173,9 @@ def run(
 
 
 # ======================================================================
+# S1LIAMap
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
-@click.option(
-        "--searched_items_per_page",
-        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        help="Number of products simultaneously requested by eodag"
-)
-@click.option(
-        "--nb_max_search_retries",
-        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        help="Number of times to retry on timeout when searching for compatible remote products"
-)
-@click.option(
-        "--eodag_download_timeout",
-        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        help="If download fails, maximum time in mins before stop retrying to download"
-)
-@click.option(
-        "--eodag_download_wait",
-        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        help="If download fails, wait time in minutes between two download tries"
-)
 @click.option(
         "--trace-errors",
         is_flag=True,
@@ -219,18 +204,20 @@ def run(
 @click.argument('config_filename', type=click.Path(exists=True))
 def run_lia(
         config_filename,
-        eodag_download_wait,
-        eodag_download_timeout,
         **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
 ) -> NoReturn:
     """
-    This function is used as entry point to create console scripts with setuptools.
+    Generates maps of Local Incidence Angles for Sentinel-1 orbits over S2 MGRS tiles.
+
+    These maps can be used for NORMLIM σ° calibration.
+
+    This tools is part of S1Tiling.
+    See also: S1Processor
     """
     sys.exit(
             cli_execute(
                 s1_process_lia,
                 config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 **kwargs
             ))
 

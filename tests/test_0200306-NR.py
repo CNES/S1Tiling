@@ -1184,9 +1184,9 @@ def test_33NWB_202001_lia_mocked(
 
     register_expectations(application_mocker, file_db)
 
-    processor(config_opt=configuration, searched_items_per_page=0,
-            dryrun=False, debug_otb=True, watch_ram=False,
-            debug_tasks=False)
+    processor(config_opt=configuration,
+              dryrun=False, debug_otb=True, watch_ram=False,
+              debug_tasks=False)
     application_mocker.assert_all_have_been_executed()
     application_mocker.assert_all_metadata_match()
 
