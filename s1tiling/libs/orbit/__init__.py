@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -32,3 +32,8 @@
 """This public API of the orbit sub-module"""
 
 from ._manager import EOFFileManager, EOFConfiguration
+
+__all__ = [
+    "EOFFileManager",
+    "EOFConfiguration",
+]
