@@ -982,9 +982,13 @@ class _FileProducingStepFactory(StepFactory):
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
+        # TODO: for a domain independent StepFactory, extract the following directory names handling
+        #       to an external domain specific strategy returned by the configuration object, and
+        #       interrogated by the leaf StepFactories.
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        self.__liadir              = cfg.lia_directory
+        self.__liadir              = getattr(cfg, 'lia_directory', None)
+        self.__iadir               = getattr(cfg, 'ia_directory', None)
         self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
@@ -1012,6 +1016,7 @@ class _FileProducingStepFactory(StepFactory):
             out_dir=self.__outdir,
             tmp_dir=self.__tmpdir,
             lia_dir=self.__liadir,
+            ia_dir=self.__iadir,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
