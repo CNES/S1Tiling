@@ -69,6 +69,10 @@ from .lia import (
         ConcatenateLIA,
         SelectBestCoverage,
 )
+from .ia import (
+    ComputeEllipsoidNormalsOnS2,
+    ComputeIAOnS2,
+)
 
 __all__ = [
     "ExtractSentinel1Metadata",
@@ -102,4 +106,7 @@ __all__ = [
     "ComputeLIAOnS1",
     "ConcatenateLIA",
     "SelectBestCoverage",
+
+    "ComputeEllipsoidNormalsOnS2",
+    "ComputeIAOnS2",
 ]

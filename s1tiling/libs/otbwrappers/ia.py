@@ -1,0 +1,223 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# =========================================================================
+#   Program:   S1Processor
+#
+#   All rights reserved.
+#   Copyright 2017-2025 (c) CNES.
+#
+#   This file is part of S1Tiling project
+#       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# =========================================================================
+#
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
+#
+# =========================================================================
+
+"""
+This modules defines the specialized Python wrappers for the OTB Applications used in
+the pipeline for LIA production needs.
+"""
+
+import logging
+import os
+
+
+from .lia            import _ComputeIncidenceAngle
+from .s1_to_s2       import s2_tile_extent
+from ..configuration import Configuration, dname_fmt_ia_product
+from ..file_naming   import TemplateOutputFilenameGenerator
+from ..meta          import Meta
+from ..otbpipeline   import fetch_input_data
+from ..steps         import (
+    AbstractStep,
+    InputList,
+    OTBParameters,
+    OTBStepFactory,
+    ram,
+)
+from ..              import Utils
+
+
+logger = logging.getLogger('s1tiling.wrappers.ia')
+
+
+class ComputeEllipsoidNormalsOnS2(OTBStepFactory):
+    """
+    Factory that prepares steps that run :external:doc:`ExtractNormalVectorToEllipsoid
+    <Applications/app_ExtractNormalVectorToEllipsoid>` as described in :ref:`Normals computation
+    <compute_normals-proc>` documentation.
+
+    :external:doc:`ExtractNormalVectorToEllipsoid <Applications/app_ExtractNormalVectorToEllipsoid>`
+    computes ellipsoid surface normals.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `fname_fmt`       -- optional key: `normals_wgs84`, useless in the in-memory nominal case
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(
+        self,
+        cfg               : Configuration,
+    ) -> None:
+        fname_fmt = 'NormalsToEllipsoid_on_{tile_name}'
+        fname_fmt = cfg.fname_fmt.get('normals_wgs84_on_s2', fname_fmt)
+        super().__init__(
+            cfg,
+            appname='ExtractNormalVectorToEllipsoid',
+            name='ComputeNormalsToEllipsoid',
+            param_in=None,
+            param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Image normals To WGS84 Ellipsoid on S2 grid',
+        )
+        self.__out_spatial_res      = cfg.out_spatial_res
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set Normals related information.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE']                 = 'NORMALS'
+        imd['ORTHORECTIFIED']             = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        assert inputs, f"No inputs found in {self.__class__.__name__}"
+        return fetch_input_data('tilename',   inputs)
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external:doc:`ExtractNormalVectorToEllipsoid OTB
+        application <Applications/app_ExtractNormalVectorToEllipsoid>` to generate surface normals
+        for each point of the origin S1 image.
+        """
+        tile_name   = meta['tile_name']
+        tile_origin = meta['tile_origin']
+        spacing     = self.__out_spatial_res
+
+        extent      = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
+        logger.debug("%s.parameters(%s) /// tile_name: %s",
+                self.__class__.__name__, meta, tile_name)
+
+        return {
+            'ram'             : ram(self.ram_per_process),
+            'outputs.spacingx' : spacing,
+            'outputs.spacingy' : -spacing,
+            'outputs.sizex'    : extent['xsize'],
+            'outputs.sizey'    : extent['ysize'],
+            'map'              : 'utm',
+            'map.utm.zone'     : extent['utm_zone'],
+            'map.utm.northhem' : extent['utm_northern'],
+            'outputs.ulx'      : extent['xmin'],
+            'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
+        }
+
+    def requirement_context(self) -> str:
+        """
+        Return the requirement context that permits to fix missing requirements.
+        ComputeNormalsToEllipsoid comes from normlim_sigma0.
+        """
+        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
+        It will tell whether a given sin_IA input is compatible with the current S2 tile.
+        """
+        def ellipsoid_normal_compatible(output_meta, input_meta):
+            logger.debug('TEST compat:\nOUT -> %s\nIN  -> %s', output_meta, input_meta)
+            return output_meta['tile_name'] == input_meta['tile_name']
+        meta['accept_as_compatible_input'] = ellipsoid_normal_compatible
+
+
+class ComputeIAOnS2(_ComputeIncidenceAngle):
+    """
+    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
+    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S2 geometry as described in
+    :ref:`IA maps computation <compute_ia-proc>` documentation.
+
+    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
+    computes Local Incidende Angle Map.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `fname_fmt`       -- optional key: `ia_product`
+    - `dname_fmt`       -- optional key: `ia_product`
+    - `nodata.IA`       -- optional
+
+    Requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+        fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
+        fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
+        fname_fmt_deg = Utils.partial_format(fname_fmt0, IA_kind="IA")
+        fname_fmt_sin = Utils.partial_format(fname_fmt0, IA_kind="sin_IA")
+        dname_fmt = dname_fmt_ia_product(cfg)
+        super().__init__(
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
+            gen_output_dir=dname_fmt,
+            fname_fmt_deg=fname_fmt_deg,
+            fname_fmt_sin=fname_fmt_sin,
+            image_description=['sin(IA) on S2 grid', '100 * degrees(IA) on S2 grid'],
+            incidence_angle_kind='IA',
+        )
+        assert self.has_several_outputs()
+
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        # This hooks can be called in two situations
+        # 1. when building the expected() result name. In that case we don't have enough information
+        #    when called from "xyz" input, and not called at all from "tilename" input.
+        # 2. from create_step()->complete_meta(), in which case meta['inputs'] exists, and the exact
+        #    information need to be extracted from the "xyz" input.
+        meta = super()._update_filename_meta_pre_hook(meta)
+        if 'inputs' in meta:
+            logger.debug("%s inputs are %s", self.__class__.__name__, meta['inputs'])
+            xyz = fetch_input_data('xyz', meta['inputs'])
+            meta['flying_unit_code'] = xyz.meta['flying_unit_code']
+            meta['orbit']            = xyz.meta['orbit']
+        return meta
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        Register ``accept_as_compatible_input`` hook for
+        :func:`s1tiling.libs.meta.accept_as_compatible_input`.
+        It will tell whether a given sin_IA input is compatible with the current S2 tile.
+        """
+        def ellipsoid_normal_compatible(input_meta):
+            logger.debug('TEST2 compat:\nOUT -> %s\nIN  -> %s', meta, input_meta)
+            return meta['tile_name'] == input_meta['tile_name']
+        meta['accept_as_compatible_input'] = ellipsoid_normal_compatible
