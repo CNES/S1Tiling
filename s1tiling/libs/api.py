@@ -84,6 +84,8 @@ from .otbwrappers import (
     ComputeLIAOnS2,
     filter_LIA,
     ComputeNormalsOnS2,
+    ComputeEllipsoidNormalsOnS2,
+    ComputeIAOnS2,
     ApplyLIACalibration,
     # Deprecated LIA related Step Factories
     AgglomerateDEMOnS1,
@@ -758,6 +760,55 @@ def register_LIA_pipelines(
     return lia
 
 
+def register_IA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        # produce_angles: bool,
+) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
+
+    # First we still need the ground and satelitte position for {lon,lat}
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'tilename': 'tilename'},
+    )
+
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
+
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
+
+    pipelines.register_inputs('eof', eof_first_inputs_factory)
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEMFromEOF],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'ineof': 'eof', 'inheight': s2_height},
+    )
+
+    # And then this time, normals are computed from S2 tile
+    # Always generate sin(IA). If IA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_IA step
+    lia = pipelines.register_pipeline(
+            [ComputeEllipsoidNormalsOnS2, ComputeIAOnS2],
+            'ComputeIAOnS2',
+            is_name_incremental=True,
+            inputs={'tilename': 'tilename', 'xyz': xyz},
+            product_required=True,
+    )
+    return lia
+
+
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
         *,
@@ -1162,3 +1213,76 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
 
 s1_process_lia = s1_process_lia_v1_2
+
+
+def s1_process_ia(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        *,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`IA Map production scenario <scenario.S1IAMap>` that
+    generates Incidence Angle Maps on S2 geometry.
+
+    It performs the following steps:
+
+    1. Determine the S1 products to process
+        Given a list of S2 tiles, we first determine the day that'll the best
+        coverage of each S2 tile in terms of S1 products.
+
+        In case there is no single day that gives the best coverage for all
+        S2 tiles, we try to determine the best solution that minimizes the
+        number of S1 products to download and process.
+    2. Process these S1 products
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dl_wait:
+        Permits to override EODAG default wait time in minutes between two
+        download tries.
+    :param dl_timeout:
+        Permits to override EODAG default maximum time in mins before stop
+        retrying to download (default=20)
+    :param searched_items_per_page:
+        Tells how many items are to be returned by EODAG when searching for S1
+        images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_IA_pipelines(pipelines)
+        required_workspaces = [WorkspaceKinds.IA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )

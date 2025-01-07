@@ -62,7 +62,7 @@ from typing import NoReturn
 
 import click
 
-from s1tiling.libs.api import s1_process, s1_process_lia
+from s1tiling.libs.api import s1_process, s1_process_ia, s1_process_lia
 from s1tiling.libs.exits import translate_exception_into_exit_code
 
 from s1tiling.libs.S1FileManager import (
@@ -161,7 +161,7 @@ def run(
     Calibrates and orthorectifies Sentinel-1 images over S2 MGRS tiles.
 
     This tools is part of S1Tiling.
-    See also: S1LIAMap
+    See also: S1IAMap, S1LIAMap
     """
     sys.exit(
             cli_execute(
@@ -212,12 +212,64 @@ def run_lia(
     These maps can be used for NORMLIM σ° calibration.
 
     This tools is part of S1Tiling.
-    See also: S1Processor
+    See also: S1IAMap, S1Processor
     """
     sys.exit(
             cli_execute(
                 s1_process_lia,
                 config_filename,
+                **kwargs
+            ))
+
+
+# ======================================================================
+# S1IAMap
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option()
+@click.option(
+        "--trace-errors",
+        is_flag=True,
+        help="Display error full traceback, if any",
+)
+@click.option(
+        "--dryrun",
+        is_flag=True,
+        help="Display the processing shall would be realized, but none is done.")
+@click.option(
+        "--debug-otb",
+        is_flag=True,
+        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
+@click.option(
+        "--debug-caches",
+        is_flag=True,
+        help="Investigation mode were intermediary cached files are not purged.")
+@click.option(
+        "--watch-ram",
+        is_flag=True,
+        help="Trigger investigation mode for watching memory usage")
+@click.option(
+        "--graphs", "debug_tasks",
+        is_flag=True,
+        help="Generate SVG images showing task graphs of the processing flows")
+@click.argument('config_filename', type=click.Path(exists=True))
+def run_ia(
+        config_filename,
+        # eodag_download_wait,
+        # eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
+) -> NoReturn:
+    """
+    Generates maps of Incidence Angles (on WGS84 ellipsoid) for Sentinel-1 orbits over S2 MGRS
+    tiles.
+
+    This tools is part of S1Tiling.
+    See also: S1LIAMap, S1Processor
+    """
+    sys.exit(
+            cli_execute(
+                s1_process_ia,
+                config_filename,
+                # dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
                 **kwargs
             ))
 
