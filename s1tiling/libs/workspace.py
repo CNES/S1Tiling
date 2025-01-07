@@ -40,7 +40,7 @@ import shutil
 import tempfile
 from typing import Dict, List, Optional, Protocol, Union
 
-from .configuration import Configuration, dname_fmt_filtered, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
+from .configuration import Configuration, dname_fmt_filtered, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
 
 
 logger = logging.getLogger('s1tiling.workspace')
@@ -137,6 +137,7 @@ class WorkspaceKinds(Enum):
     LIA    = 2
     FILTER = 3
     MASK   = 4
+    IA     = 6
 
 
 def ensure_tiled_workspaces_exist(
@@ -155,6 +156,7 @@ def ensure_tiled_workspaces_exist(
             'out_dir': cfg.output_preprocess,
             'tmp_dir': cfg.tmpdir,
             'lia_dir': cfg.lia_directory,
+            'ia_dir' : cfg.ia_directory,
     }
 
     working_directory = os.path.join(cfg.tmpdir, 'S2', tile_name)
@@ -175,4 +177,8 @@ def ensure_tiled_workspaces_exist(
     # if cfg.calibration_type == 'normlim':
     if WorkspaceKinds.LIA in required_workspaces:
         wdir = dname_fmt_lia_product(cfg).format(**directories, tile_name=tile_name)
+        os.makedirs(wdir, exist_ok=True)
+
+    if WorkspaceKinds.IA in required_workspaces:
+        wdir = dname_fmt_ia_product(cfg).format(**directories, tile_name=tile_name)
         os.makedirs(wdir, exist_ok=True)
