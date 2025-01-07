@@ -968,13 +968,6 @@ class _ComputeLIA(OTBStepFactory):
         )
         self.__nodata = nodata_LIA(cfg)
 
-    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
-        """
-        Override "does_product_exist" hook to take into account the multiple output files produced
-        by ComputeLIA.
-        """
-        meta['does_product_exist'] = lambda: all(os.path.isfile(of) for of in out_filename(meta))
-
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Set σ° normlim calibration related information that'll get carried around.
