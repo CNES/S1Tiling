@@ -328,6 +328,11 @@ You can use this :download:`this template
   * - ``output``
     - Where products are generated.
 
+      .. _paths.ia:
+  * - ``ia``
+    - Where (non Local) Incidence Maps and sin(IA) products are generated. Its
+      default value is ``{output}/_IA``.
+
       .. _paths.lia:
   * - ``lia``
     - Where Local Incidence Maps and sin(LIA) products are generated. Its
@@ -567,6 +572,9 @@ You can use this :download:`this template
       used.
 
       .. _Processing.nodata:
+  * - ``nodata.IA``
+    - Nodata value to use in :ref:`IA files <ia-files>`
+
   * - ``nodata.LIA``
     - Nodata value to use in :ref:`LIA files <lia-files>`
 
@@ -657,9 +665,9 @@ You can use this :download:`this template
         should be <= to the number of cores on the machine.
 
       .. _Processing.produce_lia_map:
-  * - ``produce_lia_map``
-    - When :ref:`LIA sine map <lia-files>` is produced, we may also desire the
-      angle values in degrees (x100).
+  * - ``produce_ia_map``, ``produce_lia_map``
+    - When :ref:`IA sine map <ia-files>` and :ref:`LIA sine map <lia-files>`
+      are produced, we may also desire the angle values in degrees (x100).
 
       Possible values are:
 
@@ -756,6 +764,10 @@ You can use this :download:`this template
             (:samp:`{yymmdd}txxxxxx`)
           - S1/S2
 
+        * - IA_kind
+          - ``IA``/``sin_IA``
+          - S2
+
         * - LIA_kind
           - ``LIA``/``sin_LIA``
           - S2
@@ -798,6 +810,12 @@ You can use this :download:`this template
 
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
 
+      .. _Processing.fname_fmt.ia_product:
+  * - ``fname_fmt.ia_product``
+    - File format pattern for IA and sin(IA) files
+
+      Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
@@ -836,6 +854,8 @@ You can use this :download:`this template
           - :ref:`[PATHS].output <paths.output>`
         * - :samp:`{{tmp_dir}}`
           - :ref:`[PATHS].tmp <paths.tmp>`
+        * - :samp:`{{ia_dir}}`
+          - :ref:`[PATHS].ia <paths.ia>`
         * - :samp:`{{lia_dir}}`
           - :ref:`[PATHS].lia <paths.lia>`
 
@@ -857,6 +877,11 @@ You can use this :download:`this template
         * - :ref:`Masks <mask-files>`
           - ``.mask``
           - :samp:`{{out_dir}}/{{tile_name}}`
+
+            .. _Processing.dname_fmt.ia_product:
+        * - :ref:`degree(IA) and sin(IA) <ia-files>`
+          - ``.ia_product``
+          - :samp:`{{ia_dir}}`
 
             .. _Processing.dname_fmt.lia_product:
         * - :ref:`degree(LIA) and sin(LIA) <lia-files>`
@@ -899,6 +924,16 @@ You can use this :download:`this template
         * - :ref:`Masks <mask-files>`
           - ``.mask``
           - ``uint8 COMPRESS=DEFLATE``
+
+            .. _Processing.creation_options.ia_deg:
+        * - :ref:`IA (in degrees * 100) <ia-files>`
+          - ``.ia_deg``
+          - ``uint16 COMPRESS=DEFLATE&gdal``
+
+            .. _Processing.creation_options.ia_sin:
+        * - :ref:`sin(IA) <ia-files>`
+          - ``.ia_sin``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`

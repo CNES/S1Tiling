@@ -300,6 +300,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.output_preprocess       = accessor.get('Paths', 'output')
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
         self.lia_directory           = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        #: Destination directory where IA maps products are generated:  :ref:`[PATHS.ia] <paths.ia>`
+        self.ia_directory           = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory           = accessor.get('Paths', 's1_images')
         #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
@@ -458,11 +460,14 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         #: Number of threads allocated to each OTB application: See :ref:`[Processing.nb_otb_threads] <Processing.nb_otb_threads>`
         self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
 
-        # - - - - - - - - - -[ LIA
+        # - - - - - - - - - -[ IA/LIA
+        #: Tells whether IA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_ia_map] <Processing.produce_ia_map>`
+        self.produce_ia_map      = accessor.getboolean('Processing', 'produce_ia_map', fallback=False)
+
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
         self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
 
-        #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for LIA computation purposes
+        #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for L/IA computation purposes
         resamplings = ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'rms', 'mode', 'max', 'min', 'med', 'q1', 'q3', 'qum']
         self.dem_warp_resampling_method = accessor.get('Processing', 'dem_warp_resampling_method', fallback="cubic")
         if self.dem_warp_resampling_method not in resamplings:
@@ -472,6 +477,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.nodatas : Dict[str, Union[int,float,str,None]] = {}
         self.nodatas['SAR'] = accessor.get('Processing', 'nodata.SAR', fallback=0)  # undocumented => best avoided!!!
         self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)
+        self.nodatas['IA']  = accessor.get('Processing', 'nodata.IA',  fallback=None)
 
     # ----------------------------------------------------------------------
     def __init_filtering(self, accessor: _ConfigAccessor) -> None:
@@ -505,9 +511,10 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             'calibration', 'correct_denoising', 'cut_borders',
             'orthorectification', 'concatenation', 'filtered',
             'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
-            'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
+            'normals_on_s2', 'normals_wgs84_on_s2',
+            'lia_product', 'ia_product', 's2_lia_corrected',
             # Keys to deprecated workflow
-            'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1',
+            'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1', 's1_lia',  's1_sin_lia',
             'lia_orthorectification', 'lia_concatenation',
         ]
         self.fname_fmt = {}
@@ -522,7 +529,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         dname_fmt_keys = [
             'tiled', 'filtered', 'mask',
-            's1_lia',  's1_sin_lia', 'lia_product',
+            'lia_product', 'ia_product',
+            's1_lia',  's1_sin_lia',
         ]
         self.dname_fmt = {}
         for key in dname_fmt_keys:
@@ -536,7 +544,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         creation_options_keys = [
             'tiled', 'filtered', 'mask',
-            's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin',
+            's1_lia',  's1_sin_lia',
+            'lia_deg', 'lia_sin', 'ia_deg', 'ia_sin',
         ]
         self.creation_options = {}
         for key in creation_options_keys:
@@ -572,6 +581,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("- eof_directory                    : %s",     self.eof_directory)
         logging.info("- output                           : %s",     self.output_preprocess)
         logging.info("- LIA                              : %s",     self.lia_directory)
+        logging.info("- IA                               : %s",     self.ia_directory)
         logging.info("- dem directory                    : %s",     self.dem)
         logging.info("- dem filename format              : %s",     self.dem_filename_format)
         logging.info("- dem field ids (from shapefile)   : %s",     self.dem_field_ids)
@@ -603,6 +613,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles                            : %s",     self.tile_list)
         logging.info("- tiles_shapefile                  : %s",     self.output_grid)
         logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
+        logging.info("- produce IA° map                  : %s",     self.produce_ia_map)
         logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
         logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.info("[Mask]")
@@ -763,6 +774,14 @@ def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
 
 
+def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.dname.ia_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('ia_product', '{ia_dir}')
+
+
 def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.eof_product`` actual value,
@@ -837,6 +856,24 @@ def extended_filename_lia_sin(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
+def extended_filename_ia_degree(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for IA
+    in degrees (*100) products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
+
+
+def extended_filename_ia_sin(cfg: Configuration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(IA)
+    products.
+    """
+    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
 def _get_nodata(d: Dict[str, Optional[Union[str, int, float]]], key: str, default_value: Union[str, int, float]):
     """
     Internal helper to extract nodata value from configuration directionaries.
@@ -873,10 +910,18 @@ def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
     return _get_nodata(cfg.nodatas, 'LIA', 'nan')
 
 
+def nodata_IA(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    images generated for IA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'IA', 'nan')
+
+
 def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
-    DEM images generated for LIA normlim correction.
+    DEM images generated for L/IA normlim correction.
     """
     return _get_nodata(cfg.nodatas, 'DEM', -32768)
 
@@ -884,6 +929,6 @@ def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
 def nodata_XYZ(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
-    XYZ images generated for LIA normlim correction.
+    XYZ images generated for L/IA normlim correction.
     """
     return _get_nodata(cfg.nodatas, 'XYZ', 'nan')
