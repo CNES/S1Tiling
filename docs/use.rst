@@ -814,13 +814,13 @@ You can use this :download:`this template
   * - ``fname_fmt.ia_product``
     - File format pattern for IA and sin(IA) files
 
-      Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+      Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
 
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
 
-      Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+      Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
