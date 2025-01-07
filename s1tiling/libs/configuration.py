@@ -768,7 +768,7 @@ def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     Helper function that returns the ``Processing.dname.eof_product`` actual value,
     or its default value.
     """
-    return cfg.dname_fmt.get('eof_product', '{lia_dir}')
+    return cfg.dname_fmt.get('eof_product', '{eof_dir}')
 
 
 def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
