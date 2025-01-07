@@ -907,11 +907,11 @@ class ComputeNormalsOnS2(_ComputeNormals):
         )
 
 
-class _ComputeLIA(OTBStepFactory):
+class _ComputeIncidenceAngle(OTBStepFactory):
     """
     Abstract factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`LIA maps computation
-    <compute_lia-proc>` documentation.
+    <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`IA map
+    <compute_ia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidende Angle Map.
@@ -926,33 +926,42 @@ class _ComputeLIA(OTBStepFactory):
     - input filename
     - output filename
     """
+
+    data_type_fmts = {
+        'sin': 'sin({IA})',
+        'deg': '100 * degrees({IA})',
+    }
+    pixel_type_fmts = {
+        'sin': '{IA}_sin',
+        'deg': '{IA}_deg',
+    }
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg               : Configuration,
+        cfg                 : Configuration,
         *,
-        fname_fmt_sin     : str,
-        fname_fmt_lia     : str,
-        gen_tmp_dir       : str,
-        gen_output_dir    : Optional[str],
-        image_description : Union[str, List[str]],
-                 ) -> None:
-        types = {
-            'sin_LIA': 'sin(LIA)',
-            'LIA': '100 * degrees(LIA)'
-        }
-        fname_fmt          = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
-        param_out          = ['out.sin']
-        extended_filenames = [ extended_filename_lia_sin(cfg) ]
-        pixel_types        = [ pixel_type(cfg, 'lia_sin') ]
-        self.__data_types  = [types['sin_LIA']]
+        fname_fmt_sin       : str,
+        fname_fmt_deg       : str,
+        gen_tmp_dir         : str,
+        gen_output_dir      : Optional[str],
+        image_description   : Union[str, List[str]],
+        incidence_angle_kind: str,  # "IA" or "LIA"
+    ) -> None:
+        param_out                   = ['out.sin']
+        fname_fmt                   = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
+        extended_filenames          = [ extended_filename_lia_sin(cfg) ]
+        pixel_types                 = [ pixel_type(cfg, self.pixel_type_fmts['sin'].format(IA=incidence_angle_kind.lower())) ]
+        self.__data_types           = [ self.data_type_fmts['sin'].format(IA=incidence_angle_kind) ]
+        self.__incidence_angle_kind = incidence_angle_kind
         if cfg.produce_lia_map:
             # We always produce out.sin, and optionally we produce out.lia.
             # Anyway, their production is always done in output_dir!
-            fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_lia))
-            param_out.append('out.lia')
+            param_out.append('out.lia')  # TODO: rename param in application
+            fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_deg))
             extended_filenames.append(extended_filename_lia_degree(cfg))
-            pixel_types.append(pixel_type(cfg, 'lia_deg', 'uint16'))
-            self.__data_types.append(types['LIA'])
+            pixel_type_key: str = self.pixel_type_fmts['deg'].format(IA=incidence_angle_kind.lower())
+            pixel_types.append(pixel_type(cfg, pixel_type_key, 'uint16'))
+            self.__data_types.append(self.data_type_fmts['deg'].format(IA=incidence_angle_kind))
         super().__init__(
             cfg,
             appname='SARComputeLocalIncidenceAngle',
@@ -975,8 +984,8 @@ class _ComputeLIA(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['DATA_TYPE'] = self.__data_types
-        imd['IMAGE_TYPE'] = 'LIA'
+        imd['DATA_TYPE']  = self.__data_types
+        imd['IMAGE_TYPE'] = self.__incidence_angle_kind
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1023,7 +1032,7 @@ class _ComputeLIA(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
 
-class ComputeLIAOnS2(_ComputeLIA):
+class ComputeLIAOnS2(_ComputeIncidenceAngle):
     """
     Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
     <Applications/app_SARComputeLocalIncidenceAngle>` on images in S2 geometry as described in
@@ -1045,19 +1054,19 @@ class ComputeLIAOnS2(_ComputeLIA):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
-        # fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
-        fname_fmt_lia = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
+        fname_fmt_deg = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
         dname_fmt = dname_fmt_lia_product(cfg)
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=dname_fmt,
-            fname_fmt_lia=fname_fmt_lia,
+            fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description=['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
+            incidence_angle_kind='LIA',
         )
 
 
@@ -1669,7 +1678,7 @@ class ComputeNormalsOnS1(_ComputeNormals):
         )
 
 
-class ComputeLIAOnS1(_ComputeLIA):
+class ComputeLIAOnS1(_ComputeIncidenceAngle):
     """
     Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
     <Applications/app_SARComputeLocalIncidenceAngle>` on images in S1 geometry as described in
@@ -1690,15 +1699,16 @@ class ComputeLIAOnS1(_ComputeLIA):
     - `fname_fmt`  -- optional key: `s1_sin_lia`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt_lia = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}')
+        fname_fmt_deg = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}')
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia', 'sin_LIA_{polarless_basename}')
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,
-            fname_fmt_lia=fname_fmt_lia,
+            fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
+            incidence_angle_kind='LIA',
         )
 
 
@@ -1764,15 +1774,15 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
         Set LIA kind related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
-        types = {
+        data_types = {
             'sin_LIA': 'sin(LIA)',
             'LIA': '100 * degrees(LIA)'
         }
         assert 'LIA_kind' in meta, "This StepFactory shall be registered after a call to filter_LIA()"
         kind = meta['LIA_kind']
-        assert kind in types, f'The only LIA kind accepted are {types.keys()}'
+        assert kind in data_types, f'The only LIA kind accepted are {data_types.keys()}'
         imd = meta['image_metadata']
-        imd['DATA_TYPE'] = types[kind]
+        imd['DATA_TYPE'] = data_types[kind]
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
