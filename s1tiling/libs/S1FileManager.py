@@ -705,7 +705,7 @@ class S1FileManager:
             for _ in range(self.__nb_max_search_retries):
                 # Manual workaround https://github.com/CS-SI/eodag/issues/908
                 try:
-                    page_products, _ = dag.search(
+                    page_products = dag.search(
                             page=page, items_per_page=self.__searched_items_per_page,
                             productType=product_type,
                             raise_errors=True,
@@ -1096,6 +1096,7 @@ class S1FileManager:
             # (we suppose there won't be a mix of S1A + S1B for the same pair)
             ref_missing_S1_product = missing[0].related_product()
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
+            assert eo_ron, f"Product information misses 'relativeOrbitNumber', only {ref_missing_S1_product.properties.keys()} are available, and {ref_missing_S1_product.properties['orbitNumber']=}"
             eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
             eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)
             eo_id   = ref_missing_S1_product.as_dict()['id']
