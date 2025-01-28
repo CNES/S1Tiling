@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -69,7 +69,7 @@ def create(cfg: EODAGConfiguration) -> Optional[EODataAccessGateway]:
     logger.debug('Override EODAG output directory to %s', dest_dir)
     for provider in dag.providers_config.keys():
         if hasattr(dag.providers_config[provider], 'download'):
-            dag.providers_config[provider].download.update({'outputs_prefix': dest_dir})
+            dag.providers_config[provider].download.update({'output_dir': dest_dir})
             logger.debug(' - for %s', provider)
         else:
             logger.debug(' - NOT for %s', provider)

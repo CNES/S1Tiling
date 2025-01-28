@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -386,6 +386,9 @@ class FileDB:
     def all_files(self) -> List[str]:
         return [self.input_file(idx) for idx in range(len(self.FILES))]
 
+    def all_manifests(self) -> List[str]:
+        return [self.manifest_file(idx) for idx in range(len(self.FILES))]
+
     def all_annotations(self) -> List[str]:
         return [self.annotation_file(idx) for idx in range(len(self.FILES))]
 
@@ -429,6 +432,11 @@ class FileDB:
         s1dir  = crt['s1dir']
         s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+
+    def manifest_file(self, idx) -> str:
+        crt      = self.FILES[idx]
+        s1dir    = crt['s1dir']
+        return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/manifest.safe'
 
     def annotation_file(self, idx, polarity='vv') -> str:
         crt    = self.FILES[idx]
