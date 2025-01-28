@@ -20,7 +20,13 @@ v1.2.0 Improvements
   Angle maps
   (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
 - Support eodag 3
-  (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_).
+  (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_),
+  (`#177 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/177>`_),
+  (`#178 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/178>`_).
+  An indirect consequence is that products will be downloaded into
+  :samp:`{{s1images}}/{{product_name}}/` instead of
+  :samp:`{{s1images}}/{{product_name}}/{{product_name}}.SAFE/`. The old output
+  directory structure is still supported for backward compatibility reasons.
 
 
 Version 1.1.0
