@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -284,6 +284,7 @@ def _declare_know_files(
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
     # known_dirs.update([dirname(fn, 1) for fn in known_files])
+    known_files.extend(file_db.all_manifests())
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     mocker.patch('s1tiling.libs.workspace.DEMWorkspace.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
