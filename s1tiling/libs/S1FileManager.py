@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -473,11 +473,16 @@ def _download_and_extract_one_product(
                 pass
         # eodag may say the product is correctly downloaded while it failed to do so
         # => let's do a quick sanity check
+
+        # eodag2 product naming scheme
         manifest = os.path.join(raw_directory, prod_id, f'{prod_id}.SAFE', 'manifest.safe')
         if not os.path.exists(manifest):
-            logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
-            e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
-            path = S1DownloadOutcome(e, product)
+            # eodag3 product naming scheme
+            manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
+            if not os.path.exists(manifest):
+                logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
+                e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
+                path = S1DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -1033,19 +1038,28 @@ class S1FileManager:
         content = _discard_small_redundant(content, ident=ident)
         logger.debug('%s local products remaining after discarding incomplete and redundant products', len(content))
 
-        # Build tuples of {product_dir, safe_dir, manifest_path,
-        # orbit_direction, relative_orbit}
-        products_info = [ {
+        # Build tuples of {product_dir, safe_dir, manifest_path, orbit_direction, relative_orbit}
+        products_info_eodag2 = [ {
             'product':  p,
-            # EODAG saves SAFEs into {rawdir}/{prod}/{prod}.SAFE
+            # EODAG v2 saves SAFEs into {rawdir}/{prod}/{prod}.SAFE
             'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
-            } for p in content]
-        products_info = list(filter(lambda ci: os.path.isdir(ci['safe_dir']), products_info))
-        # TODO: filter corrupted products (e.g. .zip files that couldn't be correctly unzipped (because of a previous disk saturation for instance)
-
+        } for p in content]
+        products_info_eodag3 = [ {
+            'product':  p,
+            # EODAG v3 saves SAFEs into {rawdir}/{prod}
+            'safe_dir': p.path,
+        } for p in content]
+        products_info = products_info_eodag2 + products_info_eodag3
         for ci in products_info:
             manifest = os.path.join(ci['safe_dir'], self.manifest_pattern)
             ci['manifest']        = manifest
+
+        products_info = list(filter(lambda ci: os.path.isfile(ci['manifest']), products_info))
+        logger.debug('%s local products remaining after filtering valid manifests', len(products_info))
+        # TODO: filter corrupted products (e.g. .zip files that couldn't be correctly unzipped (because of a previous disk saturation for instance)
+
+        for ci in products_info:
+            manifest              = ci['manifest']
             ci['orbit_direction'] = get_orbit_direction(manifest)
             ci['relative_orbit']  = get_relative_orbit(manifest)
             ci['platform']        = ci['product'].name[:3]

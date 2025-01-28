@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -41,7 +41,7 @@ from shapely import geometry
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from tests.mock_otb  import isdir, glob, dirname
+from tests.mock_otb  import isdir, isfile, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager     import S1FileManager
@@ -167,7 +167,8 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
         # logging.debug(' - %s', k)
     known_dirs.update([INPUT, TMPDIR, OUTPUT])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
-    mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
+    mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
+    mocker.patch('os.path.isdir',  lambda f: isdir(f, known_dirs))
     mocker.patch('glob.glob',     lambda pat : glob(pat, sorted(set(known_files))))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
@@ -191,6 +192,7 @@ def _declare_known_S1_files(known_files, patterns) -> None:
     files = []
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    files.extend(file_db.all_manifests())
     known_files.extend(files)
     logging.debug('Mocking w/ S1: %s', patterns)
     for file in files:

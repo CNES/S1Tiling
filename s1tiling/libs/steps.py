@@ -117,6 +117,18 @@ def manifest_to_product_name(manifest: str) -> str:
     """
     Helper function that returns the product name (SAFE directory without the
     ``.SAFE`` extension) from the full path to the :file:`manifest.safe` file.
+
+    Works with eodag v2 returned paths:
+
+    >>> manifest1 = 'data_raw2/S1A_IW_GRDH_1SDV_20201228T060102_20201228T060127_035882_0433B6_25C7/S1A_IW_GRDH_1SDV_20201228T060102_20201228T060127_035882_0433B6_25C7.SAFE/manifest.safe'
+    >>> manifest_to_product_name(manifest1)
+    'S1A_IW_GRDH_1SDV_20201228T060102_20201228T060127_035882_0433B6_25C7'
+
+    And the paths returned by eodag v3:
+
+    >>> manifest2 = 'data_raw2/S1A_IW_GRDH_1SDV_20201228T060102_20201228T060127_035882_0433B6_25C7/manifest.safe'
+    >>> manifest_to_product_name(manifest2)
+    'S1A_IW_GRDH_1SDV_20201228T060102_20201228T060127_035882_0433B6_25C7'
     """
     fullpath = Path(manifest)
     return fullpath.parent.stem
