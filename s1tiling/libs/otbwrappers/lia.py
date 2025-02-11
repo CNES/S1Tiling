@@ -528,14 +528,14 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         meta['dems'] = sorted(meta['dem_infos'].keys())
 
         eof_file = out_filename(eof)
-        logger.debug("SARDEMProjection: DEM found for %s: %s", eof_file, meta['dems'])
+        logger.debug("ComputeGroundAndSatPositionsOnDEMFromEOF: DEM found for %s: %s", eof_file, meta['dems'])
         _, inbasename = os.path.split(eof_file)
         meta['inbasename'] = inbasename
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
-        Set SARDEMProjection related information that'll get carried around.
+        Set ComputeGroundAndSatPositionsOnDEMFromEOF related information that'll get carried around.
         """
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
@@ -552,8 +552,10 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`SARDEMProjection OTB application
-        <Applications/app_SARDEMProjection>` to project S1 geometry onto DEM tiles.
+        Returns the parameters to use with
+        :external:doc:`SARComputeGroundAndSatPositionsOnDEMFromEOF OTB application
+        <Applications/app_SARComputeGroundAndSatPositionsOnDEMFromEOF>` to project S1 geometry onto
+        DEM tiles.
         """
         nodata = self.__nodata
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
@@ -561,9 +563,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         inputs = meta['inputs']
         inheight = fetch_input_data('inheight', inputs).out_filename
         ineof    = fetch_input_data('ineof'   , inputs).out_filename
-        # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
-        # from $OTB_GEOID_FILE, indeed geoid information is already in
-        # DEM+Geoid input.
+        # `elev.geoid='@'` tells ComputeGroundAndSatPositionsOnDEMFromEOF that GEOID shall not be
+        # used from $OTB_GEOID_FILE, indeed geoid information is already in DEM+Geoid input.
         return {
                 'ram'        : ram(self.ram_per_process),
                 'ineof'      : ineof,
