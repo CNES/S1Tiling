@@ -86,6 +86,7 @@ from .otbwrappers import (
     ComputeNormalsOnS2,
     ComputeEllipsoidNormalsOnS2,
     ComputeIAOnS2,
+    ComputeGroundAndSatPositionsOnEllipsoid,
     ApplyLIACalibration,
     # Deprecated LIA related Step Factories
     AgglomerateDEMOnS1,
@@ -292,6 +293,7 @@ def get_s1_files_for_tile(
         # download_images will have updated the list of know products
     except RuntimeError as e:
         logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
+        # logger.critical(e, exc_info=True)
         return IntersectingS1FilesOutcome(e)
 
     except BaseException as e:
@@ -766,33 +768,15 @@ def register_IA_pipelines(
 ) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
-    LIA map and sin(LIA) map.
+    IA map and sin(IA) map.
     """
     pipelines.register_inputs('tilename', tilename_first_inputs_factory)
 
-    # First we still need the ground and satelitte position for {lon,lat}
-    dem_vrt = pipelines.register_pipeline(
-            [AgglomerateDEMOnS2], 'AgglomerateDEM',
-            inputs={'tilename': 'tilename'},
-    )
-
-    s2_dem = pipelines.register_pipeline(
-            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
-            is_name_incremental=True,
-            inputs={"indem": dem_vrt}
-    )
-
-    s2_height = pipelines.register_pipeline(
-            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
-            is_name_incremental=True,
-            inputs={"in_s2_dem": s2_dem},
-    )
-
     pipelines.register_inputs('eof', eof_first_inputs_factory)
     xyz = pipelines.register_pipeline(
-            [ComputeGroundAndSatPositionsOnDEMFromEOF],
-            "ComputeGroundAndSatPositionsOnDEM",
-            inputs={'ineof': 'eof', 'inheight': s2_height},
+            [ComputeGroundAndSatPositionsOnEllipsoid],
+            "ComputeGroundAndSatPositionsOnEllipsoid",
+            inputs={'tilename': 'tilename', 'ineof': 'eof'},
     )
 
     # And then this time, normals are computed from S2 tile
