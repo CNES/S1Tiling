@@ -34,44 +34,45 @@ S1Tiling needs.
 """
 
 from .s1_to_s2 import (
-        ExtractSentinel1Metadata,
-        AnalyseBorders,
-        Calibrate,
-        CorrectDenoising,
-        CutBorders,
-        _OrthoRectifierFactory,
-        OrthoRectify,
-        _ConcatenatorFactory,
-        Concatenate,
-        BuildBorderMask,
-        SmoothBorderMask,
-        SpatialDespeckle,
+    ExtractSentinel1Metadata,
+    AnalyseBorders,
+    Calibrate,
+    CorrectDenoising,
+    CutBorders,
+    _OrthoRectifierFactory,
+    OrthoRectify,
+    _ConcatenatorFactory,
+    Concatenate,
+    BuildBorderMask,
+    SmoothBorderMask,
+    SpatialDespeckle,
 )
 
 from .lia import (
-        filter_LIA,
-        AgglomerateDEMOnS2,
-        ProjectDEMToS2Tile,
-        ProjectGeoidToS2Tile,
-        SumAllHeights,
-        ComputeGroundAndSatPositionsOnDEM,
-        ComputeGroundAndSatPositionsOnDEMFromEOF,
-        ComputeNormalsOnS2,
-        ComputeLIAOnS2,
-        ApplyLIACalibration,
+    filter_LIA,
+    AgglomerateDEMOnS2,
+    ProjectDEMToS2Tile,
+    ProjectGeoidToS2Tile,
+    SumAllHeights,
+    ComputeGroundAndSatPositionsOnDEM,
+    ComputeGroundAndSatPositionsOnDEMFromEOF,
+    ComputeNormalsOnS2,
+    ComputeLIAOnS2,
+    ApplyLIACalibration,
 
-        AgglomerateDEMOnS1,
-        SARDEMProjection,
-        SARCartesianMeanEstimation,
-        OrthoRectifyLIA,
-        ComputeNormalsOnS1,
-        ComputeLIAOnS1,
-        ConcatenateLIA,
-        SelectBestCoverage,
+    AgglomerateDEMOnS1,
+    SARDEMProjection,
+    SARCartesianMeanEstimation,
+    OrthoRectifyLIA,
+    ComputeNormalsOnS1,
+    ComputeLIAOnS1,
+    ConcatenateLIA,
+    SelectBestCoverage,
 )
 from .ia import (
     ComputeEllipsoidNormalsOnS2,
     ComputeIAOnS2,
+    ComputeGroundAndSatPositionsOnEllipsoid,
 )
 
 __all__ = [
@@ -107,6 +108,7 @@ __all__ = [
     "ConcatenateLIA",
     "SelectBestCoverage",
 
+    "ComputeGroundAndSatPositionsOnEllipsoid",
     "ComputeEllipsoidNormalsOnS2",
     "ComputeIAOnS2",
 ]

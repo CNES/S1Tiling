@@ -175,7 +175,7 @@ e.g.:
     pipelines.register_extra_parameters_for_input_factories(
         tile_name=tilename,               # Used by all
     )
-    
+
     pipelines.register_extra_parameters_for_input_factories(
         dag=dag,                          # Used by eof_first_inputs_factory
         s1_file_manager=s1_file_manager,  # Used by s1_raster_first_inputs_factory
@@ -318,6 +318,9 @@ These processings permit to produce Local Incidence Angles Maps for
    s1tiling.libs.otbwrappers.ComputeLIAOnS2
    s1tiling.libs.otbwrappers.filter_LIA
    s1tiling.libs.otbwrappers.ApplyLIACalibration
+   s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid
+   s1tiling.libs.otbwrappers.ComputeEllipsoidNormalsOnS2
+   s1tiling.libs.otbwrappers.ComputeIAOnS2
 
 Deprecated processings for advanced calibration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
