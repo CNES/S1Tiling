@@ -790,7 +790,16 @@ def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     return cfg.dname_fmt.get('eof_product', '{eof_dir}')
 
 
-def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
+class CreationOptionConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to creation option configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding creation options.
+    """
+    creation_options: Dict
+
+
+def pixel_type(cfg: CreationOptionConfiguration, product: str, default: Optional[str] = None):  # -> PixelType:
     """
     Helper function that returns the chosen pixel type in the configuration.
     """
@@ -799,7 +808,7 @@ def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):
     return PIXEL_TYPES.get(cos.get('pixel_type', default), None)
 
 
-def _extended_filename(cfg: Configuration, product: str, default: List[str]) -> str:
+def _extended_filename(cfg: CreationOptionConfiguration, product: str, default: List[str]) -> str:
     """
     Internal helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
@@ -812,7 +821,7 @@ def _extended_filename(cfg: Configuration, product: str, default: List[str]) -> 
     return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options])
 
 
-def extended_filename_tiled(cfg: Configuration) -> str:
+def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
@@ -821,7 +830,7 @@ def extended_filename_tiled(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def extended_filename_filtered(cfg: Configuration) -> str:
+def extended_filename_filtered(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
@@ -830,7 +839,7 @@ def extended_filename_filtered(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def extended_filename_mask(cfg: Configuration) -> str:
+def extended_filename_mask(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for masks.
@@ -838,25 +847,29 @@ def extended_filename_mask(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'mask', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_lia_degree(cfg: Configuration) -> str:
+def extended_filename_lia_degree(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
+
+    .. deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_lia_sin(cfg: Configuration) -> str:
+def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(LIA)
     products.
+
+    deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def extended_filename_ia_degree(cfg: Configuration) -> str:
+def extended_filename_ia_degree(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for IA
@@ -865,7 +878,7 @@ def extended_filename_ia_degree(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_ia_sin(cfg: Configuration) -> str:
+def extended_filename_ia_sin(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(IA)
