@@ -634,8 +634,7 @@ class StepFactory(ABC):
         """
         Tells whether this step produces several files.
 
-        :return: False by default. This method is meant to be overridden in
-        :class:`_FileProducingStepFactory`.
+        :return: False by default. This method is meant to be overridden in :class:`_FileProducingStepFactory`.
         """
         return False
 
