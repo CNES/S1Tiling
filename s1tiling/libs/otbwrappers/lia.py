@@ -41,11 +41,13 @@ from typing import Dict, List, Optional, Type, Union
 from osgeo import gdal
 import otbApplication as otb
 
-from ..file_naming   import (
+from ..file_naming     import (
     OutputFilenameGeneratorList,
     TemplateOutputFilenameGenerator,
 )
-from ..meta          import (
+from ..incidence_angle import IA_map, extended_filename_ia, pixel_type_ia
+
+from ..meta            import (
     Meta,
     append_to,
     in_filename,
@@ -53,8 +55,8 @@ from ..meta          import (
     tmp_filename,
     is_running_dry,
 )
-from ..otbtools      import otb_version
-from ..steps         import (
+from ..otbtools        import otb_version
+from ..steps           import (
     InputList,
     OTBParameters,
     ExeParameters,
@@ -68,23 +70,23 @@ from ..steps         import (
     commit_execution,
     ram,
 )
-from ..otbpipeline   import (
+from ..otbpipeline     import (
     fetch_input_data,
     fetch_input_data_all_inputs,
     TaskInputInfo,
 )
-from .helpers        import (
+from .helpers          import (
     does_s2_data_match_s2_tile,
     does_sin_lia_match_s2_tile_for_orbit,
     remove_polarization_marks,
 )
-from .s1_to_s2       import (
+from .s1_to_s2         import (
     s2_tile_extent,
     _ConcatenatorFactory,
     _OrthoRectifierFactory,
 )
-from ..              import Utils
-from ..configuration import (
+from ..                import Utils
+from ..configuration   import (
     Configuration,
     dname_fmt_lia_product,
     dname_fmt_tiled,
@@ -772,9 +774,8 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         inputs = meta['inputs']
         inheight = fetch_input_data('inheight', inputs).out_filename
         insar    = fetch_input_data('insar'   , inputs).out_filename
-        # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used
-        # from $OTB_GEOID_FILE, indeed geoid information is already in
-        # DEM+Geoid input.
+        # `elev.geoid='@'` tells SARDEMProjection2 that GEOID shall not be used from
+        # $OTB_GEOID_FILE, indeed geoid information is already in DEM+Geoid input.
         return {
             'ram'        : ram(self.ram_per_process),
             'insar'      : insar,
@@ -915,7 +916,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
     <compute_ia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidende Angle Map.
+    computes Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -928,55 +929,62 @@ class _ComputeIncidenceAngle(OTBStepFactory):
     - output filename
     """
 
-    data_type_fmts = {
-        'sin': 'sin({IA})',
-        'deg': '100 * degrees({IA})',
-    }
-    pixel_type_fmts = {
-        'sin': '{IA}_sin',
-        'deg': '{IA}_deg',
+    _data_type_fmts = {
+        IA_map.cos: 'cos({IA})',
+        IA_map.sin: 'sin({IA})',
+        IA_map.tan: 'tan({IA})',
+        IA_map.deg: '100 * degrees({IA})',
     }
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg                 : Configuration,
+        cfg                    : Configuration,
         *,
-        fname_fmt_sin       : str,
-        fname_fmt_deg       : str,
-        gen_tmp_dir         : str,
-        gen_output_dir      : Optional[str],
-        image_description   : Union[str, List[str]],
-        incidence_angle_kind: str,  # "IA" or "LIA"
+        gen_tmp_dir            : str,
+        gen_output_dir         : Optional[str],
+        image_description_dict : Dict[IA_map, str],
+        incidence_angle_kind   : str,  # "IA" or "LIA"
+        fname_fmt_cos          : Optional[str] = None,
+        fname_fmt_sin          : Optional[str] = None,
+        fname_fmt_tan          : Optional[str] = None,
+        fname_fmt_deg          : Optional[str] = None,
     ) -> None:
-        param_out                   = ['out.sin']
-        fname_fmt                   = [ TemplateOutputFilenameGenerator(fname_fmt_sin) ]
-        extended_filenames          = [ extended_filename_lia_sin(cfg) ]
-        pixel_types                 = [ pixel_type(cfg, self.pixel_type_fmts['sin'].format(IA=incidence_angle_kind.lower())) ]
-        self.__data_types           = [ self.data_type_fmts['sin'].format(IA=incidence_angle_kind) ]
-        self.__incidence_angle_kind = incidence_angle_kind
-        if cfg.produce_lia_map:
-            # We always produce out.sin, and optionally we produce out.lia.
-            # Anyway, their production is always done in output_dir!
-            param_out.append('out.lia')  # TODO: rename param in application
-            fname_fmt.append(TemplateOutputFilenameGenerator(fname_fmt_deg))
-            extended_filenames.append(extended_filename_lia_degree(cfg))
-            pixel_type_key: str = self.pixel_type_fmts['deg'].format(IA=incidence_angle_kind.lower())
-            pixel_types.append(pixel_type(cfg, pixel_type_key, 'uint16'))
-            self.__data_types.append(self.data_type_fmts['deg'].format(IA=incidence_angle_kind))
+        params_out         = []
+        fname_fmts         = []
+        extended_filenames = []
+        pixel_types        = []
+        self.__data_types  = []
+        image_description  = []
+        def register_output(fname_fmt, ia_map: IA_map):
+            if fname_fmt:
+                params_out        .append(f'out.{ia_map.name}')
+                fname_fmts        .append(TemplateOutputFilenameGenerator(fname_fmt))
+                extended_filenames.append(extended_filename_ia(cfg, ia_map))
+                pixel_types       .append(pixel_type_ia(cfg, ia_map, incidence_angle_kind))
+                self.__data_types .append(self._data_type_fmts[ia_map].format(IA=incidence_angle_kind))
+                image_description .append(image_description_dict[ia_map])
+
+        register_output(fname_fmt_cos, IA_map.cos)
+        register_output(fname_fmt_sin, IA_map.sin)
+        register_output(fname_fmt_tan, IA_map.tan)
+        register_output(fname_fmt_deg, IA_map.deg)
+        assert None not in fname_fmts
+
         super().__init__(
             cfg,
             appname='SARComputeLocalIncidenceAngle',
             name='ComputeLIA',
             param_in='in.normals',  # In-memory connected to in.normals
-            param_out=param_out,
+            param_out=params_out,
             gen_tmp_dir=gen_tmp_dir,
             gen_output_dir=gen_output_dir,
-            gen_output_filename=OutputFilenameGeneratorList(fname_fmt),
+            gen_output_filename=OutputFilenameGeneratorList(fname_fmts),
             image_description=image_description,
             extended_filename=extended_filenames,
             pixel_type=pixel_types,
         )
-        self.__nodata = nodata_LIA(cfg)
+        self.__incidence_angle_kind = incidence_angle_kind
+        self.__nodata               = nodata_LIA(cfg)
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -1040,7 +1048,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidende Angle Map.
+    computes Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1054,10 +1062,15 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     - input filename
     - output filename
     """
+    _image_descriptions = {
+        IA_map.sin: 'sin(LIA) on S2 grid',
+        IA_map.deg: '100 * degrees(LIA) on S2 grid',
+    }
+
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
-        fname_fmt_deg = Utils.partial_format(fname_fmt0, LIA_kind="LIA")
+        fname_fmt_deg = Utils.partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None
         fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
         dname_fmt = dname_fmt_lia_product(cfg)
         super().__init__(
@@ -1066,7 +1079,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
             gen_output_dir=dname_fmt,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
-            image_description=['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
+            image_description_dict=self._image_descriptions,
             incidence_angle_kind='LIA',
         )
 
@@ -1292,6 +1305,8 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
 
     The choice has been made to name the VRT file after the basename of the root S1 product and not
     the names of the DEM tiles.
+
+    .. deprecated:: 1.1
     """
 
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
@@ -1395,6 +1410,8 @@ class SARDEMProjection(OTBStepFactory):
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
     already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
     for instance) and only use the Geoid.
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
@@ -1530,6 +1547,8 @@ class SARCartesianMeanEstimation(OTBStepFactory):
     - output filename
 
     Note: It cannot be chained in memory because of the ``directiontoscandem*`` parameters.
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'XYZ_{polarless_basename}'
@@ -1667,6 +1686,8 @@ class ComputeNormalsOnS1(_ComputeNormals):
     - input filename
     - output filename
     - `fname_fmt`  -- optional key: `normals_on_s1`, useless in the in-memory nominal case
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'Normals_{polarless_basename}'
@@ -1686,7 +1707,7 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidende Angle Map.
+    computes Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1698,9 +1719,16 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
     - output filename
     - `fname_fmt`  -- optional key: `s1_lia`
     - `fname_fmt`  -- optional key: `s1_sin_lia`
+
+    .. deprecated:: 1.1
     """
+    _image_descriptions = {
+        IA_map.sin: 'sin(LIA) on Sentinel-{flying_unit_code_short} IW GRD',
+        IA_map.deg: '100 * degrees(LIA) on Sentinel-{flying_unit_code_short} IW GRD',
+    }
+
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt_deg = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}')
+        fname_fmt_deg = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}') if cfg.produce_lia_map else None
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia', 'sin_LIA_{polarless_basename}')
         super().__init__(
             cfg,
@@ -1708,7 +1736,7 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
             gen_output_dir=None,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
-            image_description='LIA on Sentinel-{flying_unit_code_short} IW GRD',
+            image_description_dict=self._image_descriptions,
             incidence_angle_kind='LIA',
         )
 
@@ -1734,6 +1762,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
     - `manifest`
     - `tile_name`
     - `tile_origin`
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         """
@@ -1805,6 +1835,8 @@ class ConcatenateLIA(_ConcatenatorFactory):
 
     - input filename
     - output filename
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
@@ -1903,6 +1935,8 @@ class SelectBestCoverage(_FileProducingStepFactory):
     - `orbit`
     - `fname_fmt`  -- optional key: `lia_product`
     - `dname_fmt`  -- optional key: `lia_product`
+
+    .. deprecated:: 1.1
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'

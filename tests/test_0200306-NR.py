@@ -615,9 +615,9 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'out'             : file_db.xyzfile(idx, True),
             }, None,
             {
-                'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
-                'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
-                'PRJ.GAIN'                 : '',  # <=> removing the key
+                'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> expect key removal
+                'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> expect key removal
+                'PRJ.GAIN'                 : '',  # <=> expect key removal
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Cartesian XYZ coordinates estimation',
             })
 
@@ -626,7 +626,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'xyz'             : file_db.xyzfile(idx, False),
             'nodata'          : 'nan',
             # 'nodata'          : '-32768',
-            'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.LIAfile(idx, True),
+            'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.degLIAfile(idx, True),
             }, None,
             {
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-1A IW GRD',
@@ -636,20 +636,20 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'ram'             : param_ram(2048),
             'in.normals'      : file_db.xyzfile(idx, False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
             'in.xyz'          : file_db.xyzfile(idx, False),
-            'out.lia'         : file_db.LIAfile(idx, True),
+            'out.deg'         : file_db.degLIAfile(idx, True),
             'out.sin'         : file_db.sinLIAfile(idx, True),
             'nodata'          : 'nan',
             # 'nodata'          : '-32768',
-            }, {'out.lia': otb.ImagePixelType_uint16},
+            }, {'out.deg': otb.ImagePixelType_uint16},
             {
                 'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
                 'IMAGE_TYPE'               : 'LIA',
-                'TIFFTAG_IMAGEDESCRIPTION' : 'LIA on Sentinel-1A IW GRD',
+                'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on Sentinel-1A IW GRD', '100 * degrees(LIA) on Sentinel-1A IW GRD'],
             })
 
         application_mocker.set_expectations('OrthoRectification', {
             'opt.ram'         : param_ram(2048),
-            'io.in'           : file_db.LIAfile(idx, False),
+            'io.in'           : file_db.degLIAfile(idx, False),
             'interpolator'    : 'nn',
             'outputs.spacingx': 10.0,
             'outputs.spacingy': -10.0,
@@ -663,7 +663,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'outputs.uly'     : 200040.0000009411,
             'elev.dem'        : file_db.dem_file(),
             'elev.geoid'      : file_db.GeoidFile,
-            'io.out'          : file_db.orthoLIAfile(idx, True),
+            'io.out'          : file_db.orthodegLIAfile(idx, True),
             }, {'io.out': otb.ImagePixelType_int16},
             {
                 'DATA_TYPE'                 : '100 * degrees(LIA)',
@@ -753,7 +753,7 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
 
     application_mocker.set_expectations('Synthetize', {
         'ram'      : param_ram(2048),
-        'il'       : [file_db.orthoLIAfile(0, False), file_db.orthoLIAfile(1, False)],
+        'il'       : [file_db.orthodegLIAfile(0, False), file_db.orthodegLIAfile(1, False)],
         'out'      : file_db.concatLIAfile_from_two(0, True),
         }, {'out': otb.ImagePixelType_int16},
         {
@@ -890,10 +890,10 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
         'ram'             : param_ram(2048),
         'in.xyz'          : file_db.xyz_on_s2(False),
-        'out.lia'         : file_db.deglia_on_s2(True),
+        'out.deg'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
         'nodata'          : nodata_LIA,
-    }, {'out.lia': otb.ImagePixelType_uint16}, {
+    }, {'out.deg': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
         'IMAGE_TYPE'               : 'LIA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],
@@ -1013,10 +1013,10 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
         'ram'             : param_ram(2048),
         'in.xyz'          : file_db.xyz_on_s2(False),
-        'out.lia'         : file_db.deglia_on_s2(True),
+        'out.deg'         : file_db.deglia_on_s2(True),
         'out.sin'         : file_db.sinlia_on_s2(True),
         'nodata'          : nodata_LIA,
-    }, {'out.lia': otb.ImagePixelType_uint16}, {
+    }, {'out.deg': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(LIA)', '100 * degrees(LIA)'],
         'IMAGE_TYPE'               : 'LIA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(LIA) on S2 grid', '100 * degrees(LIA) on S2 grid'],

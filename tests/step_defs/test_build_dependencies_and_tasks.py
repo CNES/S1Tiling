@@ -200,13 +200,13 @@ def XYZ_file_s1(idx) -> str:
     return file_db.xyzfile(idx, tmp=False)
 
 def LIA_file_s1(idx) -> str:
-    return file_db.LIAfile(idx, tmp=False)
+    return file_db.degLIAfile(idx, tmp=False)
 
 def sin_LIA_file_s1(idx) -> str:
     return file_db.sinLIAfile(idx, tmp=False)
 
 def ortho_LIA_file(idx) -> str:
-    return file_db.orthoLIAfile(idx, tmp=False)
+    return file_db.orthodegLIAfile(idx, tmp=False)
 
 def S2_LIA_file() -> str:
     return file_db.selectedLIAfile()

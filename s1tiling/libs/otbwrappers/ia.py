@@ -40,20 +40,22 @@ import os
 from typing import List
 
 
-from .lia            import _ComputeIncidenceAngle
-from .s1_to_s2       import s2_tile_extent
-from ..configuration import Configuration, dname_fmt_ia_product, nodata_XYZ
-from ..file_naming   import TemplateOutputFilenameGenerator
-from ..meta          import Meta, out_filename
-from ..otbpipeline   import fetch_input_data, fetch_input_data_all_inputs
-from ..steps         import (
+
+from .lia              import _ComputeIncidenceAngle
+from .s1_to_s2         import s2_tile_extent
+from ..configuration   import Configuration, dname_fmt_ia_product, nodata_XYZ
+from ..file_naming     import TemplateOutputFilenameGenerator
+from ..incidence_angle import IA_map, eia_map_fname_fmt
+from ..meta            import Meta, out_filename
+from ..otbpipeline     import fetch_input_data, fetch_input_data_all_inputs
+from ..steps           import (
     AbstractStep,
     InputList,
     OTBParameters,
     OTBStepFactory,
     ram,
 )
-from ..              import Utils
+from ..                import Utils
 
 
 logger = logging.getLogger('s1tiling.wrappers.ia')
@@ -86,7 +88,6 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
     - `output filename`
     - `tile_name`
     - `tile_origin`
-    - 
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'XYZ_projected_on_ellipsoid_{tile_name}_{orbit}.tiff'
@@ -322,7 +323,7 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
     :ref:`IA maps computation <compute_ia-proc>` documentation.
 
     :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
-    Incidende Angle Map.
+    Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -340,16 +341,26 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
         # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
         fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
-        fname_fmt_deg = Utils.partial_format(fname_fmt0, IA_kind="IA")
-        fname_fmt_sin = Utils.partial_format(fname_fmt0, IA_kind="sin_IA")
+        def fname_fmt(ia_map: IA_map):
+            if ia_map.name in cfg.produce_ia_maps:
+                return eia_map_fname_fmt(fname_fmt0, ia_map)
+            return None
         dname_fmt = dname_fmt_ia_product(cfg)
+        image_descriptions = {
+            IA_map.cos: 'cos(IA) on S2 grid',
+            IA_map.sin: 'sin(IA) on S2 grid',
+            IA_map.tan: 'tan(IA) on S2 grid',
+            IA_map.deg: '100 * degrees(IA) on S2 grid',
+        }
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=dname_fmt,
-            fname_fmt_deg=fname_fmt_deg,
-            fname_fmt_sin=fname_fmt_sin,
-            image_description=['sin(IA) on S2 grid', '100 * degrees(IA) on S2 grid'],
+            fname_fmt_deg=fname_fmt(IA_map.deg),
+            fname_fmt_cos=fname_fmt(IA_map.cos),
+            fname_fmt_sin=fname_fmt(IA_map.sin),
+            fname_fmt_tan=fname_fmt(IA_map.tan),
+            image_description_dict=image_descriptions,
             incidence_angle_kind='IA',
         )
         assert self.has_several_outputs()

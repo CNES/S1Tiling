@@ -461,8 +461,10 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
 
         # - - - - - - - - - -[ IA/LIA
-        #: Tells whether IA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_ia_map] <Processing.produce_ia_map>`
-        self.produce_ia_map      = accessor.getboolean('Processing', 'produce_ia_map', fallback=False)
+        #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.produce_ia_maps] <Processing.produce_ia_maps>`
+        produce_ia_map_list_str   = accessor.get('Processing', 'produce_ia_maps', fallback='deg')
+        produce_ia_map_list       = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
+        self.produce_ia_maps: List[str] = produce_ia_map_list
 
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
         self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
@@ -613,7 +615,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles                            : %s",     self.tile_list)
         logging.info("- tiles_shapefile                  : %s",     self.output_grid)
         logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
-        logging.info("- produce IA° map                  : %s",     self.produce_ia_map)
+        logging.info("- IA maps to produce               : %s",     self.produce_ia_maps)
         logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
         logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.info("[Mask]")
@@ -865,24 +867,6 @@ def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     products.
 
     deprecated:: 1.2
-    """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
-
-
-def extended_filename_ia_degree(cfg: CreationOptionConfiguration) -> str:
-    """
-    Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for IA
-    in degrees (*100) products.
-    """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
-
-
-def extended_filename_ia_sin(cfg: CreationOptionConfiguration) -> str:
-    """
-    Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(IA)
-    products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 

@@ -58,9 +58,9 @@ class FileDB:
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
             'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
             'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
-            'LIAfile'             : 'LIA_{s1_polarless}{tmp}.tiff',
+            'degLIAfile'          : 'LIA_{s1_polarless}{tmp}.tiff',
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
-            'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
+            'orthodegLIAfile'     : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
@@ -279,9 +279,9 @@ class FileDB:
                 (self.sardemprojfile,               NFiles),
                 (self.xyzfile,                      NFiles),
                 (self.normalsfile,                  NFiles),
-                (self.LIAfile,                      NFiles),
+                (self.degLIAfile,                   NFiles),
                 (self.sinLIAfile,                   NFiles),
-                (self.orthoLIAfile,                 NFiles),
+                (self.orthodegLIAfile,              NFiles),
                 (self.orthosinLIAfile,              NFiles),
                 (self.concatLIAfile_from_two,       NConcats),
                 (self.concatsinLIAfile_from_two,    NConcats),
@@ -603,19 +603,19 @@ class FileDB:
     def normalsfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def LIAfile(self, idx, tmp) -> str:
+    def degLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["degLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthoLIAfile(self, idx, tmp) -> str:
+    def orthodegLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthosinLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -625,7 +625,7 @@ class FileDB:
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress if tmp else ''
-        return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{dir}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return self._concatLIAfile_for_all(crt, tmp)
