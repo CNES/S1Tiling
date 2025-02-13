@@ -36,7 +36,7 @@ The unique elements in this scenario are:
 - the main executable which is :program:`S1Processor`.
 
 All options go in a :ref:`request configuration file <request-config-file>`
-(e.g.  ``MyS1ToS2.cfg`` in ``workingdir``). Important options will be:
+(e.g. ``MyS1ToS2.cfg`` in ``workingdir``). Important options will be:
 
 - the time range (:ref:`first_date <DataSource.first_date>` and
   :ref:`last_date <DataSource.last_date>`),
@@ -103,7 +103,7 @@ S1Tiling will then automatically take care of:
 - obtaining the precise orbit files (EOF), if none match the request
   parameters,
 - producing, or using existing, maps of sin(LIA) for each Sentinel-2 tiles --
-  given an orbit and it direction,
+  given an orbit and its direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
 .. list-table::
@@ -149,9 +149,9 @@ S1Tiling will then automatically take care of:
 
 .. warning::
    If you wish to parallelize this scenario and dedicate a different cluster
-   node to each date -- as recommended in ":ref:`scenario.parallelize_date`"
-   scenario, you will **NEED** produce all the LIA maps beforehand.
-   Otherwise a same file may be concurrently written to from different nodes,
+   node to each date -- as recommended in “:ref:`scenario.parallelize_date`”
+   scenario, you will **NEED** to produce all the LIA maps beforehand.
+   Otherwise, a same file may be concurrently written to from different nodes,
    and it will likely end up corrupted.
 
 .. note::
@@ -164,22 +164,22 @@ S1Tiling will then automatically take care of:
 .. note::
    This scenario requires to configure either ``cop_dataspace`` data provider
    in :ref:`eodag configuration file <datasource.eodag_config>`, or to enter
-   valid EarthData credentials in your :file:`~/.netrc` file (can be overriden
+   valid EarthData credentials in your :file:`~/.netrc` file (can be overridden
    with :envvar:`$NETRC`).
 
 .. _scenario.S1LIAMap:
 
-Preproduce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Pre-produce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 While :program:`S1Processor` is able to produce the necessary LIA maps on the
 fly, it is not able to do so when parallelization is done manually over time
-ranges -- as described in ":ref:`scenario.parallelize_date`" scenario.
+ranges -- as described in “:ref:`scenario.parallelize_date`” scenario.
 
 A different program is provided to compute the LIA maps beforehand:
 :program:`S1LIAMap`. It takes the exact same parameter files as
 :program:`S1Processor`. A few options will be ignored though: calibration type,
-masking.... But the following (non obvious) options are mandatory:
+masking… But the following (non-obvious) options are mandatory:
 
 - :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
   single value shall be used
@@ -208,9 +208,9 @@ masking.... But the following (non obvious) options are mandatory:
 
 .. note::
    To run :program:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
-   as the first parameter to the docker execution (just before the the
-   request configuration file and other S1LIAMap related parameters). See
-   :ref:`Using S1LIAMap with a docker <docker.S1LIAMap>`.
+   as the first parameter to the docker execution (just before the request
+   configuration file and other S1LIAMap related parameters). See :ref:`Using
+   S1LIAMap with a docker <docker.S1LIAMap>`.
 
 
 .. _scenario.masks:
@@ -234,7 +234,7 @@ This use case concerns people that:
 - and have access to computing resources like HPC clusters
 
 In that case, S1Tiling will be much more efficient if the parallelization is
-done time-wise. We recommended to cut the full time range in smaller subranges,
+done time-wise. We recommend cutting the full time range in smaller subranges,
 and to distribute each subrange (with all S2 tiles) to a different node -- with
 jobarrays for instances.
 
@@ -251,7 +251,8 @@ jobarrays for instances.
 Use any other set of DEM inputs
 +++++++++++++++++++++++++++++++
 
-By default S1Tiling comes with a GPKG database that associates SRTM30 geometries to the SRTM tile filename.
+By default, S1Tiling comes with a GPKG database that associates SRTM30
+geometries to the SRTM tile filename.
 
 In order to use other DEM inputs, we need:
 
@@ -273,20 +274,20 @@ In order to use other DEM inputs, we need:
    |br|
    Set the :ref:`[PATHS].dem_format <paths.dem_format>` key accordingly.
    |br|
-   The default :file:`{{id}}.hgt` associates the ``id`` key to STRM 30m DEM
+   The default :file:`{{id}}.hgt` associates the ``id`` key to STRM 30 m DEM
    files.
    |br|
    Using `eotile <https://github.com/CS-SI/eotile>`_ :file:`DEM_Union.gpkg` as
    DEM database, we could instead use:
 
-   - :file:`{{Product10}}.tif`  for Copernicus 30m DEM files, using
+   - :file:`{{Product10}}.tif` for Copernicus 30 m DEM files, using
      ``Product10`` key from the GPKG file.
-   - :file:`{{Product30}}.tif`  for Copernicus 90m DEM files, using
+   - :file:`{{Product30}}.tif` for Copernicus 90 m DEM files, using
      ``Product30`` key from the GPKG file.
 
 4. Make sure to use a Geoid file compatible with the chosen DEM. For instance
    S1Tiling is shipped with EGM96 Geoid with is compatible with SRTM.
-   On the other hand, Copernicus DEM is related to EGM2008 (a.k.a EGM08)
+   On the other hand, Copernicus DEM is related to EGM2008 (a.k.a. EGM08)
 
 .. _request-config-file:
 
@@ -576,7 +577,7 @@ You can use this :download:`this template
     - Nodata value to use in :ref:`IA files <ia-files>`
 
   * - ``nodata.LIA``
-    - Nodata value to use in :ref:`LIA files <lia-files>`
+    - No-data value to use in :ref:`LIA files <lia-files>`
 
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``
@@ -606,7 +607,7 @@ You can use this :download:`this template
 
       Default value is set to nearest neighbor interpolation (nn) to keep compatibilty with previous results
       By the way linear method could be more interesting.
-      Note that the bco method is not currently supported
+      Note that the bco method is not currently supported.
 
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
@@ -650,7 +651,7 @@ You can use this :download:`this template
 
       .. note::
         For optimal performances, ``nb_parallel_processes*nb_otb_threads``
-        should be <= to the number of cores on the machine.
+        should be ≤ to the number of cores on the machine.
 
       .. _Processing.ram_per_process:
   * - ``ram_per_process``
@@ -662,7 +663,7 @@ You can use this :download:`this template
 
       .. note::
         For optimal performances, ``nb_parallel_processes*nb_otb_threads``
-        should be <= to the number of cores on the machine.
+        should be ≤ to the number of cores on the machine.
 
       .. _Processing.produce_lia_map:
   * - ``produce_ia_map``, ``produce_lia_map``
@@ -676,7 +677,7 @@ You can use this :download:`this template
 
       .. note::
         This option will be ignored when no LIA sine map is required. The LIA
-        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>` ,
+        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>`,
         or when :ref:`calibration mode <Processing.calibration>` is
         ``"normlim"``.
 
@@ -1049,7 +1050,7 @@ Working on clusters
 
 .. todo::
 
-  By default S1Tiling works on single machines. Internally it relies on
+  By default, S1Tiling works on single machines. Internally it relies on
   :py:class:`distributed.LocalCluster` a small adaptation would be required to
   work on a multi-nodes cluster.
 
@@ -1090,7 +1091,7 @@ The following exit code are produced when :program:`S1Processor` returns:
       timeout, the associated S2 products will not be generated and this exit
       code will be used. See the log produced.
 
-      If more critical errors occur, this exit will be superceded.
+      If more critical errors occur, this exit will be superseded.
   * - 69
     - .. todo::
 
@@ -1122,11 +1123,11 @@ The following exit code are produced when :program:`S1Processor` returns:
       :ref:`requested Sentinel-2 tiles <DataSource.roi_by_tiles>`. See the log
       produced.
   * - 76
-    - :ref:`Geoid file <paths.geoid_file>` is missing or the specified path is
+    - :ref:`Geoid file <paths.geoid_file>` is missing, or the specified path is
       incorrect. See the log produced.
   * - 77
     - Some processing cannot be done because external applications cannot
-      be executed. Likelly OTB and/or NORMLIM related applications aren't
+      be executed. Likely OTB and/or NORMLIM related applications aren't
       correctly installed.
       See the log produced.
 

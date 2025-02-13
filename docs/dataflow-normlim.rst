@@ -18,7 +18,7 @@ Two data flows are possibles:
 - with :program:`S1Processor` LIA maps are produced if not found, then
   :math:`σ^0_{RTC}` NORMLIM orthorectified files are produced.
 
-NormLim global processing
+Normlim global processing
 -------------------------
 
 The following processing is the new default processing from S1Tiling v1.2.
@@ -38,20 +38,20 @@ For each S2 tile,
    <paths.eof_dir>`.
 
 3. Then, it makes sure the :ref:`associated sine LIA map <lia-files>`
-   exists (all scenarios),
+   exists (all scenarios), it:
 
-   1. It :ref:`prepares a VRT <prepare_VRT_s2-proc>` of the DEM files that
-      cover the S2 image.
-   2. It :ref:`projects DEM information <project_dem_to_s2-proc>` (from
-      the VRT) on the S2 geometry.
-   3. It :ref:`project GEOID information <project_geoid_to_s2-proc>` on
-      the S2 geometry.
-   4. It :ref:`sums both elevation information
-      <sum_dem_geoid_on_s2-proc>` on the S2 geometry.
-   5. It produces a `image` of ECEF coordinates for the ground points and their
-      associated satellite positions in the S2 geometry.
-   6. It :ref:`computes the normal <compute_normals-proc>` of each ground point.
-   7. It :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point.
+   1. :ref:`prepares a VRT <prepare_VRT_s2-proc>` of the DEM files that
+      cover the S2 image,
+   2. :ref:`projects DEM information <project_dem_to_s2-proc>` (from
+      the VRT) on the S2 geometry,
+   3. :ref:`project GEOID information <project_geoid_to_s2-proc>` on
+      the S2 geometry,
+   4. :ref:`sums both elevation information
+      <sum_dem_geoid_on_s2-proc>` on the S2 geometry,
+   5. produces a `image` of ECEF coordinates for the ground points and their
+      associated satellite positions in the S2 geometry,
+   6. :ref:`computes the normal <compute_normals-proc>` of each ground point,
+   7. :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point.
 
 3. Then, for each polarisation (S1Processor scenario only),
 
@@ -147,7 +147,6 @@ LIA specific processings
          nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", fillcolor=lightblue];
          nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", fillcolor=lightblue];
 
-
          vrt_nwb       -> DEM_on_S2;
          DEM_on_S2     -> heights_on_S2;
 
@@ -202,11 +201,11 @@ matching the platform and within the requested :ref:`time range
 EOF files are downloaded with `sentineleof
 <https://github.com/scottstanie/sentineleof>`_ on Copernicus Dataspace or on
 Earthdata. See the FAQ regarding how credentials should be configured:
-":ref:`faq.eof`".
+“:ref:`faq.eof`”.
 
 Downloaded files are stored into the directory specified by
-:ref:`[Paths].eof_dir <Paths.eof_dir>` option. If the directory doesn't
-exist, it's created on the fly.
+:ref:`[Paths].eof_dir <Paths.eof_dir>` option. If the directory doesn't exist,
+it's created on the fly.
 
 .. _prepare_VRT_s2-proc:
 .. index:: Agglomerate DEMs over S2 tile
@@ -286,8 +285,8 @@ Compute ECEF ground and satellite positions on S2
                  <Applications/app_SARDEMProjection>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
-This steps computes the ground positions of the pixels in the S2 geometry, and
-searches their associated zero dopplers to also issue the coordinates of the
+This step computes the ground positions of the pixels in the S2 geometry, and
+searches their associated zero doppler to also issue the coordinates of the
 SAR sensor.
 
 All coordinates are stored in `ECEF
@@ -314,8 +313,7 @@ Normals computation
                  :class:`s1tiling.libs.otbwrappers.ComputeNormalsOnS1` in the
                  deprecated workflow)
 
-This step computes the normal vectors to the ground, in the original
-:ref:`input S1 image <paths.s1_images>` geometry.
+This step computes the normal vectors to the ground, in the MGRS S2 geometry.
 
 
 .. _compute_lia-proc:
@@ -346,8 +344,8 @@ LIA maps computation
                  deprecated workflow)
 
 It computes the :ref:`Local Incidence Angle map, and sine LIA map
-<lia-s1-files>` between the between the ground normal projected in range plane
-:math:`\overrightarrow{n}` (plane defined by S, T, and Earth's center) and
+<lia-s1-files>` between the ground normal projected in range plane
+:math:`\overrightarrow{n}` (plane defined by S, T, and Earth's centre) and
 :math:`\overrightarrow{TS}` -- where T is the target point on Earth's surface,
 and S the SAR sensor position.
 
@@ -370,7 +368,7 @@ This final step multiplies the sine LIA map (in S2 grid geometry) with β0
 calibrated files orthorectified on the S2 grid.
 
 
-NormLim deprecated global processing
+Normlim deprecated global processing
 ------------------------------------
 
 The following processing was the one supported in v1.0 of S1Tiling.
@@ -389,17 +387,17 @@ For each S2 tile,
 
    0. It selects a pair of :ref:`input S1 images <paths.s1_images>` that
       intersect the S2 tile,
-   1. For each :ref:`input S1 image <paths.s1_images>`
+   1. For each :ref:`input S1 image <paths.s1_images>`, It:
 
-       1. It :ref:`prepares a VRT <prepare_VRT_s1-proc>` of the DEM files that
+       1. :ref:`prepares a VRT <prepare_VRT_s1-proc>` of the DEM files that
           cover the image,
-       2. It :ref:`projects <sardemproject_s1-proc>` the coordinates of the
-          input S1 image onto the geometry of the VRT,
-       3. It :ref:`projects <sarcartesianmeanestimation>` back the cartesian
+       2. :ref:`projects <sardemproject_s1-proc>` the coordinates of the input
+          S1 image onto the geometry of the VRT,
+       3. :ref:`projects <sarcartesianmeanestimation>` back the Cartesian
           coordinates of each ground point in the origin S1 image geometry,
-       4. It :ref:`computes the normal <compute_normals-proc>` of each ground point,
-       5. It :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point,
-       6. It :ref:`orthorectifies the sine LIA map <ortho_lia-proc>` to the S2 tile
+       4. :ref:`computes the normal <compute_normals-proc>` of each ground point,
+       5. :ref:`computes the sine LIA map <compute_lia-proc>` of each ground point,
+       6. :ref:`orthorectifies the sine LIA map <ortho_lia-proc>` to the S2 tile.
 
    2. It :ref:`concatenates <concat_lia-proc>` both files into a single sine
       LIA map for the S2 tile.
@@ -606,7 +604,7 @@ Orthorectification of LIA maps
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyLIA`
 
-This steps ortho-rectifies the LIA map image(s) in S1 geometry to S2 grid.
+This steps orthorectifies the LIA map image(s) in S1 geometry to S2 grid.
 
 It uses the following parameters from the request configuration file:
 
@@ -632,7 +630,7 @@ Concatenation of LIA maps
 
 This step merges all the images of the orthorectified S1 LIA maps on a given S2
 grid. As all orthorectified images are almost exclusive, they are concatenated
-by taking the first non null pixel.
+by taking the first non-null pixel.
 
 
 .. _lia-data-caches:

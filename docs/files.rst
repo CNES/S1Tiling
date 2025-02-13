@@ -105,7 +105,7 @@ Orthorectified S2 tiles
 Mask files
 ++++++++++
 
-:Content: Binary image containing mask on valide data. It is a mask on no-data pixels.
+:Content: Binary image containing mask on valid data. It is a mask on no-data pixels.
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
 
@@ -210,7 +210,7 @@ Local Incidence Angle map files
     Given T, the target point on Earth's surface, and S the SAR sensor
     position, the LIA is the angle Θ\ :sub:`LIM` between the ground normal
     projected in range plane :math:`\overrightarrow{n}` (plane defined by S,
-    T, and Earth's center) and :math:`\overrightarrow{TS}`.
+    T, and Earth's centre) and :math:`\overrightarrow{TS}`.
 
     The values have been orthorectified on the Sentinel-2 tile from a pair of
     :ref:`LIA maps computed on S1 images <lia-s1-files>`.
@@ -401,7 +401,7 @@ DEM VRT files
 
 :Metadata: No metadata is added by S1Tiling to these files.
 
-:Cleanup: These files are cleaned automatically (since new workflow from v1.1).
+:Clean-up: These files are cleaned automatically (since new workflow from v1.1).
 
 
 .. _DEM_on_S2-files:
@@ -435,7 +435,7 @@ DEM data projected on S2 tile
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Clean-up: These files are cleaned automatically.
 
 .. _height_on_S2-files:
 
@@ -461,11 +461,11 @@ Height (DEM+Geoid) projected on S2 tile
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`DEM + GEOID height info projected on S2 tile`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 
 .. _ground_and_sat_S2-files:
@@ -478,7 +478,7 @@ files.
 
 :Content:          Six bands 64 bits float image that contains ground pixel
                    coordinates and associated sensor position coordinates
-                   expressed as XYZ cartesian pixels in `ECEF
+                   expressed as XYZ Cartesian pixels in `ECEF
                    <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
                    spatial reference.
                    The image footprint matches the associated S2 tile.
@@ -513,7 +513,7 @@ files.
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Clean-up: These files are cleaned automatically.
 
 
 Deprecated temporary files
@@ -525,7 +525,7 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the :ref:`Virtual DEM <dem-vrt-files>` geometry. Their
-          values contain the XYZ cartesian coordinates of the pixel and the
+          values contain the XYZ Cartesian coordinates of the pixel and the
           position of the matching pixel in the original Sentinel-1 image.
           This file is produced with `DiapOTB SARDEMProjection
           <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARDEMProjection>`_
@@ -539,7 +539,7 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
 
     ``fname_fmt.s1_on_dem`` = :samp:`S1_on_DEM_{{polarless_basename}}`
 
-:Product encoding: Float32 GeoTIFF, 7 bands: C (colunm into SAR image), L (line
+:Product encoding: Float32 GeoTIFF, 7 bands: C (column into SAR image), L (line
                    into SAR image), Z and Y, XCartesian, YCartesian,
                    ZCartesian.
 
@@ -576,11 +576,11 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`SARDEM projection onto DEM list`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _xyz-files:
 
@@ -588,7 +588,7 @@ Files of XYZ cartesian coordinates in S1 geometry (deprecated)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
-          values contain the XYZ cartesian coordinates of the pixel.
+          values contain the XYZ Cartesian coordinates of the pixel.
           This file is produced with `our patched version
           <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/merge_requests/1>`_
           of `DiapOTB SARCartesianMeanEstimation
@@ -624,11 +624,11 @@ Files of XYZ cartesian coordinates in S1 geometry (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Cartesian XYZ coordinates estimation`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _lia-s1-files:
 
@@ -643,7 +643,7 @@ Local Incidence Angle map files in S1 geometry (deprecated)
     Given T, the target point on Earth's surface, and S the SAR sensor
     position, the LIA is the angle Θ\ :sub:`LIM` between the ground normal
     projected in range plane :math:`\overrightarrow{n}` (plane defined by S,
-    T, and Earth's center) and :math:`\overrightarrow{TS}`.
+    T, and Earth's centre) and :math:`\overrightarrow{TS}`.
 
     Unlike the :ref:`final LIA maps in S2 geometry <lia-files>`, the LIA map is
     in the geometry of the original Sentinel-1 image used to produce it.
@@ -675,11 +675,11 @@ Local Incidence Angle map files in S1 geometry (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`LIA on Sentinel-1A IW GRD`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _lia-s2-half-files:
 
@@ -730,11 +730,11 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified LIA Sentinel-1A IW GRD`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditinned to an option.
 
 .. _ground_and_sat_S2-files_v1_1:
 
@@ -746,7 +746,7 @@ present in Sentinel-1 SAR input products.
 
 :Content:          Six bands 64 bits float image that contains ground pixel
                    coordinates and associated sensor position coordinates
-                   expressed as XYZ cartesian pixels in `ECEF
+                   expressed as XYZ Cartesian pixels in `ECEF
                    <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
                    spatial reference.
                    The image footprint matches the associated S2 tile.
@@ -789,6 +789,6 @@ present in Sentinel-1 SAR input products.
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Clean-up: These files are cleaned automatically.
 
 
