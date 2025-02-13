@@ -963,6 +963,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
                 pixel_types       .append(pixel_type_ia(cfg, ia_map, incidence_angle_kind))
                 self.__data_types .append(self._data_type_fmts[ia_map].format(IA=incidence_angle_kind))
                 image_description .append(image_description_dict[ia_map])
+                logger.debug('Registering %s %s map -> %s', incidence_angle_kind, ia_map.name, fname_fmt)
 
         register_output(fname_fmt_cos, IA_map.cos)
         register_output(fname_fmt_sin, IA_map.sin)
@@ -972,7 +973,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
 
         super().__init__(
             cfg,
-            appname='SARComputeLocalIncidenceAngle',
+            appname='SARComputeIncidenceAngle',
             name='ComputeLIA',
             param_in='in.normals',  # In-memory connected to in.normals
             param_out=params_out,

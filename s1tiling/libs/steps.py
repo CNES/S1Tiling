@@ -1210,6 +1210,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         def do_set(name: str, ptype: Optional[int]) -> None:
             if ptype is not None:
                 assert app
+                logger.debug("%s.SetParameterOutputImagePixelType(%s, %s)", self.appname, name, ptype) 
                 app.SetParameterOutputImagePixelType(name, ptype)
 
         if isinstance(self.param_out, list):
@@ -1295,7 +1296,6 @@ class OTBStepFactory(_FileProducingStepFactory):
                     del parameters[self.param_in]
                 lg_from = 'app'
 
-            self.set_output_pixel_type(app, meta)
             logger.debug(
                 'Register app: %s (from %s) %s -%s %s',
                 self.appname,
@@ -1310,6 +1310,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                 for input_param in left_over_parameters:
                     logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
                     app.AddParameterStringList(self.param_in, input_param)
+                self.set_output_pixel_type(app, meta)
             except Exception:
                 logger.exception(
                     "Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items())

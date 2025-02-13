@@ -818,6 +818,7 @@ class PipelineDescriptionSequence:
                         continue
                     expected_taskname = get_task_name(expected)
                     logger.debug('    task %s <-- from input: %s', expected_taskname, out_filename(inp))
+                    assert len(expected_taskname) > 0, f"No taskname found for {pipeline.name}({out_filename(inp)} -> {expected})"
                     logger.debug('    --> file "%s": %s', out_filename(expected), expected)
                     # TODO: Correctly handle the case where a task produce
                     # several filenames. In that case we shall have only one

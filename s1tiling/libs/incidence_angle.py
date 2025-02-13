@@ -77,7 +77,7 @@ This will replace the key `{IA_kind}` from the format string with the prefix for
 (Ellipsoid) Incidence Angle map.
 """
 def eia_map_fname_fmt(fname_fmt: str, ia_map: IA_map):
-    Utils.partial_format(fname_fmt, IA_kind=__eia_fname_fmt_prefixes[ia_map])
+    return Utils.partial_format(fname_fmt, IA_kind=__eia_fname_fmt_prefixes[ia_map])
 
 
 # ----------------------------------------[ extended_filename
