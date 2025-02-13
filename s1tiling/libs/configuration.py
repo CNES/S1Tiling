@@ -461,10 +461,10 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
 
         # - - - - - - - - - -[ IA/LIA
-        #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.produce_ia_maps] <Processing.produce_ia_maps>`
-        produce_ia_map_list_str   = accessor.get('Processing', 'produce_ia_maps', fallback='deg')
+        #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.ia_maps_to_produce] <Processing.ia_maps_to_produce>`
+        produce_ia_map_list_str   = accessor.get('Processing', 'ia_maps_to_produce', fallback='deg')
         produce_ia_map_list       = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
-        self.produce_ia_maps: List[str] = produce_ia_map_list
+        self.ia_maps_to_produce: List[str] = produce_ia_map_list
 
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
         self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
@@ -615,7 +615,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("- tiles                            : %s",     self.tile_list)
         logging.info("- tiles_shapefile                  : %s",     self.output_grid)
         logging.info("- produce LIA° map                 : %s",     self.produce_lia_map)
-        logging.info("- IA maps to produce               : %s",     self.produce_ia_maps)
+        logging.info("- IA maps to produce               : %s",     self.ia_maps_to_produce)
         logging.info("- warping method for DEM on S2     : %s",     self.dem_warp_resampling_method)
         logging.info("- superimpose interpol Geoid on S2 : %s",     self.interpolation_method)
         logging.info("[Mask]")

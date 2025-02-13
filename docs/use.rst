@@ -666,9 +666,9 @@ You can use this :download:`this template
         should be ≤ to the number of cores on the machine.
 
       .. _Processing.produce_lia_map:
-  * - ``produce_ia_map``, ``produce_lia_map``
-    - When :ref:`IA sine map <ia-files>` and :ref:`LIA sine map <lia-files>`
-      are produced, we may also desire the angle values in degrees (x100).
+  * - ``produce_lia_map``
+    - When :ref:`LIA sine map <lia-files>` are produced, we may also desire the
+      angle values in degrees (x100).
 
       Possible values are:
 
@@ -677,9 +677,20 @@ You can use this :download:`this template
 
       .. note::
         This option will be ignored when no LIA sine map is required. The LIA
-        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>`,
-        or when :ref:`calibration mode <Processing.calibration>` is
-        ``"normlim"``.
+        sine map is produced by :ref:`S1LIAMap program <scenario.S1LIAMap>`, or
+        when :ref:`calibration mode <Processing.calibration>` is ``"normlim"``.
+
+      .. _Processing.ia_maps_to_produce:
+  * - ``ia_maps_to_produce``
+    - By default, :ref:`S1IAMap program <scenario.S1IAMap>` produce a map of
+      the incidence angle to the WGS84 ellipsoid in degrees x 100. This option
+      permis to select which of the 4 :ref:`IA maps <ia-files>` will be
+      generated.
+
+      :``deg``: Map in degrees x 100
+      :``cos``: cosine map
+      :``sin``: sine map
+      :``tan``: tangent map
 
       .. _Processing.dem_warp_resampling_method:
   * - ``dem_warp_resampling_method``

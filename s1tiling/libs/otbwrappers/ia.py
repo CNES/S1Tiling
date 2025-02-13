@@ -342,7 +342,7 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
         fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
         def fname_fmt(ia_map: IA_map):
-            if ia_map.name in cfg.produce_ia_maps:
+            if ia_map.name in cfg.ia_maps_to_produce:
                 return eia_map_fname_fmt(fname_fmt0, ia_map)
             return None
         dname_fmt = dname_fmt_ia_product(cfg)
