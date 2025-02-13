@@ -50,19 +50,23 @@ class OrbitConverter:
         """
         return (absolute_orbit_number - self.offset) % self.modulo + 1
 
-    def closest_absolute(self, first_absolute: int, tgt_relative: int) -> int:
+    def closest_absolute(self, start_absolute: int, target_relative: int) -> int:
         """
-        Finds the closest absolute orbit number to ``first_absolute`` that would
+        Finds the closest absolute orbit number to ``start_absolute`` that would
         match to the ``target_relative`` number.
 
         As multiple absolute orbit numbers match a same relative orbit number, a choice must be
         made when operating the inverse conversion: we return the closest absolute orbit number
         to the requested target relative number.
         """
-        # TODO: check the cases around rel_orb == 0 // 175
-        first_relative = self.to_relative(first_absolute)
-        res = first_absolute + (tgt_relative - first_relative)
-        assert self.to_relative(res) == tgt_relative
+        start_relative = self.to_relative(start_absolute)
+        delta = target_relative - start_relative
+        if delta < 0:
+            delta += self.modulo
+        res = start_absolute + delta
+        assert res >= start_absolute
+        assert res - start_absolute < self.modulo
+        assert self.to_relative(res) == target_relative
         return res
 
 
