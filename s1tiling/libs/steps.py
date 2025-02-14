@@ -1210,7 +1210,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         def do_set(name: str, ptype: Optional[int]) -> None:
             if ptype is not None:
                 assert app
-                logger.debug("%s.SetParameterOutputImagePixelType(%s, %s)", self.appname, name, ptype) 
+                logger.debug("%s.SetParameterOutputImagePixelType(%s, %s)", self.appname, name, ptype)
                 app.SetParameterOutputImagePixelType(name, ptype)
 
         if isinstance(self.param_out, list):

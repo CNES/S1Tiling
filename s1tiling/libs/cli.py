@@ -66,6 +66,10 @@ def cli_execute(processing, *args, **kwargs) -> int:
 
 
 def cli_main(processing, *args, **kwargs) -> NoReturn:
+    """
+    Factorize code common to all S1Tiling CLI entry points (exception translation into exit
+    codes...) plus program exit
+    """
     sys.exit(
         cli_execute(processing, *args, **kwargs)
     )

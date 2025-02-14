@@ -38,7 +38,7 @@ import contextlib
 import logging
 import logging.config
 import os
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, cast
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client
@@ -315,7 +315,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     config_opt             : Union[str, Configuration],
     pipeline_builder,
     *,
-    ctx_managers           : List[Type] = [],
+    ctx_managers           : Sequence[Type] = (),
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,

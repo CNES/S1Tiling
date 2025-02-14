@@ -55,7 +55,6 @@ from ..steps           import (
     OTBStepFactory,
     ram,
 )
-from ..                import Utils
 
 
 logger = logging.getLogger('s1tiling.wrappers.ia')
@@ -324,6 +323,11 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
 
     :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
     Incidence Angle Map.
+
+    .. todo::
+
+        Detect when we only need to generate deg among "deg, cos" when cos products are already on
+        the disk
 
     Requires the following information from the configuration object:
 

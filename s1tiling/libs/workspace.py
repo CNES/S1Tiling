@@ -66,7 +66,8 @@ class DEMWorkspaceConfiguration(Protocol):
     dem_filename_format : str
     tmp_dem_dir         : str
     GeoidFile           : str
-    def register_dems_related_to_S2_tiles(self, dem: Dict[str, Dict]) -> None: pass
+    def register_dems_related_to_S2_tiles(self, dem: Dict[str, Dict]) -> None:
+        pass
 
 
 def search_dems_covering_tiles(

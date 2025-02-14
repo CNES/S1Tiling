@@ -36,12 +36,13 @@ the pipeline for LIA production needs.
 import logging
 import os
 import re
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Type
 
 from osgeo import gdal
 import otbApplication as otb
 
 from ..file_naming     import (
+    OutputFilenameGenerator,
     OutputFilenameGeneratorList,
     TemplateOutputFilenameGenerator,
 )
@@ -949,12 +950,12 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         fname_fmt_tan          : Optional[str] = None,
         fname_fmt_deg          : Optional[str] = None,
     ) -> None:
-        params_out         = []
-        fname_fmts         = []
-        extended_filenames = []
-        pixel_types        = []
-        self.__data_types  = []
-        image_description  = []
+        params_out         : List[str] = []
+        fname_fmts         : List[OutputFilenameGenerator] = []
+        extended_filenames : List[str] = []
+        pixel_types        : List      = []  # List[PixelType==int]
+        self.__data_types  : List[str] = []
+        image_description  : List[str] = []
         def register_output(fname_fmt, ia_map: IA_map):
             if fname_fmt:
                 params_out        .append(f'out.{ia_map.name}')
