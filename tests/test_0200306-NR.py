@@ -626,13 +626,13 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'xyz'             : file_db.xyzfile(idx, False),
             'nodata'          : 'nan',
             # 'nodata'          : '-32768',
-            'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.degLIAfile(idx, True),
+            'out'             : 'SARComputeIncidenceAngle|>'+file_db.degLIAfile(idx, True),
             }, None,
             {
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-1A IW GRD',
             })
 
-        application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+        application_mocker.set_expectations('SARComputeIncidenceAngle', {
             'ram'             : param_ram(2048),
             'in.normals'      : file_db.xyzfile(idx, False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
             'in.xyz'          : file_db.xyzfile(idx, False),
@@ -880,13 +880,13 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'ram'             : param_ram(2048),
         'xyz'             : exp_out_xyz_s2,
         'nodata'          : nodata_XYZ,
-        'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
+        'out'             : 'SARComputeIncidenceAngle|>'+file_db.deglia_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
     })
 
     # ComputeLIA
-    application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+    application_mocker.set_expectations('SARComputeIncidenceAngle', {
         'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
         'ram'             : param_ram(2048),
         'in.xyz'          : file_db.xyz_on_s2(False),
@@ -1003,13 +1003,13 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'ram'             : param_ram(2048),
         'xyz'             : exp_out_xyz_s2,
         'nodata'          : nodata_XYZ,
-        'out'             : 'SARComputeLocalIncidenceAngle|>'+file_db.deglia_on_s2(True),
+        'out'             : 'SARComputeIncidenceAngle|>'+file_db.deglia_on_s2(True),
     }, None, {
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
     })
 
     # ComputeLIA
-    application_mocker.set_expectations('SARComputeLocalIncidenceAngle', {
+    application_mocker.set_expectations('SARComputeIncidenceAngle', {
         'in.normals'      : file_db.xyz_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
         'ram'             : param_ram(2048),
         'in.xyz'          : file_db.xyz_on_s2(False),
