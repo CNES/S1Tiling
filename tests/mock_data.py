@@ -239,14 +239,14 @@ class FileDB:
 
     def __init__(
             self,
-            inputdir, eofdir, tmpdir, outputdir, liadir,
+            inputdir, eofdir, tmpdir, outputdir, xiadir,
             tile, demdir, geoid_file,
             dname_fmt_tiled=None,
     ) -> None:
         self.__input_dir       = inputdir
         self.__tmp_dir         = tmpdir
         self.__output_dir      = outputdir
-        self.__lia_dir         = liadir
+        self.__xia_dir         = xiadir  # LIA or (E)IA directory
         self.__eof_dir         = eofdir
         self.__tile            = tile
         self.__dem_dir         = demdir
@@ -645,10 +645,10 @@ class FileDB:
         return self._concatsinLIAfile_for_all(crt, tmp)
 
     def selectedLIAfile(self) -> str:
-        return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
-        return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def eof_for_s2(self) ->  str:
         return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
@@ -689,25 +689,21 @@ class FileDB:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def deglia_on_s2(self, tmp: bool) -> str:
+    def _xiadir_and_ext_on_s2(self, tmp: bool, default_ext: str) -> Tuple[str, str]:
         if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress
+            return f'{self.__tmp_dir}/S2', default_ext
         else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+            return f'{self.__xia_dir}', ''
+
+    def _xia_map_on_s2(self, tmp: bool, default_ext: str, map_kind: str) -> str:
+        dir, ext = self._xiadir_and_ext_on_s2(tmp, default_ext)
+        return f'{dir}/{self.FILE_FMTS[map_kind]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def deglia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "deglia_on_s2")
 
     def sinlia_on_s2(self, tmp: bool) -> str:
-        if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor
-        else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        # ext = self.extended_compress_predictor if compress else ''
-        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
-        # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinlia_on_s2")
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:
