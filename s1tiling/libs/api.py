@@ -34,10 +34,10 @@ Submodule that defines all API related functions and classes.
 """
 
 from collections.abc import Callable
+import contextlib
 import logging
 import logging.config
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 
 from distributed.scheduler import KilledWorker
@@ -104,7 +104,7 @@ from .outcome     import Outcome
 from .orbit       import EOFFileManager
 from .utils.dask  import DaskContext
 from .utils       import eodag
-from .utils.layer import check_dem_coverage, filter_existing_tiles
+from .utils.layer import filter_existing_tiles
 from .utils.timer import timethis
 
 
@@ -143,63 +143,6 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1Fil
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
-
-
-def search_dems_covering_tiles(
-        tiles_to_process: List[str],
-        cfg             : Configuration
-) -> Tuple[Dict, Dict[str, Dict]]:
-    """
-    Search the DEM tiles required to process the tiles to process.
-    """
-    needed_dem_tiles = {}
-
-    # Analyse DEM coverage for MGRS tiles to be processed
-    dem_tiles_check = check_dem_coverage(
-            cfg.output_grid,
-            cfg.dem_db_filepath,
-            tiles_to_process,
-            cfg.dem_field_ids,
-            cfg.dem_main_field_id,
-    )
-
-    # For each MGRS tile to process
-    for tile in tiles_to_process:
-        logger.info("Check DEM coverage for %s", tile)
-        # Get DEM tiles coverage statistics
-        dem_tiles = dem_tiles_check[tile]
-        current_coverage = 0
-        # Compute global coverage
-        for _, dem_info in dem_tiles.items():
-            current_coverage += dem_info['_coverage']
-        needed_dem_tiles.update(dem_tiles)
-        # If DEM coverage of MGRS tile is enough, process it
-        # Round coverage at 3 digits as tile footprint has a very limited precision
-        current_coverage = round(current_coverage, 3)
-        if current_coverage < 1.:
-            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
-                    tile, 100 * current_coverage)
-        else:
-            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
-
-    # Remove duplicates
-    return needed_dem_tiles, dem_tiles_check
-
-
-def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
-    """
-    Check the DEM tiles exist on disk.
-    """
-    fmt = cfg.dem_filename_format
-    res = True
-    for _, dem_tile_info in dem_tile_infos.items():
-        dem_filename = fmt.format_map(dem_tile_info)
-        tile_path_hgt = Path(cfg.dem, dem_filename)
-        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
-        if not tile_path_hgt.exists():
-            res = False
-            logger.critical("%s is missing!", tile_path_hgt)
-    return res
 
 
 def _how2str(how: Union[Tuple, AbstractStep]) -> str:
@@ -372,6 +315,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     config_opt             : Union[str, Configuration],
     pipeline_builder,
     *,
+    ctx_managers           : List[Type] = [],
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -412,22 +356,14 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     if nb_tiles == 0:
         raise exceptions.NoS2TileError()
 
-    needed_dem_tiles, dems_by_s2_tiles = search_dems_covering_tiles(tiles_to_process, config)
-
-    logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
-
-    if not check_dem_tiles(config, needed_dem_tiles):
-        raise exceptions.MissingDEMError()
-
     # Prepare directories where to store temporary files
     # These directories won't be cleaned up automatically
     S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
     os.makedirs(S1_tmp_dir, exist_ok=True)
 
-    with DEMWorkspace(config) as dem_workspace:
-        config.tmp_dem_dir = dem_workspace.tmpdemdir(
-                needed_dem_tiles, config.dem_filename_format,
-                config.GeoidFile)
+    with contextlib.ExitStack() as context:
+        for cm in ctx_managers:
+            context.enter_context(cm(config, tiles_to_process))
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
@@ -438,8 +374,6 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                 dryrun=dryrun,
                 # tile_name will be done in process_one_tile
         )
-
-        config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
@@ -950,6 +884,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -1031,6 +966,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -1112,6 +1048,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -1188,6 +1125,7 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
