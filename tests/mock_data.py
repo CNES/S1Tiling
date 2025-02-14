@@ -54,6 +54,7 @@ class FileDB:
             'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
+            # Local Incidence Angle
             'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
             'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
@@ -74,6 +75,13 @@ class FileDB:
             'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
             # 'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
             # 'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+
+            # Ellipsoid Incidence Angle
+            'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
+            'degia_on_s2'         : 'IA_s1a_{tile}_007{tmp}.tif',
+            'cosia_on_s2'         : 'cos_IA_s1a_{tile}_007{tmp}.tif',
+            'sinia_on_s2'         : 'sin_IA_s1a_{tile}_007{tmp}.tif',
+            'tania_on_s2'         : 'tan_IA_s1a_{tile}_007{tmp}.tif',
     }
     FILES = [
             # 08 jan 2020
@@ -306,6 +314,12 @@ class FileDB:
                 (self.normals_on_s2,                NConcats),
                 (self.deglia_on_s2,                 NConcats),
                 (self.sinlia_on_s2,                 NConcats),
+
+                (self.xyz_ellipsoid_on_s2,          NConcats),
+                (self.degia_on_s2,                  NConcats),
+                (self.cosia_on_s2,                  NConcats),
+                (self.sinia_on_s2,                  NConcats),
+                (self.tania_on_s2,                  NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -689,6 +703,10 @@ class FileDB:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
+    def xyz_ellipsoid_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["xyz_ellipsoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
     def _xiadir_and_ext_on_s2(self, tmp: bool, default_ext: str) -> Tuple[str, str]:
         if tmp:
             return f'{self.__tmp_dir}/S2', default_ext
@@ -704,6 +722,18 @@ class FileDB:
 
     def sinlia_on_s2(self, tmp: bool) -> str:
         return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinlia_on_s2")
+
+    def degia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "degia_on_s2")
+
+    def cosia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "cosia_on_s2")
+
+    def sinia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinia_on_s2")
+
+    def tania_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "tania_on_s2")
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

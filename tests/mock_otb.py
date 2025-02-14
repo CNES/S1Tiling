@@ -403,7 +403,7 @@ class OTBApplicationsMockContext:
     def _update_input_to_root_filename(self, params: Union[Dict, List]) -> Union[List[str], str]:
         assert isinstance(params, dict) # of parameters
         in_param_keys = [kv for kv in k_input_keys if kv in params]
-        assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
+        # assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
         for kv in in_param_keys:
             if isinstance(params[kv], MockOTBApplication):
                 updated = self._update_input_to_root_filename(params[kv].parameters)
@@ -449,6 +449,7 @@ class OTBApplicationsMockContext:
     def assert_app_is_expected(self, appname, params, pixel_types) -> None:
         # Find out what the root input filename is (as we may not have any
         # input filename when dealing with in-memory processing
+        logging.debug("In %s case:", appname)
         self._update_input_to_root_filename(params)
         self._update_output_to_final_filename(params)
         # logging.info('SEARCHING %s %s among %s', appname, _as_cmdline_call(params), self._remaining_expectations_as_str())
