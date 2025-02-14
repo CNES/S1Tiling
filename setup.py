@@ -141,7 +141,7 @@ setup(
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
@@ -168,8 +168,8 @@ setup(
     entry_points = {
         'console_scripts': [
             'S1Processor = s1tiling.S1Processor:run',
-            'S1LIAMap    = s1tiling.S1Processor:run_lia',
-            'S1IAMap     = s1tiling.S1Processor:run_ia',
+            'S1LIAMap    = s1tiling.S1LIAMap:run_lia',
+            'S1IAMap     = s1tiling.S1IAMap:run_ia',
         ],
     },
 )
