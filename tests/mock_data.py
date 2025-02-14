@@ -34,7 +34,7 @@ import re
 from typing import Callable, Dict, List, Union, Tuple
 import os
 
-from shapely.geometry.base import np
+import numpy as np
 
 from s1tiling.libs.otbtools import otb_version
 
