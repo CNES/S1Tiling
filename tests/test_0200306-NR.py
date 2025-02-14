@@ -47,7 +47,7 @@ from s1tiling.libs.outcome import DownloadOutcome
 from .helpers      import otb_compare, comparable_metadata
 from .mock_otb     import OTBApplicationsMockContext
 from .mock_data    import FileDB
-from .mock_helpers import declare_know_files
+from .mock_helpers import declare_know_files, remove_dirs
 # import s1tiling.S1Processor
 import s1tiling.libs.configuration
 from s1tiling.libs.api         import s1_process, s1_process_lia_v0, register_LIA_pipelines_v0, s1_process_lia_v1_1, s1_process_lia_v1_2
