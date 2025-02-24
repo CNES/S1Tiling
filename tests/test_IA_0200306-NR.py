@@ -153,7 +153,7 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'EOF_FILE'                   : os.path.basename(file_db.eof_for_s2()),
         'FLYING_UNIT_CODE'           : 's1a',
         'IMAGE_TYPE'                 : 'XYZ',
-        'TIFFTAG_IMAGEDESCRIPTION'   : 'XYZ ellipsoid and satellite positions on S2 tile',
+        'TIFFTAG_IMAGEDESCRIPTION'   : 'XYZ surface and satellite positions on S2 tile on ellipsoid',
         'ORTHORECTIFIED'             : 'true',
         'RELATIVE_ORBIT_NUMBER'      : '{:0>3d}'.format(file_db.relorb_for_s2()),
     })
@@ -172,7 +172,6 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'outputs.uly'     : 200040.0000009411,
         'out'             : 'SARComputeIncidenceAngle|>'+file_db.degia_on_s2(True),
     }, None, {
-        'FLYING_UNIT_CODE'           : 's1a',
         'IMAGE_TYPE'                 : 'Normals',
         'ORTHORECTIFIED'             : 'true',
         'S2_TILE_CORRESPONDING_CODE' : '33NWB',
@@ -180,9 +179,9 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'TIFFTAG_IMAGEDESCRIPTION' : 'Image normals on Sentinel-{flying_unit_code_short} IW GRD',
     })
 
-    # ComputeLIA
+    # ComputeIA
     application_mocker.set_expectations('SARComputeIncidenceAngle', {
-        'in.normals'      : file_db.xyz_ellipsoid_on_s2(False)+'|>ExtractNormalVector', #'ComputeNormals|>'+file_db.normalsfile(idx),
+        'in.normals'      : 'Ø|>ExtractNormalVectorToEllipsoid', #'ComputeNormals|>'+file_db.normalsfile(idx),
         'ram'             : param_ram(2048),
         'in.xyz'          : file_db.xyz_ellipsoid_on_s2(False),
         'nodata'          : nodata_IA,
@@ -190,6 +189,7 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'out.deg'         : file_db.degia_on_s2(True),
     }, {'out.deg': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(IA)', '100 * degrees(IA)'],
+        # 'FLYING_UNIT_CODE'         : 's1a',
         'IMAGE_TYPE'               : 'IA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(IA) on S2 grid', '100 * degrees(IA) on S2 grid'],
     })
