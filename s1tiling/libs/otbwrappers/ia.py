@@ -100,7 +100,7 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            image_description="XYZ ground and satellite positions on S2 tile on ellipsoid",
+            image_description="XYZ surface and satellite positions on S2 tile on ellipsoid",
         )
         self.__nodata          = nodata_XYZ(cfg)
         self.__out_spatial_res = cfg.out_spatial_res
