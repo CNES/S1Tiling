@@ -13,7 +13,7 @@ S1Tiling API
 
 This section is intended for people who want to directly call S1Tiling code
 from their project instead of using the external programs
-:program:`S1Processor` and :program:`S1LIAMap`.
+:ref:`S1Processor` and :ref:`S1LIAMap`.
 
 
 .. contents:: Contents:

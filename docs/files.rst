@@ -349,10 +349,11 @@ Cut and calibrated S1 images ready for orthorectification
    orthorectified for producing several intersecting S2 tiles.
 
 .. note::
-   These temporary files will be produced only if :program:`S1Processor` is
-   executed with ``--cache-before-ortho`` option.  In that case, the processing
-   will no longer be done in memory and orthoready files will be produced.
-   You would also have to explicitly clean these temporary files.
+   These temporary files will be produced only if :ref:`S1Processor` is
+   executed with :option:`--cache-before-ortho <S1Processor
+   --cache-before-ortho>` option.  In that case, the processing will no longer
+   be done in memory and orthoready files will be produced.  You would also
+   have to explicitly clean these temporary files.
 
 .. _orthorectified-files:
 

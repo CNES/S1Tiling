@@ -355,7 +355,7 @@ they could be reused later on or not.
 Downloaded S1 files
 +++++++++++++++++++
 
-S1 files are downloaded in :ref:`[Paths].s1_images <Paths.s1_images>`.
+S1 files are downloaded in :ref:`[Paths].s1_images <Paths.s1_images>`
 directory. Whenever there are more than 1000 S1 products in that directory,
 only the 1000 most recent are kept. The oldest ones are automatically removed.
 
@@ -368,10 +368,10 @@ OrthoRectification is done on images cut, and calibrated. A same cut and
 calibrated Sentinel-1 image can be orthorectified onto different Sentinel-2
 tiles.
 
-This means it could be interresting to cache these intermediary products as
-files. Yet, this is not the default behaviour. Indeed at this time, S1-Tiling
+This means it could be interesting to cache these intermediary products as
+files. Yet, this is not the default behaviour. Indeed, at this time S1-Tiling
 cannot know when an "OrthoReady" file is no longer required, nor organize the
-processing of S1 images to help deleting those temporary files as soon as
+processing of S1 images to help to delete those temporary files as soon as
 possible. In other words, it's up to you to clean these temporary files, and to
 make sure to not request too many S2 tiles on long time ranges.
 
@@ -382,12 +382,12 @@ tile does not calibrate the whole S1 image, but only the minimal region
 overlapped by the S2 tile.
 
 
-.. note:: Unless you execute :program:`S1Processor` with
-   ``--cache-before-ortho``, cutting, calibration and orthorectification are
-   chained in memory.
+.. note:: Unless you execute :ref:`S1Processor` with
+   :option:`--cache-before-ortho <S1Processor --cache-before-ortho>`, cutting,
+   calibration and orthorectification are chained in memory.
 
 
-.. warning:: When executed with ``--cache-before-ortho``, :ref:`Cut and
-   calibrated (aka "OrthoReady") files <orthoready-files>` are stored in
-   :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
-   Do not forget to regularly clean up this space.
+.. warning:: When executed with :option:`--cache-before-ortho <S1Processor
+   --cache-before-ortho>`, :ref:`Cut and calibrated (aka "OrthoReady") files
+   <orthoready-files>` are stored in :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
+   directory.  Do not forget to regularly clean up this space.

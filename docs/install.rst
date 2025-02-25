@@ -239,7 +239,7 @@ or even directly used with
 Using S1LIAMap with a docker
 ++++++++++++++++++++++++++++
 
-It's also possible to run :program:`S1LIAMap` in the docker -- see :ref:`LIA
+It's also possible to run :ref:`S1LIAMap` in the docker -- see :ref:`LIA
 Map production scenario <scenario.S1LIAMap>`. In order to do that, pass
 ``--lia`` as the first parameter to the docker *entry point*.
 

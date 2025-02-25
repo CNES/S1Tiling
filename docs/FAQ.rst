@@ -72,7 +72,8 @@ default timeout value thanks to:
 - or the configuration option :samp:`{{provider}}.search.timeout`.
 
 In case you have to cope with an earlier version of EODAG, you can still run
-:program:`S1Processor` with :option:`--nb_max_search_retries`.
+:ref:`S1Processor` with :option:`--nb_max_search_retries <S1Processor
+--nb_max_search_retries>`.
 
 
 .. _FAQ.EOF:

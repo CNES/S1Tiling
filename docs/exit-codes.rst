@@ -3,8 +3,8 @@
 Process return code
 -------------------
 
-The following exit code are produced when :program:`S1Processor`,
-:program:`S1LIAMap` or :program:`S1IAMap` returns:
+The following exit code are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
+or :ref:`S1IAMap` returns:
 
 .. list-table::
   :widths: auto
@@ -34,7 +34,8 @@ The following exit code are produced when :program:`S1Processor`,
   * - 70
     - .. todo::
 
-        Cache disk full (when using option ``--cache-before-ortho``)
+        Cache disk full (when using option :option:`--cache-before-ortho
+        <S1Processor --cache-before-ortho>`)
   * - 71
     - An empty data safe has been found and needs to be removed so it can be
       fetched again. See the log produced.

@@ -14,8 +14,8 @@ Configuration
 Request Configuration file
 --------------------------
 
-The request configuration file passed to ``S1Processor`` is in ``.ini`` format.
-It is expected to contain the following entries.
+The request configuration file passed to :ref:`S1Processor` is in ``.ini``
+format.  It is expected to contain the following entries.
 
 You can use this :download:`this template
 <../s1tiling/resources/S1Processor.cfg>`, as a starting point.

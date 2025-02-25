@@ -26,7 +26,7 @@ The unique elements in this scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that must be
   either one of ``beta``, ``sigma`` or ``gamma``
-- the main executable which is :program:`S1Processor`.
+- the main executable which is :ref:`S1Processor`.
 
 All options go in a :ref:`request configuration file <request-config-file>`
 (e.g. ``MyS1ToS2.cfg`` in ``workingdir``). Important options will be:
@@ -165,13 +165,13 @@ S1Tiling will then automatically take care of:
 Pre-produce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-While :program:`S1Processor` is able to produce the necessary LIA maps on the
+While :ref:`S1Processor` is able to produce the necessary LIA maps on the
 fly, it is not able to do so when parallelization is done manually over time
 ranges -- as described in “:ref:`scenario.parallelize_date`” scenario.
 
 A different program is provided to compute the LIA maps beforehand:
-:program:`S1LIAMap`. It takes the exact same parameter files as
-:program:`S1Processor`. A few options will be ignored though: calibration type,
+:ref:`S1LIAMap`. It takes the exact same parameter files as
+:ref:`S1Processor`. A few options will be ignored though: calibration type,
 masking… But the following (non-obvious) options are mandatory:
 
 - :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
@@ -200,7 +200,7 @@ masking… But the following (non-obvious) options are mandatory:
    cluster.
 
 .. note::
-   To run :program:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
+   To run :ref:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
    as the first parameter to the docker execution (just before the request
    configuration file and other S1LIAMap related parameters). See :ref:`Using
    S1LIAMap with a docker <docker.S1LIAMap>`.
@@ -211,7 +211,7 @@ masking… But the following (non-obvious) options are mandatory:
 Generate masks on final products
 ++++++++++++++++++++++++++++++++
 
-Pixel masks of valid data can be produced in all :program:`S1Processor`
+Pixel masks of valid data can be produced in all :ref:`S1Processor`
 scenarios when the option :ref:`generate_border_mask
 <Mask.generate_border_mask>` is ``True``.
 

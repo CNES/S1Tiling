@@ -136,6 +136,7 @@ setup(
             "sphinx~=7.1",
             "sphinx_rtd_theme~=1.3.0",
             "sphinx-carousel",
+            "sphinx-click",
         ],
     },
 
