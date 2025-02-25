@@ -73,7 +73,7 @@ Compute ECEF Ellipsoid surface and satellite positions on S2
 
 :Inputs:         A :ref:`matching EOF file <downloading_eof>`
 :Output:         :ref:`ECEF WGS84 ellipsoid surface and satellite positions
-                 <ellipsoid_and_sat_s2-files>` on the S2 tile.
+                 <wgs84_surface_and_sat_s2-files>` on the S2 tile.
 :OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnEllipsoid
                  <Applications/app_SARComputeGroundAndSatPositionsOnEllipsoid>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid`
