@@ -17,6 +17,10 @@ Request Configuration file
 The request configuration file passed to :ref:`S1Processor` is in ``.ini``
 format.  It is expected to contain the following entries.
 
+.. note::
+   :ref:`S1LIAMap` and :ref:`S1IAMap` work with a subset of the following
+   configuration keys. Unsupported keys will simply be ignored.
+
 You can use this :download:`this template
 <../s1tiling/resources/S1Processor.cfg>`, as a starting point.
 
@@ -39,7 +43,7 @@ You can use this :download:`this template
       <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
-      that directory -- the 1000 last that have been downloaded.
+      that directory -- the 1000 last products that have been downloaded.
       |br|
       This enables to cache downloaded S1 images in beteen runs.
 
@@ -133,8 +137,8 @@ You can use this :download:`this template
       See `EODAG § on Configure EODAG
       <https://eodag.readthedocs.io/en/latest/getting_started_guide/configure.html>`_
 
-      For instance, given a PEPS account, :file:`$HOME/.config/eodag/eodag.yml` could
-      contain
+      For instance, given a PEPS account, :file:`$HOME/.config/eodag/eodag.yml`
+      could contain
 
       .. code-block:: yaml
 
@@ -150,15 +154,15 @@ You can use this :download:`this template
 
       .. warning::
 
-          Don't abuse this setting as the data provider may not support too many
-          parallel requests.
+          Don't abuse this setting as the data provider may not support too
+          many parallel requests.
 
       .. _DataSource.roi_by_tiles:
   * - ``roi_by_tiles``
-    - The Region of Interest (ROI) for downloading is specified in roi_by_tiles
-      which will contain a list of MGRS tiles. If ``ALL`` is specified, the
-      software will download all images needed for the processing (see
-      :ref:`Processing`)
+    - The Region of Interest (ROI) for downloading is specified in
+      ``roi_by_tiles`` which will contain a list of MGRS tile names. If ``ALL``
+      is specified, the software will download all images needed for the
+      processing (see :ref:`Processing`)
 
       .. code-block:: ini
 
@@ -172,7 +176,7 @@ You can use this :download:`this template
       Valid values are ``S1A`` or ``S1B``.
 
       .. warning::
-        A single value is expected in NORMLIM scenarios.
+        A single value is expected in :ref:`NORMLIM scenarios <scenarios>`.
 
       .. _DataSource.polarisation:
   * - ``polarisation``
@@ -203,7 +207,8 @@ You can use this :download:`this template
         :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
         considered as exclusive.
       .. warning::
-        A single value is expected in NORMLIM scenarios.
+        A single value is expected in :ref:`NORMLIM and Ellipsoid Incide Angle
+        scenarios <scenarios>`.
 
       .. _DataSource.first_date:
   * - ``first_date``
@@ -236,7 +241,7 @@ You can use this :download:`this template
       .. _Mask.generate_border_mask:
   * - ``generate_border_mask``
     - This option allows you to choose if you want to generate border masks of
-      the S2 image file produced. Values are ``True`` or ``False``.
+      the S2 image files produced. Values are ``True`` or ``False``.
 
 
 .. _Processing:
@@ -277,12 +282,13 @@ You can use this :download:`this template
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
-    - Activate the thermal noise removal in the images. Values are ``True`` or ``False``.
+    - Activate the thermal noise removal in the images. Values are ``True`` or
+      ``False``.
 
       .. _Processing.lower_signal_value:
   * - ``lower_signal_value``
     - Noise removal may set some pixel values to 0.
-      However, 0, is currently reserved by S1Tiling chain as a "nodata" value
+      However, 0, is currently reserved by S1Tiling chain as a "no-data" value
       introduced by :ref:`Margin Cutting<cutting-proc>` and
       :ref:`Orthorectification <orthorectification-proc>`.
 
@@ -292,7 +298,7 @@ You can use this :download:`this template
 
       .. _Processing.nodata:
   * - ``nodata.IA``
-    - Nodata value to use in :ref:`IA files <ia-files>`
+    - No-data value to use in :ref:`IA files <ia-files>`
 
   * - ``nodata.LIA``
     - No-data value to use in :ref:`LIA files <lia-files>`
@@ -310,21 +316,22 @@ You can use this :download:`this template
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
     - Grid spacing (in meters) for the interpolator in the orthorectification
-      process for more information, please consult the `OTB OrthoRectification
+      process. For more information, please consult the `OTB OrthoRectification
       application
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
-      A nice value is 4 x output_spatial_resolution
+      A nice value is ``4 x output_spatial_resolution``
 
       .. _Processing.orthorectification_interpolation_method:
   * - ``orthorectification_interpolation_method``
-    - Interpolation method used in the orthorectification process
-      for more information, please consult the `OTB OrthoRectification
+    - Interpolation method used in the orthorectification process.
+      For more information, please consult the `OTB OrthoRectification
       application
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
-      Default value is set to nearest neighbor interpolation (nn) to keep compatibilty with previous results
-      By the way linear method could be more interesting.
+      Default value is set to nearest neighbor interpolation (``nn``) to keep
+      compatibilty with previous results ; Linear method could be more
+      interesting.
       Note that the bco method is not currently supported.
 
       .. _Processing.tiles:
@@ -336,9 +343,9 @@ You can use this :download:`this template
 
         .. code-block:: ini
 
-            tiles: 33NWB,33NWC
+            tiles: 33NWB, 33NWC
 
-      * tiles_list_in_file: tile list in a ASCII file. Ex:
+      * ``tiles_list_in_file``: tile list in a ASCII file. Ex:
 
         .. code-block:: ini
 
@@ -405,7 +412,7 @@ You can use this :download:`this template
       permis to select which of the 4 :ref:`IA maps <ia-files>` will be
       generated.
 
-      :``deg``: Map in degrees x 100
+      :``deg``: map in degrees x 100
       :``cos``: cosine map
       :``sin``: sine map
       :``tan``: tangent map
@@ -495,7 +502,7 @@ You can use this :download:`this template
           - S1/S2
 
         * - IA_kind
-          - ``IA``/``sin_IA``
+          - ``IA``/``cos_IA``/``sin_IA``/``tan_IA``
           - S2
 
         * - LIA_kind
@@ -542,7 +549,7 @@ You can use this :download:`this template
 
       .. _Processing.fname_fmt.ia_product:
   * - ``fname_fmt.ia_product``
-    - File format pattern for IA and sin(IA) files
+    - File format pattern for IA cos(IA), sin(IA) and tan(IA) files
 
       Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
 
@@ -609,7 +616,7 @@ You can use this :download:`this template
           - :samp:`{{out_dir}}/{{tile_name}}`
 
             .. _Processing.dname_fmt.ia_product:
-        * - :ref:`degree(IA) and sin(IA) <ia-files>`
+        * - :ref:`degree(IA), cos(IA), sin(IA) and tan(IA) <ia-files>`
           - ``.ia_product``
           - :samp:`{{ia_dir}}`
 
@@ -660,9 +667,19 @@ You can use this :download:`this template
           - ``.ia_deg``
           - ``uint16 COMPRESS=DEFLATE&gdal``
 
+            .. _Procescosg.creation_options.ia_cos:
+        * - :ref:`cos(IA) <ia-files>`
+          - ``.ia_cos``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
             .. _Processing.creation_options.ia_sin:
         * - :ref:`sin(IA) <ia-files>`
           - ``.ia_sin``
+          - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Procestang.creation_options.ia_tan:
+        * - :ref:`tan(IA) <ia-files>`
+          - ``.ia_tan``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
             .. _Processing.creation_options.lia_deg:
@@ -693,16 +710,16 @@ You can use this :download:`this template
 
       .. _Filtering.filter:
   * - ``filter``
-    - If ``none`` or empty, then no filtering is done. Otherwise the following
-      spatial speckling filter methods from :external:doc:`OTB Despeckle application
-      <Applications/app_Despeckle>` are supported: ``Lee``, ``Frost``,
-      ``Gammamap``, ``Kuan``.
+    - The following spatial speckling filter methods from :external:doc:`OTB
+      Despeckle application <Applications/app_Despeckle>` are supported:
+      ``Lee``, ``Frost``, ``Gammamap``, ``Kuan``. If ``none`` or empty, then
+      no filtering is done.
 
       .. _Filtering.window_radius:
   * - ``window_radius``
     - Sets the window radius for the spatial filtering. |br|
-      Take care that it is a radius, i.e. radius=1 means the filter does an 3x3
-      pixels averaging.
+      Be cautious: this does expect a radius, i.e. radius=1 means the filter
+      does an 3x3 pixels averaging.
 
       .. _Filtering.deramp:
   * - ``deramp``
