@@ -16,10 +16,10 @@ Scenarios
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-This is the main scenario where pairs of Sentinel-1 images are:
+In this scenario pairs of Sentinel-1 images are:
 
 - calibrated according to β\ :sup:`0`, γ\ :sup:`0` or σ\ :sup:`0` calibration
-- then orthorectified onto the Sentinel-2 grid,
+- then orthorectified onto MGRS Sentinel-2 grid,
 - to be finally concatenated.
 
 The unique elements in this scenario are:
@@ -63,21 +63,20 @@ Eventually,
 Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In this scenario, the calibration applied is the :math:`σ^0_{RTC}` NORMLIM
-calibration described in [Small2011]_.
+This scenario is a variation of the :ref:`previous one <scenario.S1Processor>`.
+The difference lies in the calibration applied: it is the :math:`σ^0_{RTC}`
+NORMLIM calibration described in [Small2011]_.
 
 .. [Small2011] D. Small, "Flattening Gamma: Radiometric Terrain Correction for
    SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
    49, no. 8, pp. 3081-3093, Aug. 2011, doi: 10.1109/TGRS.2011.2120616.
 
 In S1Tiling, we have chosen to precompute Local Incidence Angle (LIA) maps on
-Sentinel-2 grid. Given a series of Sentinel-1 images to orthorectify on a
-Sentinel-2 grid, we select a pair of Sentinel-1 images to compute the LIA
-in the geometry of these images. The LIA map is then projected, through
-orthorectification, on a Sentinel-2 tile.
+MGRS Sentinel-2 grid. Given a precise orbit file, a relative orbit and a MGRS
+tile, we directly compute the correction map on the selected Sentinel-2 tile.
 
-That map will then be used for all series of pairs of Sentinel-1 images that
-intersect the associated S2 tile.
+That map will then be used for all series of pairs of Sentinel-1 images, of
+compatible orbit, β° calibrated and projected to the associated S2 tile.
 
 Regarding options, the only difference with previous scenario are:
 
@@ -169,7 +168,7 @@ While :ref:`S1Processor` is able to produce the necessary LIA maps on the
 fly, it is not able to do so when parallelization is done manually over time
 ranges -- as described in “:ref:`scenario.parallelize_date`” scenario.
 
-A different program is provided to compute the LIA maps beforehand:
+A dedicated program is provided to compute the LIA maps beforehand:
 :ref:`S1LIAMap`. It takes the exact same parameter files as
 :ref:`S1Processor`. A few options will be ignored though: calibration type,
 masking… But the following (non-obvious) options are mandatory:
@@ -180,7 +179,8 @@ masking… But the following (non-obvious) options are mandatory:
   but only a single value shall be used
 - :ref:`[DataSource].first_date <datasource.first_date>` and
   :ref:`[DataSource].last_date <datasource.last_date>` if
-  :ref:`[DataSource].download <datasource.download>` it ``True``.
+  :ref:`[DataSource].download <datasource.download>` is ``True`` and EOF files
+  are missing.
 
 .. code:: bash
 
@@ -200,10 +200,64 @@ masking… But the following (non-obvious) options are mandatory:
    cluster.
 
 .. note::
-   To run :ref:`S1LIAMap` from the official S1Tiling docker, use ``--lia``
-   as the first parameter to the docker execution (just before the request
-   configuration file and other S1LIAMap related parameters). See :ref:`Using
-   S1LIAMap with a docker <docker.S1LIAMap>`.
+   To run :ref:`S1LIAMap` from the official S1Tiling docker, use ``--lia`` as
+   the first parameter to the docker execution (just before the request
+   configuration file and other S1LIAMap related parameters). See
+   :ref:`docker.S1LIAMap`.
+
+
+.. _scenario.S1IAMap:
+
+
+Produce maps of Ellipsoid Incidence Angles
+++++++++++++++++++++++++++++++++++++++++++
+
+S1Tiling permits producing :ref:`maps of cosine, sine and/or tangent of the
+incidence angle over the WGS84 ellipsoid <ia-files>`, thanks to :ref:`S1IAMap
+program <S1IAMap>`.
+See :ref:`dataflow-eia` for more detailed information.
+
+It takes a very similar parameter files as :ref:`S1Processor`.
+Actually the same file can be used: only relevant parameters will be taken in
+account:
+
+- :ref:`[Paths].output <paths.output>` or :ref:`[Paths].ia <paths.ia>`
+- :ref:`[Paths].eof_dir <paths.eof_dir>`
+- :ref:`[Paths].tmp <paths.tmp>`
+- :ref:`[DataSource].eodag_config <datasource.eodag_config>`
+- :ref:`[Processing].tiles <processing.tiles>`
+- :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
+  single value shall be used
+- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>` --
+  but only a single value shall be used
+- :ref:`[DataSource].first_date <datasource.first_date>` and
+  :ref:`[DataSource].last_date <datasource.last_date>` if
+  :ref:`[DataSource].download <datasource.download>` is ``True`` and EOF files
+  are missing.
+- :ref:`[Processing].output_spatial_resolution
+  <processing.output_spatial_resolution>`,
+- :ref:`[Processing].ia_maps_to_produce <processing.ia_maps_to_produce>`,
+- plus filename name format options, parallelization options…
+
+.. code:: bash
+
+        cd workingdir
+        # Yes, the same file works!
+        S1IAMap MyS1ToS2.cfg
+
+
+.. note::
+   This scenario requires `NORMLIM σ0
+   <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_ binaries.
+   At the moment, NORMLIM σ\ :sup:`0` binaries need to be compiled manually.
+   Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
+   cluster.
+
+.. note::
+   To run :ref:`S1IAMap` from the official S1Tiling docker, use ``--ia`` as the
+   first parameter to the docker execution (just before the request
+   configuration file and other S1IAMap related parameters). See
+   :ref:`docker.S1IAMap`.
 
 
 .. _scenario.masks:
@@ -281,4 +335,3 @@ In order to use other DEM inputs, we need:
 4. Make sure to use a Geoid file compatible with the chosen DEM. For instance
    S1Tiling is shipped with EGM96 Geoid with is compatible with SRTM.
    On the other hand, Copernicus DEM is related to EGM2008 (a.k.a. EGM08)
-
