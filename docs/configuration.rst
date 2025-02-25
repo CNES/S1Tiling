@@ -134,8 +134,8 @@ You can use this :download:`this template
       authentification credentials for the know providers and their respective
       priorities.
       |br|
-      See `EODAG § on Configure EODAG
-      <https://eodag.readthedocs.io/en/latest/getting_started_guide/configure.html>`_
+      See :external+eodag:std:doc:`EODAG § on Configure EODAG
+      <getting_started_guide/configure>`
 
       For instance, given a PEPS account, :file:`$HOME/.config/eodag/eodag.yml`
       could contain

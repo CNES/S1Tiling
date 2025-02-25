@@ -256,6 +256,7 @@ intersphinx_mapping = {
     "Dask": ("https://docs.dask.org/en/latest/", None),
     "Gdal": ("https://gdal.org/", None),
     # "numpy": ("http://docs.scipy.org/doc/numpy", None),
+    "eodag": ("https://eodag.readthedocs.io/en/stable/", None),
 
 
     # 'https://www.orfeo-toolbox.org/CookBook/': None,
