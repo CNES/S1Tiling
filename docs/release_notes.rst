@@ -16,8 +16,8 @@ v1.2.0 Breaking changes
 v1.2.0 Improvements
 +++++++++++++++++++
 
-- Use precise orbit files, downloaded on-the-fly, to compute Local Incidence
-  Angle maps
+- Use precise orbit files, downloaded on-the-fly, to compute :ref:`Local
+  Incidence Angle maps <lia-files>`
   (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
 - Support eodag 3
   (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_),
@@ -27,6 +27,8 @@ v1.2.0 Improvements
   :samp:`{{s1images}}/{{product_name}}/` instead of
   :samp:`{{s1images}}/{{product_name}}/{{product_name}}.SAFE/`. The old output
   directory structure is still supported for backward compatibility reasons.
+- Generate :ref:`maps of incidence angles to the WGS84 ellipsoid <ia-files>`
+  (`#161 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/161>`_).
 
 
 Version 1.1.0
@@ -34,7 +36,8 @@ Version 1.1.0
 
 This version integrates 3 main improvements:
 
-- it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
+- it can support :ref:`DEM from any sources <scenario.choose_dem>` (Copernicus
+  DEM, RGE Alti DEM...),
 - it supports OTB 8 (and OTB 9) applications (while staying backward compatible
   with OTB 7.4.2),
 - it improves the quality and the processing performances of
