@@ -1071,31 +1071,16 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 ) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
-    generates Local Incidence Angle Maps on S2 geometry.
+    generates :ref:`Local Incidence Angle Maps on S2 geometry <lia-files>`.
 
     It performs the following steps:
 
-    1. Determine the S1 products to process
-        Given a list of S2 tiles, we first determine the day that'll the best
-        coverage of each S2 tile in terms of S1 products.
-
-        In case there is no single day that gives the best coverage for all
-        S2 tiles, we try to determine the best solution that minimizes the
-        number of S1 products to download and process.
-    2. Process these S1 products
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the LIA maps
 
     :param config_opt:
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
-    :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
-    :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
-    :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
@@ -1148,31 +1133,16 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
 ) -> exits.Situation:
     """
     Entry point to :ref:`IA Map production scenario <scenario.S1IAMap>` that
-    generates Incidence Angle Maps on S2 geometry.
+    generates :ref:`Incidence Angle Maps on S2 geometry <ia-files>`.
 
     It performs the following steps:
 
-    1. Determine the S1 products to process
-        Given a list of S2 tiles, we first determine the day that'll the best
-        coverage of each S2 tile in terms of S1 products.
-
-        In case there is no single day that gives the best coverage for all
-        S2 tiles, we try to determine the best solution that minimizes the
-        number of S1 products to download and process.
-    2. Process these S1 products
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the IA maps
 
     :param config_opt:
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
-    :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
-    :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
-    :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
@@ -1188,8 +1158,8 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
         Generate SVG images showing task graphs of the processing flows
 
     :return:
-        A *nominal* exit code depending of whether everything could have been
-        downloaded and produced.
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
     :rtype: :class:`s1tiling.libs.exits.Situation`
 
     :exception Error: A variety of exceptions. See below (follow the link).

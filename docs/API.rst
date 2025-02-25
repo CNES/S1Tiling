@@ -12,8 +12,8 @@ S1Tiling API
 ======================================================================
 
 This section is intended for people who want to directly call S1Tiling code
-from their project instead of using the external programs
-:ref:`S1Processor` and :ref:`S1LIAMap`.
+from their project instead of using the external programs :ref:`S1Processor`,
+:ref:`S1LIAMap`, and :ref:`S1IAMap`.
 
 
 .. contents:: Contents:
@@ -34,6 +34,12 @@ Entry points
 ------------------
 
 .. autofunction:: s1tiling.libs.api.s1_process_lia
+
+
+``s1_process_ia``
+------------------
+
+.. autofunction:: s1tiling.libs.api.s1_process_ia
 
 
 Configuration object

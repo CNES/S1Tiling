@@ -40,8 +40,8 @@ Incidence Angle specific processings
 
 .. graphviz::
     :name: graph_IA
-    :caption: Tasks for generating Ellipsoid Incidence Angle map on 33NWB
-    :alt: Complete task flow for generating Ellipsoid Incidence Angle map on 33NWB
+    :caption: Tasks for generating Ellipsoid Incidence Angle map on 31TCH, orbit 110
+    :alt: Complete task flow for generating Ellipsoid Incidence Angle map on 31TCH, orbit 110
     :align: center
 
      digraph "sphinx-ext-graphviz" {
@@ -51,16 +51,16 @@ Incidence Angle specific processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         eof_dx      [label="EOF dn",         href="files.html#eof",    shape="doublecircle", fillcolor=cyan]
+         eof_dx      [label="EOF (110)", href="files.html#eof", shape="doublecircle", fillcolor=cyan]
 
          # =====[ IA workflow
-         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 33NWB", fillcolor=palegoldenrod];
-         normals_on_S2 [label="ellipsoid normals on 33NWB",       fillcolor=palegoldenrod];
-         nwb_ia        [label="sin(IA) on 33NWB",                 fillcolor="gold" ]
+         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 31TCH obt 110", fillcolor=palegoldenrod];
+         normals_on_S2 [label="ellipsoid normals on 31TCH obt 110",       fillcolor=palegoldenrod];
+         tch_ia        [label="sin(IA) on 31TCH obt 110",                 fillcolor="gold" ]
 
          eof_dx        -> xyz_d1_t1;
-         normals_on_S2 -> nwb_ia;
-         xyz_d1_t1     -> nwb_ia;
+         normals_on_S2 -> tch_ia;
+         xyz_d1_t1     -> tch_ia;
      }
 
 
