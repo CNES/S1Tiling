@@ -126,7 +126,7 @@ Linux machines installation script
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :download:`install-rcbin.sh <../s1tiling/resources/install-rcbin.sh>` takes
-care of installating S1Tiling on Linux machines
+care of installing S1Tiling on Linux machines
 
 .. list-table::
   :widths: auto
@@ -235,13 +235,15 @@ or even directly used with
             ...
 
 .. _docker.S1LIAMap:
+.. _docker.S1IAMap:
 
-Using S1LIAMap with a docker
-++++++++++++++++++++++++++++
+Using S1LIAMap or S1IAMap with a docker
++++++++++++++++++++++++++++++++++++++++
 
-It's also possible to run :ref:`S1LIAMap` in the docker -- see :ref:`LIA
-Map production scenario <scenario.S1LIAMap>`. In order to do that, pass
-``--lia`` as the first parameter to the docker *entry point*.
+It's also possible to run :ref:`S1LIAMap` or :ref:`S1IAMap` in the docker --
+see :ref:`LIA Map production scenario <scenario.S1LIAMap>` and :ref:`Ellipsoid
+IA Map production scenario <scenario.S1IAMap>`. In order to do that, pass
+``--lia``, or ``--ia`` as the first parameter to the docker *entry point*.
 
 In other word, run the docker with something like the following
 
