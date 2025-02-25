@@ -19,7 +19,7 @@ S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading>` the necessary S1 images that intersect the
+1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect the
    S2 tile, within the specified time range, that are not already available in
    :ref:`input data cache <paths.s1_images>`
 

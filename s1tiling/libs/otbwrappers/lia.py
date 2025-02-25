@@ -914,7 +914,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
     """
     Abstract factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
     <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`IA map
-    <compute_ia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
+    <compute_eia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
 
     :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
     computes Local Incidence Angle Map.

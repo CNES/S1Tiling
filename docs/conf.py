@@ -55,7 +55,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
     "sphinx_rtd_theme",
-    'm2r2'
+    'm2r2',
+    'sphinx.ext.mathjax',
     'sphinx_click',
 ]
 

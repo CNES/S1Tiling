@@ -32,7 +32,7 @@ For each S2 tile,
    in :ref:`input data cache <paths.s1_images>`.
 
 2. It :ref:`downloads precise orbit files (EOF) <downloading_eof>` that cover
-   the specified time range and the specified S1 platform.
+   the specified time range and that match the specified S1 platform.
    The download is done on condition the requested relative orbit number is not
    found in the EOF files already available in the :ref:`eof data cache
    <paths.eof_dir>`.
@@ -129,7 +129,7 @@ LIA specific processings
          o_nwb_dn_t2 -> nwb_dn_b0 [label="concatenation"];
 
          # ===================================
-         # ====[ LIA workflow
+         # =====[ LIA workflow
          vrt_nwb       [label="DEM VRT 33NWB",                 fillcolor=palegoldenrod];
 
          DEM_on_S2     [label="DEM projected on 33NWB",        fillcolor=palegoldenrod];
@@ -271,7 +271,7 @@ Compute full height elevation on S2
 This step sums both DEM and GEOID information projected in S2 tile geometry.
 
 .. _sardemproject_s2-proc:
-.. index:: Project SAR coordinates onto DEM
+.. index:: Project SAR coordinates onto S2 tile
 
 Compute ECEF ground and satellite positions on S2
 +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -281,8 +281,8 @@ Compute ECEF ground and satellite positions on S2
                    tile.
 :Output:         :ref:`ECEF Ground and satellite positions
                  <ground_and_sat_s2-files>` on the S2 tile.
-:OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection
-                 <Applications/app_SARDEMProjection>`
+:OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnDEM
+                 <Applications/app_SARComputeGroundAndSatPositionsOnDEM>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
 This step computes the ground positions of the pixels in the S2 geometry, and
@@ -322,15 +322,16 @@ This step computes the normal vectors to the ground, in the MGRS S2 geometry.
 LIA maps computation
 ++++++++++++++++++++
 
-:Input:          - A :ref:`XYZ Cartesian coordinates file <xyz-files>` of
-                   ground positions, and of satellite positions (or that
+:Input:          - A :ref:`XYZ Cartesian coordinates file
+                   <ground_and_sat_S2-files>` of ground positions, and of
+                   satellite positions (or that
                    contains satellite trajectory -- deprecated workflow)
                  - and the associated normals, chained in memory from
                    :ref:`Normals computation <compute_normals-proc>`
 :Output:         :ref:`Local Incidence Angle map, and sine LIA map
                  <lia-files>` (or :ref:`the equivalent <lia-s1-files>` in the
                  deprecated workflow)
-:OTBApplication: `SARComputeLocalIncidenceAngle OTB application
+:OTBApplication: `SARComputeIncidenceAngle OTB application
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
                  (developed for the purpose of this project)
 
@@ -344,7 +345,7 @@ LIA maps computation
                  deprecated workflow)
 
 It computes the :ref:`Local Incidence Angle map, and sine LIA map
-<lia-s1-files>` between the ground normal projected in range plane
+<lia-files>` between the ground normal projected in range plane
 :math:`\overrightarrow{n}` (plane defined by S, T, and Earth's centre) and
 :math:`\overrightarrow{TS}` -- where T is the target point on Earth's surface,
 and S the SAR sensor position.

@@ -64,9 +64,8 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
     """
     Factory that prepares steps that run
     :external:doc:`Applications/app_SARComputeGroundAndSatPositionsOnEllipsoid` as described in
-    :ref:`Compute ECEF ground and satellite positions on S2 on Ellipsoid` documentation to obtain
-    the XYZ ECEF coordinates of the ellipsoid surface and of the satellite positions associated to
-    the requested footprint.
+    ":ref:`compute_wgs4_xyz_n_sat_s2-proc`" documentation to obtain the XYZ ECEF coordinates of the
+    ellipsoid surface and of the satellite positions associated to the requested footprint.
 
     :external:doc:`Applications/app_SARComputeGroundAndSatPositionsOnEllipsoid` application fills a
     multi-bands image anchored on the requested footprint. In each pixel in the output image, we
@@ -77,8 +76,7 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
 
     - `ram_per_process`
     - `tmpdir`            -- useless in the in-memory nomical case
-    - `fname_fmt`         -- optional key: `ground_and_sat_s2_ellipsoid`, useless in the in-memory
-                             nominal case
+    - `fname_fmt`         -- optional key: `ground_and_sat_s2_ellipsoid`, useless in the in-memory nominal case
     - `nodata.XYZ`        -- optional
     - `out_spatial_res`
 
@@ -218,7 +216,7 @@ class ComputeEllipsoidNormalsOnS2(OTBStepFactory):
     """
     Factory that prepares steps that run :external:doc:`ExtractNormalVectorToEllipsoid
     <Applications/app_ExtractNormalVectorToEllipsoid>` as described in :ref:`Normals computation
-    <compute_normals-proc>` documentation.
+    <ellipsoid_normals_computation-maths>` documentation.
 
     :external:doc:`ExtractNormalVectorToEllipsoid <Applications/app_ExtractNormalVectorToEllipsoid>`
     computes ellipsoid surface normals.
@@ -319,7 +317,7 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
     """
     Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
     <Applications/app_SARComputeIncidenceAngle>` on images in S2 geometry as described in
-    :ref:`IA maps computation <compute_ia-proc>` documentation.
+    :ref:`IA maps computation <compute_eia-proc>` documentation.
 
     :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
     Incidence Angle Map.
