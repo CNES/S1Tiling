@@ -46,7 +46,7 @@ Installation on TREX
 You may prefer to install S1Tiling yourself. In that case, there are mainly two
 X two ways to install S1Tiling on CNES clusters.
 
-If one wants to install S1Tiling from sources instead of pipy, it could be done
+If one wants to install S1Tiling from sources instead of PyPi, it could be done
 from the following context. Then, in later steps, use ``"${S1TILING_SRC_DIR}"``
 instead of ``s1tiling`` as ``pip`` parameter.
 
@@ -352,9 +352,9 @@ cluster like TREX.
 
   * - SLURM resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
-        can have multiple jobs but they should use different working spaces and
-        so on. This means SLURM number of nodes and number tasks values shall
-        be one.
+        can have multiple jobs, but they should use different working spaces
+        and so on. This means SLURM number of nodes and number tasks values
+        shall be one.
 
       - The number of CPUs should be equal to the number of threads * the
         number of parallel processes -- and it shall not be less than the

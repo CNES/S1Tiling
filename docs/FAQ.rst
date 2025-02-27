@@ -12,10 +12,10 @@ Frequently Asked Questions
 Q: How can I fix "`proj_create_from_database: ellipsoid not found"` messages?
 -----------------------------------------------------------------------------
 
-A: Just ignore the *error*. As far as we known, it has no incidence.
+A: Just ignore the *error*. As far as we know, it has no incidence.
 
 This message is produced by earlier versions of GDAL (used by OTB 7.4) on
-Sentinel-1 products with an "unnamed ellipsoid". If you execute ``gdalinfo`` on
+Sentinel-1 products with an “unnamed ellipsoid”. If you execute ``gdalinfo`` on
 these Sentinel-1 products you will also observe the *error*, independently of
 S1Tiling or OTB.
 
@@ -72,7 +72,8 @@ default timeout value thanks to:
 - or the configuration option :samp:`{{provider}}.search.timeout`.
 
 In case you have to cope with an earlier version of EODAG, you can still run
-:program:`S1Processor` with :option:`--nb_max_search_retries`.
+:ref:`S1Processor` with :option:`--nb_max_search_retries <S1Processor
+--nb_max_search_retries>`.
 
 
 .. _FAQ.EOF:
@@ -97,10 +98,10 @@ EOF files will be downloaded either:
         Dataspace web site
         <https://documentation.dataspace.copernicus.eu/APIs/Token.html#by-query-with-curl>`_,
         and use it in :envvar:`$EODAG__COP_DATASPACE__AUTH__TOKEN`. It should be
-        valid a bit more longer.
+        valid a bit longer.
 
-* or on EarthData. In that case add your earthdata credentials in your
-  :file:`~/.netrc` file (default location can be overriden with
+* or on EarthData. In that case add your Earthdata credentials in your
+  :file:`~/.netrc` file (default location can be overridden with
   :envvar:`$NETRC`). e.g.
 
   .. code::

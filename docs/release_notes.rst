@@ -9,15 +9,15 @@ Version 1.2.0
 v1.2.0 Breaking changes
 +++++++++++++++++++++++
 
-- Compatibility to OTB 7.x (and even 8.x) is no longer activelly pursued.
+- Compatibility to OTB 7.x (and even 8.x) is no longer actively pursued.
   S1Tiling may work with older version of OTB, but with no guarantees.
   (`#164 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/164>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
 
-- Use precise orbit files, downloaded on-the-fly, to compute Local Incidence
-  Angle maps
+- Use precise orbit files, downloaded on-the-fly, to compute :ref:`Local
+  Incidence Angle maps <lia-files>`
   (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
 - Support eodag 3
   (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_),
@@ -27,6 +27,8 @@ v1.2.0 Improvements
   :samp:`{{s1images}}/{{product_name}}/` instead of
   :samp:`{{s1images}}/{{product_name}}/{{product_name}}.SAFE/`. The old output
   directory structure is still supported for backward compatibility reasons.
+- Generate :ref:`maps of incidence angles to the WGS84 ellipsoid <ia-files>`
+  (`#161 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/161>`_).
 
 
 Version 1.1.0
@@ -34,7 +36,8 @@ Version 1.1.0
 
 This version integrates 3 main improvements:
 
-- it can support DEM from any sources (Copernicus DEM, RGE Alti DEM...),
+- it can support :ref:`DEM from any sources <scenario.choose_dem>` (Copernicus
+  DEM, RGE Alti DEM...),
 - it supports OTB 8 (and OTB 9) applications (while staying backward compatible
   with OTB 7.4.2),
 - it improves the quality and the processing performances of
@@ -46,8 +49,8 @@ v1.1.0 Improvements
 - Improve API (separate CLI from computing functions)
   (`#96 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/96>`_) --
   contributed by CS Group FRANCE.
-- Support DEM files from other origins (Copernicus...). Their footprints,
-  organization on disk... need to be deduced from a DEM database.
+- Support DEM files from other origins (Copernicus…). Their footprints,
+  organization on disk… need to be deduced from a DEM database.
   (`#18 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/18>`_) --
   contributed by CS Group FRANCE.
 - Add support for OTB 8 applications
@@ -56,7 +59,7 @@ v1.1.0 Improvements
 - Add support for OTB 9 applications as well
   (`#152 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/152>`_).
 - Support DEM databases in any spatial reference (they are not restricted to
-  WGS84 anymore)
+  WGS84 any more)
   (`#149 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/149>`_).
 - Change LIA workflow in order to minimize occurrences of artefacts in rugged
   areas, and to speed-up performances
@@ -96,13 +99,13 @@ Version 1.0.0
 -------------
 
 This version is a major improvement over v 0.3.x versions. A few breaking
-changes have been made in parameters, internal API...
+changes have been made in parameters, internal API…
 
 v1.0.0 Improvements
 +++++++++++++++++++
 
 - This new version can automatically :ref:`produce Local Incidence Angle Maps
-  <scenario.S1LIAMap>` over requested S2 tiles thanks to :program:`S1LIAMap`,
+  <scenario.S1LIAMap>` over requested S2 tiles thanks to :ref:`S1LIAMap`,
   or :ref:`generate S2 products <scenario.S1ProcessorLIA>` calibrated with
   :math:`σ^0_{RTC}` NORMLIM calibration described in [Small2011]_.
   (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_,
@@ -205,7 +208,7 @@ v0.3.0 Improvements
 
 - Don't remove timestamp from final products when no concatenation is done
   (`#69 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/69>`_).
-  Up to now timetag was always changed to ``txxxxxx``
+  Up to now time-tag was always changed to ``txxxxxx``
 - Update to support noise removal which has been fixed in OTB 7.4.0. This
   processing is now disabled with prior versions of OTB
   (`#89 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/89>`_,
@@ -276,19 +279,19 @@ v0.2 Improvements
     - Multiple log files are produced.
     - They can be sent by mail (though configuration)
     - Log level are supported
-    - A summary of the successfully of failed computations is provided.
+    - A summary of the successful or failed computations is provided.
 
 v0.2 Bugs fixed
 +++++++++++++++
 
-- Fix thermnal noise usage ((`#84 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/84>`_)
-- Fix pylint error ((`#82 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/82>`_)
-- Improve the srtm tiles database to avoid to request srtm tile which don't exist ((`#81 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/81>`_)
+- Fix thermal noise usage (`#84 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/84>`_)
+- Fix pylint error (`#82 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/82>`_)
+- Improve the SRTM tiles database to avoid to request SRTM tile which don't exist (`#81 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/81>`_)
 - Work on the more complete product when there are multiple overlapping
   products (`#47
   <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/47>`_)
 - Multiple errors related to temporary files have been fixed
-  (`#6 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/6>`_...)
+  (`#6 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/6>`_)
 - List of requested S2 tiles syntax has been relaxed
   (https://github.com/CNES/S1Tiling/issues/2)
 
@@ -303,9 +306,9 @@ v0.2 Optimizations
     - This reduces stress on IO that often are a bottleneck on clusters
 
 - Dedicated and optimized OTB applications have been written for :ref:`cutting
-  <cutting-proc>`  and :ref:`calibration <calibration-proc>`
+  <cutting-proc>` and :ref:`calibration <calibration-proc>`
 - Execute only the processes that are needed to produce the requested products
-- Parallelization is done with dask
+- Parallelization is done with Dask
   (`#11 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/11>`_)
 
     - This permits to parallelize computations of different types
@@ -324,6 +327,9 @@ v0.2 Breaking changes
 
 - No script is provided yet to run S1Tiling on several nodes
 
-- Multitemporal speckle filtering has been removed from S1Tiling processing. Users have to apply their own speckle filtering, according their needs (for example with OTB applications OTBDespeckle or with remote modules OTBMultitempFilterOutcore and OTBMultitempFilterFiltering)
+- Multitemporal speckle filtering has been removed from S1Tiling processing.
+  Users have to apply their own speckle filtering, according their needs (for
+  example with OTB applications OTBDespeckle or with remote modules
+  OTBMultitempFilterOutcore and OTBMultitempFilterFiltering)
 
 - The config key `srtm_shapefile` is no more available to users.

@@ -34,7 +34,7 @@ import re
 from typing import Callable, Dict, List, Union, Tuple
 import os
 
-from shapely.geometry.base import np
+import numpy as np
 
 from s1tiling.libs.otbtools import otb_version
 
@@ -54,13 +54,14 @@ class FileDB:
             'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
             'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
+            # Local Incidence Angle
             'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
             'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
             'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
             'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
-            'LIAfile'             : 'LIA_{s1_polarless}{tmp}.tiff',
+            'degLIAfile'          : 'LIA_{s1_polarless}{tmp}.tiff',
             'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
-            'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
+            'orthodegLIAfile'     : 'LIA_{s2_polarless}{tmp}',
             'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
             'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
             'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
@@ -74,6 +75,13 @@ class FileDB:
             'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
             # 'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
             # 'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
+
+            # Ellipsoid Incidence Angle
+            'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
+            'degia_on_s2'         : 'IA_s1a_{tile}_007{tmp}.tif',
+            'cosia_on_s2'         : 'cos_IA_s1a_{tile}_007{tmp}.tif',
+            'sinia_on_s2'         : 'sin_IA_s1a_{tile}_007{tmp}.tif',
+            'tania_on_s2'         : 'tan_IA_s1a_{tile}_007{tmp}.tif',
     }
     FILES = [
             # 08 jan 2020
@@ -239,14 +247,14 @@ class FileDB:
 
     def __init__(
             self,
-            inputdir, eofdir, tmpdir, outputdir, liadir,
+            inputdir, eofdir, tmpdir, outputdir, xiadir,
             tile, demdir, geoid_file,
             dname_fmt_tiled=None,
     ) -> None:
         self.__input_dir       = inputdir
         self.__tmp_dir         = tmpdir
         self.__output_dir      = outputdir
-        self.__lia_dir         = liadir
+        self.__xia_dir         = xiadir  # LIA or (E)IA directory
         self.__eof_dir         = eofdir
         self.__tile            = tile
         self.__dem_dir         = demdir
@@ -279,9 +287,9 @@ class FileDB:
                 (self.sardemprojfile,               NFiles),
                 (self.xyzfile,                      NFiles),
                 (self.normalsfile,                  NFiles),
-                (self.LIAfile,                      NFiles),
+                (self.degLIAfile,                   NFiles),
                 (self.sinLIAfile,                   NFiles),
-                (self.orthoLIAfile,                 NFiles),
+                (self.orthodegLIAfile,              NFiles),
                 (self.orthosinLIAfile,              NFiles),
                 (self.concatLIAfile_from_two,       NConcats),
                 (self.concatsinLIAfile_from_two,    NConcats),
@@ -306,6 +314,12 @@ class FileDB:
                 (self.normals_on_s2,                NConcats),
                 (self.deglia_on_s2,                 NConcats),
                 (self.sinlia_on_s2,                 NConcats),
+
+                (self.xyz_ellipsoid_on_s2,          NConcats),
+                (self.degia_on_s2,                  NConcats),
+                (self.cosia_on_s2,                  NConcats),
+                (self.sinia_on_s2,                  NConcats),
+                (self.tania_on_s2,                  NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -603,19 +617,19 @@ class FileDB:
     def normalsfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def LIAfile(self, idx, tmp) -> str:
+    def degLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["degLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthoLIAfile(self, idx, tmp) -> str:
+    def orthodegLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthosinLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -625,7 +639,7 @@ class FileDB:
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress if tmp else ''
-        return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{dir}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return self._concatLIAfile_for_all(crt, tmp)
@@ -645,10 +659,10 @@ class FileDB:
         return self._concatsinLIAfile_for_all(crt, tmp)
 
     def selectedLIAfile(self) -> str:
-        return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
-        return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
 
     def eof_for_s2(self) ->  str:
         return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
@@ -689,25 +703,37 @@ class FileDB:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def deglia_on_s2(self, tmp: bool) -> str:
+    def xyz_ellipsoid_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["xyz_ellipsoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def _xiadir_and_ext_on_s2(self, tmp: bool, default_ext: str) -> Tuple[str, str]:
         if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress
+            return f'{self.__tmp_dir}/S2', default_ext
         else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+            return f'{self.__xia_dir}', ''
+
+    def _xia_map_on_s2(self, tmp: bool, default_ext: str, map_kind: str) -> str:
+        dir, ext = self._xiadir_and_ext_on_s2(tmp, default_ext)
+        return f'{dir}/{self.FILE_FMTS[map_kind]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def deglia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "deglia_on_s2")
 
     def sinlia_on_s2(self, tmp: bool) -> str:
-        if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor
-        else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        # ext = self.extended_compress_predictor if compress else ''
-        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
-        # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinlia_on_s2")
+
+    def degia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "degia_on_s2")
+
+    def cosia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "cosia_on_s2")
+
+    def sinia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinia_on_s2")
+
+    def tania_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "tania_on_s2")
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

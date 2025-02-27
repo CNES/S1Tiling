@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 # =========================================================================
 #   Program:   S1Processor
 #
 #   All rights reserved.
 #   Copyright 2017-2025 (c) CNES.
-#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -24,23 +24,22 @@
 #
 # =========================================================================
 #
-# Authors: Thierry KOLECK (CNES)
-#          Luc HERMITTE (CS Group)
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
 #
 # =========================================================================
+
 """
 S1Tiling Command Line Interface
 
-Usage: S1Processor [OPTIONS] CONFIGFILE
+Usage: S1IAMap [OPTIONS] CONFIGFILE
 
-  On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
+  Generate Incidence Angle map(s) to the WGS84 Ellipsoid.
 
   It performs the following steps:
-   1- Download S1 images from S1 data provider (through eodag)
-   2- Calibrate the S1 images to gamma0
-   3- Orthorectify S1 images and cut their on geometric tiles
-   4- Concatenate images from the same orbit on the same tile
-   5- Build mask files
+   1- Download EOF files on the selected time range and relative orbits
+   2- Compute the selected IA map(s)
 
   Parameters have to be set by the user in the S1Processor.cfg file
 
@@ -60,56 +59,23 @@ from typing import NoReturn
 import click
 
 from s1tiling.libs.cli import cli_main
-from s1tiling.libs.api import s1_process
+from s1tiling.libs.api import s1_process_ia
 from s1tiling.__meta__ import __version__, __pages__
-
-from s1tiling.libs.S1FileManager import (
-        EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-)
 
 
 # ======================================================================
-# S1Processor
+# S1IAMap
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=f"""\b
-    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1Processor
 
     \b
     Check out our docs at {__pages__} for more details.
     Copyright 2017-2025 (c) CNES.
-    Copyright 2022-2024 (c) CS GROUP France.
     """
 )
 @click.version_option()
-@click.option(
-        "--cache-before-ortho/--no-cache-before-ortho",
-        is_flag=True,
-        default=False,
-        help="""Force to store Calibration|Cutting result on disk before orthorectorectification.
-
-        BEWARE, this option will produce temporary files that you'll need to explicitely delete.""")
-@click.option(
-        "--searched_items_per_page",
-        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        help="Number of products simultaneously requested by eodag"
-        )
-@click.option(
-        "--nb_max_search_retries",
-        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        help="Number of times to retry on timeout when searching for compatible remote products"
-        )
-@click.option(
-        "--eodag_download_timeout",
-        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        help="If download fails, maximum time in mins before stop retrying to download (default: 20 mins)"
-        )
-@click.option(
-        "--eodag_download_wait",
-        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        help="If download fails, wait time in minutes between two download tries (default: 2 mins)"
-        )
 @click.option(
         "--trace-errors",
         is_flag=True,
@@ -136,23 +102,24 @@ from s1tiling.libs.S1FileManager import (
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run(
+def run_ia(
         config_filename,
-        eodag_download_wait,
-        eodag_download_timeout,
-        **kwargs  # All click parameters that'll directly be forwarded to s1_process
+        # eodag_download_wait,
+        # eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
 ) -> NoReturn:
     """
-    Calibrates and orthorectifies Sentinel-1 images over S2 MGRS tiles.
+    Generates maps of Incidence Angles (on WGS84 ellipsoid) for Sentinel-1 orbits over S2 MGRS
+    tiles.
     """
     cli_main(
-        s1_process,
+        s1_process_ia,
         config_filename,
-        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+        # dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
         **kwargs
     )
 
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    run()  # pylint: disable=no-value-for-parameter
+    run_ia()  # pylint: disable=no-value-for-parameter

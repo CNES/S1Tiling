@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -268,7 +268,7 @@ def filter_eof_files_according_to_orbit_and_mission(
     ]
 
 
-def filter_uniq_eofs(
+def filter_uniq_eofs(  # pylint: disable=too-many-arguments
     eof_files         : List[SentinelOrbitFile],
     first_date        : datetime,
     last_date         : datetime,
@@ -320,7 +320,7 @@ def analyse_obt2eof_map_quality_according_to_request(
     for obt, eof in obt2eof_map.items():
         if eof.mission not in missions:
             logger.info(
-                "Note: Precise orbit file %s matching orbit %s doesn't match the requested missions",
+                "Note: Precise orbit file %s matching orbit %s doesn't match the requested missions %s",
                 eof, obt, missions)
         if eof.does_intersect(first_date, last_date):
             logger.info(

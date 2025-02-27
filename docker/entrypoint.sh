@@ -2,7 +2,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -39,6 +39,9 @@ export LANG=C.UTF-8
 if [ "$1" = "--lia" ] ; then
     shift
     S1LIAMap "$@"
+elif [ "$1" = "--ia" ] ; then
+    shift
+    S1IAMap "$@"
 else
     S1Processor "$@"
 fi

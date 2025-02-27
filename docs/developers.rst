@@ -29,7 +29,7 @@ internally; they won't be described here.
 
 Each pipeline corresponds to a series of :ref:`processings <processing classes>`.
 The intended and original design is to have a direct match: one processing ==
-one OTB application, and to permit to chain OTB applications in memory through
+one OTB application, and to permit chaining OTB applications in memory through
 OTB Python bindings.
 
 However, a processing doesn't always turn into the execution of an OTB
@@ -78,7 +78,7 @@ Complex pipelines
 +++++++++++++++++
 
 In more complex cases, the product of a pipeline will be used as input of
-several other pipelines. Also a pipelines can have several inputs coming from
+several other pipelines. Also, a pipeline can have several inputs coming from
 different other pipelines.
 
 To do so, we name each pipeline, so we can use that name as input of other
@@ -135,7 +135,7 @@ For instance, LIA producing pipelines are described this way
 Pipeline inputs
 +++++++++++++++
 
-In order to buid the `Direct Acyclic Graph (DAG)` of tasks, that will be
+In order to build the `Direct Acyclic Graph (DAG)` of tasks, that will be
 executed through the pipelines described, we need to inject inputs.
 
 Pipeline inputs need to be registered explicitly. This is done through
@@ -159,7 +159,7 @@ e.g.:
    pipelines.register_inputs('basename', tilename_first_inputs_factory)
    pipelines.register_inputs('basename', eof_first_inputs_factory)
 
-As the ``PipelineDescriptionSequence`` tries to be as independant of the actual
+As the ``PipelineDescriptionSequence`` tries to be as independent of the actual
 domain as possible, it doesn't know which information is expected by all the
 registered ``FirstStepFactories``. By default,
 :class:`Configuration <s1tiling.libs.configuration.Configuration>` information
@@ -175,7 +175,7 @@ e.g.:
     pipelines.register_extra_parameters_for_input_factories(
         tile_name=tilename,               # Used by all
     )
-    
+
     pipelines.register_extra_parameters_for_input_factories(
         dag=dag,                          # Used by eof_first_inputs_factory
         s1_file_manager=s1_file_manager,  # Used by s1_raster_first_inputs_factory
@@ -212,7 +212,7 @@ to inherit from either one of :class:`OTBStepFactory
 <s1tiling.libs.steps.AnyProducerStepFactory>`, or :class:`ExecutableStepFactory
 <s1tiling.libs.steps.ExecutableStepFactory>`.
 
-They describe processings, and they are used to instanciate the actual
+They describe processings, and they are used to instantiate the actual
 :ref:`step <Steps>` that do the processing.
 
 .. inheritance-diagram:: s1tiling.libs.steps.OTBStepFactory s1tiling.libs.steps.ExecutableStepFactory s1tiling.libs.steps.AnyProducerStepFactory s1tiling.libs.steps._FileProducingStepFactory s1tiling.libs.steps.Store
@@ -254,7 +254,7 @@ convenience, but they are not expected to be extended.
 - :class:`ExecutableStep <s1tiling.libs.steps.ExecutableStep>` is the
   main class for steps that execute an external application.
 - :class:`AbstractStep <s1tiling.libs.steps.AbstractStep>` is the root
-  class of steps hierarchy. It still get instantiated automatically for steps
+  class of steps hierarchy. It still gets instantiated automatically for steps
   not related to any kind of application.
 
 .. inheritance-diagram:: s1tiling.libs.steps.Step s1tiling.libs.steps.FirstStep s1tiling.libs.steps.ExecutableStep s1tiling.libs.steps.AnyProducerStep s1tiling.libs.steps.MergeStep s1tiling.libs.steps.StoreStep s1tiling.libs.steps._ProducerStep s1tiling.libs.steps._OTBStep s1tiling.libs.steps.SkippedStep
@@ -303,7 +303,7 @@ Main processings
 Processings for advanced calibration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These processings permit to produce Local Incidence Angles Maps for
+These processings permit producing Local Incidence Angles Maps for
 σ\ :sub:`0`\ :sup:`NORMLIM` calibration.
 
 .. autosummary::
@@ -318,6 +318,9 @@ These processings permit to produce Local Incidence Angles Maps for
    s1tiling.libs.otbwrappers.ComputeLIAOnS2
    s1tiling.libs.otbwrappers.filter_LIA
    s1tiling.libs.otbwrappers.ApplyLIACalibration
+   s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid
+   s1tiling.libs.otbwrappers.ComputeEllipsoidNormalsOnS2
+   s1tiling.libs.otbwrappers.ComputeIAOnS2
 
 Deprecated processings for advanced calibration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -361,7 +364,7 @@ It is done through the parameters:
 - ``gen_tmp_dir``: that defines where temporary files are produced.
 - ``gen_output_dir``: that defines where final files are produced. When this
   parameter is left unspecified, the final product is considered to be a
-  :ref:`intermediary files <temporary-files>` and it will be stored in the
+  :ref:`intermediary files <temporary-files>`, and it will be stored in the
   temporary directory. The distinction is useful for final and required
   products.
 - ``gen_output_filename``: that defines the naming policy for both temporary
@@ -420,5 +423,5 @@ It's typically used alongside
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :func:`StepFactory.update_filename_meta <s1tiling.libs.steps.StepFactory.update_filename_meta>`
-provides various values to metadata. This hooks permits to override the values
+provides various values to metadata. This hook permits to override the values
 associated to task names, product existence tests, and so on.

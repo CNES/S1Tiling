@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2024 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -136,12 +136,13 @@ setup(
             "sphinx~=7.1",
             "sphinx_rtd_theme~=1.3.0",
             "sphinx-carousel",
+            "sphinx-click",
         ],
     },
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
@@ -168,7 +169,8 @@ setup(
     entry_points = {
         'console_scripts': [
             'S1Processor = s1tiling.S1Processor:run',
-            'S1LIAMap    = s1tiling.S1Processor:run_lia',
+            'S1LIAMap    = s1tiling.S1LIAMap:run_lia',
+            'S1IAMap     = s1tiling.S1IAMap:run_ia',
         ],
     },
 )

@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -34,11 +34,11 @@ Submodule that defines all API related functions and classes.
 """
 
 from collections.abc import Callable
+import contextlib
 import logging
 import logging.config
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, cast
 
 from distributed.scheduler import KilledWorker
 from dask.distributed import Client
@@ -84,6 +84,9 @@ from .otbwrappers import (
     ComputeLIAOnS2,
     filter_LIA,
     ComputeNormalsOnS2,
+    ComputeEllipsoidNormalsOnS2,
+    ComputeIAOnS2,
+    ComputeGroundAndSatPositionsOnEllipsoid,
     ApplyLIACalibration,
     # Deprecated LIA related Step Factories
     AgglomerateDEMOnS1,
@@ -101,7 +104,7 @@ from .outcome     import Outcome
 from .orbit       import EOFFileManager
 from .utils.dask  import DaskContext
 from .utils       import eodag
-from .utils.layer import check_dem_coverage, filter_existing_tiles
+from .utils.layer import filter_existing_tiles
 from .utils.timer import timethis
 
 
@@ -140,63 +143,6 @@ def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1Fil
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
-
-
-def search_dems_covering_tiles(
-        tiles_to_process: List[str],
-        cfg             : Configuration
-) -> Tuple[Dict, Dict[str, Dict]]:
-    """
-    Search the DEM tiles required to process the tiles to process.
-    """
-    needed_dem_tiles = {}
-
-    # Analyse DEM coverage for MGRS tiles to be processed
-    dem_tiles_check = check_dem_coverage(
-            cfg.output_grid,
-            cfg.dem_db_filepath,
-            tiles_to_process,
-            cfg.dem_field_ids,
-            cfg.dem_main_field_id,
-    )
-
-    # For each MGRS tile to process
-    for tile in tiles_to_process:
-        logger.info("Check DEM coverage for %s", tile)
-        # Get DEM tiles coverage statistics
-        dem_tiles = dem_tiles_check[tile]
-        current_coverage = 0
-        # Compute global coverage
-        for _, dem_info in dem_tiles.items():
-            current_coverage += dem_info['_coverage']
-        needed_dem_tiles.update(dem_tiles)
-        # If DEM coverage of MGRS tile is enough, process it
-        # Round coverage at 3 digits as tile footprint has a very limited precision
-        current_coverage = round(current_coverage, 3)
-        if current_coverage < 1.:
-            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
-                    tile, 100 * current_coverage)
-        else:
-            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
-
-    # Remove duplicates
-    return needed_dem_tiles, dem_tiles_check
-
-
-def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
-    """
-    Check the DEM tiles exist on disk.
-    """
-    fmt = cfg.dem_filename_format
-    res = True
-    for _, dem_tile_info in dem_tile_infos.items():
-        dem_filename = fmt.format_map(dem_tile_info)
-        tile_path_hgt = Path(cfg.dem, dem_filename)
-        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
-        if not tile_path_hgt.exists():
-            res = False
-            logger.critical("%s is missing!", tile_path_hgt)
-    return res
 
 
 def _how2str(how: Union[Tuple, AbstractStep]) -> str:
@@ -290,6 +236,7 @@ def get_s1_files_for_tile(
         # download_images will have updated the list of know products
     except RuntimeError as e:
         logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
+        # logger.critical(e, exc_info=True)
         return IntersectingS1FilesOutcome(e)
 
     except BaseException as e:
@@ -367,6 +314,8 @@ def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = Fa
 def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
     config_opt             : Union[str, Configuration],
     pipeline_builder,
+    *,
+    ctx_managers           : Sequence[Type] = (),
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -407,22 +356,14 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     if nb_tiles == 0:
         raise exceptions.NoS2TileError()
 
-    needed_dem_tiles, dems_by_s2_tiles = search_dems_covering_tiles(tiles_to_process, config)
-
-    logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
-
-    if not check_dem_tiles(config, needed_dem_tiles):
-        raise exceptions.MissingDEMError()
-
     # Prepare directories where to store temporary files
     # These directories won't be cleaned up automatically
     S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
     os.makedirs(S1_tmp_dir, exist_ok=True)
 
-    with DEMWorkspace(config) as dem_workspace:
-        config.tmp_dem_dir = dem_workspace.tmpdemdir(
-                needed_dem_tiles, config.dem_filename_format,
-                config.GeoidFile)
+    with contextlib.ExitStack() as context:
+        for cm in ctx_managers:
+            context.enter_context(cm(config, tiles_to_process))
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
 
@@ -433,8 +374,6 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
                 dryrun=dryrun,
                 # tile_name will be done in process_one_tile
         )
-
-        config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
@@ -757,8 +696,40 @@ def register_LIA_pipelines(
     return lia
 
 
+def register_IA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        # produce_angles: bool,
+) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    IA map and sin(IA) map.
+    """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
+
+    pipelines.register_inputs('eof', eof_first_inputs_factory)
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnEllipsoid],
+            "ComputeGroundAndSatPositionsOnEllipsoid",
+            inputs={'tilename': 'tilename', 'ineof': 'eof'},
+    )
+
+    # And then this time, normals are computed from S2 tile
+    # Always generate sin(IA). If IA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_IA step
+    lia = pipelines.register_pipeline(
+            [ComputeEllipsoidNormalsOnS2, ComputeIAOnS2],
+            'ComputeIAOnS2',
+            is_name_incremental=True,
+            inputs={'tilename': 'tilename', 'xyz': xyz},
+            product_required=True,
+    )
+    return lia
+
+
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
+        *,
         dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -913,6 +884,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -926,6 +898,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -993,6 +966,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -1006,6 +980,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
 
 def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -1073,6 +1048,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -1086,10 +1062,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
 
 def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        *,
         dryrun                 : bool = False,
         debug_otb              : bool = False,
         debug_caches           : bool = False,
@@ -1098,31 +1071,16 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 ) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
-    generates Local Incidence Angle Maps on S2 geometry.
+    generates :ref:`Local Incidence Angle Maps on S2 geometry <lia-files>`.
 
     It performs the following steps:
 
-    1. Determine the S1 products to process
-        Given a list of S2 tiles, we first determine the day that'll the best
-        coverage of each S2 tile in terms of S1 products.
-
-        In case there is no single day that gives the best coverage for all
-        S2 tiles, we try to determine the best solution that minimizes the
-        number of S1 products to download and process.
-    2. Process these S1 products
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the LIA maps
 
     :param config_opt:
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
-    :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
-    :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
-    :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
@@ -1152,9 +1110,7 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
+            ctx_managers=[DEMWorkspace],
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
@@ -1164,3 +1120,61 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
 
 s1_process_lia = s1_process_lia_v1_2
+
+
+def s1_process_ia(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        *,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`IA Map production scenario <scenario.S1IAMap>` that
+    generates :ref:`Incidence Angle Maps on S2 geometry <ia-files>`.
+
+    It performs the following steps:
+
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the IA maps
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_IA_pipelines(pipelines)
+        required_workspaces = [WorkspaceKinds.IA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )

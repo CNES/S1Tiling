@@ -50,7 +50,7 @@ from .              import Utils
 from .configuration import Configuration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-        Meta, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
+        Meta, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -630,6 +630,14 @@ class StepFactory(ABC):
         # TODO: Move to _ProducerStep ?
         pass
 
+    def has_several_outputs(self) -> bool:
+        """
+        Tells whether this step produces several files.
+
+        :return: False by default. This method is meant to be overridden in :class:`_FileProducingStepFactory`.
+        """
+        return False
+
     def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
@@ -660,24 +668,26 @@ class StepFactory(ABC):
         """
         meta = meta.copy()
         self._update_filename_meta_pre_hook(meta)
-        meta['in_filename']  = out_filename(meta)
-        meta['out_filename'] = self.build_step_output_filename(meta)
-        meta['pipe']         = meta.get('pipe', []) + [self.__class__.__name__]
 
-        def check_product(meta: Meta) -> bool:
-            filename        = out_filename(meta)
-            exist_file_name = os.path.isfile(filename)
-            logger.debug('Checking %s product: %s => %s', self.__class__.__name__, filename, '∃' if exist_file_name else '∅')
-            return exist_file_name
-
-        meta['does_product_exist'] = lambda: check_product(meta)
         meta.pop('task_name',                  None)
         meta.pop('task_basename',              None)
         meta.pop('update_out_filename',        None)
         meta.pop('accept_as_compatible_input', None)
+        meta.pop('does_product_exist',         None)
         # for k in list(meta.keys()):  # Remove all entries associated to reduce_* keys
         #     if k.startswith('reduce_'):
         #         del meta[k]
+
+        meta['in_filename']  = out_filename(meta)
+        meta['out_filename'] = self.build_step_output_filename(meta)
+        meta['current_step'] = self.__class__.__name__
+        meta['pipe']         = meta.get('pipe', []) + [self.__class__.__name__]
+
+        if self.has_several_outputs():
+            meta['does_product_exist'] = lambda: check_several_products(out_filename(meta), meta.get('current_step', '??'))
+        # else:  # this is already what is done by default
+        #     meta['does_product_exist'] = lambda: check_one_product(out_filename(meta), meta.get('current_step', '??'))
+
         self._update_filename_meta_post_hook(meta)
         return meta
 
@@ -703,12 +713,15 @@ class StepFactory(ABC):
         """
         pass
 
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden  # pylint: disable=unused-argument
+    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
         information for the current factory regarding :class:`Step` instanciation.
         """
         meta.pop('out_extended_filename_complement', None)
+        # logger.debug("OLD inputs (%s): %s", self.__class__.__name__, set().union(*(input.keys() for input in meta.get('inputs', []))))
+        meta['inputs'] = all_inputs + meta.get('inputs', [])
+        # logger.debug("NEW inputs (%s): %s", self.__class__.__name__, set().union(*(input.keys() for input in meta['inputs'])))
         meta = self.update_filename_meta(meta)  # copy on-the-fly
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         return meta
@@ -980,10 +993,21 @@ class _FileProducingStepFactory(StepFactory):
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
+        # TODO: for a domain independent StepFactory, extract the following directory names handling
+        #       to an external domain specific strategy returned by the configuration object, and
+        #       interrogated by the leaf StepFactories.
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        self.__liadir              = cfg.lia_directory
+        self.__liadir              = getattr(cfg, 'lia_directory', None)
+        self.__iadir               = getattr(cfg, 'ia_directory', None)
+        self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
+
+    def has_several_outputs(self) -> bool:
+        """
+        Tells whether this step produces several files
+        """
+        return self.__has_several_outputs
 
     def output_directory(self, meta: Meta) -> str:
         """
@@ -1003,6 +1027,7 @@ class _FileProducingStepFactory(StepFactory):
             out_dir=self.__outdir,
             tmp_dir=self.__tmpdir,
             lia_dir=self.__liadir,
+            ia_dir=self.__iadir,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
@@ -1091,13 +1116,13 @@ class OTBStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg                : Configuration,
+        *,
         appname            : str,
         gen_tmp_dir        : str,
         gen_output_dir     : Optional[str],
         gen_output_filename: OutputFilenameGenerator,
         extended_filename  : Optional[Union[str, List[str]]] = None,
         pixel_type         : Optional[Union[int, List[int]]] = None,
-        # *argv,  # param_in/_out, name, image_description
         **kwargs,
     ) -> None:
         """
@@ -1185,6 +1210,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         def do_set(name: str, ptype: Optional[int]) -> None:
             if ptype is not None:
                 assert app
+                logger.debug("%s.SetParameterOutputImagePixelType(%s, %s)", self.appname, name, ptype)
                 app.SetParameterOutputImagePixelType(name, ptype)
 
         if isinstance(self.param_out, list):
@@ -1270,7 +1296,6 @@ class OTBStepFactory(_FileProducingStepFactory):
                     del parameters[self.param_in]
                 lg_from = 'app'
 
-            self.set_output_pixel_type(app, meta)
             logger.debug(
                 'Register app: %s (from %s) %s -%s %s',
                 self.appname,
@@ -1285,6 +1310,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                 for input_param in left_over_parameters:
                     logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
                     app.AddParameterStringList(self.param_in, input_param)
+                self.set_output_pixel_type(app, meta)
             except Exception:
                 logger.exception(
                     "Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items())
@@ -1328,11 +1354,11 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 Configuration,
+        *,
         exename:             str,
         gen_tmp_dir:         str,
         gen_output_dir:      Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv,
         **kwargs,
     ) -> None:
         """
@@ -1341,7 +1367,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
         See:
             :func:`_FileProducingStepFactory.__init__`
         """
-        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, **kwargs)
         self._exename = exename
         logger.debug("new ExecutableStepFactory(%s) -> exe=%s", self.name, exename)
 
@@ -1374,11 +1400,12 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 Configuration,
+        *,
         action:              Callable,
         gen_tmp_dir:         str,
         gen_output_dir:      Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv, **kwargs
+        **kwargs,
     ) -> None:
         """
         Constructor
@@ -1386,7 +1413,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
         See:
             :func:`_FileProducingStepFactory.__init__`
         """
-        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, *argv, **kwargs)
+        super().__init__(cfg, gen_tmp_dir, gen_output_dir, gen_output_filename, **kwargs)
         self._action = action
         logger.debug("new AnyProducerStepFactory(%s)", self.name)
 

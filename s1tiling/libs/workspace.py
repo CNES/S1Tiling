@@ -38,12 +38,17 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Dict, List, Optional, Protocol, Union
+from typing import Dict, List, Optional, Protocol, Tuple, Union
 
-from .configuration import Configuration, dname_fmt_filtered, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
+from . import exceptions
+from .configuration import (
+    Configuration, dname_fmt_filtered, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
+)
+from .utils.layer import check_dem_coverage
 
 
 logger = logging.getLogger('s1tiling.workspace')
+
 
 class DEMWorkspaceConfiguration(Protocol):
     """
@@ -51,25 +56,108 @@ class DEMWorkspaceConfiguration(Protocol):
 
     Can be seen an a ISP compliant concept for Configuration object regarding workspaces.
     """
-    cache_dem_by : str
-    tmpdir       : str
-    dem          : str
+    cache_dem_by        : str
+    tmpdir              : str
+    dem                 : str
+    output_grid         : str
+    dem_db_filepath     : str
+    dem_field_ids       : List[str]
+    dem_main_field_id   : str
+    dem_filename_format : str
+    tmp_dem_dir         : str
+    GeoidFile           : str
+    def register_dems_related_to_S2_tiles(self, dem: Dict[str, Dict]) -> None:
+        pass
+
+
+def search_dems_covering_tiles(
+        tiles_to_process: List[str],
+        cfg             : DEMWorkspaceConfiguration
+) -> Tuple[Dict, Dict[str, Dict]]:
+    """
+    Search the DEM tiles required to process the tiles to process.
+    """
+    needed_dem_tiles = {}
+
+    # Analyse DEM coverage for MGRS tiles to be processed
+    dem_tiles_check = check_dem_coverage(
+            cfg.output_grid,
+            cfg.dem_db_filepath,
+            tiles_to_process,
+            cfg.dem_field_ids,
+            cfg.dem_main_field_id,
+    )
+
+    # For each MGRS tile to process
+    for tile in tiles_to_process:
+        logger.info("Check DEM coverage for %s", tile)
+        # Get DEM tiles coverage statistics
+        dem_tiles = dem_tiles_check[tile]
+        current_coverage = 0
+        # Compute global coverage
+        for _, dem_info in dem_tiles.items():
+            current_coverage += dem_info['_coverage']
+        needed_dem_tiles.update(dem_tiles)
+        # If DEM coverage of MGRS tile is enough, process it
+        # Round coverage at 3 digits as tile footprint has a very limited precision
+        current_coverage = round(current_coverage, 3)
+        if current_coverage < 1.:
+            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
+                    tile, 100 * current_coverage)
+        else:
+            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
+
+    # Remove duplicates
+    return needed_dem_tiles, dem_tiles_check
+
+
+def check_dem_tiles(cfg: DEMWorkspaceConfiguration, dem_tile_infos: Dict) -> bool:
+    """
+    Check the DEM tiles exist on disk.
+    """
+    fmt = cfg.dem_filename_format
+    res = True
+    for _, dem_tile_info in dem_tile_infos.items():
+        dem_filename = fmt.format_map(dem_tile_info)
+        tile_path_hgt = Path(cfg.dem, dem_filename)
+        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
+        if not tile_path_hgt.exists():
+            res = False
+            logger.critical("%s is missing!", tile_path_hgt)
+    return res
 
 
 class DEMWorkspace:
     """
-    Context manager that initialize a workspace for the session, and clears temporary files on exit.
+    Context manager dedicated to DEM.
+
+    1. It takes care of analysing the DEM files required for the S2 tiles
+    2. It initializes a workspace for the session, and clears temporary files on exit.
+    3. DEM related information are stored back on the configuration object
     """
 
-    def __init__(self, cfg: DEMWorkspaceConfiguration) -> None:
+    def __init__(self, cfg: DEMWorkspaceConfiguration, tiles_to_process: List[str]) -> None:
         """
         constructor
         """
+        # Check tiles
+        assert tiles_to_process, "DEM selection needs S2 tiles"
+
+        # Check DEM
+        needed_dem_tiles, dems_by_s2_tiles = search_dems_covering_tiles(tiles_to_process, cfg)
+        logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
+
+        if not check_dem_tiles(cfg, needed_dem_tiles):
+            raise exceptions.MissingDEMError()
+
         self.__tmpdemdir      : Optional[tempfile.TemporaryDirectory] = None
         self.__cfg_tmpdir     = cfg.tmpdir
         self.__cfg_dem        = cfg.dem
         self.__caching_option = cfg.cache_dem_by
         assert self.__caching_option in ['copy', 'symlink']
+        cfg.tmp_dem_dir = self.tmpdemdir(
+                needed_dem_tiles, cfg.dem_filename_format, cfg.GeoidFile)
+        cfg.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
 
     def __enter__(self) -> "DEMWorkspace":
         """
@@ -137,6 +225,7 @@ class WorkspaceKinds(Enum):
     LIA    = 2
     FILTER = 3
     MASK   = 4
+    IA     = 6
 
 
 def ensure_tiled_workspaces_exist(
@@ -155,6 +244,7 @@ def ensure_tiled_workspaces_exist(
             'out_dir': cfg.output_preprocess,
             'tmp_dir': cfg.tmpdir,
             'lia_dir': cfg.lia_directory,
+            'ia_dir' : cfg.ia_directory,
     }
 
     working_directory = os.path.join(cfg.tmpdir, 'S2', tile_name)
@@ -175,4 +265,8 @@ def ensure_tiled_workspaces_exist(
     # if cfg.calibration_type == 'normlim':
     if WorkspaceKinds.LIA in required_workspaces:
         wdir = dname_fmt_lia_product(cfg).format(**directories, tile_name=tile_name)
+        os.makedirs(wdir, exist_ok=True)
+
+    if WorkspaceKinds.IA in required_workspaces:
+        wdir = dname_fmt_ia_product(cfg).format(**directories, tile_name=tile_name)
         os.makedirs(wdir, exist_ok=True)

@@ -12,7 +12,7 @@ S1Tiling data flow for speckle filtering
    :local:
    :depth: 3
 
-Independently of the two other dataflows, S1Tiling permits to generate
+Independently of the two other dataflows, S1Tiling permits generating
 despeckled images from the S2 products.
 
 S1Tiling filters

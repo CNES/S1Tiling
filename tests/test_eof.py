@@ -345,13 +345,14 @@ def test_orbit_conversions():
     assert s1a_converter.to_relative(30704) == 7
     assert s1a_converter.to_relative(51107) == 110
 
+    assert s1a_converter.closest_absolute(30632, 109) == 30806
     assert s1a_converter.closest_absolute(30632, 110) == 30632
     assert s1a_converter.closest_absolute(30704,   7) == 30704
     assert s1a_converter.closest_absolute(51107, 110) == 51107
 
     assert s1a_converter.closest_absolute(30631, 110) == 30632
     assert s1a_converter.closest_absolute(30806, 110) == 30807
-    # assert s1a_converter.closest_absolute(30633, 110) == 30632 + 175
+    assert s1a_converter.closest_absolute(30633, 110) == 30632 + 175
 
 
 # =====[ Test XML analyse of EOF file

@@ -17,17 +17,17 @@ From OTB binaries
 +++++++++++++++++
 
 S1Tiling is a Linux Python software which is based on Python packages but also
-on C++ softwares OTB and GDAL.
+on C++ software OTB and GDAL.
 
-We recommend to use a dedicated Python virtual environment and a dedicated OTB
+We recommend using a dedicated Python virtual environment and a dedicated OTB
 {REF_OTB_VERSION} binary installation to install S1Tiling.
-If you want use the OTB 7.4.2 version please use an earlier version of
-S1TIling. Starting from v1.2, compatibility to OTB < 9 is no longer activelly
+If you want to use the OTB 7.4.2 version, please use an earlier version of
+S1TIling. Starting from v1.2, compatibility to OTB < 9 is no longer actively
 pursued.
 
   .. note:: OTB 9+ binaries aren't compatible with older distributions of Linux like for instance Ubuntu 18.04.
 
-Please find below a step by step installation:
+Please find below a step-by-step installation:
 
 .. code-block:: bash
 
@@ -77,7 +77,7 @@ On HPC clusters
 +++++++++++++++
 
 The procedure previously described stays valid. Yet you may already have
-pre-installed modules for Python, GDAL, OTB...
+pre-installed modules for Python, GDAL, OTB…
 
 As an inspiration, we provide the installation script used on CNES HPC
 clusters. It may be a good starting point. See
@@ -104,7 +104,7 @@ CNES clusters installation script
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :download:`install-CNES.sh <../s1tiling/resources/install-CNES.sh>` takes care
-of installating S1Tiling on CNES HPC clusters.
+of installing S1Tiling on CNES HPC clusters.
 
 .. list-table::
   :widths: auto
@@ -112,7 +112,7 @@ of installating S1Tiling on CNES HPC clusters.
   :stub-columns: 0
 
   * - Requirements
-    - It...
+    - It…
 
   * -
         - OTB installed from sources as a `Lmod
@@ -126,7 +126,7 @@ Linux machines installation script
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :download:`install-rcbin.sh <../s1tiling/resources/install-rcbin.sh>` takes
-care of installating S1Tiling on Linux machines
+care of installing S1Tiling on Linux machines
 
 .. list-table::
   :widths: auto
@@ -134,7 +134,7 @@ care of installating S1Tiling on Linux machines
   :stub-columns: 0
 
   * - Requirements
-    - It...
+    - It…
 
   * -
         - An un-extracted OTB binary release,
@@ -159,7 +159,7 @@ care of installating S1Tiling on Linux machines
 
           .. note::
             You can source :file:`otbenv.profile` and activate the conda
-            environement manually if you don't use `Lmod
+            environment manually if you don't use `Lmod
             <https://lmod.readthedocs.io/en/latest/?badge=latest>`_.
 
          .. note::
@@ -213,7 +213,7 @@ or even directly used with
 
     This example considers:
 
-    - DEM's are available on local host through :file:`/localpath/to/MNT/` and
+    - DEM's are available on local host through :file:`/localpath/to/MNT/`, and
       they will be mounted into the docker as :file:`/MNT/`.
     - Logs and output files will be produced in current working directory (i.e.
       :file:`$(pwd)`) which will be mounted as :file:`data/`.
@@ -235,13 +235,15 @@ or even directly used with
             ...
 
 .. _docker.S1LIAMap:
+.. _docker.S1IAMap:
 
-Using S1LIAMap with a docker
-++++++++++++++++++++++++++++
+Using S1LIAMap or S1IAMap with a docker
++++++++++++++++++++++++++++++++++++++++
 
-It's also possible to run :program:`S1LIAMap` in the docker -- see :ref:`LIA
-Map production scenario <scenario.S1LIAMap>`. In order to do that, pass
-``--lia`` as the first parameter to the docker *entry point*.
+It's also possible to run :ref:`S1LIAMap` or :ref:`S1IAMap` in the docker --
+see :ref:`LIA Map production scenario <scenario.S1LIAMap>` and :ref:`Ellipsoid
+IA Map production scenario <scenario.S1IAMap>`. In order to do that, pass
+``--lia``, or ``--ia`` as the first parameter to the docker *entry point*.
 
 In other word, run the docker with something like the following
 

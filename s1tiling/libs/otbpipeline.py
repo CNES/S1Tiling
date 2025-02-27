@@ -99,7 +99,7 @@ class FirstStepFactory(Protocol):
 
                           .. todo:: Drop ``tile_name`` from expectations of generic pipeline
 
-    :param Configuration configuration: List of configuration options 
+    :param Configuration configuration: List of configuration options
     :param dict kwargs:                 Any other named parameters into which the actual factory can
                                         search it specific parameters.
     :return: A list of instanciated :class:`FirstStep <s1tiling.libs.steps.FirstStep>`
@@ -322,6 +322,7 @@ class PipelineDescription:
         factory_steps:       List[StepFactory],
         execution_parameters: Dict,
         name:                Optional[str]  = None,
+        *,
         product_required:    bool           = False,
         is_name_incremental: bool           = False,
         inputs:              Optional[Dict] = None
@@ -817,6 +818,7 @@ class PipelineDescriptionSequence:
                         continue
                     expected_taskname = get_task_name(expected)
                     logger.debug('    task %s <-- from input: %s', expected_taskname, out_filename(inp))
+                    assert len(expected_taskname) > 0, f"No taskname found for {pipeline.name}({out_filename(inp)} -> {expected})"
                     logger.debug('    --> file "%s": %s', out_filename(expected), expected)
                     # TODO: Correctly handle the case where a task produce
                     # several filenames. In that case we shall have only one
