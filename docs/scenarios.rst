@@ -215,7 +215,83 @@ Produce maps of Ellipsoid Incidence Angles
 S1Tiling permits producing :ref:`maps of cosine, sine and/or tangent of the
 incidence angle over the WGS84 ellipsoid <ia-files>`, thanks to :ref:`S1IAMap
 program <S1IAMap>`.
-See :ref:`dataflow-eia` for more detailed information.
+See :ref:`dataflow-eia` for more detailed information on the internal operation
+sequencing.
+
+The typical use case is the following:
+
+1. Sine and cosine maps have been generated (with :ref:`S1IAMap`), and
+   cached, for all MGRS Sentinel-2 tiles of interest.
+2. Series of calibrated and ortho-rectified Sentinel-1 data have been generated
+   for a given calibration (typically :ref:`σ° <processing.calibration>`), and
+   possibly made available on data providers like `CNES's Geodes
+   <https://geodes-portal.cnes.fr>`_.
+3. You can obtain the same product in other calibrations very quickly by
+   applying the corrective sine/cosine map on the Sentinel-2 tiles product.
+
+When input product has been :ref:`σ° calibrated <processing.calibration>`,
+products in other calibrations can be obtained thanks to
+:download:`apply-calibration-map.sh
+<../s1tiling/resources/apply-calibration-map.sh>`.
+
+To convert a σ° calibrated product into:
+
+- a β° calibrated product, the image is divided by the :ref:`sine map
+  <ia-files>`
+
+  .. code:: bash
+
+    # By hand, with OTB, wrong CALIBRATION metadata
+    otbcli_BandMath \
+        -il  s1a_tile_polar_dir_087_time_sigma.tif sin_IA_s1a_tile_087.tif \
+        -exp 'im1b1/im2b1' \
+        -out s1a_tile_polar_dir_087_time_beta.tif
+    # Fix the incorrect metadata
+    gdal_edit.py -mo CALIBRATION=beta s1a_tile_polar_dir_087_time_beta.tif
+
+    # By hand, with gdal, all metadata are lost
+    gdal_calc.py \
+        -A    s1a_tile_polar_dir_087_time_sigma.tif \
+        -B    sin_IA_s1a_tile_087.tif \
+        --calc "A/B"
+        --out s1a_tile_polar_dir_087_time_beta.tif
+
+    # Wrapped for batch application, with OTB, correct metadata
+    apply-calibration-map.sh -c beta --dirmap path/to_sinIA_files path/to/S1Tiling/products
+
+- a γ° calibrated product, the image is divided by the :ref:`cosine map
+  <ia-files>`
+
+  .. code:: bash
+
+    # By hand, with OTB, wrong CALIBRATION metadata
+    otbcli_BandMath \
+        -il  s1a_tile_polar_dir_087_time_sigma.tif cos_IA_s1a_tile_087.tif \
+        -exp 'im1b1/im2b1' \
+        -out s1a_tile_polar_dir_087_time_gamma.tif
+    # Fix the incorrect metadata
+    gdal_edit.py -mo CALIBRATION=gamma s1a_tile_polar_dir_087_time_beta.tif
+
+    # By hand, with gdal, all metadata are lost
+    gdal_calc.py \
+        -A    s1a_tile_polar_dir_087_time_sigma.tif \
+        -B    cos_IA_s1a_tile_087.tif \
+        --calc "A/B"
+        --out s1a_tile_polar_dir_087_time_gamma.tif
+
+    # Wrapped for batch application, with OTB, correct metadata
+    apply-calibration-map.sh -c gamma --dirmap path/to_cosIA_files path/to/S1Tiling/products
+
+
+.. note::
+   Given the calibration is applied on the Sentinel-2 tile geometry, and not in
+   the original Sentinel-1 image geometry, small precision differences may be
+   observed between this approach and :ref:`the one where the desired
+   calibration is applied at the beginning of the processing
+   <scenario.S1Processor>`.
+
+Relevant parameters
+^^^^^^^^^^^^^^^^^^^
 
 It takes a very similar parameter files as :ref:`S1Processor`.
 Actually the same file can be used: only relevant parameters will be taken in
