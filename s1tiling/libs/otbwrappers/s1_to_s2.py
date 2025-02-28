@@ -656,9 +656,10 @@ class _OrthoRectifierFactory(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
-        imd['ORTHORECTIFIED']             = 'true'
-        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                  = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']      = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']              = str(self.__out_spatial_res)
         # S1 -> S2 => remove all SAR specific metadata inserted by OTB
         meta_to_remove_in_s2 = (
                 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',

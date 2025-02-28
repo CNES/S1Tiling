@@ -86,6 +86,9 @@ Orthorectified S2 tiles
         - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
         - :samp:`{{orbitDirection}}`
+      * - ``ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
@@ -258,10 +261,15 @@ Local Incidence Angle map files
         - :samp:`100 * degrees(LIA)` / :samp:`sin(LIA)`
       * - ``DEM_LIST``
         - List of DEM (SRTM currently) tiles used to generate the file
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``IMAGE_TYPE``
         - :samp:`LIA`
       * - ``RELATIVE_ORBIT_NUMBER``
@@ -357,8 +365,6 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
         - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
-      * - ``ORTHORECTIFIED``
-        - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -522,6 +528,8 @@ DEM data projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -556,6 +564,9 @@ Height (DEM+Geoid) projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`DEM + GEOID height info projected on S2 tile`
 

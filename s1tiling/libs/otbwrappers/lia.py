@@ -309,9 +309,10 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
-        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['ORTHORECTIFIED']             = 'true'
+        imd['GEOID_ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                        = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']            = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']                    = str(self.__out_spatial_res)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -342,7 +343,6 @@ class SumAllHeights(OTBStepFactory):
     - `nodata.DEM` -- optional
 
     It requires the following information from the metadata dictionary:
-
     """
     def __init__(self, cfg: Configuration) -> None:
         """
@@ -408,6 +408,19 @@ class SumAllHeights(OTBStepFactory):
         assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
         assert 'in_s2_geoid' in keys
         return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Metadata coming from the DEM image are lost => we fetch them in the DEM file.
+        """
+        super().update_image_metadata(meta, all_inputs)
+
+        in_s2_dem   = fetch_input_data('in_s2_dem',   all_inputs).out_filename
+        dst = gdal.Open(in_s2_dem, gdal.GA_ReadOnly)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['DEM_RESAMPLING_METHOD'] = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
+        del dst
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
