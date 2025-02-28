@@ -10,8 +10,12 @@ v1.2.0 Breaking changes
 +++++++++++++++++++++++
 
 - Compatibility to OTB 7.x (and even 8.x) is no longer actively pursued.
-  S1Tiling may work with older version of OTB, but with no guarantees.
+  S1Tiling may work with older version of OTB, but with no guarantees
   (`#164 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/164>`_).
+- Compatibility to Python 3.8 is no longer actively pursued as Python 3.8 has
+  reached its end-of-life in 2024.
+  S1Tiling may work with older version of Python, but with no guarantees
+  (`#158 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/158>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
