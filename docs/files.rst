@@ -50,7 +50,11 @@ Orthorectified S2 tiles
     - defined in :ref:`[Processing].creation_options.tiled
       <processing.creation_options.tiled>`
 
-:Metadata: The following metadata is added to the origin S1 images
+:Metadata:
+
+    GeoTIFF metadata will contain: the ones coming from the input S1 GRD
+    products, the extra ones specified in :ref:`[Metadata] <metadata>`
+    configuration section, plus the following ones:
 
     .. list-table::
       :widths: auto
@@ -122,7 +126,6 @@ Mask files
     - defined in :ref:`[Processing].creation_options.mask
       <processing.creation_options.mask>`
 
-
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
     .. list-table::
@@ -167,7 +170,6 @@ Filtered files
     - defaults to Float32 GeoTIFF, deflate compressed
     - defined in :ref:`[Processing].creation_options.filtered
       <processing.creation_options.filtered>`
-
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -238,8 +240,11 @@ Local Incidence Angle map files
       (/:ref:`[Processing].creation_options.lia_deg
       <processing.creation_options.lia_deg>`)
 
+:Metadata:
 
-:Metadata: The following image metadata is set:
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
 
     .. list-table::
       :widths: auto
@@ -325,8 +330,11 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
       (/:ref:`[Processing].creation_options.ia_deg
       <processing.creation_options.ia_deg>`)
 
+:Metadata:
 
-:Metadata: The following image metadata is set:
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
 
     .. list-table::
       :widths: auto
@@ -459,8 +467,10 @@ Orthorectified S1 images
 
 :Product encoding: Float32 GeoTIFF, deflate compressed
 
-:Metadata: The metadata listed for :ref:`the S2 tile product <full-S2-tiles>`
-           are actually produced at this step.
+:Metadata:
+
+    The metadata listed for :ref:`the S2 tile product <full-S2-tiles>` are
+    actually produced at this step.
 
 .. note::
    These files are automatically cleaned up.

@@ -24,15 +24,18 @@ v1.2.0 Improvements
   Incidence Angle maps <lia-files>`
   (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
 - Support eodag 3
-  (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_),
-  (`#177 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/177>`_),
-  (`#178 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/178>`_).
+  (`#170 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/170>`_,
+  `#177 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/177>`_,
+  `#178 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/178>`_).
   An indirect consequence is that products will be downloaded into
   :samp:`{{s1images}}/{{product_name}}/` instead of
   :samp:`{{s1images}}/{{product_name}}/{{product_name}}.SAFE/`. The old output
   directory structure is still supported for backward compatibility reasons.
 - Generate :ref:`maps of incidence angles to the WGS84 ellipsoid <ia-files>`
   (`#161 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/161>`_).
+- Add :ref:`[Metadata] <metadata>` configuration section to specify extra
+  GeoTIFF metadata that will be set in the images produced by S1Tiling
+  (`#171 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/171>`_).
 
 
 Version 1.1.0
@@ -75,7 +78,7 @@ v1.1.0 Improvements
   :ref:`creation_options.* <Processing.creation_options>` options
   (`#66 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/66>`_).
 - GEOID file is also copied alongside DEM data when :ref:`[Processing].cache_dem_by
-  <Processing.cache_dem_by>` option is on.
+  <Processing.cache_dem_by>` option is on
   (`#123 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/123>`_).
 
 v1.1.0 Bugs fixed
@@ -83,12 +86,12 @@ v1.1.0 Bugs fixed
 
 - Noise correction post-processing shall not transform wide no-data sides from
   Sentinel-1 IPF 2.90+ products into :ref:`minimal signal value
-  <Processing.lower_signal_value>`.
+  <Processing.lower_signal_value>`
   (`#159 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/159>`_).
 
-- Handling of `nodata` values has been improved.
+- Handling of `nodata` values has been improved
   (`#159 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/159>`_,
-  (`#160 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/160>`_).
+  `#160 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/160>`_).
 
 
 v1.1.0 Breaking changes

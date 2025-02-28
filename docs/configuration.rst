@@ -749,6 +749,14 @@ You can use this :download:`this template
            V1.0 of S1Tiling.  See Issue `#118
            <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/118>`_.
 
+.. _Metadata:
+
+``[Metadata]`` section
+++++++++++++++++++++++
+
+You can place in this section any extra ``key : value`` information that you
+want written in the GeoTIFF metadata of S1Tiling products.
+
 
 .. commented-out-to-be-implemented:
       .. _Filtering.reset_outcore:
