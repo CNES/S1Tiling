@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -80,7 +80,7 @@ class Provider:
 
         :param datetime first_date: Start of the search time range
         :param datetime last_date:  End of the search time range
-        :param sequence mission:    Set of "S1A", "S1B" missions to retrict search.
+        :param sequence missions:   Set of "S1A", "S1B", "S1C" missions to retrict search.
                                     If empty, to filering is done.
         :return: a list of EOF file specifications that match the search request parameters.
 
