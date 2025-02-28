@@ -55,7 +55,7 @@ is always available at https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.
 S1Tiling installation has a few traps. Please read the [relevant documentation](https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest/install.html)
 regarding OTB and GDAL installation.
 
-We highly recommand the usage of [dockers](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry/87), or of S1Tiling module for TREX users. 
+We highly recommand the usage of [dockers](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry/87), or of S1Tiling module for TREX users.
 
 # Community
 
@@ -65,8 +65,8 @@ We highly recommand the usage of [dockers](https://gitlab.orfeo-toolbox.org/s1-t
 
 ```
 All rights reserved.
-Copyright 2017-2024 (c) CNES.
-Copyright 2022-2024 (c) CS GROUP France.
+Copyright 2017-2025 (c) CNES.
+Copyright 2022-2025 (c) CS GROUP France.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
