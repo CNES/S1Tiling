@@ -319,7 +319,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
-        self.dem                 = accessor.get('Paths', 'dem_dir', fallback='') or accessor.get('Paths', 'srtm')
+        self.dem                 = accessor.get('Paths', 'dem_dir',  fallback='') or accessor.get('Paths', 'srtm')
+        #: DEM identifier to save in GeoTIFF metadata: See :ref:`[PATHS.dem_info] <paths.dem_info>`!
+        self.dem_info            = accessor.get('Paths', 'dem_info', fallback=os.path.basename(self.dem))
         dem_database             = accessor.get('Paths', 'dem_database', fallback='')
         # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
         #: Path to the internal DEM tiles database: automatically set

@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _files:
 
 .. index:: files
@@ -72,6 +77,14 @@ Orthorectified S2 tiles
         - time of the second S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
@@ -259,8 +272,12 @@ Local Incidence Angle map files
 
       * - ``DATA_TYPE``
         - :samp:`100 * degrees(LIA)` / :samp:`sin(LIA)`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``DEM_RESAMPLING_METHOD``
         - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
       * - ``EOF_FILE``
@@ -528,16 +545,20 @@ DEM data projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_LIST``
+        - List of DEM tiles used to generate the file
       * - ``DEM_RESAMPLING_METHOD``
         - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
-      * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
-      * - ``ORTHORECTIFIED``
-        - :samp:`true`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
@@ -607,8 +628,12 @@ files.
       * - Metadata
         - Value
 
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
@@ -721,8 +746,12 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
 
       * - ``ACQUISITION_DATETIME``
         - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
@@ -934,8 +963,12 @@ present in Sentinel-1 SAR input products.
 
       * - ``ACQUISITION_DATETIME``
         - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``

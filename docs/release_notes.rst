@@ -33,9 +33,12 @@ v1.2.0 Improvements
   directory structure is still supported for backward compatibility reasons.
 - Generate :ref:`maps of incidence angles to the WGS84 ellipsoid <ia-files>`
   (`#161 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/161>`_).
-- Add :ref:`[Metadata] <metadata>` configuration section to specify extra
-  GeoTIFF metadata that will be set in the images produced by S1Tiling
+- New GeoTIFF metadata are written in the images produced by S1Tiling
   (`#171 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/171>`_).
+
+  - :ref:`DEM_INFO <paths.dem_info>` that will be set when relevant,
+  - and any pairs of ``key=value`` that are specified in the :ref:`[Metadata]
+    <metadata>` configuration section.
 
 
 Version 1.1.0

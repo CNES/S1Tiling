@@ -92,6 +92,12 @@ You can use this :download:`this template
       the keys from `eotile <https://github.com/CS-SI/eotile>`_ DEM database
       like for instance :file:`{{Product10}}.tif` for Copernicus 30m DEM.
 
+      .. _paths.dem_info:
+  * - ``dem_info``
+    - DEM identifier to inject in the products GeoTIFF metadata under
+      ``DEM_INFO`` key. If not defined, the last part (basename) of
+      :ref:`[Paths].dem_dir <paths.dem_dir>` will be used.
+
       .. _paths.srtm:
   * - ``srtm``
     - **(deprecated)** Use :ref:`[PATHS].dem_dir <paths.dem_dir>`. Path to SRTM files.
