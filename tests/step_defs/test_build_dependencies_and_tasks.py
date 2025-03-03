@@ -270,6 +270,8 @@ class Configuration():
         }
         self.dname_fmt                         = {}
         self.creation_options                  = {}
+        self.extra_metadata                    = {}
+        self.dem_info                          = ''
 
 
 def isfile(filename, existing_files) -> bool:

@@ -411,6 +411,17 @@ class SumAllHeights(OTBStepFactory):
         assert 'in_s2_geoid' in keys
         return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
 
+    def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
+        logger.debug("Fetch DEM_RESAMPLING_METHOD from '%s'", inputpath)
+        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
+            dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
+            if not dst:
+                raise RuntimeError(f"Cannot open DEM/S2 file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
+            res = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
+            del dst
+            return res
+        return 'No idea in dry run mode'
+
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Metadata coming from the DEM image are lost => we fetch them in the DEM file.
@@ -418,11 +429,9 @@ class SumAllHeights(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
 
         in_s2_dem   = fetch_input_data('in_s2_dem',   all_inputs).out_filename
-        dst = gdal.Open(in_s2_dem, gdal.GA_ReadOnly)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['DEM_RESAMPLING_METHOD'] = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
-        del dst
+        imd['DEM_RESAMPLING_METHOD'] = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
