@@ -92,6 +92,12 @@ You can use this :download:`this template
       the keys from `eotile <https://github.com/CS-SI/eotile>`_ DEM database
       like for instance :file:`{{Product10}}.tif` for Copernicus 30m DEM.
 
+      .. _paths.dem_info:
+  * - ``dem_info``
+    - DEM identifier to inject in the products GeoTIFF metadata under
+      ``DEM_INFO`` key. If not defined, the last part (basename) of
+      :ref:`[Paths].dem_dir <paths.dem_dir>` will be used.
+
       .. _paths.srtm:
   * - ``srtm``
     - **(deprecated)** Use :ref:`[PATHS].dem_dir <paths.dem_dir>`. Path to SRTM files.
@@ -748,6 +754,14 @@ You can use this :download:`this template
            Note: This feature is only supported after LIA calibration as of
            V1.0 of S1Tiling.  See Issue `#118
            <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/118>`_.
+
+.. _Metadata:
+
+``[Metadata]`` section
+++++++++++++++++++++++
+
+You can place in this section any extra ``key : value`` information that you
+want written in the GeoTIFF metadata of S1Tiling products.
 
 
 .. commented-out-to-be-implemented:

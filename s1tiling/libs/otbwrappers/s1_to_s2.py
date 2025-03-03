@@ -636,6 +636,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_dem_dir          = cfg.tmp_dem_dir
+        self.__dem_info             = cfg.dem_info
         # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
         # (and locally override calibration type in case of normlim calibration)
@@ -656,9 +657,11 @@ class _OrthoRectifierFactory(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
-        imd['ORTHORECTIFIED']             = 'true'
-        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                  = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']      = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']              = str(self.__out_spatial_res)
+        imd['DEM_INFO']                        = self.__dem_info
         # S1 -> S2 => remove all SAR specific metadata inserted by OTB
         meta_to_remove_in_s2 = (
                 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',

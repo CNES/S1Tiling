@@ -138,6 +138,7 @@ def declare_know_files(
         meta['gain']                = 42
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
+    mocker.patch('s1tiling.libs.otbwrappers.SumAllHeights.fetch_upstream_dem_resampling_method', lambda slf, ip, mt : 'cubic')
 
     def mock_fetch_nodata_value(inputpath, is_running_dry, default_value, band_nr:int = 1) -> float:
         return default_value

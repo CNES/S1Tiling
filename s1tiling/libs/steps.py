@@ -574,6 +574,7 @@ class StepFactory(ABC):
         assert isinstance(name, str), f"{self.__class__.__name__} name is a {name.__class__.__name__}, not a string -> {name!r}"
         self._name               = name
         self.__image_description = kwargs.get('image_description', None)
+        self.__extra_metadata    = kwargs.get('extra_metadata', {})
         # logger.debug("new StepFactory(%s)", name)
 
     @property
@@ -748,6 +749,8 @@ class StepFactory(ABC):
                 imd['TIFFTAG_IMAGEDESCRIPTION'] = self.image_description.format(
                     **meta,
                     flying_unit_code_short=meta.get('flying_unit_code', 'S1?')[1:].upper())
+        for key, value in self.__extra_metadata.items():
+            imd[key] = value
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -985,7 +988,7 @@ class _FileProducingStepFactory(StepFactory):
         :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
         ``gen_output_dir`` and ``gen_output_filename``.
         """
-        super().__init__(*argv, **kwargs)
+        super().__init__(*argv, extra_metadata=cfg.extra_metadata, **kwargs)
         is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
         # logger.debug("%s -> final: %s <== gen_tmp=%s    gen_out=%s", self.name, is_a_final_step, gen_tmp_dir, gen_output_dir)
 
