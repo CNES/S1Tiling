@@ -44,6 +44,7 @@ On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
    CNES
    FAQ
    release_notes
+   bibliography
 
 .. toctree::
    :maxdepth: 3
