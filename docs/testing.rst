@@ -11,7 +11,7 @@ Testing
 Contributors will want to test their changes against a baseline to ensure no
 regression appear.
 
-S1-Tiling tests are not part of an integrated continous workflow. They are
+S1-Tiling tests are not part of an integrated continuous workflow. They are
 meant to be run on an on-demand basis.
 
 At this moment we only have a single end-to-end test on S2 33NWB tile on S1
@@ -57,7 +57,7 @@ There are two ways to obtain the baseline:
 Running the tests
 -----------------
 
-S1 Tiling tests depend on pytest.
+S1 Tiling tests depend on Pytest.
 
 I usually execute the tests with:
 
@@ -73,7 +73,7 @@ You can see all the supported options with:
 
     pytest --help
 
-In particular they depend on the following options:
+In particular, they depend on the following options:
 
 .. option:: --baselinedir=BASELINEDIR
 

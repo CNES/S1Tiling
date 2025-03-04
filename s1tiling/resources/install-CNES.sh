@@ -1,8 +1,8 @@
 #!/bin/bash
 # =========================================================================
-#   Program:   S1Processor
+#   Program:   S1Tiling
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -11,7 +11,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,18 +32,18 @@
 
 ## ======[ Globals {{{1
 # ==[ Constant parameters {{{2
-# s1tiling_version=1.0.0
+# s1tiling_version=1.1.0
 # otb_ver=7.4.2
 s1tiling_version=1.2.0alpha
-otb_ver=9.0.0
+otb_ver=9.1.0
 # otb_ver=8.1.2
-git_node=develop
+# git_node=develop
 git_RTC_gamma0_node=develop
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
 # if TREX:
-python_ml_dep=python3.8
+python_ml_dep=python3.12
 
 repo_url=https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git
 
@@ -67,10 +67,10 @@ env="${public_prefix}-${date}"
 # -> HAL
 # projets_root="/softs/projets"
 # -> TREX
-projets_root="/work/softs/projets"
+projets_root="${projets_root:/work/softs/projets}"
 
-prefix_root="${projects_root}/s1tiling/rh${RH_FLAVOR}"
-module_root="${projects_root}/modulefiles/s1tiling"
+prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
+module_root="${projets_root}/modulefiles/s1tiling"
 
 ## ======[ Helper functions {{{1
 # ==[ _verbose                          {{{2
@@ -107,6 +107,7 @@ function _execute()
 
 ## ======[ Main installation script {{{1
 
+[ -d "${prefix_root}" ] || _execute mkdir -p "${prefix_root}" || _die "Can't create '${prefix_root}"
 _execute cd "${prefix_root}" || _die "Can't cd to installation base directory ${prefix_root}"
 
 # ==[ Work around improper dependance of OTB on libcrypto by using git before hand
@@ -119,7 +120,7 @@ _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'
 
 [ -d RTC_gamma0 ] || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0.git || _die "Can't clone RTC_gamma0 repository"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-_execute cd "${prefix_root}/${env}"/RTC_gamma0
+_execute cd "RTC_gamma0"            || _die "Can't cd to the RTC_gamma0 directory"
 _execute git checkout ${git_RTC_gamma0_node} || _die "Can't checkout '${git_RTC_gamma0_node}'"
 
 # ==[ Create and prepare the virtual env
@@ -138,10 +139,10 @@ source "${env}/bin/activate"
 
 _execute python -m pip install --upgrade pip                || _die "Can't upgrade pip"
 # _execute python -m pip install --upgrade setuptools==57.5.0 || _die "Can't upgrade setuptools to v57.5.0"
-_execute python -m pip install --upgrade setuptools || _die "Can't upgrade setuptools to v57.5.0"
-_execute python -m pip --no-cache-dir install numpy         || _die "Can't install numpy from scratch"
+_execute python -m pip install --upgrade setuptools         || _die "Can't upgrade setuptools"
+_execute python -m pip --no-cache-dir install "numpy<2"     || _die "Can't install numpy from scratch"
 
-# Check if GDAL fulfils all S1Tiling requirements
+# Check if GDAL fulfills all S1Tiling requirements
 echo -e "\n# Check GDAL is compatible with S1Tiling requirements..."
 
 # python -c "from osgeo import gdal ; print('GDAL version:', gdal.__version__)"
@@ -162,7 +163,6 @@ _execute cd "${env}" || _die "Invalid expected directory"
 _execute cd repo || _die "Repository hasn't been cloned properly..."
 
 # ==[ Install the expected version
-# _execute git checkout develop
 [ -v git_node ] || git_node="tags/${s1tiling_version}"
 _execute git checkout "${git_node}" || _die "Can't checkout ${git_node}"
 _execute python -m pip install .    || _die "Can't install S1Tiling (from repo)"
@@ -174,8 +174,8 @@ lia_build_dir="normlim_sigma0/_builddir"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
 [ -d normlim_sigma0 ]         || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0.git || _die "Can't clone normlim_sigma0 repository"
 _execute cd "normlim_sigma0"  || _die "Can't cd to the normlim_sigma0 directory"
+# _execute git checkout "tags/${normlim_version}" || _die "Can't change normlim_sigma0 branch"
 # Use temporary branch for applications compatible with OTB 8
-# [[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
 _execute mkdir -p "_builddir" || _die "Can't create the build directory"
 _execute cd       "_builddir" || _die "Can't cd to the build directory"
 # _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
@@ -189,10 +189,9 @@ _execute rm -rf "normlim_sigma0"    || _die "Can't clean normlim_sigma0 director
 gamma_area_build_dir="RTC_gamma0/_builddir"
 
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-[ -d RTC_gamma0 ]         || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0.git || _die "Can't clone RTC_gamma0 repository"
-_execute cd "RTC_gamma0"  || _die "Can't cd to the RTC_gamma0 directory"
+[ -d RTC_gamma0 ]             || _execute git clone https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0.git || _die "Can't clone RTC_gamma0 repository"
+_execute cd "RTC_gamma0"      || _die "Can't cd to the RTC_gamma0 directory"
 # Use temporary branch for applications compatible with OTB 8
-# [[ ${otb_ver} =~ ^7 ]]        || _execute git checkout 5-migrate-code-to-otb-8-x || _die "Can't change branch to 5-migrate-code-to-otb-8-x"
 _execute mkdir -p "_builddir" || _die "Can't create the build directory"
 _execute cd       "_builddir" || _die "Can't cd to the build directory"
 # _execute cmake -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${OTB_INSTALL_DIRNAME}" -DCMAKE_BUILD_TYPE=Release ..
@@ -200,7 +199,7 @@ _execute cmake -DOTB_BUILD_MODULE_AS_STANDALONE=ON -DCMAKE_INSTALL_PREFIX="${pre
 _execute make                       || _die "Can't compile RTC_gamma0"
 _execute make install               || _die "Can't install RTC_gamma0"
 _execute cd "${prefix_root}/${env}" || _die "Can't cd to '${prefix_root}/${env}'"
-_execute rm -rf "RTC_gamma0"    || _die "Can't clean RTC_gamma0 directory"
+_execute rm -rf "RTC_gamma0"        || _die "Can't clean RTC_gamma0 directory"
 
 # ==[ Commit the installation
 _execute cd "${prefix_root}"
@@ -209,6 +208,7 @@ _execute chmod -R go+rX "${env}"
 _execute ln -s "${env}" "${public_prefix}"
 
 # ==[ And create the modulefile!
+[ -d "${module_root}" ] || _execute mkdir -p "${module_root}" || _die "Cannot create module folder for S1Tiling: '${module_root}'"
 export module_file="${module_root}/${public_prefix}.lua"
 _verbose "Create modulefile: ${module_file}"
 cat > "${module_file}" << EOF
@@ -241,7 +241,7 @@ whatis("Date d installation : "..installation)
 -- check_os(os_disponible) -- on HAL only, not on TREX...
 
 -- Variable du modulefile
-local home=pathJoin("${projects_root}/s1tiling",rhos,version)
+local home=pathJoin("${projets_root}/s1tiling",rhos,version)
 
 -- Dependances
 depend("otb/${otb_ver}-${python_ml_dep}")

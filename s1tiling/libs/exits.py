@@ -58,6 +58,7 @@ logger = logging.getLogger('s1tiling.exists')
 k_exit_table : Dict[Type[BaseException], int] = {
         exceptions.ConfigurationError    : CONFIG_ERROR,
         exceptions.CorruptedDataSAFEError: CORRUPTED_DATA_SAFE,
+        exceptions.DownloadEOFFileError  : DOWNLOAD_ERROR,
         exceptions.DownloadS1FileError   : DOWNLOAD_ERROR,
         exceptions.NoS2TileError         : NO_S2_TILE,
         exceptions.NoS1ImageError        : NO_S1_IMAGE,

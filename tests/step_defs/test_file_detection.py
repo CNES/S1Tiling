@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -41,11 +41,11 @@ from shapely import geometry
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from tests.mock_otb  import isdir, glob, dirname
+from tests.mock_otb  import isdir, isfile, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager     import S1FileManager
-from s1tiling.libs.outcome           import DownloadOutcome
+from s1tiling.libs.outcome           import S1DownloadOutcome
 
 from eodag.utils.exceptions import (
     # AuthenticationError,
@@ -66,11 +66,12 @@ scenarios(
 TMPDIR = 'TMP'
 INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
+EOFDIR = 'EOFDIR'
 LIADIR = 'LIADIR'
 GAMMA_AREADIR = 'GAMMA_AREADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
 def safe_dir(idx) -> str:
     return file_db.safe_dir(idx)
@@ -167,7 +168,8 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
         # logging.debug(' - %s', k)
     known_dirs.update([INPUT, TMPDIR, OUTPUT])
     known_dirs.update([dirname(fn, 2) for fn in known_files])
-    mocker.patch('os.path.isdir', lambda f: isdir(f, known_dirs))
+    mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
+    mocker.patch('os.path.isdir',  lambda f: isdir(f, known_dirs))
     mocker.patch('glob.glob',     lambda pat : glob(pat, sorted(set(known_files))))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
@@ -191,6 +193,7 @@ def _declare_known_S1_files(known_files, patterns) -> None:
     files = []
     for pattern in patterns:
         files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    files.extend(file_db.all_manifests())
     known_files.extend(files)
     logging.debug('Mocking w/ S1: %s', patterns)
     for file in files:
@@ -416,7 +419,7 @@ def given_a_dname_fmt_filtered_has_a_different_value(configuration) -> None:
 
 def _search(configuration, image_list, polarisation) -> None:
     configuration.polarisation = polarisation
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     manager._refresh_s1_product_list()
     manager._update_s1_img_list_for('33NWB')
     logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
@@ -441,9 +444,9 @@ def when_searching_VH(configuration, image_list) -> None:
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> DownloadOutcome:
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> S1DownloadOutcome:
     logging.debug('mock: download1 -> %s', product)
-    return DownloadOutcome(product, product)
+    return S1DownloadOutcome(product, product)
 
 @when('Searching which S1 files to download')
 def when_searching_which_S1_to_download(configuration, mocker, downloads) -> None:
@@ -457,7 +460,7 @@ def when_searching_which_S1_to_download(configuration, mocker, downloads) -> Non
 
     default_polarisation = 'VV VH'
     configuration.polarisation = configuration.polarisation or default_polarisation
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     manager._refresh_s1_product_list()
 
     origin_33NWB = file_db.tile_origins('33NWB')
@@ -535,7 +538,7 @@ def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_di
 @given(parsers.parse('S1 product {idx} download has timed-out'))
 def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx) -> None:
     missing_product = MockEOProduct(int(idx))
-    failed = DownloadOutcome(
+    failed = S1DownloadOutcome(
             NotAvailableError(
                 f"{missing_product._id} is not available (OFFLINE) and could not be downloaded, timeout reached"),
             missing_product)
@@ -545,7 +548,7 @@ def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx) -> None:
 @when('Filtering products to use')
 def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_kepts, mocker, known_files, known_dirs) -> None:
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
-    manager = S1FileManager(configuration)
+    manager = S1FileManager(configuration, None)
     # `manager._products_info` is filled-up during manager construction
     # from the scanned (mocked) directories
     assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p["product"] for p in manager._products_info]},\nDownloading: {dl_successes}'

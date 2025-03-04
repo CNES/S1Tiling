@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -42,8 +42,6 @@ from unittest import TestCase
 
 # WARNING: Update these lists everytime an OTB application with an original
 # naming scheme for its parameters is used.
-#k_input_keys  = ['io.in', 'in', 'il', 'in.normals', 'in.xyz', 'insar', 'indem', 'indemproj', 'xyz', 'inr', 'inm', 'ingammaarea', 'inbetanaught']
-
 k_input_keys  = [
     'io.in',
     'in',
@@ -56,17 +54,17 @@ k_input_keys  = [
     'xyz',
     'inr',
     'inm',
-    'transform.type',
-    'transform.type.id.scalex',
-    'transform.type.id.scaley',
+    # 'transform.type',
+    # 'transform.type.id.scalex',
+    # 'transform.type.id.scaley',
     'ingammaarea',
     'inbetanaught',
-    'mingammaarea',
-    'calibfactor',
-    'nostreaming',
-    'outputnodata'
+    # 'mingammaarea',
+    # 'calibfactor',
+    # 'nostreaming',
+    # 'outputnodata',
 ]
-k_output_keys = ['io.out', 'out', 'out.lia', 'out.sin', 'out.gamma_area']
+k_output_keys = ['io.out', 'out', 'out.deg', 'out.cos', 'out.sin', 'out.tan', 'out.gamma_area']
 
 
 def isfile(filename, existing_files) -> bool:
@@ -189,12 +187,13 @@ class MockOTBApplication:
         self.unregister()
 
     def __str__(self) -> str:
-        return f"MockOTBApplication({self.__appname}) => params: {self.__params}"
+        return f"MockOTBApplication({self.appname}) => params: {self.__params}"
 
     def __repr__(self) -> str:
-        return f"MockOTBApplication({self.__appname}, {self.__mock_ctx})"
+        return f"MockOTBApplication({self.appname}, {self.__mock_ctx})"
 
     def add_unknown_parameter(self, key, value) -> None:
+        logging.debug('  %s.add_unknown_parameter(%s, %s) in %s', self.appname, key, value, self.__params)
         if key not in self.__params:
             self.__params[key] = value
 
@@ -202,6 +201,7 @@ class MockOTBApplication:
         self.__mock_ctx = None
 
     def ConnectImage(self, param_in, input_app, input_app_param_out) -> None:
+        logging.debug("%s.ConnectImage(): %s -> %s", self.appname, param_in, input_app.appname)
         input_app.add_unknown_parameter(input_app_param_out, self)
         self.add_unknown_parameter(param_in, input_app)
 
@@ -209,14 +209,15 @@ class MockOTBApplication:
         pass
 
     def SetParameterOutputImagePixelType(self, param_out, pixel_type) -> None:
-        logging.debug("Setting pixel_types[%s] <- %s // (%s) %s", param_out, pixel_type, self.__appname, id(self))
+        logging.debug("Setting pixel_types[%s] <- %s // (%s) %s", param_out, pixel_type, self.appname, id(self))
         self.__pixel_types[param_out] = pixel_type
 
     def SetParameters(self, parameters) -> None:
-        logging.debug("Setting parameters: %s", parameters)
+        logging.debug("%s.SetParameters(): %s", self.appname, parameters)
         self.__params.update(parameters)
 
     def AddParameterStringList(self, key, lvalues) -> None:
+        logging.debug("%s.AddParameterStringList(): %s = %s", self.appname, key, lvalues)
         if key not in self.__params:
             self.__params[key] = []
         elif not isinstance(self.__params, list):
@@ -225,6 +226,7 @@ class MockOTBApplication:
         self.__params[key].append(lvalues)
 
     def SetParameterString(self, key, svalue) -> None:
+        logging.debug("%s.SetParameterString(): %s = %s", self.appname, key, svalue)
         assert isinstance(svalue, str)
         self.__params[key] = svalue
 
@@ -240,7 +242,7 @@ class MockOTBApplication:
     def out_filenames(self):
         # We may actually have several ouputs => always return a list
         filenames = [self.__params[kv] for kv in k_output_keys if kv in self.__params]
-        assert filenames, ('%s has no output filename (--> %s)' % (self.__appname, _as_cmdline_call(self.__params)))
+        assert filenames, ('%s has no output filename (--> %s)' % (self.appname, _as_cmdline_call(self.__params)))
         return filenames
 
     @property
@@ -258,14 +260,14 @@ class MockOTBApplication:
                 parameters = self.parameters[k] if isinstance(self.parameters[k], list) else [self.parameters[k]]
                 for param in parameters:
                     if isinstance(param, MockOTBApplication):
-                        logging.info('mock.ExecuteAndWriteOutput: %s: recursing...', self.__appname)
+                        logging.info('mock.ExecuteAndWriteOutput: %s: recursing to... %s', self.appname, param.appname)
                         param.execute_and_write_output(False)
 
             # elif  k in self.parameters:
-            #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.__appname, k, type(self.parameters[k]))
-        logging.info('mock.ExecuteAndWriteOutput: %s %s', self.__appname, _as_cmdline_call(self.parameters))
-        logging.debug("pixel type(%s): %s // %s", self.__appname, self.__pixel_types, id(self))
-        self.__mock_ctx.assert_app_is_expected(self.__appname, self.parameters, self.__pixel_types)
+            #     logging.debug("mock.ExecuteAndWriteOutput: %s PARAM: -'%s' -> '%s'", self.appname, k, type(self.parameters[k]))
+        logging.info('mock.ExecuteAndWriteOutput: %s %s', self.appname, _as_cmdline_call(self.parameters))
+        logging.debug("pixel type(%s): %s // %s", self.appname, self.__pixel_types, id(self))
+        self.__mock_ctx.assert_app_is_expected(self.appname, self.parameters, self.__pixel_types)
 
     def ExecuteAndWriteOutput(self) -> None:
         assert self.__mock_ctx
@@ -418,35 +420,46 @@ class OTBApplicationsMockContext:
         return msg
 
     def _update_output_to_final_filename(self, params):
+        # logging.debug("  O2R from: %s", params)
         for kv in k_output_keys:
             if kv in params:
                 if isinstance(params[kv], MockOTBApplication):
                     params[kv] =  params[kv].appname + '|>' + self._update_output_to_final_filename(params[kv].parameters)
+                # logging.debug("  O2R[%s] to: %s", kv, params)
                 return params[kv]
 
     def _update_input_to_root_filename(self, params: Union[Dict, List]) -> Union[List[str], str]:
         assert isinstance(params, dict) # of parameters
+        # logging.debug("  I2R from: %s", params)
         in_param_keys = [kv for kv in k_input_keys if kv in params]
-        assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
+        # assert len(in_param_keys) > 0, f"No input keys found in {params.keys()}"
         for kv in in_param_keys:
             if isinstance(params[kv], MockOTBApplication):
+                # logging.debug("    case 1: RECURSE (%s, %s)", kv, params[kv].parameters)
                 updated = self._update_input_to_root_filename(params[kv].parameters)
                 if isinstance(updated, list):
                     updated = [u + '|>'+params[kv].appname for u in updated]
                 else:
                     updated = updated + '|>'+params[kv].appname
+                # logging.debug("    case 1: BACK %s <-- %s", kv, updated)
                 params[kv] = updated
             elif isinstance(params[kv], list):
+                # logging.debug("    case 2")
                 ps = []
                 for p in params[kv]:
+                    logging.debug("    %s is MockOTBApplication: %s // %s", kv, isinstance(p, MockOTBApplication), p)
                     if isinstance(p, MockOTBApplication):
                         p = self._update_input_to_root_filename(p.parameters) + '|>'+p.appname
                     ps.append(p)
                     assert isinstance(p, str)
                 params[kv] = ps
                 assert isinstance(params[kv], list) # of str...
+            # logging.debug("  I2R[%s] to: %s", kv, params)
             return params[kv]
-        return []
+        # logging.debug("    case 3: no %s IN %s: -> %s", params.keys(), k_input_keys, in_param_keys)
+        # logging.debug("  I2R[??] to: %s", params)
+        # Some upstream OTB applications upstream in a pipeline have no input images
+        return 'Ø'
 
     def assert_these_metadata_are_expected(self, new_metadata: Dict, name: str, filename: str) -> None:
         # Clean some useless/instable metadata
@@ -473,6 +486,7 @@ class OTBApplicationsMockContext:
     def assert_app_is_expected(self, appname, params, pixel_types) -> None:
         # Find out what the root input filename is (as we may not have any
         # input filename when dealing with in-memory processing
+        logging.debug("In %s case:", appname)
         self._update_input_to_root_filename(params)
         self._update_output_to_final_filename(params)
         # logging.info('SEARCHING %s %s among %s', appname, _as_cmdline_call(params), self._remaining_expectations_as_str())

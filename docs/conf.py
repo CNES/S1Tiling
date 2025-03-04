@@ -55,7 +55,9 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
     "sphinx_rtd_theme",
-    'm2r2'
+    'm2r2',
+    'sphinx.ext.mathjax',
+    'sphinx_click',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -255,6 +257,7 @@ intersphinx_mapping = {
     "Dask": ("https://docs.dask.org/en/latest/", None),
     "Gdal": ("https://gdal.org/", None),
     # "numpy": ("http://docs.scipy.org/doc/numpy", None),
+    "eodag": ("https://eodag.readthedocs.io/en/stable/", None),
 
 
     # 'https://www.orfeo-toolbox.org/CookBook/': None,

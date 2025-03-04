@@ -10,9 +10,9 @@ Data flows
 
 .. toctree::
    :maxdepth: 3
-   :caption: Data flows
 
    dataflow-main
    dataflow-normlim
+   dataflow-incidence-angle
    dataflow-gammanaughtrtc
    dataflow-filter

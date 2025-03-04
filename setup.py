@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Program:   S1Processor
+#   Program:   S1Tiling
 #
-#   Copyright 2017-2024 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -82,20 +82,24 @@ setup(
     package_data={"": ["LICENSE", "NOTICE"]},
     include_package_data=True, # Take MANIFEST.in into account
 
-    python_requires='>=3.8, <4',
+    python_requires='>=3.9, <4',
     install_requires=[
         "click",
         "dask[distributed]>=2022.8.1",
-        "eodag",
+        "eodag>=3,<4",
         "gdal=="+request_gdal_version(),
         "graphviz",
+        "lxml",     # already used by eodag actually
         "numpy",
         "objgraph", # leaks
         # "packaging", # version
+        "portion",  # intervals
         "pympler", # leaks
         "pyyaml>=5.1",
         # Any way to require OTB ?
-        ],
+        # "sentineleof>0.10.0",
+        "sentineleof @ git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
+    ],
     extras_require={
         "dev": [
             # "nose",
@@ -115,8 +119,13 @@ setup(
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",
+            "pytest_recording",
             "pylint",
-            ],
+            # Type hints:
+            "types-python-dateutil",
+            "types-PyYAML",
+            "types-requests",
+        ],
         "docs": [
             "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
             "jinja2",
@@ -127,12 +136,13 @@ setup(
             "sphinx~=7.1",
             "sphinx_rtd_theme~=1.3.0",
             "sphinx-carousel",
-            ],
-        },
+            "sphinx-click",
+        ],
+    },
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
@@ -140,27 +150,27 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: GIS",
-        ],
+    ],
 
     project_urls={
             "Bug Tracker": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues",
             "Documentation": "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest",
             "Source Code": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
             "Community": "https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11",
-            },
+    },
 
     scripts = ['s1tiling/S1Processor.py'],
     entry_points = {
         'console_scripts': [
             'S1Processor    = s1tiling.S1Processor:run',
-            'S1LIAMap       = s1tiling.S1Processor:run_lia',
-            'S1GammaAreaMap = s1tiling.S1Processor:run_gamma_area'
+            'S1LIAMap       = s1tiling.S1LIAMap:run_lia',
+            'S1IAMap        = s1tiling.S1IAMap:run_ia',
+            'S1GammaAreaMap = s1tiling.S1GammaAreaMap:run_gamma_area'
         ],
     },
 )

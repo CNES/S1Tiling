@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -34,19 +34,23 @@
 Sub-module that manages decoding of S1Processor options.
 """
 
+from collections.abc import Callable
 import configparser
 import copy
 from string import Formatter
 import logging
 import logging.handlers
 import logging.config
+
 # import multiprocessing
 import os
 from pathlib import Path
 import re
-from typing import Callable, Dict, List, NoReturn, Optional, Union, Tuple, TypeVar
+from typing import Dict, List, NoReturn, Optional, Protocol, Union, Tuple, TypeVar
 import otbApplication as otb
 import yaml
+
+from eof.client import Filename
 
 from s1tiling.libs import exceptions
 from .otbtools import otb_version
@@ -57,17 +61,17 @@ resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
 
 PIXEL_TYPES = {
-        'uint8'   : otb.ImagePixelType_uint8,
-        'int16'   : otb.ImagePixelType_int16,
-        'uint16'  : otb.ImagePixelType_uint16,
-        'int32'   : otb.ImagePixelType_int32,
-        'uint32'  : otb.ImagePixelType_uint32,
-        'float'   : otb.ImagePixelType_float,
-        'double'  : otb.ImagePixelType_double,
-        'cint16'  : otb.ImagePixelType_cint16,
-        'cint32'  : otb.ImagePixelType_cint32,
-        'cfloat'  : otb.ImagePixelType_cfloat,
-        'cdouble' : otb.ImagePixelType_cdouble,
+    'uint8'   : otb.ImagePixelType_uint8,
+    'int16'   : otb.ImagePixelType_int16,
+    'uint16'  : otb.ImagePixelType_uint16,
+    'int32'   : otb.ImagePixelType_int32,
+    'uint32'  : otb.ImagePixelType_uint32,
+    'float'   : otb.ImagePixelType_float,
+    'double'  : otb.ImagePixelType_double,
+    'cint16'  : otb.ImagePixelType_cint16,
+    'cint32'  : otb.ImagePixelType_cint32,
+    'cfloat'  : otb.ImagePixelType_cfloat,
+    'cdouble' : otb.ImagePixelType_cdouble,
 }
 
 
@@ -139,7 +143,7 @@ def getboolean_opt(cfg, config_filename: Path, section: str, name: str, **kwargs
 
 # Helper functions related to logs
 def add_missing(dst: List[str], entry: str):
-    """ Add entry to list if not already there """
+    """Add entry to list if not already there"""
     if entry not in dst:
         dst.append(entry)
 
@@ -208,14 +212,14 @@ class _ConfigAccessor:
 
     @property
     def config_file(self):
-        """ Property config_file """
+        """Property config_file"""
         return self.__config_file
 
     def has_section(self, section: str) -> bool:
-        """ Tells whether the configuration has the requested section """
+        """Tells whether the configuration has the requested section"""
         return self.__config.has_section(section)
 
-    def throw(self, message: str, e : Optional[BaseException] = None) -> NoReturn:
+    def throw(self, message: str, e: Optional[BaseException] = None) -> NoReturn:
         """
         Raises a :class:`exceptions.ConfigurationError` filles with everything
 
@@ -227,24 +231,33 @@ class _ConfigAccessor:
             raise exceptions.ConfigurationError(message, self.config_file)
 
     def get(self, section: str, name: str, **kwargs) -> str:
-        """ Helper function to report errors while extracting string configuration options """
+        """Helper function to report errors while extracting string configuration options"""
         return get_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getint(self, section: str, name: str, **kwargs) -> int:
-        """ Helper function to report errors while extracting int configuration options """
+        """Helper function to report errors while extracting int configuration options"""
         return getint_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getfloat(self, section: str, name: str, **kwargs) -> float:
-        """ Helper function to report errors while extracting floatting point configuration options """
+        """Helper function to report errors while extracting floatting point configuration options"""
         return getfloat_opt(self.__config, self.config_file, section, name, **kwargs)
 
     def getboolean(self, section: str, name: str, **kwargs) -> bool:
-        """ Helper function to report errors while extracting boolean configuration options """
+        """Helper function to report errors while extracting boolean configuration options"""
         return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
+
+    def get_items(self, section: str) -> Dict:
+        """Helper function to return configuration items from a section"""
+        res = {}
+        if self.__config.has_section(section):
+            options = self.__config.options(section) - self.__config.defaults().keys()
+            for option in options:
+                res[option] = self.__config.get(section, option, raw=True)
+        return res
 
 
 # The configuration decoding specific to S1Tiling application
-class Configuration():  # pylint: disable=too-many-instance-attributes
+class Configuration:  # pylint: disable=too-many-instance-attributes
     """This class handles the parameters from the cfg file"""
     def __init__(
             self, config_file : Union[str, Path], do_show_configuration=True
@@ -268,10 +281,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
         self.__init_creation_options(accessor)
+        self.__init_extra_metadata(accessor)
 
         # Other options
         #: Type of images handled
-        self.type_image         = "GRD"
+        self.type_image = "GRD"
 
         # Extra checks
         all_requested = self.tile_list[0] == "ALL"
@@ -294,17 +308,23 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     # ----------------------------------------------------------------------
     def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
-        self.output_preprocess    = accessor.get('Paths', 'output')
+        self.output_preprocess       = accessor.get('Paths', 'output')
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory        = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.lia_directory           = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        #: Destination directory where IA maps products are generated:  :ref:`[PATHS.ia] <paths.ia>`
+        self.ia_directory            = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
         #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.lia] <paths.gamma_area>`
-        self.gamma_area_directory = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
+        self.gamma_area_directory    = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
-        self.raw_directory        = accessor.get('Paths', 's1_images')
+        self.raw_directory           = accessor.get('Paths', 's1_images')
+        #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
+        self.eof_directory: Filename = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
-        self.dem                 = accessor.get('Paths', 'dem_dir', fallback='') or accessor.get('Paths', 'srtm')
+        self.dem                 = accessor.get('Paths', 'dem_dir',  fallback='') or accessor.get('Paths', 'srtm')
+        #: DEM identifier to save in GeoTIFF metadata: See :ref:`[PATHS.dem_info] <paths.dem_info>`!
+        self.dem_info            = accessor.get('Paths', 'dem_info', fallback=os.path.basename(self.dem))
         dem_database             = accessor.get('Paths', 'dem_database', fallback='')
         # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
         #: Path to the internal DEM tiles database: automatically set
@@ -334,8 +354,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     # ----------------------------------------------------------------------
     def __init_data_source(self, accessor: _ConfigAccessor) -> None:
         if accessor.has_section('PEPS'):
-            accessor.throw(
-                    'Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
+            accessor.throw('Since version 0.2, S1Tiling use [DataSource] instead of [PEPS] in config files. Please update your configuration!')
         #: Path to EODAG configuration file: :ref:`[DataSource.eodag_config] <DataSource.eodag_config>`
         self.eodag_config        = accessor.get('DataSource', 'eodag_config', fallback=None) or \
                                    accessor.get('DataSource', 'eodagConfig',  fallback=None)
@@ -354,10 +373,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         if unsupported_platforms:
             accessor.throw(f"Non supported requested platforms: {', '.join(unsupported_platforms)}")
         #: Filter to restrict platform: See  :ref:`[DataSource.platform_list] <DataSource.platform_list>`
-        self.platform_list       = platform_list
+        self.platform_list: List[str] = platform_list
 
         #: Filter to restrict orbit direction: See :ref:`[DataSource.orbit_direction] <DataSource.orbit_direction>`
-        self.orbit_direction : Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
+        self.orbit_direction: Optional[str] = accessor.get('DataSource', 'orbit_direction', fallback=None)
         if self.orbit_direction and self.orbit_direction not in ['ASC', 'DES']:
             accessor.throw("Parameter [orbit_direction] must be either unset or DES, or ASC")
         relative_orbit_list_str  = accessor.get('DataSource', 'relative_orbit_list', fallback='')
@@ -392,13 +411,11 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Tells whether DEM files are copied in a temporary directory, or if symbolic links are to be created. See :ref:`[Processing.cache_dem_by] <Processing.cache_dem_by>`
         self.cache_dem_by         = accessor.get('Processing', 'cache_dem_by', fallback='symlink')
         if self.cache_dem_by not in ['symlink', 'copy']:
-            accessor.throw(
-                    f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
+            accessor.throw(f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
 
         # - - - - - - - - - -[ Cut margins
         try:
-            self.override_azimuth_cut_threshold_to : Optional[bool] = accessor.getboolean(
-                    'Processing', 'override_azimuth_cut_threshold_to')
+            self.override_azimuth_cut_threshold_to: Optional[bool] = accessor.getboolean('Processing', 'override_azimuth_cut_threshold_to')
         except Exception:  # pylint: disable=broad-except
             # We cannot use "fallback=None" to handle ": None" w/ getboolean()
             #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
@@ -417,8 +434,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Minimal signal value to set after on "denoised" pixels: See :ref:`[Processing.lower_signal_value] <Processing.lower_signal_value>`
         self.lower_signal_value   = accessor.getfloat('Processing', 'lower_signal_value', fallback=1e-7)
         if self.lower_signal_value <= 0:  # TODO test nan, and >= 1e-3 ?
-            accessor.throw(
-                "'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
+            accessor.throw("'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
 
         # - - - - - - - - - -[ Gamma area computation
         #: Resampling: See :ref:`[Processing.no_use_resampled_dem] <Processing.no_use_resampled_dem>`
@@ -448,8 +464,8 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         self.calibration_factor                         = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
         self.gamma_area_to_gamma_naught_rtc_nostreaming = accessor.getboolean('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
-        #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
-        self.output_nodata                              = accessor.getboolean('Processing', 'output_nodata', fallback=False)
+        ## #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
+        ## self.output_nodata                              = accessor.getboolean('Processing', 'output_nodata', fallback=False)
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
@@ -490,11 +506,16 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: Number of threads allocated to each OTB application: See :ref:`[Processing.nb_otb_threads] <Processing.nb_otb_threads>`
         self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
 
-        # - - - - - - - - - -[ LIA
+        # - - - - - - - - - -[ IA/LIA
+        #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.ia_maps_to_produce] <Processing.ia_maps_to_produce>`
+        produce_ia_map_list_str   = accessor.get('Processing', 'ia_maps_to_produce', fallback='deg')
+        produce_ia_map_list       = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
+        self.ia_maps_to_produce: List[str] = produce_ia_map_list
+
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
         self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
 
-        #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for LIA computation purposes
+        #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for L/IA computation purposes
         resamplings = ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'rms', 'mode', 'max', 'min', 'med', 'q1', 'q3', 'qum']
         self.dem_warp_resampling_method = accessor.get('Processing', 'dem_warp_resampling_method', fallback="cubic")
         if self.dem_warp_resampling_method not in resamplings:
@@ -503,7 +524,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         #: no-data value used for various processings
         self.nodatas : Dict[str, Union[int,float,str,None]] = {}
         self.nodatas['SAR'] = accessor.get('Processing', 'nodata.SAR', fallback=0)  # undocumented => best avoided!!!
-        self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)
+        self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)  # None=>default
+        self.nodatas['IA']  = accessor.get('Processing', 'nodata.IA',  fallback=None)  # None=>default
+        self.nodatas['RTC'] = accessor.get('Processing', 'nodata.RTC', fallback=None)  # None=>no nodata
 
         # - - - - - - - - - -[ GAMMA AREA
         #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
@@ -525,29 +548,30 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
 
             #: Dictionary of filter options: {'rad': :ref:`[Filtering.window_radius] <Filtering.window_radius>`, 'deramp': :ref:`[Filtering.deramp] <Filtering.deramp>`, 'nblooks': :ref:`[Filtering.nblooks] <Filtering.nblooks>`}
             self.filter_options : Dict = {
-                    'rad': accessor.getint('Filtering', 'window_radius')
+                'rad': accessor.getint('Filtering', 'window_radius')
             }
             if self.filter == 'frost':
                 self.filter_options['deramp']  = accessor.getfloat('Filtering', 'deramp')
             elif self.filter in ['lee', 'gammamap', 'kuan']:
                 self.filter_options['nblooks'] = accessor.getfloat('Filtering', 'nblooks')
             else:
-                accessor.throw(
-                    f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
+                accessor.throw(f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
 
     # ----------------------------------------------------------------------
     def __init_fname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         fname_fmt_keys = [
-                'calibration', 'correct_denoising', 'cut_borders',
-                'orthorectification', 'concatenation', 'filtered',
-                'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
-                'normals_on_s2', 's1_lia',  's1_sin_lia', 'lia_product', 's2_lia_corrected',
-                'gamma_area_product', 's2_gamma_area_corrected',
-                # Keys to deprecated workflow
-                'dem_s1_agglomeration', 's1_on_dem', 's1_on_geoid_dem', 'xyz', 'normals_on_s1',
-                'lia_orthorectification', 'lia_concatenation',
-                'gamma_area_orthorectification', 'gamma_area_concatenation',
+            'calibration', 'correct_denoising', 'cut_borders',
+            'orthorectification', 'concatenation', 'filtered',
+            'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
+            'normals_on_s2', 'normals_wgs84_on_s2',
+            'lia_product', 'ia_product', 's2_lia_corrected',
+            's1_on_geoid_dem',
+            'gamma_area_product', 's2_gamma_area_corrected',
+            'gamma_area_orthorectification', 'gamma_area_concatenation',
+            # Keys to deprecated workflow
+            'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1', 's1_lia',  's1_sin_lia',
+            'lia_orthorectification', 'lia_concatenation',
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
@@ -560,8 +584,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_dname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         dname_fmt_keys = [
-                'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_product', 'gamma_area_product',
+            'tiled', 'filtered', 'mask',
+            'lia_product', 'ia_product',
+            's1_lia',  's1_sin_lia',
+            'gamma_area_product',
         ]
         self.dname_fmt = {}
         for key in dname_fmt_keys:
@@ -574,8 +600,9 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
     def __init_creation_options(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         creation_options_keys = [
-                'tiled', 'filtered', 'mask',
-                's1_lia',  's1_sin_lia', 'lia_deg', 'lia_sin', 's1_gamma_area',
+            'tiled', 'filtered', 'mask',
+            's1_lia',  's1_sin_lia',
+            'lia_deg', 'lia_sin', 'ia_deg', 'ia_sin', 's1_gamma_area',
         ]
         self.creation_options = {}
         for key in creation_options_keys:
@@ -599,6 +626,13 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
                 self.creation_options[key] = cos
 
     # ----------------------------------------------------------------------
+    def __init_extra_metadata(self, accessor: _ConfigAccessor) -> None:
+        # TODO: how can we handle metadata that don't always make sense like DEM kind...
+        # => take the directory of the DEM files, or the ID key or the .gpkg file, or a manual option
+        #: Extra geotiff metadata options to write in all products
+        self.extra_metadata = accessor.get_items('Metadata')
+
+    # ----------------------------------------------------------------------
     def show_configuration(self) -> None:  # pylint: disable=too-many-statements
         """
         Displays the configuration
@@ -608,8 +642,10 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("[Paths]")
         logging.info("- geoid_file                                  : %s",   self.GeoidFile)
         logging.info("- s1_images                                   : %s",   self.raw_directory)
+        logging.info("- eof_directory                               : %s",   self.eof_directory)
         logging.info("- output                                      : %s",   self.output_preprocess)
         logging.info("- LIA                                         : %s",   self.lia_directory)
+        logging.info("- IA                                          : %s",   self.ia_directory)
         logging.info("- GAMMA_AREA                                  : %s",   self.gamma_area_directory)
         logging.info("- dem directory                               : %s",   self.dem)
         logging.info("- dem filename format                         : %s",   self.dem_filename_format)
@@ -628,6 +664,7 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- roi_by_tiles                                : %s",   self.roi_by_tiles)
         if self.download:
             logging.info("- nb_parallel_downloads                       : %s", self.nb_download_processes)
+
         logging.info("[Processing]")
         logging.info("- calibration                                 : %s",   self.calibration_type)
         logging.info("- mode                                        : %s",   self.Mode)
@@ -641,23 +678,26 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         logging.info("- dem_shapefile                               : %s",   self._DEMShapefile)
         logging.info("- tiles                                       : %s",   self.tile_list)
         logging.info("- tiles_shapefile                             : %s",   self.output_grid)
-        logging.info("- produce LIA° map                            : %s",   self.produce_lia_map)
-        logging.info("- produce GAMMA_AREA map                      : %s",   self.produce_gamma_area_map)
-        logging.info("- no_use_resampled_dem                        : %s",   self.no_use_resampled_dem)
-        logging.info("- resample_dem_factor_x                       : %s",   self.resample_dem_factor_x)
-        logging.info("- resample_dem_factor_y                       : %s",   self.resample_dem_factor_y)
-        logging.info("- distribute_area                             : %s",   self.distribute_area)
-        logging.info("- gamma_area_nostreaming                      : %s",   self.gamma_area_nostreaming)
-        logging.info("- inner_margin_ratio_status                   : %s",   self.inner_margin_ratio_status)
-        logging.info("- outer_margin_ratio_status                   : %s",   self.outer_margin_ratio_status)
-        logging.info("- inner_margin_ratio                          : %s",   self.inner_margin_ratio)
-        logging.info("- outer_margin_ratio                          : %s",   self.outer_margin_ratio)
-        logging.info("- min_gamma_area                              : %s",   self.min_gamma_area)
-        logging.info("- calibration_factor                          : %s",   self.calibration_factor)
-        logging.info("- gamma_area_to_gamma_naught_rtc_nostreaming  : %s",   self.gamma_area_to_gamma_naught_rtc_nostreaming)
-        logging.info("- output_nodata                               : %s",   self.output_nodata)
-        logging.info("- warping method for DEM on S2                : %s",   self.dem_warp_resampling_method)
-        logging.info("- superimpose interpol Geoid on S2            : %s",   self.interpolation_method)
+        logging.info("- IA maps to produce                          : %s",   self.ia_maps_to_produce)
+        logging.info("- LIA / σ° RTC")
+        logging.info("  - produce LIA° map                          : %s",   self.produce_lia_map)
+        logging.info("  - warping method for DEM on S2              : %s",   self.dem_warp_resampling_method)
+        logging.info("  - superimpose interpol Geoid on S2          : %s",   self.interpolation_method)
+        logging.info("- γ° RTC")
+        logging.info("  - produce GAMMA_AREA map                    : %s",   self.produce_gamma_area_map)
+        logging.info("  - no_use_resampled_dem                      : %s",   self.no_use_resampled_dem)
+        logging.info("  - resample_dem_factor_x                     : %s",   self.resample_dem_factor_x)
+        logging.info("  - resample_dem_factor_y                     : %s",   self.resample_dem_factor_y)
+        logging.info("  - distribute_area                           : %s",   self.distribute_area)
+        logging.info("  - gamma_area_nostreaming                    : %s",   self.gamma_area_nostreaming)
+        logging.info("  - inner_margin_ratio_status                 : %s",   self.inner_margin_ratio_status)
+        logging.info("  - outer_margin_ratio_status                 : %s",   self.outer_margin_ratio_status)
+        logging.info("  - inner_margin_ratio                        : %s",   self.inner_margin_ratio)
+        logging.info("  - outer_margin_ratio                        : %s",   self.outer_margin_ratio)
+        logging.info("  - min_gamma_area                            : %s",   self.min_gamma_area)
+        logging.info("  - calibration_factor                        : %s",   self.calibration_factor)
+        logging.info("  - gamma_area_to_gamma_naught_rtc_nostreaming: %s",   self.gamma_area_to_gamma_naught_rtc_nostreaming)
+
         logging.info("[Mask]")
         logging.info("- generate_border_mask                        : %s",   self.mask_cond)
         logging.info("[Filter]")
@@ -670,15 +710,18 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
             elif self.filter in ['frost']:
                 logging.info("- deramp                              : %s",   self.filter_options['deramp'])
 
+        logging.info('Extra metadata                     : %s', len(self.extra_metadata))
+        for meta, value in self.extra_metadata.items():
+            logging.info('- %s --> %s', meta, value)
         logging.info('Output directories:')
         for k, fmt in self.dname_fmt.items():
-            logging.info(' - %s --> %s', k, fmt)
+            logging.info('- %s --> %s', k, fmt)
         logging.info('Filename formats:')
         for k, fmt in self.fname_fmt.items():
-            logging.info(' - %s --> %s', k, fmt)
+            logging.info('- %s --> %s', k, fmt)
         logging.info('Creation options:')
         for k, co in self.creation_options.items():
-            logging.info(' - %s --> %s', k, co)
+            logging.info('- %s --> %s', k, co)
 
     def init_logger(self, config_log_dir: Path, mode=None) -> None:
         """
@@ -730,11 +773,25 @@ class Configuration():  # pylint: disable=too-many-instance-attributes
         Retrieve the DEM associated to the specified S2 tile.
         """
         if tile_name not in self.__dems_by_s2_tiles:
-            raise AssertionError(f"No DEM information has been associated to {tile_name}. Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}")
+            raise AssertionError(
+                f"No DEM information has been associated to {tile_name}. "
+                f"Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}"
+            )
         return self.__dems_by_s2_tiles[tile_name]
 
 
-def fname_fmt_concatenation(cfg: Configuration) -> str:
+class NameFormattingConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to name generation configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding name generation.
+    """
+    calibration_type: str
+    fname_fmt: Dict
+    dname_fmt: Dict
+
+
+def fname_fmt_concatenation(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fnmatch.concatenation`` actual
     value, or its default value according to the calibration kind.
@@ -752,7 +809,7 @@ def fname_fmt_concatenation(cfg: Configuration) -> str:
     return fname_fmt
 
 
-def fname_fmt_filtered(cfg: Configuration) -> str:
+def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fnmatch.filtered`` actual value,
     or its default value according to the calibration kind.
@@ -770,7 +827,7 @@ def fname_fmt_filtered(cfg: Configuration) -> str:
     return fname_fmt
 
 
-def dname_fmt_tiled(cfg: Configuration) -> str:
+def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.tiled`` actual
     value, or its default value.
@@ -778,7 +835,7 @@ def dname_fmt_tiled(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
 
 
-def dname_fmt_mask(cfg: Configuration) -> str:
+def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.mask`` actual value,
     or its default value.
@@ -786,7 +843,7 @@ def dname_fmt_mask(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
 
 
-def dname_fmt_filtered(cfg: Configuration) -> str:
+def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.filtered`` actual value,
     or its default value.
@@ -794,7 +851,7 @@ def dname_fmt_filtered(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
 
 
-def dname_fmt_lia_product(cfg: Configuration) -> str:
+def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.lia_product`` actual value,
     or its default value.
@@ -802,7 +859,7 @@ def dname_fmt_lia_product(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
 
 
-def dname_fmt_gamma_area_product(cfg: Configuration) -> str:
+def dname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.gamma_area_product`` actual value,
     or its default value.
@@ -810,7 +867,32 @@ def dname_fmt_gamma_area_product(cfg: Configuration) -> str:
     return cfg.dname_fmt.get('gamma_area_product', '{gamma_area_dir}')
 
 
-def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):  # -> PixelType:
+def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.dname.ia_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('ia_product', '{ia_dir}')
+
+
+def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.dname.eof_product`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('eof_product', '{eof_dir}')
+
+
+class CreationOptionConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to creation option configuration data.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding creation options.
+    """
+    creation_options: Dict
+
+
+def pixel_type(cfg: CreationOptionConfiguration, product: str, default: Optional[str] = None):  # -> PixelType:
     """
     Helper function that returns the chosen pixel type in the configuration.
     """
@@ -819,7 +901,7 @@ def pixel_type(cfg: Configuration, product: str, default: Optional[str] = None):
     return PIXEL_TYPES.get(cos.get('pixel_type', default), None)
 
 
-def _extended_filename(cfg: Configuration, product: str, default: List[str]) -> str:
+def _extended_filename(cfg: CreationOptionConfiguration, product: str, default: List[str]) -> str:
     """
     Internal helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
@@ -832,7 +914,7 @@ def _extended_filename(cfg: Configuration, product: str, default: List[str]) -> 
     return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options])
 
 
-def extended_filename_tiled(cfg: Configuration) -> str:
+def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
@@ -841,7 +923,7 @@ def extended_filename_tiled(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def extended_filename_filtered(cfg: Configuration) -> str:
+def extended_filename_filtered(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
@@ -850,7 +932,7 @@ def extended_filename_filtered(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def extended_filename_mask(cfg: Configuration) -> str:
+def extended_filename_mask(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for masks.
@@ -858,16 +940,18 @@ def extended_filename_mask(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'mask', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_lia_degree(cfg: Configuration) -> str:
+def extended_filename_lia_degree(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
+
+    .. deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_gamma_area(cfg: Configuration) -> str:
+def extended_filename_gamma_area(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for GAMMA AREA
@@ -876,16 +960,18 @@ def extended_filename_gamma_area(cfg: Configuration) -> str:
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
 
 
-def extended_filename_lia_sin(cfg: Configuration) -> str:
+def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(LIA)
     products.
+
+    deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
 
 
-def _get_nodata(dict: Dict[str, Optional[Union[str,int,float]]], key: str, default_value: Union[str,int,float]):
+def _get_nodata(d: Dict[str, Optional[Union[str, int, float]]], key: str, default_value: Union[str, int, float]):
     """
     Internal helper to extract nodata value from configuration directionaries.
 
@@ -901,7 +987,7 @@ def _get_nodata(dict: Dict[str, Optional[Union[str,int,float]]], key: str, defau
     >>> _get_nodata({'LIA': None, 'SAR': 0, 'DEM': -32768}, 'H2G2', 42)
     42
     """
-    v = dict.get(key, None)
+    v = d.get(key, None)
     return v if v is not None else default_value
 
 
@@ -921,10 +1007,26 @@ def nodata_LIA(cfg: Configuration) -> Union[str, int, float]:
     return _get_nodata(cfg.nodatas, 'LIA', 'nan')
 
 
+def nodata_IA(cfg: Configuration) -> Union[str, int, float]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    images generated for IA normlim correction.
+    """
+    return _get_nodata(cfg.nodatas, 'IA', 'nan')
+
+
+def nodata_RTC(cfg: Configuration) -> Optional[Union[str, int, float]]:
+    """
+    Helper function that returns typical nodata value used in intermediary
+    images generated for γ° RTC correction.
+    """
+    return cfg.nodatas.get('RTC', None)
+
+
 def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
-    DEM images generated for LIA normlim correction.
+    DEM images generated for L/IA normlim correction.
     """
     return _get_nodata(cfg.nodatas, 'DEM', -32768)
 
@@ -932,6 +1034,6 @@ def nodata_DEM(cfg: Configuration) -> Union[str, int, float]:
 def nodata_XYZ(cfg: Configuration) -> Union[str, int, float]:
     """
     Helper function that returns typical nodata value used in intermediary
-    XYZ images generated for LIA normlim correction.
+    XYZ images generated for L/IA normlim correction.
     """
     return _get_nodata(cfg.nodatas, 'XYZ', 'nan')

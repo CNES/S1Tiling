@@ -32,19 +32,24 @@
 
 """ This module contains various utility functions"""
 
+from collections.abc import Callable, Generator, Iterator, KeysView, Set
 import fnmatch
 import logging
 import os
 from pathlib import Path
 import re
 import sys
-from timeit import default_timer as timer
-from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, KeysView, Optional, Set, Tuple, Union
-import xml.etree.ElementTree as ET
-from numpy.lib import math
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+
+# from numpy.lib import math
+import math
 from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
+
+from .utils.timer import timethis
+
+from .utils.xml import find, find_text, parse
 
 from .S1DateAcquisition import S1DateAcquisition
 
@@ -92,6 +97,7 @@ class Layer:
         """
         self.__layer.ResetReading()
 
+    @timethis("find_layer_named: {tile_name_field}")
     def find_tile_named(self, tile_name_field: str) -> Optional[ogr.Feature]:
         """
         Search for a tile that maches the name.
@@ -136,7 +142,7 @@ class DatasetManager:
 def fetch_nodata_value(
         inputpath: Union[str, Path],
         is_running_dry: bool,
-        default_value: Optional[Union[int,float,str]],
+        default_value: Union[int,float,str],
         band_nr: int = 1
 ) -> Union[int,float,str]:
     """
@@ -151,6 +157,7 @@ def fetch_nodata_value(
             if not band:
                 raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
             nodata = band.GetNoDataValue()
+            assert nodata is None or isinstance(nodata, (int, float, str))
             return nodata if nodata is not None else default_value
     else:
         return default_value
@@ -181,58 +188,6 @@ def get_spacing(image_path: Union[str, Path]):
 # ======================================================================
 ## Domain helpers
 
-def _find(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
-) -> ET.Element:
-    """
-    Helper function that finds an XML tag within a node.
-
-    :param element: node/tree where the search is done
-    :param key:     key that identifies the tag name to search
-    :param context: extra information used to report where search failures happen
-    :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
-    :raise RuntimeError: If the requested ``key`` isn't found.
-    :return: The non null node.
-    """
-    node = element.find(key, **kwargs)
-    if node is None:
-        kt = keytext or f"{key} node"
-        raise RuntimeError(f"Cannot find {kt} in {context}")
-    return node
-
-
-def _find_text(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
-) -> str:
-    """
-    Helper function that finds and returns the text contained in an XML tag
-    within a node.
-
-    :param element: node/tree where the search is done
-    :param key:     key that identifies the tag name to search
-    :param context: extra information used to report where search failures happen
-    :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
-    :raise RuntimeError: If the requested ``key`` isn't found.
-    :raise RuntimeError: If the node has non value
-    :return: The non empty text.
-    """
-    node = _find(element, key, context, keytext, **kwargs)
-    if not node.text:
-        kt = keytext or f"{key} node"
-        raise RuntimeError(f"Empty {kt} in {context}")
-    return node.text
-
-
 SAFE = "http://www.esa.int/safe/sentinel-1.0"
 S1   = "http://www.esa.int/safe/sentinel-1.0/sentinel-1"
 
@@ -241,10 +196,10 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     """
     Returns the relative orbit number of the product.
     """
-    root = ET.parse(manifest)
+    root = parse(manifest)
     url = "{http://www.esa.int/safe/sentinel-1.0}"
     key = f"metadataSection/metadataObject/metadataWrap/xmlData/{url}orbitReference/{url}relativeOrbitNumber"
-    return int(_find_text(root, key, manifest, "relativeOrbitNumber"))
+    return int(find_text(root, key, manifest, "relativeOrbitNumber"))
 
 
 def get_orbit_information(manifest: Union[str, Path]) -> Dict:
@@ -256,16 +211,16 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
     """
     ctx_manifest = f"manifest {manifest!r}"
     prefix_map = {"safe": SAFE, "s1": S1}
-    root = ET.parse(manifest)
-    node_orbit = _find(
+    root = parse(manifest)
+    node_orbit = find(
             root,
             "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
             ctx_manifest,
             "orbit reference",
             namespaces=prefix_map)
-    absolute_orbit  = int(_find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
-    relative_orbit  = int(_find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
-    orbit_direction = _find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
+    absolute_orbit  = int(find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
+    relative_orbit  = int(find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
+    orbit_direction = find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
     k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
     if orbit_direction not in k_direction_map:
         raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
@@ -288,8 +243,8 @@ def get_origin(
       the parsed coordinates (or throw an exception if they could not be parsed)
     """
     prefix_map = {"safe": SAFE}
-    root = ET.parse(manifest)
-    node_footprint = _find(
+    root = parse(manifest)
+    node_footprint = find(
             root,
             "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
             f"manifest {manifest!r}",
@@ -379,11 +334,11 @@ def get_s1image_orbit_time_range(
     """
     if not os.path.isfile(annotation_file):
         raise RuntimeError(f"{annotation_file!r} is not a valid file")
-    root = ET.parse(annotation_file)
+    root = parse(annotation_file)
     # Start/Stop times
-    header = _find(root, 'adsHeader', annotation_file)
-    start_time = np.datetime64(_find_text(header, 'startTime', annotation_file), "ns")
-    stop_time  = np.datetime64(_find_text(header, 'stopTime',  annotation_file), "ns")
+    header = find(root, 'adsHeader', annotation_file)
+    start_time = np.datetime64(find_text(header, 'startTime', annotation_file), "ns")
+    stop_time  = np.datetime64(find_text(header, 'stopTime',  annotation_file), "ns")
     # Azimuth times
     t_times = [e.text for e in root.findall('generalAnnotation/orbitList/orbit/time')]
     azimuth_times = [np.datetime64(t, 'ns') for t in t_times]
@@ -643,7 +598,7 @@ def partial_format(format_str: str, **kwargs) -> str:
     Example:
     --------
     >>> s = "{ab}_bla_{cd}"
-    >>> partial_format(s, ab="TOTO")
+    >>> partial_format(s, ab="tot")
     'tot_bla_{cd}'
     """
     return format_str.format_map(_PartialFormatHelper(**kwargs))
@@ -662,29 +617,6 @@ def flatten_stringlist(itr) -> Generator[str, None, None]:
                 yield from flatten_stringlist(x)
             except TypeError:
                 yield x
-
-
-class ExecutionTimer:
-    """Context manager to help measure execution times
-
-    Example:
-    with ExecutionTimer("the code", True) as t:
-        Code_to_measure()
-    """
-    def __init__(self, text, do_measure, log_level=None) -> None:
-        self._text       = text
-        self._do_measure = do_measure
-        self._log_level  = log_level or logging.INFO
-
-    def __enter__(self) -> "ExecutionTimer":
-        self._start = timer()  # pylint: disable=attribute-defined-outside-init
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
-        if self._do_measure:
-            end = timer()
-            logger.log(self._log_level, "%s took %ssec", self._text, end - self._start)
-        return False
 
 
 def list_files(directory: str, pattern=None) -> List[os.DirEntry]:

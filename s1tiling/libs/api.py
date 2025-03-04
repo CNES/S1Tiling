@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -34,218 +34,124 @@
 Submodule that defines all API related functions and classes.
 """
 
+from collections.abc import Callable
+import contextlib
 import logging
 import logging.config
 import os
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, cast
 
 from distributed.scheduler import KilledWorker
-from dask.distributed import Client, LocalCluster
+from dask.distributed import Client
+from eodag.api.core import EODataAccessGateway
 
-from s1tiling.libs.vis import SimpleComputationGraph  # Graphs
+from .S1DateAcquisition import S1DateAcquisition
 from .S1FileManager import (
-        S1FileManager, WorkspaceKinds, EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    S1FileManager,
+    EODAG_DEFAULT_DOWNLOAD_WAIT,
+    EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
 )
 from . import exits
 from . import exceptions
 from . import Utils
 from .configuration import Configuration
-from .otbpipeline import FirstStep, PipelineDescription, PipelineDescriptionSequence, StepFactory, AbstractStep
+from .otbpipeline import (
+    FirstStep,
+    PipelineDescription,
+    PipelineDescriptionSequence,
+    StepFactory,
+    AbstractStep,
+)
 from .otbwrappers import (
-        # Main S1 -> S2 Step Factories
-        ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CorrectDenoising,
-        CutBorders, OrthoRectify, Concatenate, BuildBorderMask, SmoothBorderMask,
-        # LIA relate Step Factories
-        AgglomerateDEMOnS2, ProjectDEMToS2Tile, ProjectGeoidToS2Tile,
-        SumAllHeights, ComputeGroundAndSatPositionsOnDEM,
-        ComputeLIAOnS2, filter_LIA, ComputeNormalsOnS2,
-        ApplyLIACalibration,
-        # Deprecated LIA related Step Factories
-        AgglomerateDEMOnS1, SARDEMProjection, SARCartesianMeanEstimation,
-        ComputeNormalsOnS1, OrthoRectifyLIA, ComputeLIAOnS1, ConcatenateLIA, SelectBestCoverage,
-        # Gamma Area related Step Factories
-        ResampleDEM, SARDEMProjectionImageEstimation, SARGammaAreaImageEstimation,
-        OrthoRectifyGAMMA_AREA, ConcatenateGAMMA_AREA, SelectGammaNaughtAreaBestCoverage,
-        ApplyGammaNaughtRTCCalibration,
-        # Filter Step Factories
-        SpatialDespeckle)
-from .outcome import Outcome
+    # Main S1 -> S2 Step Factories
+    ExtractSentinel1Metadata,
+    AnalyseBorders,
+    Calibrate,
+    CorrectDenoising,
+    CutBorders,
+    OrthoRectify,
+    Concatenate,
+    BuildBorderMask,
+    SmoothBorderMask,
+    # LIA related Step Factories
+    AgglomerateDEMOnS2,
+    ProjectDEMToS2Tile,
+    ProjectGeoidToS2Tile,
+    SumAllHeights,
+    ComputeGroundAndSatPositionsOnDEM,
+    ComputeGroundAndSatPositionsOnDEMFromEOF,
+    ComputeLIAOnS2,
+    filter_LIA,
+    ComputeNormalsOnS2,
+    ComputeEllipsoidNormalsOnS2,
+    ComputeIAOnS2,
+    ComputeGroundAndSatPositionsOnEllipsoid,
+    ApplyLIACalibration,
+    # Deprecated LIA related Step Factories
+    AgglomerateDEMOnS1,
+    SARDEMProjection,
+    SARCartesianMeanEstimation,
+    ComputeNormalsOnS1,
+    OrthoRectifyLIA,
+    ComputeLIAOnS1,
+    ConcatenateLIA,
+    SelectBestCoverage,
+    # Gamma Area related Step Factories
+    ResampleDEM,
+    SARDEMProjectionImageEstimation,
+    SARGammaAreaImageEstimation,
+    OrthoRectifyGAMMA_AREA,
+    ConcatenateGAMMA_AREA,
+    SelectGammaNaughtAreaBestCoverage,
+    ApplyGammaNaughtRTCCalibration,
+    # Filter Step Factories
+    SpatialDespeckle,
+)
+from .outcome     import Outcome
+from .orbit       import EOFFileManager
+from .utils.dask  import DaskContext
+from .utils       import eodag
+from .utils.layer import filter_existing_tiles
+from .utils.timer import timethis
+
+
+from .vis import SimpleComputationGraph  # Graphs
+from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tiled_workspaces_exist
+
+
+IntersectingS1FilesOutcome = Outcome[List[Dict]]
 
 
 logger = logging.getLogger('s1tiling.api')
 
 
-def remove_files(files: List[Union[str, Path]], what: str) -> None:
-    """
-    Removes the files from the disk
-    """
-    logger.debug("Remove %s: %s", what, files)
-    for file_it in files:
-        if os.path.exists(file_it):
-            os.remove(file_it)
-
-
-def extract_tiles_to_process(cfg: Configuration, s1_file_manager: S1FileManager) -> List[str]:
+def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
     """
     Deduce from the configuration all the tiles that need to be processed.
     """
     logger.info('Requested tiles: %s', cfg.tile_list)
 
-    all_requested = False
     tiles_to_process = []
     if cfg.tile_list[0] == "ALL":
-        all_requested = True
-    else:
-        for tile in cfg.tile_list:
-            # TODO: In order to avoid opening the Layer 42 times, Check all tiles at once
-            if s1_file_manager.tile_exists(tile):
-                tiles_to_process.append(tile)
-            else:
-                logger.warning("Tile %s does not exist, skipping ...", tile)
-
-    # We can not require both to process all tiles covered by downloaded products
-    # and and download all tiles
-
-    if all_requested:
+        if not s1_file_manager:
+            raise exceptions.ConfigurationError("tile_list=ALL mode is not compatible with this scenario", "")
         # Check already done in the configuration object
-        assert not (cfg.download and "ALL" in cfg.roi_by_tiles), \
-            "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
+        assert not (
+            cfg.download and "ALL" in cfg.roi_by_tiles
+        ), "Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'. Change either value or deactivate download instead"
         tiles_to_process = s1_file_manager.get_tiles_covered_by_products()
         logger.info("All tiles for which more than %s%% of the surface is covered by products will be produced: %s",
                 100 * cfg.tile_to_product_overlap_ratio, tiles_to_process)
+    else:
+        tiles_to_process = filter_existing_tiles(cfg.output_grid, cfg.tile_list)
+
+    # We can not require both to process all tiles covered by downloaded products
+    # and download all tiles
 
     logger.info('The following tiles will be processed: %s', tiles_to_process)
     return tiles_to_process
-
-
-def check_tiles_to_process(tiles_to_process: List[str], s1_file_manager: S1FileManager) -> Tuple[List[str], Dict, Dict[str, Dict]]:
-    """
-    Search the DEM tiles required to process the tiles to process.
-    """
-    needed_dem_tiles = {}
-    tiles_to_process_checked = []  # TODO: don't they exactly match tiles_to_process?
-
-    # Analyse DEM coverage for MGRS tiles to be processed
-    dem_tiles_check = s1_file_manager.check_dem_coverage(tiles_to_process)
-
-    # For each MGRS tile to process
-    for tile in tiles_to_process:
-        logger.info("Check DEM coverage for %s", tile)
-        # Get DEM tiles coverage statistics
-        dem_tiles = dem_tiles_check[tile]
-        current_coverage = 0
-        # Compute global coverage
-        for _, dem_info in dem_tiles.items():
-            current_coverage += dem_info['_coverage']
-        needed_dem_tiles.update(dem_tiles)
-        # If DEM coverage of MGRS tile is enough, process it
-        tiles_to_process_checked.append(tile)
-        # Round coverage at 3 digits as tile footprint has a very limited precision
-        current_coverage = round(current_coverage, 3)
-        if current_coverage < 1.:
-            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
-                    tile, 100 * current_coverage)
-        else:
-            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
-
-    # Remove duplicates
-    return tiles_to_process_checked, needed_dem_tiles, dem_tiles_check
-
-
-def check_dem_tiles(cfg: Configuration, dem_tile_infos: Dict) -> bool:
-    """
-    Check the DEM tiles exist on disk.
-    """
-    fmt = cfg.dem_filename_format
-    res = True
-    for _, dem_tile_info in dem_tile_infos.items():
-        dem_filename = fmt.format_map(dem_tile_info)
-        tile_path_hgt = Path(cfg.dem, dem_filename)
-        # logger.debug('checking "%s" # "%s" =(%s)=> "%s"', cfg.dem, dem_filename, fmt, tile_path_hgt)
-        if not tile_path_hgt.exists():
-            res = False
-            logger.critical("%s is missing!", tile_path_hgt)
-    return res
-
-
-def clean_logs(config: Dict, nb_workers: int) -> None:
-    """
-    Clean all the log files.
-    Meant to be called once, at startup
-    """
-    filenames = []
-    for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '{kind}' in cfg['filename']:
-            filenames += [cfg['filename'].format(kind=f"worker-{w}") for w in range(nb_workers)]
-    remove_files(filenames, "logs")
-
-
-def setup_worker_logs(config: Dict, dask_worker) -> None:
-    """
-    Set-up the logger on Dask Worker.
-    """
-    d_logger = logging.getLogger('distributed.worker')
-    r_logger = logging.getLogger()
-    old_handlers = d_logger.handlers[:]
-
-    for _, cfg in config['handlers'].items():
-        if 'filename' in cfg and '{kind}' in cfg['filename']:
-            cfg['mode']     = 'a'  # Make sure to not reset worker log file
-            cfg['filename'] = cfg['filename'].format(kind=f"worker-{dask_worker.name}")
-
-    logging.config.dictConfig(config)
-    # Restore old dask.distributed handlers, and inject them in root handler as well
-    for hdlr in old_handlers:
-        d_logger.addHandler(hdlr)
-        r_logger.addHandler(hdlr)  # <-- this way we send s1tiling messages to dask channel
-
-    # From now on, redirect stdout/stderr messages to s1tiling
-    Utils.RedirectStdToLogger(logging.getLogger('s1tiling'))
-
-
-the_config : Configuration
-
-
-class DaskContext:
-    """
-    Custom context manager for :class:`dask.distributed.Client` +
-    :class:`dask.distributed.LocalCluster` classes.
-    """
-    def __init__(self, config: Configuration, debug_otb: bool) -> None:
-        self.__client    : Optional[Client]       = None
-        self.__cluster   : Optional[LocalCluster] = None
-        self.__config    : Configuration          = config
-        self.__debug_otb : bool                   = debug_otb
-
-    def __enter__(self) -> "DaskContext":
-        if not self.__debug_otb:
-            clean_logs(self.__config.log_config, self.__config.nb_procs)
-            self.__cluster = LocalCluster(
-                    threads_per_worker=1, processes=True, n_workers=self.__config.nb_procs,
-                    silence_logs=False)
-            self.__client = Client(self.__cluster)
-            # Work around: Cannot pickle local object in lambda...
-            global the_config
-            the_config = self.__config
-            self.__client.register_worker_callbacks(
-                    lambda dask_worker: setup_worker_logs(the_config.log_config, dask_worker))
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Literal[False]:
-        if self.__client:
-            self.__client.close()
-            assert self.__cluster, "client existence implies cluster existence"
-            self.__cluster.close()
-        return False
-
-    @property
-    def client(self) -> Optional[Client]:
-        """
-        Return a :class:`dask.distributed.Client`
-        """
-        return self.__client
 
 
 def _how2str(how: Union[Tuple, AbstractStep]) -> str:
@@ -284,7 +190,6 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
     dsk:                   Dict[str, Union[Tuple, "FirstStep"]],
     tile_name:             str,
     tile_idx:              int,
-    intersect_raster_list: List[Dict],
     required_products:     List[str],
     client:                Client,
     pipelines:             PipelineDescriptionSequence,
@@ -314,58 +219,70 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
             client.restart()
             # Update the list of remaining tasks
             if run_attempt < nb_tries:
-                dsk, required_products = pipelines.generate_tasks(tile_name,
-                        intersect_raster_list, do_watch_ram=do_watch_ram)
+                dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram=do_watch_ram)
+                # it's unlikely for errors to appear here
+                assert not errors, f"No errors regarding task generation shall appear here: {errors}"
             else:
                 raise
     return []
 
 
-def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
+def get_s1_files_for_tile(
+        s1_file_manager: S1FileManager,
+        tile_name:       str,
+        dryrun:          bool,
+) -> IntersectingS1FilesOutcome:
+    """
+    Returns the list of all S1 files intersecting the given S2 MGRS tile name.
+
+    :return: An :class:`Outcome` of list of S1 image information, or the :class:`RuntimeError` that has happened.
+    :raise DownloadS1FileError: if a critical error occurs
+    """
+    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
+
+    try:
+        s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
+        # download_images will have updated the list of know products
+    except RuntimeError as e:
+        logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
+        # logger.critical(e, exc_info=True)
+        return IntersectingS1FilesOutcome(e)
+
+    except BaseException as e:
+        logger.debug('Download error intercepted: %s', e)
+        raise exceptions.DownloadS1FileError(tile_name) from e
+
+    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+    logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
+    return IntersectingS1FilesOutcome(intersect_raster_list)
+
+
+@timethis("Processing of tile {tile_name}", log_level=logging.INFO)
+def process_one_tile(  # pylint: disable=too-many-arguments
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,
-    s1_file_manager:         S1FileManager,
+    cfg:                     Configuration,
     pipelines:               PipelineDescriptionSequence,
     client:                  Optional[Client],
     required_workspaces:     List[WorkspaceKinds],
     debug_otb:               bool = False,
-    dryrun:                  bool = False,
     do_watch_ram:            bool = False,
     debug_tasks:             bool = False
-) -> List:
+) -> List[Outcome]:
     """
     Process one S2 tile.
 
     I.E. run the OTB pipeline on all the S1 images that match the S2 tile.
     """
-    s1_file_manager.ensure_tile_workspaces_exist(tile_name, required_workspaces)
+    ensure_tiled_workspaces_exist(cfg, tile_name, required_workspaces)
 
     logger.info("Processing tile %s (%s/%s)", tile_name, tile_idx + 1, tiles_nb)
 
-    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
-
-    try:
-        with Utils.ExecutionTimer("Downloading images related to " + tile_name, True):
-            s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
-            # download_images will have updated the list of know products
-    except RuntimeError as e:
-        logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
-        return [Outcome(e)]
-
-    except BaseException as e:
-        logger.debug('Download error intercepted: %s', e)
-        raise exceptions.DownloadS1FileError(tile_name)
-
-    with Utils.ExecutionTimer("Intersecting raster list w/ " + tile_name, True):
-        intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
-        logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
-
-    if len(intersect_raster_list) == 0:
-        logger.info("No intersection with tile %s", tile_name)
-        return []
-
-    dsk, required_products = pipelines.generate_tasks(tile_name, intersect_raster_list, do_watch_ram)
+    pipelines.register_extra_parameters_for_input_factories(tile_name=tile_name)
+    dsk, required_products, errors = pipelines.generate_tasks(do_watch_ram)
+    if errors:
+        return errors
     logger.debug('######################################################################')
     logger.debug('Summary of %s tasks related to S1 -> S2 transformations of %s', len(dsk), tile_name)
     for product, how in dsk.items():
@@ -375,7 +292,8 @@ def process_one_tile(  # pylint: disable=too-many-arguments, too-many-locals
         return _execute_tasks_debug(dsk, tile_name)
     else:
         assert client, "Dask client shall exist when not debugging calls to OTB applications"
-        return _execute_tasks_with_dask(dsk, tile_name, tile_idx, intersect_raster_list,
+        return _execute_tasks_with_dask(
+                dsk, tile_name, tile_idx,
                 required_products, client, pipelines, do_watch_ram, debug_tasks)
 
 
@@ -405,6 +323,8 @@ def _extend_config(config: Configuration, extra_opts: Dict, overwrite: bool = Fa
 def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-locals
     config_opt             : Union[str, Configuration],
     pipeline_builder,
+    *,
+    ctx_managers           : Sequence[Type] = (),
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -429,55 +349,52 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
+
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
     # -> we set $OTB_GEOID_FILE
+    if not os.path.exists(config.GeoidFile):
+        raise exceptions.MissingGeoidError(config.GeoidFile)
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
-    with S1FileManager(config) as s1_file_manager:
-        tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
-        if len(tiles_to_process) == 0:
-            raise exceptions.NoS2TileError()
 
-        tiles_to_process_checked, needed_dem_tiles, dems_by_s2_tiles = check_tiles_to_process(
-                tiles_to_process, s1_file_manager)
+    dag = eodag.create(config)
+    s1_file_manager = S1FileManager(config, dag)
+    tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
+    nb_tiles = len(tiles_to_process)
+    logger.info("%s images to process on %s tiles: %s", s1_file_manager.nb_images, nb_tiles, tiles_to_process)
 
-        logger.info("%s images to process on %s tiles",
-                s1_file_manager.nb_images, tiles_to_process_checked)
+    if nb_tiles == 0:
+        raise exceptions.NoS2TileError()
 
-        if len(tiles_to_process_checked) == 0:
-            raise exceptions.NoS1ImageError()
+    # Prepare directories where to store temporary files
+    # These directories won't be cleaned up automatically
+    S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
+    os.makedirs(S1_tmp_dir, exist_ok=True)
 
-        logger.info("Required DEM tiles: %s", list(needed_dem_tiles.keys()))
-
-        if not check_dem_tiles(config, needed_dem_tiles):
-            raise exceptions.MissingDEMError()
-
-        if not os.path.exists(config.GeoidFile):
-            raise exceptions.MissingGeoidError(config.GeoidFile)
-
-        # Prepare directories where to store temporary files
-        # These directories won't be cleaned up automatically
-        S1_tmp_dir = os.path.join(config.tmpdir, 'S1')
-        os.makedirs(S1_tmp_dir, exist_ok=True)
-
-        config.tmp_dem_dir = s1_file_manager.tmpdemdir(
-                needed_dem_tiles, config.dem_filename_format,
-                config.GeoidFile)
+    with contextlib.ExitStack() as context:
+        for cm in ctx_managers:
+            context.enter_context(cm(config, tiles_to_process))
 
         pipelines, required_workspaces = pipeline_builder(config, dryrun=dryrun, debug_caches=debug_caches)
-        config.register_dems_related_to_S2_tiles(dems_by_s2_tiles)
+
+        # Used by eof
+        pipelines.register_extra_parameters_for_input_factories(
+                dag=dag,
+                s1_file_manager=s1_file_manager,
+                dryrun=dryrun,
+                # tile_name will be done in process_one_tile
+        )
 
         log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
         with DaskContext(config, debug_otb) as dask_client:
-            for idx, tile_it in enumerate(tiles_to_process_checked):
-                with Utils.ExecutionTimer("Processing of tile " + tile_it, True):
-                    res = process_one_tile(
-                            tile_it, idx, len(tiles_to_process_checked),
-                            s1_file_manager, pipelines, dask_client.client,
-                            required_workspaces,
-                            debug_otb=debug_otb, dryrun=dryrun, do_watch_ram=watch_ram,
-                            debug_tasks=debug_tasks)
-                    results += res
+            for idx, tile_it in enumerate(tiles_to_process):
+                res = process_one_tile(
+                        tile_it, idx, nb_tiles,
+                        config, pipelines, dask_client.client,
+                        required_workspaces,
+                        debug_otb=debug_otb, do_watch_ram=watch_ram,
+                        debug_tasks=debug_tasks)
+                results.extend(res)
 
         nb_errors_detected = sum(not bool(res) for res in results)
 
@@ -558,11 +475,15 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     return best_concat_sin
 
 
-def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angles: bool) -> PipelineDescription:
+def register_LIA_pipelines_v1_1(
+        pipelines: PipelineDescriptionSequence,
+        produce_angles: bool,
+) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
             [AgglomerateDEMOnS2], 'AgglomerateDEM',
             inputs={'tilename': 'tilename'},
@@ -610,6 +531,7 @@ def register_LIA_pipelines(pipelines: PipelineDescriptionSequence, produce_angle
             product_required=True,
     )
     return lia
+
 
 
 def register_GAMMA_AREA_pipelines(
@@ -674,8 +596,212 @@ def register_GAMMA_AREA_pipelines(
     return best_concat_ortho_gamma_area
 
 
+def s1_raster_first_inputs_factory(
+        tile_name      : str,
+        configuration  : Configuration,
+        s1_file_manager: S1FileManager,
+        dryrun         : bool,
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S1 images.
+    """
+    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
+    if not matching_rasters:
+        return [cast(Outcome[FirstStep], matching_rasters)]
+    intersect_raster_list = matching_rasters.value()
+
+    if len(intersect_raster_list) == 0:
+        logger.info("No intersection with tile %s", tile_name)
+        return []
+    return s1_raster_first_inputs_factory_from_rasters(tile_name, intersect_raster_list)
+
+
+def s1_raster_first_inputs_factory_from_rasters(
+        tile_name      : str,
+        raster_list : List[Dict],
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S1 images.
+    """
+    assert raster_list
+    first_inputs = []
+    for raster_info in raster_list:
+        raster: S1DateAcquisition = raster_info['raster']
+
+        manifest = raster.get_manifest()
+        for image in raster.get_images_list():
+            start = FirstStep(tile_name=tile_name,
+                              tile_origin=raster_info['tile_origin'],
+                              tile_coverage=raster_info['tile_coverage'],
+                              manifest=manifest,
+                              basename=image)
+            first_inputs.append(Outcome(start))
+
+    # Log commented and kept for filling in unit tests
+    # logger.debug('Generate first steps from: %s', intersect_raster_list)
+    return first_inputs
+
+
+def tilename_first_inputs_factory(
+        tile_name    : str,
+        configuration: Configuration,
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to S2 MGRS tile information: name and footprint origin.
+    """
+    # TODO: avoid to search this information multiple times
+    tiles_db  = configuration.output_grid
+    layer     = Utils.Layer(tiles_db)
+    tile_info = layer.find_tile_named(tile_name)
+    if not tile_info:
+        raise RuntimeError(f"Tile {tile_name} cannot be found in {tiles_db!r}")
+    tile_footprint = tile_info.GetGeometryRef()
+    area_polygon   = tile_footprint.GetGeometryRef(0)
+    points         = area_polygon.GetPoints()
+    tile_origin    = [(point[0], point[1]) for point in points[:-1]]
+    return [
+            Outcome(FirstStep(
+                tile_name=tile_name,
+                tile_origin=tile_origin,  # S2 tile footprint
+                basename=f"S2info_{tile_name}",
+                out_filename=tiles_db,  # Trick existing file detection
+                does_product_exist=lambda: True,
+            )),
+    ]
+
+
+def eof_first_inputs_factory(
+        tile_name    : str,
+        configuration: Configuration,
+        dag          : EODataAccessGateway,
+        **kwargs,  # pylint: disable=unused-argument
+) -> List[Outcome[FirstStep]]:
+    """
+    :class:`FirstStepFactory` hook dedicated to precise orbit inputs.
+
+    It takes takes of returning or downloading the EOF files on-the-fly according to the single
+    relative_orbit number requested in the configuration.
+
+    :precondition: one and only one relative orbit number must have been requested in the configuration.
+    :precondition: one and only one mission must have been requested in the configuration.
+    """
+    # assert len(configuration.relative_orbit_list) == 1
+    relative_orbits = configuration.relative_orbit_list
+    logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbits)
+    eof_manager = EOFFileManager(configuration, dag)
+    eof_founds = eof_manager.search_for(relative_orbits)
+    assert len(eof_founds) > 0
+    if not eof_founds[0]:
+        error = eof_founds[0].error()
+        raise exceptions.DownloadEOFFileError(str(error)) from error
+    logger.info("Orbit %s OSVs will be taken from %s", relative_orbits, ",".join([f"{eof_file.value()}" for eof_file in eof_founds]))
+    # Duplicate the first step for all tile_name (as this is what will be used to attach dropped inputs)
+    # TODO: see how to support the case where all inputs are dropped...
+    # TODO: keep only one eof_file per series of consecutive files related to a same orbit
+    #       => associate orbit+mission to a single EOF file
+    steps = []
+    for eof_entry in eof_founds:
+        if not eof_entry:
+            error = eof_entry.error()
+            raise exceptions.DownloadEOFFileError(str(error)) from error
+        for relorb, product in eof_entry.value().items():
+            logger.debug("#  orb=%03d, product=%s", relorb, product.filename)
+            assert product, f"Here, we should have a non null instance for {product=}"
+            step = FirstStep(
+                    orbit=f"{relorb:0>3d}",
+                    basename=product.filename,
+                    flying_unit_code=product.mission.lower(),
+                    tile_name=tile_name,
+            )
+            steps.append(step)
+    for step in steps:
+        logger.debug("- EOF FirstStep = %s", step)
+    return [Outcome(step) for step in steps]
+
+
+def register_LIA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        produce_angles: bool,
+) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    LIA map and sin(LIA) map.
+    """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
+    dem_vrt = pipelines.register_pipeline(
+            [AgglomerateDEMOnS2], 'AgglomerateDEM',
+            inputs={'tilename': 'tilename'},
+    )
+
+    s2_dem = pipelines.register_pipeline(
+            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+            is_name_incremental=True,
+            inputs={"indem": dem_vrt}
+    )
+
+    s2_height = pipelines.register_pipeline(
+            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            is_name_incremental=True,
+            inputs={"in_s2_dem": s2_dem},
+    )
+
+    pipelines.register_inputs('eof', eof_first_inputs_factory)
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnDEMFromEOF],
+            "ComputeGroundAndSatPositionsOnDEM",
+            inputs={'ineof': 'eof', 'inheight': s2_height},
+    )
+
+    # Always generate sin(LIA). If LIA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_LIA step
+    lia = pipelines.register_pipeline(
+            [ComputeNormalsOnS2, ComputeLIAOnS2],
+            'ComputeLIAOnS2',
+            is_name_incremental=True,
+            inputs={'xyz': xyz},
+            product_required=True,
+    )
+    return lia
+
+
+def register_IA_pipelines(
+        pipelines: PipelineDescriptionSequence,
+        # produce_angles: bool,
+) -> PipelineDescription:
+    """
+    Internal function that takes care to register all pipelines related to
+    IA map and sin(IA) map.
+    """
+    pipelines.register_inputs('tilename', tilename_first_inputs_factory)
+
+    pipelines.register_inputs('eof', eof_first_inputs_factory)
+    xyz = pipelines.register_pipeline(
+            [ComputeGroundAndSatPositionsOnEllipsoid],
+            "ComputeGroundAndSatPositionsOnEllipsoid",
+            inputs={'tilename': 'tilename', 'ineof': 'eof'},
+    )
+
+    # And then this time, normals are computed from S2 tile
+    # Always generate sin(IA). If IA° is requested, then it's also a
+    # final/requested product.
+    # produce_angles is ignored as there is no extra select_IA step
+    lia = pipelines.register_pipeline(
+            [ComputeEllipsoidNormalsOnS2, ComputeIAOnS2],
+            'ComputeIAOnS2',
+            is_name_incremental=True,
+            inputs={'tilename': 'tilename', 'xyz': xyz},
+            product_required=True,
+    )
+    return lia
+
+
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         config_opt              : Union[str, Configuration],
+        *,
         dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -753,6 +879,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         chain_concat_and_despeckle_inmemory = False  # See issue #118
 
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
 
         # Calibration ... OrthoRectification
         calib_seq = [ExtractSentinel1Metadata, AnalyseBorders, Calibrate]
@@ -851,6 +978,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -864,6 +992,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -924,12 +1053,14 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
         register_LIA_pipelines_v0(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
@@ -941,8 +1072,9 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     )
 
 
-def s1_process_lia(  # pylint: disable=too-many-arguments
+def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
         config_opt             : Union[str, Configuration],
+        *,
         dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
         dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -980,6 +1112,69 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
     :param searched_items_per_page:
         Tells how many items are to be returned by EODAG when searching for S1
         images.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been
+        downloaded and produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+        register_LIA_pipelines_v1_1(pipelines, produce_angles=config.produce_lia_map)
+        required_workspaces = [WorkspaceKinds.LIA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
+            ctx_managers=[DEMWorkspace],
+            dl_wait=dl_wait, dl_timeout=dl_timeout,
+            searched_items_per_page=searched_items_per_page,
+            nb_max_search_retries=nb_max_search_retries,
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )
+
+
+def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        *,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
+    generates :ref:`Local Incidence Angle Maps on S2 geometry <lia-files>`.
+
+    It performs the following steps:
+
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the LIA maps
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
@@ -1009,9 +1204,68 @@ def s1_process_lia(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
+            ctx_managers=[DEMWorkspace],
+            dryrun=dryrun,
+            debug_caches=debug_caches,
+            debug_otb=debug_otb,
+            watch_ram=watch_ram,
+            debug_tasks=debug_tasks,
+    )
+
+
+s1_process_lia = s1_process_lia_v1_2
+
+
+def s1_process_ia(  # pylint: disable=too-many-arguments
+        config_opt             : Union[str, Configuration],
+        *,
+        dryrun                 : bool = False,
+        debug_otb              : bool = False,
+        debug_caches           : bool = False,
+        watch_ram              : bool = False,
+        debug_tasks            : bool = False,
+) -> exits.Situation:
+    """
+    Entry point to :ref:`IA Map production scenario <scenario.S1IAMap>` that
+    generates :ref:`Incidence Angle Maps on S2 geometry <ia-files>`.
+
+    It performs the following steps:
+
+    1. Register the downloading of missing EOF matching the requested (relative) orbit number
+    2. Generate the IA maps
+
+    :param config_opt:
+        Either a :ref:`request configuration file <request-config-file>` or a
+        :class:`s1tiling.libs.configuration.Configuration` instance.
+    :param dryrun:
+        Used for debugging: external (OTB/GDAL) application aren't executed.
+    :param debug_otb:
+        Used for debugging: Don't execute processing tasks in DASK workers but
+        directly in order to be able to analyse OTB/external application
+        through a debugger.
+    :param debug_caches:
+        Used for debugging: Don't delete the intermediary files but leave them
+        behind.
+    :param watch_ram:
+        Used for debugging: Monitoring Python/Dask RAM consumption.
+    :param debug_tasks:
+        Generate SVG images showing task graphs of the processing flows
+
+    :return:
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
+    :rtype: :class:`s1tiling.libs.exits.Situation`
+
+    :exception Error: A variety of exceptions. See below (follow the link).
+    """
+    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+        pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        register_IA_pipelines(pipelines)
+        required_workspaces = [WorkspaceKinds.IA]
+        return pipelines, required_workspaces
+
+    return do_process_with_pipeline(
+            config_opt, builder,
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
@@ -1082,6 +1336,7 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
     """
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
+        pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
         register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map, config=config)
         required_workspaces = [WorkspaceKinds.GAMMA_AREA]
         return pipelines, required_workspaces

@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -34,7 +34,7 @@ import re
 from typing import Callable, Dict, List, Union, Tuple
 import os
 
-from shapely.geometry.base import np
+import numpy as np
 
 from s1tiling.libs.otbtools import otb_version
 
@@ -46,188 +46,199 @@ def tmp_suffix(tmp: Union[bool,str]) -> str:
 
 class FileDB:
     FILE_FMTS = {
-            's1file'              : '{s1_basename}.tiff',
-            'cal_ok'              : '{s1_basename}{tmp}.tiff',
-            'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
-            'orthofile'           : '{s2_basename}{calibration}{tmp}',
-            'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
-            'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
-            'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
-            'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
+        's1file'              : '{s1_basename}.tiff',
+        'cal_ok'              : '{s1_basename}{tmp}.tiff',
+        'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
+        'orthofile'           : '{s2_basename}{calibration}{tmp}',
+        'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
+        'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
+        'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
+        'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
-            'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
-            'resampleddemfile'    : 'RESAMPLED_DEM_{s1_polarless}{tmp}.tiff',
-            'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
-            'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
-            'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
-            'LIAfile'             : 'LIA_{s1_polarless}{tmp}.tiff',
-            'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
-            'orthoLIAfile'        : 'LIA_{s2_polarless}{tmp}',
-            'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
-            'gamma_areafile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
-            'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
+        # Local Incidence Angle
+        'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
+        'resampleddemfile'    : 'RESAMPLED_DEM_{s1_polarless}{tmp}.tiff',
+        'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
+        'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
+        'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
+        'degLIAfile'          : 'LIA_{s1_polarless}{tmp}.tiff',
+        'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
+        'orthodegLIAfile'     : 'LIA_{s2_polarless}{tmp}',
+        'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
+        'gamma_areafile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
+        'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
 
-            'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
-            'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
-            'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
-            'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
-            'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
-            'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
-            # TODO: add fmt for orbit direction/number
-            'deglia_on_s2'        : 'LIA_s1a_{tile}_DES_007{tmp}.tif',
-            'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_DES_007{tmp}.tif',
-            'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif'
+        'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
+        'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
+        'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
+        'height_on_s2'        : 'DEM+GEOID_projected_on_{tile}{tmp}.tiff',
+        # 'xyz_on_s2'           : 'XYZ_projected_on_{tile}_DES_007{tmp}.tiff',
+        'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
+        'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
+        # TODO: add fmt for orbit direction/number
+        'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
+        'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
+        'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif',
+
+        # Ellipsoid Incidence Angle
+        'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
+        'degia_on_s2'         : 'IA_s1a_{tile}_007{tmp}.tif',
+        'cosia_on_s2'         : 'cos_IA_s1a_{tile}_007{tmp}.tif',
+        'sinia_on_s2'         : 'sin_IA_s1a_{tile}_007{tmp}.tif',
+        'tania_on_s2'         : 'tan_IA_s1a_{tile}_007{tmp}.tif',
     }
     FILES = [
-            # 08 jan 2020
-            {
-                'start_time'      : '2020:01:08 04:41:50',
-                'stop_time'       : '2020:01:08 04:42:15',
-                'orbit_start'     : '2020:01:08 00:00:00',
-                'orbit_stop'      : '2020:01:08 23:59:59',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
-                's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
-                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'         : [(1.137156, 14.233953), (0.660935, 16.461103), (2.173307, 16.77552), (2.645077, 14.545785), (1.137156, 14.233953)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 30704,
-                'orbit'           : '007',
-            },
-            {
-                'start_time'      : '2020:01:08 04:42:15',
-                'stop_time'       : '2020:01:08 04:42:40',
-                'orbit_start'     : '2020:01:08 00:00:00',
-                'orbit_stop'      : '2020:01:08 23:59:59',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
-                's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
-                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'         : [(-0.370174, 13.917268), (-0.851051, 16.143845), (0.660845, 16.461084), (1.137179, 14.233407), (-0.370174, 13.917268)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 30704,
-                'orbit'           : '007',
-            },
-            # 20 jan 2020
-            {
-                'start_time'      : '2020:01:20 04:41:49',
-                'stop_time'       : '2020:01:20 04:42:14',
-                'orbit_start'     : '2020:01:20 00:00:00',
-                'orbit_stop'      : '2020:01:20 23:59:59',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
-                's1_polarless'    : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200120t044149',
-                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'         : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 30879,
-                'orbit'           : '007',
-            },
-            {
-                'start_time'      : '2020:01:20 04:42:14',
-                'stop_time'       : '2020:01:20 04:42:39',
-                'orbit_start'     : '2020:01:20 00:00:00',
-                'orbit_stop'      : '2020:01:20 23:59:59',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
-                's1_polarless'    : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200120t044214',
-                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'         : [(-0.370036, 13.917237), (-0.850946, 16.143806), (0.660948, 16.461067), (1.137315, 14.233396), (-0.370036, 13.917237)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 30879,
-                'orbit'           : '007',
-            },
-            # 02 feb 2020
-            {
-                'start_time'      : '2020:02:01 04:41:49',
-                'stop_time'       : '2020:02:01 04:42:14',
-                'orbit_start'     : '2020:02:01 00:00:00',
-                'orbit_stop'      : '2020:02:01 23:59:59',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
-                's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200201t044149',
-                'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
-                'polygon'         : [(1.137385, 14.233961), (0.661111, 16.461193), (2.173392, 16.775606), (2.645215, 14.54579), (1.137385, 14.233961)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 31054,
-                'orbit'           : '007',
-            },
-            {
-                'start_time'      : '2020:02:01 04:42:14',
-                'stop_time'       : '2020:02:01 04:42:39',
-                's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
-                's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
-                's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
-                's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149',
-                's2_polarless'    : 's1a_33NWB_DES_007_20200201t044214',
-                'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
-                'polygon'         : [(-0.370053, 13.91733), (-0.850965, 16.1439), (0.661021, 16.461174), (1.137389, 14.233503), (-0.370053, 13.91733)],
-                'srsname'         : 'epsg:4326',
-                'orbit_direction' : 'DES',
-                'relative_orbit'  : 7,
-                'absolute_orbit'  : 31054,
-                'orbit'           : '007',
-            },
-            ]
+        # 08 jan 2020
+        {
+            'start_time'      : '2020:01:08 04:41:50',
+            'stop_time'       : '2020:01:08 04:42:15',
+            'orbit_start'     : '2020:01:08 00:00:00',
+            'orbit_stop'      : '2020:01:08 23:59:59',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
+            's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
+            'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+            'polygon'         : [(1.137156, 14.233953), (0.660935, 16.461103), (2.173307, 16.77552), (2.645077, 14.545785), (1.137156, 14.233953)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 30704,
+            'orbit'           : '007',
+        },
+        {
+            'start_time'      : '2020:01:08 04:42:15',
+            'stop_time'       : '2020:01:08 04:42:40',
+            'orbit_start'     : '2020:01:08 00:00:00',
+            'orbit_stop'      : '2020:01:08 23:59:59',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
+            's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
+            'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+            'polygon'         : [(-0.370174, 13.917268), (-0.851051, 16.143845), (0.660845, 16.461084), (1.137179, 14.233407), (-0.370174, 13.917268)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 30704,
+            'orbit'           : '007',
+        },
+        # 20 jan 2020
+        {
+            'start_time'      : '2020:01:20 04:41:49',
+            'stop_time'       : '2020:01:20 04:42:14',
+            'orbit_start'     : '2020:01:20 00:00:00',
+            'orbit_stop'      : '2020:01:20 23:59:59',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
+            's1_polarless'    : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200120t044149',
+            'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+            'polygon'         : [(1.137292, 14.233942), (0.661038, 16.461086), (2.173408, 16.775522), (2.645211, 14.545794), (1.137292, 14.233942)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 30879,
+            'orbit'           : '007',
+        },
+        {
+            'start_time'      : '2020:01:20 04:42:14',
+            'stop_time'       : '2020:01:20 04:42:39',
+            'orbit_start'     : '2020:01:20 00:00:00',
+            'orbit_stop'      : '2020:01:20 23:59:59',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
+            's1_polarless'    : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200120t044214',
+            'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+            'polygon'         : [(-0.370036, 13.917237), (-0.850946, 16.143806), (0.660948, 16.461067), (1.137315, 14.233396), (-0.370036, 13.917237)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 30879,
+            'orbit'           : '007',
+        },
+        # 02 feb 2020
+        {
+            'start_time'      : '2020:02:01 04:41:49',
+            'stop_time'       : '2020:02:01 04:42:14',
+            'orbit_start'     : '2020:02:01 00:00:00',
+            'orbit_stop'      : '2020:02:01 23:59:59',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
+            's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200201t044149',
+            'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
+            'polygon'         : [(1.137385, 14.233961), (0.661111, 16.461193), (2.173392, 16.775606), (2.645215, 14.54579), (1.137385, 14.233961)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 31054,
+            'orbit'           : '007',
+        },
+        {
+            'start_time'      : '2020:02:01 04:42:14',
+            'stop_time'       : '2020:02:01 04:42:39',
+            's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
+            's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
+            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
+            's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200201t044214',
+            'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
+            'polygon'         : [(-0.370053, 13.91733), (-0.850965, 16.1439), (0.661021, 16.461174), (1.137389, 14.233503), (-0.370053, 13.91733)],
+            'srsname'         : 'epsg:4326',
+            'orbit_direction' : 'DES',
+            'relative_orbit'  : 7,
+            'absolute_orbit'  : 31054,
+            'orbit'           : '007',
+        },
+        ]
     CONCATS = [
-            # 08 jan 2020
-            {
-                's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
-                's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
-                'start_time'  : '2020:01:08 04:41:50',
-                'first_date'  : '2020-01-01',
-                'last_date'   : '2020-01-10',
-                'orbit'       : '007',
-            },
-            # 20 jan 2020
-            {
-                's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
-                's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
-                'start_time'  : '2020:01:20 04:41:49',
-                'first_date'  : '2020-01-10',
-                'last_date'   : '2020-01-21',
-                'orbit'       : '007',
-            },
-            # 02 feb 2020
-            {
-                's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
-                's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
-                'start_time'  : '2020:02:01 04:41:49',
-                'first_date'  : '2020-02-01',
-                'last_date'   : '2020-02-05',
-                'orbit'       : '007',
-            },
+        # 08 jan 2020
+        {
+            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
+            's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
+            'start_time'  : '2020:01:08 04:41:50',
+            'first_date'  : '2020-01-01',
+            'last_date'   : '2020-01-10',
+            'orbit'       : '007',
+        },
+        # 20 jan 2020
+        {
+            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
+            's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
+            'start_time'  : '2020:01:20 04:41:49',
+            'first_date'  : '2020-01-10',
+            'last_date'   : '2020-01-21',
+            'orbit'       : '007',
+        },
+        # 02 feb 2020
+        {
+            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
+            's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
+            'start_time'  : '2020:02:01 04:41:49',
+            'first_date'  : '2020-02-01',
+            'last_date'   : '2020-02-05',
+            'orbit'       : '007',
+        },
     ]
     # TILE = '33NWB'
     TILE_DATA = {
-            '33NWB': {
-                'extent' : {'xmin': 499979.99999484676,
-                            'ymin': 90240.0000009411,
-                            'xmax': 609779.9999948468,
-                            'ymax': 200040.0000009411,
-                            'epsg': 32633},
-                'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
-            },
+        '33NWB': {
+            'extent' : {'xmin': 499979.99999484676,
+                        'ymin': 90240.0000009411,
+                        'xmax': 609779.9999948468,
+                        'ymax': 200040.0000009411,
+                        'epsg': 32633},
+            'dems'   : ['N00E014', 'N00E015', 'N01E014', 'N01E015', ],
+            'eof'    : 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942.EOF',
+            'relorb' : 7,
+        },
     }
     extended_nodata             = '&nodata={nodata}'
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
@@ -239,15 +250,16 @@ class FileDB:
         extended_geom_compress_nopr += '&writegeom=false'
 
     def __init__(
-            self,
-            inputdir, tmpdir, outputdir, liadir, gamma_areadir,
-            tile, demdir, geoid_file,
-            dname_fmt_tiled=None,
+        self,
+        inputdir, eofdir, tmpdir, outputdir, xiadir, gamma_areadir,
+        tile, demdir, geoid_file,
+        dname_fmt_tiled=None,
     ) -> None:
         self.__input_dir       = inputdir
         self.__tmp_dir         = tmpdir
         self.__output_dir      = outputdir
-        self.__lia_dir         = liadir
+        self.__xia_dir         = xiadir  # LIA or (E)IA directory
+        self.__eof_dir         = eofdir
         self.__gamma_area_dir  = gamma_areadir
         self.__tile            = tile
         self.__dem_dir         = demdir
@@ -281,9 +293,9 @@ class FileDB:
                 (self.sardemprojfile,               NFiles),
                 (self.xyzfile,                      NFiles),
                 (self.normalsfile,                  NFiles),
-                (self.LIAfile,                      NFiles),
+                (self.degLIAfile,                   NFiles),
                 (self.sinLIAfile,                   NFiles),
-                (self.orthoLIAfile,                 NFiles),
+                (self.orthodegLIAfile,              NFiles),
                 (self.orthosinLIAfile,              NFiles),
                 (self.concatLIAfile_from_two,       NConcats),
                 (self.concatsinLIAfile_from_two,    NConcats),
@@ -313,7 +325,14 @@ class FileDB:
                 (self.normals_on_s2,                NConcats),
                 (self.deglia_on_s2,                 NConcats),
                 (self.sinlia_on_s2,                 NConcats),
+
                 (self.gamma_area_on_s2,             NConcats),
+
+                (self.xyz_ellipsoid_on_s2,          NConcats),
+                (self.degia_on_s2,                  NConcats),
+                (self.cosia_on_s2,                  NConcats),
+                (self.sinia_on_s2,                  NConcats),
+                (self.tania_on_s2,                  NConcats),
         ]
         self.__tmp_to_out_map = {}
         for func, nb in names_to_map:
@@ -394,6 +413,9 @@ class FileDB:
     def all_files(self) -> List[str]:
         return [self.input_file(idx) for idx in range(len(self.FILES))]
 
+    def all_manifests(self) -> List[str]:
+        return [self.manifest_file(idx) for idx in range(len(self.FILES))]
+
     def all_annotations(self) -> List[str]:
         return [self.annotation_file(idx) for idx in range(len(self.FILES))]
 
@@ -437,6 +459,11 @@ class FileDB:
         s1dir  = crt['s1dir']
         s1file = self.FILE_FMTS['s1file'].format(**crt).format(polarity=polarity, nr="001" if polarity == "vv" else "002")
         return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/measurement/{s1file}'
+
+    def manifest_file(self, idx) -> str:
+        crt      = self.FILES[idx]
+        s1dir    = crt['s1dir']
+        return f'{self.__input_dir}/{s1dir}/{s1dir}.SAFE/manifest.safe'
 
     def annotation_file(self, idx, polarity='vv') -> str:
         crt    = self.FILES[idx]
@@ -606,10 +633,10 @@ class FileDB:
     def normalsfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def LIAfile(self, idx, tmp) -> str:
+    def degLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["LIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["degLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sinLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
@@ -617,10 +644,11 @@ class FileDB:
     def gamma_areafile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["gamma_areafile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def orthoLIAfile(self, idx, tmp) -> str:
+
+    def orthodegLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
     def orthosinLIAfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
@@ -635,7 +663,7 @@ class FileDB:
     def _concatLIAfile_for_all(self, crt, tmp) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress if tmp else ''
-        return f'{dir}/{self.FILE_FMTS["orthoLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{dir}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def concatLIAfile_from_one(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return self._concatLIAfile_for_all(crt, tmp)
@@ -666,13 +694,19 @@ class FileDB:
         return self._concatsinLIAfile_for_all(crt, tmp)
 
     def selectedLIAfile(self) -> str:
-        return f'{self.__lia_dir}/LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
         return f'{self.__gamma_area_dir}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
-        return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+
+    def eof_for_s2(self) ->  str:
+        return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
+
+    def relorb_for_s2(self) -> str:
+        return self.TILE_DATA[self.__tile]["relorb"]
 
     def dems_on_s2(self) -> List[str]:
         return sorted(self.TILE_DATA[self.__tile]['dems'])
@@ -707,14 +741,22 @@ class FileDB:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         return f'{dir}/{self.FILE_FMTS["normals_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
-    def deglia_on_s2(self, tmp: bool) -> str:
+    def xyz_ellipsoid_on_s2(self, tmp: bool) -> str:
+        dir = f'{self.__tmp_dir}/S2/{self.__tile}'
+        return f'{dir}/{self.FILE_FMTS["xyz_ellipsoid_on_s2"]}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def _xiadir_and_ext_on_s2(self, tmp: bool, default_ext: str) -> Tuple[str, str]:
         if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress
+            return f'{self.__tmp_dir}/S2', default_ext
         else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        return f'{dir}/{self.FILE_FMTS["deglia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+            return f'{self.__xia_dir}', ''
+
+    def _xia_map_on_s2(self, tmp: bool, default_ext: str, map_kind: str) -> str:
+        dir, ext = self._xiadir_and_ext_on_s2(tmp, default_ext)
+        return f'{dir}/{self.FILE_FMTS[map_kind]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def deglia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "deglia_on_s2")
 
     def gamma_area_on_s2(self, tmp: bool) -> str:
         if tmp:
@@ -726,15 +768,19 @@ class FileDB:
         return f'{dir}/{self.FILE_FMTS["gamma_area_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
     def sinlia_on_s2(self, tmp: bool) -> str:
-        if tmp:
-            dir = f'{self.__tmp_dir}/S2'
-            ext = self.extended_compress_predictor
-        else:
-            dir = f'{self.__lia_dir}'
-            ext = ''
-        # ext = self.extended_compress_predictor if compress else ''
-        return f'{dir}/{self.FILE_FMTS["sinlia_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
-        # return f'{self.__lia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinlia_on_s2")
+
+    def degia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress, "degia_on_s2")
+
+    def cosia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "cosia_on_s2")
+
+    def sinia_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinia_on_s2")
+
+    def tania_on_s2(self, tmp: bool) -> str:
+        return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "tania_on_s2")
 
     def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
         if tmp:

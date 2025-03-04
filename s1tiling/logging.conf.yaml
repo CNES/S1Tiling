@@ -1,7 +1,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -83,6 +83,10 @@ loggers:
         level: INFO
         handlers: [console, file, important]
         propagate: yes
+    urlib3:
+        level: INFO
+    graphviz:
+        level: INFO
 root:
     level: INFO
     handlers: [console, file, important]

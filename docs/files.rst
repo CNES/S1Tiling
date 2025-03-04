@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _files:
 
 .. index:: files
@@ -19,7 +24,7 @@ Final products
 .. index:: S2 tiles
 
 Orthorectified S2 tiles
-+++++++++++++++++++++++++++++
++++++++++++++++++++++++
 
 :Content: Complete final product: concatenated orthorectified S1 images on S2
           grid
@@ -51,7 +56,11 @@ Orthorectified S2 tiles
     - defined in :ref:`[Processing].creation_options.tiled
       <processing.creation_options.tiled>`
 
-:Metadata: The following metadata is added to the origin S1 images
+:Metadata:
+
+    GeoTIFF metadata will contain: the ones coming from the input S1 GRD
+    products, the extra ones specified in :ref:`[Metadata] <metadata>`
+    configuration section, plus the following ones:
 
     .. list-table::
       :widths: auto
@@ -69,10 +78,18 @@ Orthorectified S2 tiles
         - time of the second S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
+        - :samp:`BACKSCATTERING`
       * - ``INPUT_S1_IMAGES``
         - List of the input Sentinel-1 images used to generate this product
       * - ``LIA_FILE``
@@ -85,6 +102,9 @@ Orthorectified S2 tiles
         - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
         - :samp:`{{orbitDirection}}`
+      * - ``ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
@@ -108,7 +128,7 @@ Orthorectified S2 tiles
 Mask files
 ++++++++++
 
-:Content: Binary image containing mask on valide data. It is a mask on no-data pixels.
+:Content: Binary image containing mask on valid data. It is a mask on no-data pixels.
 
 :Directory:  :ref:`%(output) <paths.output>`:samp:`/{{tilename}}/` by default
 
@@ -125,7 +145,6 @@ Mask files
     - defined in :ref:`[Processing].creation_options.mask
       <processing.creation_options.mask>`
 
-
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
     .. list-table::
@@ -136,6 +155,8 @@ Mask files
       * - Metadata
         - Value
 
+      * - ``IMAGE_TYPE``
+        - :samp:`MASK`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified Sentinel-1A IW GRD smoothed border mask S2 tile`
 
@@ -169,7 +190,6 @@ Filtered files
     - defaults to Float32 GeoTIFF, deflate compressed
     - defined in :ref:`[Processing].creation_options.filtered
       <processing.creation_options.filtered>`
-
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -207,12 +227,12 @@ Local Incidence Angle map files
 :Content:
 
     - Map of sines of Local Incidence Angle (LIA),
-    - and optionally of LIA expressed in degree and scaled by a factor of 100.
+    - and optionally of LIA expressed in degrees and scaled by a factor of 100.
 
     Given T, the target point on Earth's surface, and S the SAR sensor
     position, the LIA is the angle Θ\ :sub:`LIM` between the ground normal
     projected in range plane :math:`\overrightarrow{n}` (plane defined by S,
-    T, and Earth's center) and :math:`\overrightarrow{TS}`.
+    T, and Earth's centre) and :math:`\overrightarrow{TS}`.
 
     The values have been orthorectified on the Sentinel-2 tile from a pair of
     :ref:`LIA maps computed on S1 images <lia-s1-files>`.
@@ -225,12 +245,12 @@ Local Incidence Angle map files
 
 :File names:
 
-    - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
-    - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
+    - :samp:`sin_LIA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
+    - :samp:`LIA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
 
 :File name format:
 
-    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
+    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
 :Product encoding:
 
@@ -240,8 +260,11 @@ Local Incidence Angle map files
       (/:ref:`[Processing].creation_options.lia_deg
       <processing.creation_options.lia_deg>`)
 
+:Metadata:
 
-:Metadata: The following metadata is added to the origin S1 images
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
 
     .. list-table::
       :widths: auto
@@ -251,24 +274,27 @@ Local Incidence Angle map files
       * - Metadata
         - Value
 
-      * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image (in UTC format since v1.1)
-      * - ``ACQUISITION_DATETIME_1``
-        - time of the first S1 image (in UTC format since v1.1)
-      * - ``ACQUISITION_DATETIME_2``
-        - time of the second S1 image (in UTC format since v1.1)
       * - ``DATA_TYPE``
-        - :samp:`100 * degree(LIA)` / :samp:`SIN(LIA)`
+        - :samp:`100 * degrees(LIA)` / :samp:`sin(LIA)`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_LIST``
+        - List of DEM tiles used to generate the file
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
-      * - ``INPUT_S1_IMAGES``
-        - List of the input Sentinel-1 images used to generate this product
-      * - ``ORBIT``
+        - :samp:`LIA`
+      * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
-      * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
@@ -278,7 +304,96 @@ Local Incidence Angle map files
       * - ``TIFFTAG_DATETIME``
         - is updated with the time when the tile has been generated by S1 Tiling.
       * - ``TIFFTAG_IMAGEDESCRIPTION``
-        - :samp:`Orthorectified LIA/sin_LIA Sentinel-1A IW GRD`
+        - :samp:`sin(LIA)/100 * degress(LIA) on S2 grid`
+      * - ``TIFFTAG_SOFTWARE``
+        - :samp:`S1 Tiling v{{version}}` -- |version| currently
+
+
+.. _ia-files:
+.. index:: Incidence Angle map files
+
+Incidence Angle map files
++++++++++++++++++++++++++
+
+Different Incidence Angle maps may be produced depending on
+:ref:`[Processing.ia_maps_to_produce] <processing.ia_maps_to_produce>`.
+
+These files can be used to convert :ref:`S1Tiling products on MGRS sentinel-2
+tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
+
+:Content:
+
+    - Incidence Angle on the WGS84 ellipsoid (IA) expressed in degrees and
+      scaled by a factor of 100.
+    - Map of cosines of IA,
+    - Map of sines of IA,
+    - Map of tangent of IA,
+
+    Given E, the target point on ellipsoid's surface, and S the SAR sensor
+    position, the IA is the angle Θ\ :sub:`E` between the ellipsoid surface
+    normal projected in range plane :math:`\overrightarrow{n}` (plane defined
+    by S, E, and Earth's centre) and :math:`\overrightarrow{ES}`.
+
+:Directory:  :ref:`%(output_ia)/ <paths.ia>` by default
+
+:Directory format: :samp:`{{ia_dir}}`, see
+                   :ref:`[Processing].dname_fmt.ia_product
+                   <Processing.dname_fmt.ia_product>`
+
+:File names:
+
+    - :samp:`IA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`100 * Θ_{E}`
+    - :samp:`cos_IA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`cos(Θ_{E})`
+    - :samp:`sin_IA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{E})`
+    - :samp:`tan_IA_s1{{a|b}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`tan(Θ_{E})`
+
+:File name format:
+
+    :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.ia_product <Processing.fname_fmt.ia_product>`
+
+:Product encoding:
+
+    - defaults to Float32 (/Uint16) GeoTIFF, deflate compressed
+    - defined in :ref:`[Processing].creation_options.ia_sin
+      <processing.creation_options.ia_sin>`
+      (/:ref:`[Processing].creation_options.ia_deg
+      <processing.creation_options.ia_deg>`)
+
+:Metadata:
+
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``DATA_TYPE``
+        - :samp:`100 * degrees(IA)` / :samp:`cos(IA)` / :samp:`sin(IA)` /
+          :samp:`tan(IA)`
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
+      * - ``FLYING_UNIT_CODE``
+        - :samp:`s1{{a|b}}`
+      * - ``IMAGE_TYPE``
+        - :samp:`IA`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{orbitnumber}}`
+      * - ``S2_TILE_CORRESPONDING_CODE``
+        - :samp:`{{tilename}}`
+      * - ``SPATIAL_RESOLUTION``
+        - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
+      * - ``TIFFTAG_DATETIME``
+        - is updated with the time when the tile has been generated by S1 Tiling.
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`100 * degrees(IA)/cos(IA)/sin(IA)/tan(IA) on S2 grid`
       * - ``TIFFTAG_SOFTWARE``
         - :samp:`S1 Tiling v{{version}}` -- |version| currently
 
@@ -364,7 +479,6 @@ Gamma Area map file
 
 
 .. _temporary-files:
-
 .. index:: Temporary files
 
 Temporary files
@@ -437,10 +551,11 @@ Cut and calibrated S1 images ready for orthorectification
    orthorectified for producing several intersecting S2 tiles.
 
 .. note::
-   These temporary files will be produced only if :program:`S1Processor` is
-   executed with ``--cache-before-ortho`` option.  In that case, the processing
-   will no longer be done in memory and orthoready files will be produced.
-   You would also have to explicitly clean these temporary files.
+   These temporary files will be produced only if :ref:`S1Processor` is
+   executed with :option:`--cache-before-ortho <S1Processor
+   --cache-before-ortho>` option.  In that case, the processing will no longer
+   be done in memory and orthoready files will be produced.  You would also
+   have to explicitly clean these temporary files.
 
 .. _orthorectified-files:
 
@@ -459,8 +574,10 @@ Orthorectified S1 images
 
 :Product encoding: Float32 GeoTIFF, deflate compressed
 
-:Metadata: The metadata listed for :ref:`the S2 tile product <full-S2-tiles>`
-           are actually produced at this step.
+:Metadata:
+
+    The metadata listed for :ref:`the S2 tile product <full-S2-tiles>` are
+    actually produced at this step.
 
 .. note::
    These files are automatically cleaned up.
@@ -489,7 +606,7 @@ DEM VRT files
 
 :Metadata: No metadata is added by S1Tiling to these files.
 
-:Cleanup: These files are cleaned automatically (since new workflow from v1.1).
+:Clean-up: These files are cleaned automatically (since new workflow from v1.1).
 
 
 .. _DEM_on_S2-files:
@@ -512,16 +629,24 @@ DEM data projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_LIST``
+        - List of DEM tiles used to generate the file
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
-      * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Clean-up: These files are cleaned automatically.
 
 .. _height_on_S2-files:
 
@@ -535,7 +660,7 @@ Height (DEM+Geoid) projected on S2 tile
 :File name:        :samp:`DEM+GEOID_projected_on_{{tilename}}.tiff`
 :File name format: ``fname_fmt.height_on_s2`` = :samp:`DEM+GEOID_projected_on_{{tile_name}}.tiff`
 :Product encoding: Float32 GeoTIFF, uncompressed.
-:Metadata:         The following metadata changed from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
+:Metadata:         The following metadata change from the :ref:`DEM projected on S2 tile <DEM_on_S2-files>`
 
     .. list-table::
       :widths: auto
@@ -544,14 +669,17 @@ Height (DEM+Geoid) projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`DEM + GEOID height info projected on S2 tile`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 
 .. _ground_and_sat_S2-files:
@@ -559,19 +687,22 @@ Height (DEM+Geoid) projected on S2 tile
 Ground and sensor position in XYZ ECEF coordinates
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
+These XYZ ECEF are produced starting from S1Tiling 1.2 from precise orbit
+files.
+
 :Content:          Six bands 64 bits float image that contains ground pixel
                    coordinates and associated sensor position coordinates
-                   expressed as XYZ cartesian pixels in `ECEF
+                   expressed as XYZ Cartesian pixels in `ECEF
                    <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
                    spatial reference.
                    The image footprint matches the associated S2 tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
-:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit}}.tif`
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
                    SensorZCartesian
-:Metadata:         The following metadata changed from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+:Metadata:         The following metadata change from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
 
     .. list-table::
       :widths: auto
@@ -581,30 +712,83 @@ Ground and sensor position in XYZ ECEF coordinates
       * - Metadata
         - Value
 
-      * - ``ACQUISITION_DATETIME``
-        - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
-        - :samp:`GRD`
-      * - ``INPUT_S1_IMAGES``
-        - List of the input Sentinel-1 images used to generate this product
-      * - ``ORBIT``
+        - :samp:`XYZ`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
+      * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
-      * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
-      * - ``PRJ.DIRECTIONTOSCANDEMC``
-        - Range direction for DEM scan.
-      * - ``PRJ.DIRECTIONTOSCANDEML``
-        - Azimuth direction for DEM scan.
-      * - ``PRJ.GAIN``
-        - Gain value
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
-:Cleanup: These files are cleaned automatically.
+:Clean-up: These files are cleaned automatically.
+
+
+.. _wgs84_surface_and_sat_S2-files:
+
+WGS84 Ellipsoid surface and sensor position in XYZ ECEF coordinates
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+These XYZ ECEF are produced from precise orbit files.
+
+:Content:          Six bands 64 bits float image that contains ellipsoid
+                   surface pixel coordinates and associated sensor position
+                   coordinates expressed as XYZ Cartesian pixels in `ECEF
+                   <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
+                   spatial reference.
+                   The image footprint matches the associated S2 tile.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`XYZ_projected_on_ellipsoid_{{tile_name}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2_ellipsoid`` = :samp:`XYZ_projected_on_ellipsoid_{{tile_name}}_{{orbit}}.tif`
+:Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
+                   ZCartesian. SensorXCartesian, SensorXCartesian,
+                   SensorZCartesian
+:Metadata:         The following metadata is written in the product file
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``band.XCart``, ``band.YCart``, ``band.ZCart``
+        - Band numbers where X, Y and Z ellipsoid surface coordinates are stored
+      * - ``band.XSatPos``, ``band.YSatPos``, ``band.ZSatPos``
+        - Band numbers where satellite X, Y and Z coordinates are stored
+      * - ``EOF_FILE``
+        - Precise orbit file used to generate the file
+      * - ``FLYING_UNIT_CODE``
+        - :samp:`s1{{a|b}}`
+      * - ``IMAGE_TYPE``
+        - :samp:`XYZ`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{orbitnumber}}`
+      * - ``S2_TILE_CORRESPONDING_CODE``
+        - :samp:`{{tilename}}`
+      * - ``SPATIAL_RESOLUTION``
+        - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
+      * - ``TIFFTAG_DATETIME``
+        - is updated with the time when the tile has been generated by S1 Tiling.
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`XYZ ground and satellite positions on S2 tile on ellipsoid`
+      * - ``TIFFTAG_SOFTWARE``
+        - :samp:`S1 Tiling v{{version}}` -- |version| currently
+
+:Clean-up: These files are cleaned automatically.
 
 
 .. _S1_on_dem-files:
@@ -613,7 +797,7 @@ Files of S1 coordinates projected on DEM geometry
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the :ref:`Virtual DEM <dem-vrt-files>` geometry. Their
-          values contain the XYZ cartesian coordinates of the pixel and the
+          values contain the XYZ Cartesian coordinates of the pixel and the
           position of the matching pixel in the original Sentinel-1 image.
           This file is produced with `our fork of DiapOTB SARDEMProjection
           <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARDEMProjectionImageEstimation>`_
@@ -627,7 +811,7 @@ Files of S1 coordinates projected on DEM geometry
 
     ``fname_fmt.s1_on_dem`` = :samp:`S1_on_DEM_{{polarless_basename}}`
 
-:Product encoding: Float32 GeoTIFF, 7 bands: C (colunm into SAR image), L (line
+:Product encoding: Float32 GeoTIFF, 7 bands: C (column into SAR image), L (line
                    into SAR image), Z and Y, XCartesian, YCartesian,
                    ZCartesian.
 
@@ -643,8 +827,12 @@ Files of S1 coordinates projected on DEM geometry
 
       * - ``ACQUISITION_DATETIME``
         - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b}}`
       * - ``IMAGE_TYPE``
@@ -664,11 +852,11 @@ Files of S1 coordinates projected on DEM geometry
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`SARDEM projection onto DEM list`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _gamma_area-s1-files:
 
@@ -780,7 +968,7 @@ Files of XYZ cartesian coordinates in S1 geometry (deprecated)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
-          values contain the XYZ cartesian coordinates of the pixel.
+          values contain the XYZ Cartesian coordinates of the pixel.
           This file is produced with `our patched version
           <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/merge_requests/1>`_
           of `DiapOTB SARCartesianMeanEstimation
@@ -816,11 +1004,11 @@ Files of XYZ cartesian coordinates in S1 geometry (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Cartesian XYZ coordinates estimation`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _lia-s1-files:
 
@@ -830,12 +1018,12 @@ Local Incidence Angle map files in S1 geometry (deprecated)
 :Content:
 
     - Map of sines of Local Incidence Angle (LIA),
-    - and optionally of LIA expressed in degree and scaled by a factor of 100.
+    - and optionally of LIA expressed in degrees and scaled by a factor of 100.
 
     Given T, the target point on Earth's surface, and S the SAR sensor
     position, the LIA is the angle Θ\ :sub:`LIM` between the ground normal
     projected in range plane :math:`\overrightarrow{n}` (plane defined by S,
-    T, and Earth's center) and :math:`\overrightarrow{TS}`.
+    T, and Earth's centre) and :math:`\overrightarrow{TS}`.
 
     Unlike the :ref:`final LIA maps in S2 geometry <lia-files>`, the LIA map is
     in the geometry of the original Sentinel-1 image used to produce it.
@@ -867,11 +1055,11 @@ Local Incidence Angle map files in S1 geometry (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`LIA on Sentinel-1A IW GRD`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditioned to an option.
 
 .. _lia-s2-half-files:
 
@@ -881,7 +1069,7 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
 :Content:
 
     - Map of sines of Local Incidence Angle (LIA),
-    - and optionally of LIA expressed in degree and scaled by a factor of 100.
+    - and optionally of LIA expressed in degrees and scaled by a factor of 100.
 
     These files directly match the :ref:`LIA maps computed on S1 images
     <lia-s1-files>`, after orthorectification to the Sentinel-2 tile, and
@@ -912,7 +1100,7 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
         - Value
 
       * - ``DATA_TYPE``
-        - :samp:`100 * degree(LIA)` / :samp:`SIN(LIA)`
+        - :samp:`100 * degrees(LIA)` / :samp:`SIN(LIA)`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
@@ -922,9 +1110,69 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified LIA Sentinel-1A IW GRD`
 
-:Cleanup:
+:Clean-up:
 
     .. warning::
        These files still **need** to be cleaned manually. This should change
-       eventually, or it may be conditionned to an option.
+       eventually, or it may be conditinned to an option.
+
+.. _ground_and_sat_S2-files_v1_1:
+
+Ground and sensor position in XYZ ECEF coordinates (deprecated)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+These XYZ ECEF files were produced by S1Tiling v1.1 from orbit information
+present in Sentinel-1 SAR input products.
+
+:Content:          Six bands 64 bits float image that contains ground pixel
+                   coordinates and associated sensor position coordinates
+                   expressed as XYZ Cartesian pixels in `ECEF
+                   <https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_
+                   spatial reference.
+                   The image footprint matches the associated S2 tile.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+:File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+:Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
+                   ZCartesian. SensorXCartesian, SensorXCartesian,
+                   SensorZCartesian
+:Metadata:         The following metadata change from the :ref:`DEM+GEOID projected on S2 tile <height_on_S2-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``ACQUISITION_DATETIME``
+        - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_LIST``
+        - List of DEM tiles used to generate the file
+      * - ``FLYING_UNIT_CODE``
+        - :samp:`s1{{a|b}}`
+      * - ``IMAGE_TYPE``
+        - :samp:`GRD`
+      * - ``INPUT_S1_IMAGES``
+        - List of the input Sentinel-1 images used to generate this product
+      * - ``ORBIT``
+        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbitdirection}}`
+      * - ``PRJ.DIRECTIONTOSCANDEMC``
+        - Range direction for DEM scan.
+      * - ``PRJ.DIRECTIONTOSCANDEML``
+        - Azimuth direction for DEM scan.
+      * - ``PRJ.GAIN``
+        - Gain value
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`XYZ ground and satellite positions on S2 tile`
+
+:Clean-up: These files are cleaned automatically.
+
 

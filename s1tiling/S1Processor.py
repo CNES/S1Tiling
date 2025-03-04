@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -29,7 +29,6 @@
 #          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
-
 """
 S1Tiling Command Line Interface
 
@@ -57,46 +56,33 @@ Options:
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import logging
-import sys
 from typing import NoReturn
 
 import click
 
-from s1tiling.libs.api import s1_process, s1_process_lia, s1_process_gamma_area
-from s1tiling.libs.exits import translate_exception_into_exit_code
+from s1tiling.libs.cli import cli_main
+from s1tiling.libs.api import s1_process
+from s1tiling.__meta__ import __version__, __pages__
 
 from s1tiling.libs.S1FileManager import (
         EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
 )
-logger = logging.getLogger('s1tiling.processor')
 
 
 # ======================================================================
-def cli_execute(processing, *args, **kwargs):
-    """
-    Factorize code common to all S1Tiling CLI entry points (exception
-    translation into exit codes...)
-    """
-    trace_errors = kwargs.pop('trace_errors', False)
-    try:
-        situation = processing(*args, **kwargs)
-        # logger.debug('nominal exit: %s', situation.code)
-        return situation.code
-    except BaseException as e:  # pylint: disable=broad-except
-        # Logger object won't always exist at this time (like in configuration
-        # errors) hence we may use click report mechanism instead.
-        if logger:
-            logger.critical(e, exc_info=trace_errors)
-            # logger.exception(e) # <=> exc_info=True
-        else:
-            click.echo(f"Error: {e}", err=True)
-        return translate_exception_into_exit_code(e)
+# S1Processor
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog=f"""\b
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap
 
-
-# ======================================================================
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+    \b
+    Check out our docs at {__pages__} for more details.
+    Copyright 2017-2025 (c) CNES.
+    Copyright 2022-2024 (c) CS GROUP France.
+    """
+)
 @click.version_option()
 @click.option(
         "--cache-before-ortho/--no-cache-before-ortho",
@@ -158,148 +144,14 @@ def run(
         **kwargs  # All click parameters that'll directly be forwarded to s1_process
 ) -> NoReturn:
     """
-    This function is used as entry point to create console scripts with setuptools.
+    Calibrates and orthorectifies Sentinel-1 images over S2 MGRS tiles.
     """
-    sys.exit(
-            cli_execute(
-                s1_process,
-                config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                **kwargs
-            ))
-
-
-# ======================================================================
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option()
-@click.option(
-        "--searched_items_per_page",
-        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        help="Number of products simultaneously requested by eodag"
-)
-@click.option(
-        "--nb_max_search_retries",
-        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        help="Number of times to retry on timeout when searching for compatible remote products"
-)
-@click.option(
-        "--eodag_download_timeout",
-        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        help="If download fails, maximum time in mins before stop retrying to download"
-)
-@click.option(
-        "--eodag_download_wait",
-        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        help="If download fails, wait time in minutes between two download tries"
-)
-@click.option(
-        "--trace-errors",
-        is_flag=True,
-        help="Display error full traceback, if any",
-)
-@click.option(
-        "--dryrun",
-        is_flag=True,
-        help="Display the processing shall would be realized, but none is done.")
-@click.option(
-        "--debug-otb",
-        is_flag=True,
-        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
-@click.option(
-        "--debug-caches",
-        is_flag=True,
-        help="Investigation mode were intermediary cached files are not purged.")
-@click.option(
-        "--watch-ram",
-        is_flag=True,
-        help="Trigger investigation mode for watching memory usage")
-@click.option(
-        "--graphs", "debug_tasks",
-        is_flag=True,
-        help="Generate SVG images showing task graphs of the processing flows")
-@click.argument('config_filename', type=click.Path(exists=True))
-def run_lia(
+    cli_main(
+        s1_process,
         config_filename,
-        eodag_download_wait,
-        eodag_download_timeout,
-        **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
-) -> NoReturn:
-    """
-    This function is used as entry point to create console scripts with setuptools.
-    """
-    sys.exit(
-            cli_execute(
-                s1_process_lia,
-                config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                **kwargs
-            ))
-
-# ======================================================================
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option()
-@click.option(
-        "--searched_items_per_page",
-        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        help="Number of products simultaneously requested by eodag"
-)
-@click.option(
-        "--nb_max_search_retries",
-        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        help="Number of times to retry on timeout when searching for compatible remote products"
-)
-@click.option(
-        "--eodag_download_timeout",
-        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        help="If download fails, maximum time in mins before stop retrying to download"
-)
-@click.option(
-        "--eodag_download_wait",
-        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
-        help="If download fails, wait time in minutes between two download tries"
-)
-@click.option(
-        "--trace-errors",
-        is_flag=True,
-        help="Display error full traceback, if any",
-)
-@click.option(
-        "--dryrun",
-        is_flag=True,
-        help="Display the processing shall would be realized, but none is done.")
-@click.option(
-        "--debug-otb",
-        is_flag=True,
-        help="Investigation mode were OTB Applications are directly used without Dask in order to run them through gdb for instance.")
-@click.option(
-        "--debug-caches",
-        is_flag=True,
-        help="Investigation mode were intermediary cached files are not purged.")
-@click.option(
-        "--watch-ram",
-        is_flag=True,
-        help="Trigger investigation mode for watching memory usage")
-@click.option(
-        "--graphs", "debug_tasks",
-        is_flag=True,
-        help="Generate SVG images showing task graphs of the processing flows")
-@click.argument('config_filename', type=click.Path(exists=True))
-def run_gamma_area(
-        config_filename,
-        eodag_download_wait,
-        eodag_download_timeout,
-        **kwargs  # All click parameters that'll directly be forwarded to s1_process_gamma_area
-) -> NoReturn:
-    """
-    This function is used as entry point to create console scripts with setuptools.
-    """
-    sys.exit(
-            cli_execute(
-                s1_process_gamma_area,
-                config_filename,
-                dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
-                **kwargs
-            ))
+        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
+        **kwargs
+    )
 
 
 # ======================================================================

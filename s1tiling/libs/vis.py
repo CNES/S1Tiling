@@ -41,6 +41,7 @@ class SimpleComputationGraph:
                      format : Optional[str] = None):
 
         if hasattr(x, 'dask'):
+            assert hasattr(x, '__dask_optimize__') and hasattr(x, '__dask_keys__')
             dsk = x.__dask_optimize__(x.dask, x.__dask_keys__())
         else:
             dsk = x
@@ -54,16 +55,16 @@ class SimpleComputationGraph:
         for k in dsk:
             key = self._node_key(k)
             if key not in nodes:
-                g.node(key, label=key_split(k), shape='rectangle')
+                g.node(name=key, label=key_split(k), shape='rectangle')
                 nodes.add(key)
             for dep in deps[k]:
                 dep_key = self._node_key(dep)
                 if dep_key not in nodes:
-                    g.node(dep_key, label=key_split(dep), shape='rectangle')
+                    g.node(name=dep_key, label=key_split(dep), shape='rectangle')
                     nodes.add(dep_key)
                 # Avoid circular references
                 if dep_key != key and (dep_key, key) not in edges:
-                    g.edge(dep_key, key)
+                    g.edge(tail_name=dep_key, head_name=key)
                     edges.add((dep_key, key))
 
         fmts = ['.png', '.pdf', '.dot', '.svg', '.jpeg', '.jpg']

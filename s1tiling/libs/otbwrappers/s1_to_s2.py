@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -60,7 +60,7 @@ from ..steps import (
         ram,
 )
 from ..otbpipeline import (
-    TaskInputInfo, fetch_input_data_all_inputs, fetch_input_data,
+    TaskInputInfo, fetch_input_data,
 )
 from ..otbtools      import otb_version
 from ..              import exceptions
@@ -232,15 +232,6 @@ class ExtractSentinel1Metadata(StepFactory):
             assert 'insar' in keys
             return [input['insar'] for input in inputs if 'insar' in input.keys()][0]
 
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
-        return meta
-
-
 class AnalyseBorders(StepFactory):
     """
     StepFactory that analyses whether image borders need to be cut as
@@ -365,7 +356,6 @@ class Calibrate(OTBStepFactory):
         """
         Constructor
         """
-        self.cfg  = cfg
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
         super().__init__(cfg,
@@ -449,14 +439,6 @@ class CorrectDenoising(OTBStepFactory):
                 image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
         )
         self.__lower_signal_value = cfg.lower_signal_value
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with inputs.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
-        return meta
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -627,6 +609,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
     def __init__(  # pylint: disable=too-many-arguments
             self,
             cfg              : Configuration,
+            *,
             fname_fmt        : str,
             image_description: str,
             extended_filename: Optional[str] = None,
@@ -653,6 +636,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_dem_dir          = cfg.tmp_dem_dir
+        self.__dem_info             = cfg.dem_info
         # self.__tmpdir               = cfg.tmpdir
         # Some workaround when ortho is not sequenced along with calibration
         # (and locally override calibration type in case of normlim calibration)
@@ -673,9 +657,11 @@ class _OrthoRectifierFactory(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
-        imd['ORTHORECTIFIED']             = 'true'
-        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                  = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']      = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']              = str(self.__out_spatial_res)
+        imd['DEM_INFO']                        = self.__dem_info
         # S1 -> S2 => remove all SAR specific metadata inserted by OTB
         meta_to_remove_in_s2 = (
                 'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
@@ -762,7 +748,7 @@ class OrthoRectify(_OrthoRectifierFactory):
             extended_filename += '&writegeom=false'
         super().__init__(
                 cfg,
-                fname_fmt,
+                fname_fmt=fname_fmt,
                 image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
                 extended_filename=extended_filename,
                 pixel_type=cfg_pixel_type(cfg, 'tiled'),
@@ -975,6 +961,15 @@ class Concatenate(_ConcatenatorFactory):
                 return exist_task_name or exist_file_name
             meta['does_product_exist'] = lambda : check_product(meta)
 
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set concatenation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE'] = 'BACKSCATTERING'
+
 
 # ----------------------------------------------------------------------
 # Mask related applications
@@ -1006,6 +1001,15 @@ class BuildBorderMask(OTBStepFactory):
                 pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
                 image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
         )
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set mask related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['IMAGE_TYPE'] = 'MASK'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1155,6 +1159,7 @@ class SpatialDespeckle(OTBStepFactory):
             imd['FILTERING_DERAMP']    = str(self.__deramp)
         if self.__nblooks:
             imd['FILTERING_NBLOOKS']   = str(self.__nblooks)
+        imd['IMAGE_TYPE']              = 'BACKSCATTERING'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """

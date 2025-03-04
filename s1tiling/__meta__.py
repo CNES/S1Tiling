@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Copyright 2017-2024 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -31,11 +31,12 @@ Holds project meta-information for setup.py
 
 from __future__ import unicode_literals
 
-__title__ = "S1Tiling"
-__description__ = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
-__version__ = "1.2.0alpha"
-__author__ = "Thierry KOLECK"
+__title__        = "S1Tiling"
+__description__  = "On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid."
+__version__      = "1.2.0alpha3"
+__author__       = "Thierry KOLECK"
 __author_email__ = "Thierry.Koleck@cnes.fr"
-__url__ = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
-__license__ = "Apache 2.0"
-__copyright__ = "2017-2024, CNES"
+__url__          = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
+__pages__        = "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest/"
+__license__      = "Apache 2.0"
+__copyright__    = ["2017-2025, CNES", "2022-2024 CS GROUP France"]

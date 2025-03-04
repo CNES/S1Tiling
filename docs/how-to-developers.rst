@@ -8,7 +8,7 @@
 .. index:: Developer documentation (how to)
 
 ======================================================================
-How To's...
+How To's…
 ======================================================================
 
 How to add a new processing?
@@ -27,7 +27,7 @@ The important points are to decide:
 - Shall its result be considered as a public product, or an intermediary step?
   |br|
   A public product is expected to be always produced. It shall then conclude a
-  :ref:`pipeline <Pipelines>`. Also the pipeline shall be registered with
+  :ref:`pipeline <Pipelines>`. Also, the pipeline shall be registered with
   ``product_required=True`` in that case.
 
 - What would be the name of the result files? |br|
@@ -151,15 +151,15 @@ Here is a short list of the actions to do for each new release.
    .. note::
 
        From there on, the CI will automatically take care of registering the
-       source distribution (only; and not the wheel!) on pypi as if we had
-       manually ran
+       source distribution (only; and not the wheel!) on PyPi as if we had
+       manually run
 
        .. code::
 
-           # Prepare the packets for pipy
+           # Prepare the packets for PyPi
            python3 setup.py sdist
 
-           # Push to pipy
+           # Push to PyPi
            python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
 

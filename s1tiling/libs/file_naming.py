@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -32,7 +32,7 @@ This module provide filename generator classes
 """
 
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Dict, List, Union
 
 
@@ -51,6 +51,12 @@ class OutputFilenameGenerator(ABC):
         """
         return basename
 
+    @abstractmethod
+    def has_several_outputs(self) -> bool:
+        """
+        Tells whether the generator is specialized for several outputs
+        """
+
 
 class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
     """
@@ -64,6 +70,9 @@ class ReplaceOutputFilenameGenerator(OutputFilenameGenerator):
     def generate(self, basename, keys: Dict) -> str:
         filename = basename.replace(*self.__before_afters)
         return filename
+
+    def has_several_outputs(self) -> bool:
+        return False
 
 
 class CannotGenerateFilename(KeyError):
@@ -97,6 +106,9 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
         except KeyError as e:
             raise CannotGenerateFilename(f'Impossible to generate a filename matching {self.__template} from {keys}') from e
 
+    def has_several_outputs(self) -> bool:
+        return False
+
 
 class OutputFilenameGeneratorList(OutputFilenameGenerator):
     """
@@ -112,3 +124,6 @@ class OutputFilenameGeneratorList(OutputFilenameGenerator):
     def generate(self, basename, keys) -> List[str]:
         filenames = [generator.generate(basename, keys) for generator in self.__generators]
         return filenames
+
+    def has_several_outputs(self) -> bool:
+        return True

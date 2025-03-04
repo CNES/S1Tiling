@@ -27,9 +27,9 @@ S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading>` the necessary S1 images that intersect the
-   S2 tile, within the specified time range, that are not already available in
-   :ref:`input data cache <paths.s1_images>`
+1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect
+   the S2 tile, within the specified time range, that are not already available
+   in :ref:`input data cache <paths.s1_images>`
    (all scenarios)
 
 2. Then, it makes sure the :ref:`associated GAMMA_AREA map <gamma_area-files>`
@@ -65,7 +65,6 @@ For each S2 tile,
 As with the main dataflow for all other calibrations (β°, γ°, or σ°), these
 tasks are done :ref:`in parallel <parallelization>` in respect of all the
 dependencies.
-
 
 
 .. _gamma_area-processings:
@@ -284,9 +283,9 @@ Concatenation of GAMMA_AREA maps
 :OTBApplication: :external:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatGAMMA_AREA`
 
-This step merges all the images of the orthorectified S1 GAMMA_AREA maps on a given S2
-grid. As all orthorectified images are almost exclusive, they are concatenated
-by taking the first non null pixel.
+This step merges all the images of the orthorectified S1 GAMMA_AREA maps on a
+given S2 grid. As all orthorectified images are almost exclusive, they are
+concatenated by taking the first non-null pixel.
 
 
 .. _gamma_area-data-caches:

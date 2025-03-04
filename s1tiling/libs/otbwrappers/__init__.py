@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -56,6 +56,7 @@ from .lia import (
     ProjectGeoidToS2Tile,
     SumAllHeights,
     ComputeGroundAndSatPositionsOnDEM,
+    ComputeGroundAndSatPositionsOnDEMFromEOF,
     ComputeNormalsOnS2,
     ComputeLIAOnS2,
     ApplyLIACalibration,
@@ -80,3 +81,55 @@ from .gamma_area import (
     ConcatenateGAMMA_AREA,
     SelectGammaNaughtAreaBestCoverage,
 )
+from .ia import (
+    ComputeEllipsoidNormalsOnS2,
+    ComputeIAOnS2,
+    ComputeGroundAndSatPositionsOnEllipsoid,
+)
+
+__all__ = [
+    "ExtractSentinel1Metadata",
+    "AnalyseBorders",
+    "Calibrate",
+    "CorrectDenoising",
+    "CutBorders",
+    "_OrthoRectifierFactory",
+    "OrthoRectify",
+    "_ConcatenatorFactory",
+    "Concatenate",
+    "BuildBorderMask",
+    "SmoothBorderMask",
+    "SpatialDespeckle",
+    "filter_LIA",
+    "AgglomerateDEMOnS2",
+    "ProjectDEMToS2Tile",
+    "ProjectGeoidToS2Tile",
+    "SumAllHeights",
+    "ComputeGroundAndSatPositionsOnDEM",
+    "ComputeGroundAndSatPositionsOnDEMFromEOF",
+    "ComputeNormalsOnS2",
+    "ComputeLIAOnS2",
+    "ApplyLIACalibration",
+
+    "SARDEMProjection",
+    "SARCartesianMeanEstimation",
+    "OrthoRectifyLIA",
+    "ComputeNormalsOnS1",
+    "ComputeLIAOnS1",
+    "ConcatenateLIA",
+    "SelectBestCoverage",
+
+    "ComputeGroundAndSatPositionsOnEllipsoid",
+    "ComputeEllipsoidNormalsOnS2",
+    "ComputeIAOnS2",
+
+    "ApplyGammaNaughtRTCCalibration",
+
+    "AgglomerateDEMOnS1",
+    "ResampleDEM",
+    "SARDEMProjectionImageEstimation",
+    "SARGammaAreaImageEstimation",
+    "OrthoRectifyGAMMA_AREA",
+    "ConcatenateGAMMA_AREA",
+    "SelectGammaNaughtAreaBestCoverage",
+]

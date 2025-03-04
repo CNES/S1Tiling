@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -68,8 +68,8 @@ from ..              import Utils
 from ..configuration import (
         Configuration,
         dname_fmt_gamma_area_product, dname_fmt_tiled,
-        extended_filename_gamma_area, extended_filename_tiled,
-        pixel_type,
+        extended_filename_gamma_area,
+        nodata_RTC,
 )
 
 
@@ -119,10 +119,10 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description='Gamma0 RTC Calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
-        self.mingammaarea = cfg.min_gamma_area
-        self.calibfactor  = cfg.calibration_factor
-        self.nostreaming  = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
-        self.outputnodata = cfg.output_nodata
+        self.__mingammaarea = cfg.min_gamma_area
+        self.__calibfactor  = cfg.calibration_factor
+        self.__nostreaming  = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
+        self.__nodata       = nodata_RTC(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -184,16 +184,17 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
-        in_GAMMA_AREA   = fetch_input_data('GAMMA_AREA',   inputs).out_filename
+        in_GAMMA_AREA = fetch_input_data('GAMMA_AREA', inputs).out_filename
         params : OTBParameters = {
-                'ram'         : ram(self.ram_per_process),
-                'ingammaarea' : in_GAMMA_AREA,
-                'inbetanaught': in_concat_S2,
-                'mingammaarea': self.mingammaarea,
-                'calibfactor' : self.calibfactor,
-                'nostreaming' : self.nostreaming,
-                'outputnodata': self.outputnodata,
-                'nodata'      : 0,
+            'ram'         : ram(self.ram_per_process),
+            'ingammaarea' : in_GAMMA_AREA,
+            'inbetanaught': in_concat_S2,
+            'mingammaarea': self.__mingammaarea,
+            'calibfactor' : self.__calibfactor,
+            'nostreaming' : self.__nostreaming,
+            'outputnodata': self.__nodata is not None,
+            # TODO: simplify nodata parameters in that application
+            'nodata'      : int(self.__nodata) if self.__nodata else 0,
         }
         return params
 
@@ -202,8 +203,8 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
 
-    The choice has been made to name the VRT file after the basename of the
-    root S1 product and not the names of the DEM tiles.
+    The choice has been made to name the VRT file after the basename of the root S1 product and not
+    the names of the DEM tiles.
     """
 
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
@@ -215,11 +216,13 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         super().__init__(  # type: ignore # mypy issue 4335
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,      # Use gen_tmp_dir,
+            gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             name="AgglomerateDEMOnS1",
             action=AgglomerateDEMOnS1.agglomerate,
-            *args, **kwargs)
+            *args,
+            **kwargs,
+        )
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_dir             = cfg.dem
         self.__dem_filename_format = cfg.dem_filename_format
@@ -238,8 +241,8 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
+        polar related information.
         """
         # Ignore polarization in filenames
         assert 'polarless_basename' not in meta
@@ -260,20 +263,20 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         meta['dems'] = sorted(meta['dem_infos'].keys())
         logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
         dem_files = map(
-                lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
-                meta['dem_infos'])
+            lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
+            meta['dem_infos'])
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
             raise RuntimeError(
-                    f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
+                f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
         return meta
 
     def parameters(self, meta: Meta) -> ExeParameters:
         # While it won't make much a difference here, we are still using tmp_filename.
-        return [tmp_filename(meta)] \
-                + [os.path.join(self.__dem_dir,
-                                self.__dem_filename_format.format_map(meta['dem_infos'][s]))
-                   for s in meta['dem_infos']]
+        return [tmp_filename(meta)] + [
+            os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s]))
+            for s in meta['dem_infos']
+        ]
 
 
 class ResampleDEM(OTBStepFactory):
@@ -364,11 +367,11 @@ class ResampleDEM(OTBStepFactory):
         indem  = fetch_input_data('indem', inputs).out_filename
 
         params : OTBParameters = {
-                "ram"                      : ram(self.ram_per_process),
-                "in"                       : indem,
-                "transform.type"           : "id",
-                "transform.type.id.scalex" : self.factor_x,
-                "transform.type.id.scaley" : self.factor_y,
+            "ram"                      : ram(self.ram_per_process),
+            "in"                       : indem,
+            "transform.type"           : "id",
+            "transform.type.id.scalex" : self.factor_x,
+            "transform.type.id.scaley" : self.factor_y,
         }
 
         return params
@@ -417,13 +420,13 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('s1_on_dem', fname_fmt)
         super().__init__(
-                cfg,
-                appname='SARDEMProjectionImageEstimation', name='SARDEMProjectionImageEstimation',
-                param_in=None, param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description="SARDEM projection onto DEM list",
+            cfg,
+            appname='SARDEMProjectionImageEstimation', name='SARDEMProjectionImageEstimation',
+            param_in=None, param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description="SARDEM projection onto DEM list",
         )
         self.__dem_db_filepath   = cfg.dem_db_filepath
         self.__dem_field_ids     = cfg.dem_field_ids
@@ -512,12 +515,12 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         indem = fetch_input_data('indem', inputs).out_filename
 
         params : OTBParameters = {
-                'ram'       : ram(self.ram_per_process),
-                'insar'     : in_filename(meta),
-                'indem'     : indem,
-                'withxyz'   : True,
-                'nodata'    : -32768,
-                'elev.geoid': self.__GeoidFile,
+            'ram'       : ram(self.ram_per_process),
+            'insar'     : in_filename(meta),
+            'indem'     : indem,
+            'withxyz'   : True,
+            'nodata'    : -32768,
+            'elev.geoid': self.__GeoidFile,
         }
 
         return params
@@ -555,13 +558,13 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         fname_fmt = 'GAMMA_AREA_{polarless_basename}'
         fname_fmt = cfg.fname_fmt.get('gamma_area', fname_fmt)
         super().__init__(
-                cfg,
-                appname='SARGammaAreaImageEstimation', name='SARGammaAreaImageEstimation',
-                param_in=None, param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Gamma area image estimation',
+            cfg,
+            appname='SARGammaAreaImageEstimation', name='SARGammaAreaImageEstimation',
+            param_in=None, param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Gamma area image estimation',
         )
         self.distributearea         = cfg.distribute_area
         self.nostreaming            = cfg.gamma_area_nostreaming
@@ -659,19 +662,19 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         indemproj = fetch_input_data('indemproj', inputs).out_filename
 
         params : OTBParameters = {
-                'ram'                   : ram(self.ram_per_process),
-                'insar'                 : insar,
-                'indem'                 : indem,
-                'indemproj'             : indemproj,
-                'indirectiondemc'       : int(meta['directiontoscandemc']),
-                'indirectiondeml'       : int(meta['directiontoscandeml']),
-                'mlran'                 : 1,
-                'mlazi'                 : 1,
-                'distributearea'        : self.distributearea,
-                'nostreaming'           : self.nostreaming,
-                'nodata'                : -32768,
-                'innermarginratiostatus': self.innermarginratiostatus,
-                'outermarginratiostatus': self.outermarginratiostatus,
+            'ram'                   : ram(self.ram_per_process),
+            'insar'                 : insar,
+            'indem'                 : indem,
+            'indemproj'             : indemproj,
+            'indirectiondemc'       : int(meta['directiontoscandemc']),
+            'indirectiondeml'       : int(meta['directiontoscandeml']),
+            'mlran'                 : 1,
+            'mlazi'                 : 1,
+            'distributearea'        : self.distributearea,
+            'nostreaming'           : self.nostreaming,
+            'nodata'                : -32768,
+            'innermarginratiostatus': self.innermarginratiostatus,
+            'outermarginratiostatus': self.outermarginratiostatus,
         }
         if self.innermarginratio:
             params["innermarginratio"] = self.innermarginratio
@@ -706,13 +709,13 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}_{acquisition_day}.tif'
         fname_fmt = cfg.fname_fmt.get('gamma_area_concatenation', fname_fmt)
         super().__init__(
-                cfg,
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename_gamma_area(cfg),
-                pixel_type=None,         # will be set later...
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename_gamma_area(cfg),
+            pixel_type=None,         # will be set later...
         )
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
@@ -760,6 +763,7 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         logger.debug('[ConcatenateGAMMA_AREA] => total coverage at %s: %s%%', date, coverage * 100)
         meta['tile_coverage'] = coverage
 
+
 class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
     """
     Factory that prepares steps that run
@@ -793,10 +797,10 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         if otb_version() < '8.0.0':
             extended_filename += '&writegeom=false'
         super().__init__(
-                cfg,
-                fname_fmt,
-                image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename,
+            cfg,
+            fname_fmt=fname_fmt,
+            image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename,
         )
 
     def _get_input_image(self, meta: Meta) -> str:
@@ -850,11 +854,11 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
         fname_fmt = cfg.fname_fmt.get('gamma_area', fname_fmt)
         dname_fmt = dname_fmt_gamma_area_product(cfg)
         super().__init__(
-                cfg,
-                name='SelectGammaNaughtAreaBestCoverage',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=dname_fmt,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt)
+            cfg,
+            name='SelectGammaNaughtAreaBestCoverage',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=dname_fmt,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt)
         )
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
@@ -879,9 +883,9 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
         return meta
 
     def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+        self,
+        execution_parameters: Dict,
+        previous_steps: List[InputList]
     ) -> AbstractStep:
         logger.debug("Directly execute %s step", self.name)
         inputs = self._get_inputs(previous_steps)
