@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -297,7 +297,10 @@ class MockOTBApplication:
         for filename in self.out_filenames:
             file_produced = self.__mock_ctx.tmp_to_out(filename)
             logging.debug('Register new known file %s -> %s', filename, file_produced)
-            self.__mock_ctx.known_files.append(file_produced)
+            if isinstance(file_produced,list):
+                self.__mock_ctx.known_files.extend(file_produced)
+            else:
+                self.__mock_ctx.known_files.append(file_produced)
 
 
 class CommandLine:
@@ -381,7 +384,11 @@ class OTBApplicationsMockContext:
 
         # Register a few known_files & dirs
         self.__known_files.append(cfg.dem_db_filepath)
-        self.__known_files.append(cfg.output_grid)
+        try:
+            self.__known_files.append(cfg.output_grid)
+        except:
+            logging.info("No cfg.output_grid=%r", cfg.output_grid)
+
 
         # Mock various functions, that do stuff, from otbpipeline/steps...
         mocker.patch('s1tiling.libs.steps.otb.Registry.CreateApplication', lambda a : self.create_application(a))
@@ -393,11 +400,14 @@ class OTBApplicationsMockContext:
     def known_files(self):
         return self.__known_files
 
-    def tmp_to_out(self, tmp_filename: str) -> str:
+    def tmp_to_out(self, tmp_filename: str) -> Union[str,list[str]]:
         # Remove queued applications
         parts = tmp_filename.split('|>')
-        res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
-        return res
+        assert len(parts)==1,f"{tmp_filename=!r}"
+        # res = '|>'.join(self.__tmp_to_out_map.get(p, p) for p in parts)
+        # return res
+        return self.__tmp_to_out_map.get(tmp_filename,tmp_filename)
+
 
     def execute_process(self, step, params: List, dryrun) -> None:
         cmdlinelist = [step._exename] + params

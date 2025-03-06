@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,7 +50,7 @@ from .              import Utils
 from .configuration import Configuration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-        Meta, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
+        Meta, check_several_products, is_debugging_caches, is_running_dry, output_parameter, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -142,7 +142,7 @@ def commit_execution(tmp_fn, out_fn) -> None:
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    assert type(tmp_fn) is type(out_fn)
+    assert type(tmp_fn) is type(out_fn), f"{tmp_fn=!r}  <--> {out_fn=!r}"
     if isinstance(out_fn, list):
         for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
@@ -275,6 +275,14 @@ class _ProducerStep(AbstractStep):
         Eventually, it'll get renamed into `self.out_filename` if the application succeeds.
         """
         return tmp_filename(self.meta)
+
+    @property
+    def output_parameter(self):
+        """
+        Property that returns the output parameter to use as output of the application.
+        See: :func:`output_parameter`
+        """
+        return output_parameter(self.meta)
 
     @property
     def pipeline_name(self):
@@ -561,12 +569,32 @@ class StepFactory(ABC):
     """
     Abstract factory for :class:`AbstractStep`
 
-    Meant to be inherited for each possible OTB application or external
-    application used in a pipeline.
+    Meant to be inherited for each possible OTB application, external application... used in a
+    pipeline.
 
-    Sometimes we may also want to add some artificial steps that analyse
-    products, filenames..., or step that help filter products for following
-    pipelines.
+    Sometimes we may also want to add some artificial steps that analyse products, filenames..., or
+    step that help filter products for following pipelines.
+
+    When steps are analysed, their *output filename(s)* are deduced. This information is stored in
+    the *meta* dictionary under the key ``out_filename`` (and it's meant to be extracted through
+    :func:`out_filename`). It can be a single filename or a list of filenames. Internally it will be
+    used to :method:`commit_execution` -- i.e. to rename tempory files with their final exact
+    filenames. ``out_filename`` computation is supposed to be automatically done by the
+    :class:`OutputFilenameGenerator` passed to the constructor of some step factories.
+
+    Also step results need to be precisely identified. This identifier is extracted with
+    :func:`get_task_name`. By default its value is the same as ``out_filename``. In some cases, we
+    need to override this *task name*. This is meant to be done in
+    :method:`_update_filename_meta_post_hook` exclusively. A typical use case is when a steps
+    produced several files. It's better in that case to have a single *task name*.
+
+    At last, sometimes an (OTB) application produces several files, but it only takes a single ouput
+    parameter which acts as a kind of filename pattern/format. For these situations we need an
+    *output parameter* which is not the list of ``out_filename``s. This can be done through the
+    *metadata* key ``output_parameter`` this is retrieved by :func:`output_parameter` helper
+    function -- if no ``output_parameter`` information is set, this accessor function falls back to
+    ``out_filename`` value. This *metadata* is also meant to be set exclusively in
+    :method:`_update_filename_meta_post_hook`.
 
     See: :ref:`Existing processings`
     """
@@ -639,7 +667,7 @@ class StepFactory(ABC):
         """
         return False
 
-    def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
+    def update_filename_meta(self, meta: Meta) -> Meta:  # NOT to be overridden
         """
         Duplicates, completes, and returns, the `meta` dictionary with specific
         information for the current factory regarding tasks analysis.
@@ -672,6 +700,7 @@ class StepFactory(ABC):
 
         meta.pop('task_name',                  None)
         meta.pop('task_basename',              None)
+        meta.pop('output_parameter',           None)
         meta.pop('update_out_filename',        None)
         meta.pop('accept_as_compatible_input', None)
         meta.pop('does_product_exist',         None)
@@ -853,7 +882,7 @@ class StoreStep(_ProducerStep):
         Takes care of setting all output parameters.
         """
         p_out = as_list(self._out)
-        files = as_list(self.tmp_filename)
+        files = as_list(self.output_parameter)
         assert len(p_out) == len(files), f"Mismatching number of files parameters and ouput files: {p_out} VS {files}"
         assert self._app
         nb = len(files)
@@ -863,7 +892,7 @@ class StoreStep(_ProducerStep):
         for po, tmp, ef in zip(p_out, files, extended_filenames):
             assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            logger.debug(" - set output param: %s = %s + %s", po, tmp, ef)
+            logger.debug(" - set ouput param: '%s' = '%s' + '%s'", po, tmp, ef)
             self._app.SetParameterString(po, tmp + ef)
 
     def _do_execute(self, parameters, dryrun: bool) -> None:
