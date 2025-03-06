@@ -345,8 +345,9 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
         fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
         def fname_fmt(ia_map: IA_map):
-            if ia_map.name in cfg.ia_maps_to_produce:
+            if ia_map.name in cfg.ia_maps_to_produce + [IA_map.tsk.name]:
                 fmt = eia_map_fname_fmt(fname_fmt0, ia_map)
+                assert isinstance(fmt, str), f"fname_fmt({ia_map}) -> {fmt=!r} is not a string"
                 # logger.debug("Registering IA %s map -> %s", ia_map.name, fmt)
                 assert fmt
                 return fmt
@@ -359,10 +360,13 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
             IA_map.tan: 'tan(IA) on S2 grid',
             IA_map.deg: '100 * degrees(IA) on S2 grid',
         }
+        tname_fmt=fname_fmt(IA_map.tsk)
+        assert tname_fmt is not None
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=dname_fmt,
+            tname_fmt=tname_fmt,
             fname_fmt_deg=fname_fmt(IA_map.deg),
             fname_fmt_cos=fname_fmt(IA_map.cos),
             fname_fmt_sin=fname_fmt(IA_map.sin),
@@ -392,6 +396,7 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
         :func:`s1tiling.libs.meta.accept_as_compatible_input`.
         It will tell whether a given sin_IA input is compatible with the current S2 tile.
         """
+        super()._update_filename_meta_post_hook(meta)
         def ellipsoid_normal_compatible(input_meta):
             logger.debug('TEST2 compat:\nOUT -> %s\nIN  -> %s', meta, input_meta)
             return meta['tile_name'] == input_meta['tile_name']

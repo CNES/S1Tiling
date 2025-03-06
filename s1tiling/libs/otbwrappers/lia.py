@@ -1045,6 +1045,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         gen_output_dir         : Optional[str],
         image_description_dict : Dict[IA_map, str],
         incidence_angle_kind   : str,  # "IA" or "LIA"
+        tname_fmt              : str,
         fname_fmt_cos          : Optional[str] = None,
         fname_fmt_sin          : Optional[str] = None,
         fname_fmt_tan          : Optional[str] = None,
@@ -1093,6 +1094,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         )
         self.__incidence_angle_kind = incidence_angle_kind
         self.__nodata               = nodata_LIA(cfg)
+        self.__task_name_fmt        = tname_fmt
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -1103,6 +1105,16 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         imd = meta['image_metadata']
         imd['DATA_TYPE']  = self.__data_types
         imd['IMAGE_TYPE'] = self.__incidence_angle_kind
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        The task name is the root basename, with no list
+        """
+        # logger.debug('%s(%s)._update_filename_meta_post_hook -> out_filename=%s',
+                     # self.__class__.__name__, self._burst_index, out_filename(meta))
+        generator = TemplateOutputFilenameGenerator(self.__task_name_fmt)
+        meta['task_name'] = generator.generate(meta['basename'], meta)
+        logger.debug('Setting task_name to %s', meta['task_name'])
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1179,6 +1191,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
+        tname_fmt     = partial_format(fname_fmt0, LIA_kind="TaskLIA")
         fname_fmt_deg = partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None
         fname_fmt_sin = partial_format(fname_fmt0, LIA_kind="sin_LIA")
         dname_fmt = dname_fmt_lia_product(cfg)
@@ -1186,6 +1199,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=dname_fmt,
+            tname_fmt=tname_fmt,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description_dict=self._image_descriptions,
@@ -1613,7 +1627,7 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         Helper function to retrieve the canonical input associated to a list of inputs.
 
         In :class:`SARCartesianMeanEstimation` case, the canonical input comes from the "indem"
-        pipeline defined in :func:s1tiling.s1_process_lia` pipeline builder.
+        pipeline defined in :func:`s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -1759,12 +1773,14 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
     }
 
     def __init__(self, cfg: Configuration) -> None:
+        tname_fmt     = 'TaskLIA_{polarless_basename}'
         fname_fmt_deg = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}') if cfg.produce_lia_map else None
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia', 'sin_LIA_{polarless_basename}')
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,
+            tname_fmt=tname_fmt,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description_dict=self._image_descriptions,

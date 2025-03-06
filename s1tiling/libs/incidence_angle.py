@@ -47,6 +47,7 @@ class IA_map(Enum):
     """
     Enum used to distinguish all the possible incidence angle maps
     """
+    tsk = 0
     cos = 1
     sin = 2
     tan = 3
@@ -63,6 +64,7 @@ __eia_fname_fmt_prefixes = {
     IA_map.sin: 'sin_IA',
     IA_map.tan: 'tan_IA',
     IA_map.deg: 'IA',
+    IA_map.tsk: 'TaskIA',
 }
 
 
