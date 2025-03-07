@@ -120,6 +120,7 @@ class Configuration():
         self.raw_directory           = inputdir
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
+        self.extra_directories       : Dict[str, str] = {}
         self.cache_dem_by            = 'symlink'
         self.platform_list           : List[str] = []
         self.orbit_direction         = None

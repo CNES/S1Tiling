@@ -47,7 +47,7 @@ from osgeo import gdal
 import otbApplication as otb
 
 from .              import Utils
-from .configuration import Configuration
+from .configuration import FileProducingConfiguration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
         Meta, check_several_products, is_debugging_caches, is_running_dry, output_parameter, tmp_filename, out_filename, out_extended_filename_complement
@@ -143,6 +143,7 @@ def commit_execution(tmp_fn, out_fn) -> None:
     - Rename the associated geom file (if any as well)
     """
     assert type(tmp_fn) is type(out_fn), f"{tmp_fn=!r}  <--> {out_fn=!r}"
+
     if isinstance(out_fn, list):
         for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
@@ -1003,7 +1004,7 @@ class _FileProducingStepFactory(StepFactory):
     :func:`create_step` is kind of *abstract* at this point.
     """
     def __init__(
-        self, cfg          : Configuration,
+        self, cfg          : FileProducingConfiguration,
         gen_tmp_dir        : str,
         gen_output_dir     : Optional[str],
         gen_output_filename: OutputFilenameGenerator,
@@ -1025,16 +1026,15 @@ class _FileProducingStepFactory(StepFactory):
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
-        # TODO: TSSLC: for a domain independent StepFactory, extract the following directory names
-        #       handling to an external domain specific strategy returned by the configuration
-        #       object, and interrogated by the leaf StepFactories.
-        self.__tmpdir              = cfg.tmpdir
-        self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        self.__liadir              = getattr(cfg, 'lia_directory', None)
-        self.__iadir               = getattr(cfg, 'ia_directory', None)
-        self.__gamma_areadir       = getattr(cfg, 'gamma_area_directory', None)
-        self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
-        logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
+        # TODO: for a domain independent StepFactory, extract the following directory names handling
+        #       to an external domain specific strategy returned by the configuration object, and
+        #       interrogated by the leaf StepFactories.
+        self.__directories            = cfg.extra_directories
+        self.__directories['tmp_dir'] = cfg.tmpdir
+        self.__directories['out_dir'] = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
+
+        self.__has_several_outputs    = self.__gen_output_filename.has_several_outputs()
+        logger.debug("new _FileProducingStepFactory(%s) -> directories = %s", self.name, self.__directories)
 
     def has_several_outputs(self) -> bool:
         """
@@ -1057,11 +1057,7 @@ class _FileProducingStepFactory(StepFactory):
         """
         return str(self.__gen_output_dir).format(
             **meta,
-            out_dir=self.__outdir,
-            tmp_dir=self.__tmpdir,
-            lia_dir=self.__liadir,
-            ia_dir=self.__iadir,
-            gamma_area_dir=self.__gamma_areadir,
+            **self.__directories,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
@@ -1149,7 +1145,7 @@ class OTBStepFactory(_FileProducingStepFactory):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg                : Configuration,
+        cfg                : FileProducingConfiguration,
         *,
         appname            : str,
         gen_tmp_dir        : str,
@@ -1387,7 +1383,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg:                 Configuration,
+        cfg:                 FileProducingConfiguration,
         *,
         exename:             str,
         gen_tmp_dir:         str,
@@ -1433,7 +1429,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg:                 Configuration,
+        cfg:                 FileProducingConfiguration,
         *,
         action:              Callable,
         gen_tmp_dir:         str,

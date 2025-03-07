@@ -218,9 +218,9 @@ def test_33NWB_202001_ia_mocked(
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.ia_directory        = iadir.absolute()
-    configuration.ia_maps_to_produce  = maps
-    configuration.relative_orbit_list = [7]
+    configuration.extra_directories['ia_dir'] = iadir.absolute()
+    configuration.ia_maps_to_produce          = maps
+    configuration.relative_orbit_list         = [7]
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 

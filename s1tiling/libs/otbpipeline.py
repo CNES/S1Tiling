@@ -257,7 +257,7 @@ class Pipeline:
         res = steps[-1][0]['__last'].out_filename
         assert res == self.output, (
             f"Step output {self.output!r} doesn't match expected output {res!r}."
-            "\nThis is likely happenning because pipeline name generation isn't incremental."
+            "\nThis is likely happening because pipeline name generation isn't incremental."
         )
         steps = None  # type: ignore  # force reset local variable, in doubt...
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)

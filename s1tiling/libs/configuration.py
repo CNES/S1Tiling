@@ -50,9 +50,8 @@ from typing import Dict, List, NoReturn, Optional, Protocol, Sequence, Union, Tu
 import otbApplication as otb
 import yaml
 
-from eof.client import Filename
-
 from s1tiling.libs import exceptions
+from s1tiling.libs.utils.path import AnyPath
 from .otbtools import otb_version
 from ..__meta__ import __version__ as s1tiling_version
 
@@ -347,16 +346,18 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     def __init_paths(self, accessor: _ConfigAccessor) -> None:
         #: Destination directory where product will be generated: :ref:`[PATHS.output] <paths.output>`
         self.output_preprocess       = accessor.get('Paths', 'output')
+        #: Store all extra directories
+        self.extra_directories : Dict[str, AnyPath] = {}
         #: Destination directory where LIA maps products are generated:  :ref:`[PATHS.lia] <paths.lia>`
-        self.lia_directory           = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
+        self.extra_directories['lia_dir'] = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Destination directory where IA maps products are generated:  :ref:`[PATHS.ia] <paths.ia>`
-        self.ia_directory            = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
+        self.extra_directories['ia_dir']         = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
         #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.gamma_area] <paths.gamma_area>`
-        self.gamma_area_directory    = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
+        self.extra_directories['gamma_area_dir'] = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory           = accessor.get('Paths', 's1_images')
         #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
-        self.eof_directory: Filename = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
+        self.extra_directories['eof_dir'] = accessor.get('Paths', 'eof_dir', fallback=os.path.join(self.output_preprocess, '_EOF'))
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
@@ -710,11 +711,11 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("[Paths]")
         logging.info("- geoid_file                                  : %s",   self.GeoidFile)
         logging.info("- s1_images                                   : %s",   self.raw_directory)
-        logging.info("- eof_directory                               : %s",   self.eof_directory)
+        logging.info("- eof_directory                               : %s",   self.extra_directories['eof_dir'])
         logging.info("- output                                      : %s",   self.output_preprocess)
-        logging.info("- LIA                                         : %s",   self.lia_directory)
-        logging.info("- IA                                          : %s",   self.ia_directory)
-        logging.info("- GAMMA_AREA                                  : %s",   self.gamma_area_directory)
+        logging.info("- LIA                                         : %s",   self.extra_directories['lia_dir'])
+        logging.info("- IA                                          : %s",   self.extra_directories['ia_dir'])
+        logging.info("- GAMMA_AREA                                  : %s",   self.extra_directories['gamma_area_dir'])
         logging.info("- dem directory                               : %s",   self.dem)
         logging.info("- dem filename format                         : %s",   self.dem_filename_format)
         logging.info("- dem field ids (from shapefile)              : %s",   self.dem_field_ids)
@@ -844,6 +845,23 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                 f"Only the following tiles have known information: {self.__dems_by_s2_tiles.keys()}"
             )
         return self.__dems_by_s2_tiles[tile_name]
+
+
+# ================================================================================
+# Directories
+
+class FileProducingConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to what is expected by
+    :class:`_FileProducingStepFactory`.
+
+    Can be seen an a ISP compliant concept for Configuration object regarding name generation.
+    """
+    tmpdir            : str
+    output_preprocess : str
+    extra_directories : Dict[str, str]
+    extra_metadata    : Dict
+    ram_per_process   : int
 
 
 # ================================================================================

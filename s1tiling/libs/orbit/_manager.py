@@ -41,7 +41,6 @@ from typing import Dict, List, Optional, Protocol, Tuple
 from dateutil.parser import parse
 
 from eodag.api.core import EODataAccessGateway
-from eof.client import Filename
 from portion import Interval, closed as closed_interval
 from portion import empty as empty_interval
 
@@ -72,11 +71,11 @@ class EOFConfiguration(Protocol):
     Can be seen an a ISP compliant concept for Configuration object regarding EOF data.
     """
 
-    first_date    : str
-    last_date     : str
-    eof_directory : Filename
-    platform_list : List[str]
-    download      : bool
+    first_date        : str
+    last_date         : str
+    extra_directories : Dict[str, str]
+    platform_list     : List[str]
+    download          : bool
 
 
 class ProviderKind(Enum):
@@ -108,7 +107,7 @@ class EOFFileManager:
         self.__dag           = dag
         self.__first_date    = parse(cfg.first_date)
         self.__last_date     = parse(cfg.last_date) + timedelta(days=1) - timedelta(seconds=1)
-        self.__dest_dir      = cfg.eof_directory
+        self.__dest_dir      = cfg.extra_directories['eof_dir']
         self.__missions      = cfg.platform_list
         self.__build_options : Dict[ProviderKind, Dict] = {
                 ProviderKind.COP_DATASPACE : {

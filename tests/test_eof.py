@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -242,10 +242,10 @@ class MockConfiguration:
     ):
         self.first_date    = first_date
         self.last_date     = last_date
-        self.eof_directory = eof_directory
         self.platform_list = platform_list
         self.eodag_config  = eodag_config
         self.download      = True
+        self.extra_directories = { 'eof_dir': eof_directory}
 
 
 def make_configuration(
@@ -688,7 +688,7 @@ def test_manager_eof_retrieval(
     assert configuration.eodag_config is None
     assert len(eof_ids) == 4
 
-    tmp_eof_dir = configuration.eof_directory
+    tmp_eof_dir = configuration.extra_directories['eof_dir']
     eof_files = glob_eof_files(tmp_eof_dir)
     assert len(eof_files) == 0, "Cache dir should be empty when test starts"
 
@@ -791,7 +791,7 @@ def test_manager_eof_retrieval_edge_tests(
         eof_manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
 
         baseline_eof_files = glob_eof_files(eof_baseline_dir)
-        tmp_eof_dir = config.eof_directory
+        tmp_eof_dir = config.extra_directories['eof_dir']
         prepare_tmp_eof_dir_from_files(baseline_eof_files, tmp_eof_dir)
 
         start_time = parse(start)

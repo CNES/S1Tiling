@@ -288,8 +288,10 @@ class Configuration():
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
-        self.lia_directory                     = liadir
-        self.gamma_area_directory              = gamma_areadir
+        self.extra_directories: Dict[str, str] = {
+            'lia_dir'       : liadir,
+            'gamma_area_dir': gamma_areadir,
+        }
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
@@ -926,6 +928,7 @@ def assert_orthorectify_product_number(idx, tasks, task2outfile_map) -> None:
                 input_file(idx, 'vv'): ['in', FirstStep],
             }}
     }
+
     _check_registered_task(expectations, tasks, [orthofile(idx, 'vv')], task2outfile_map)
 
 def assert_dont_orthorectify_product_number(idx, tasks) -> None:
@@ -948,19 +951,6 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map) ->
         ex_output        = task2outfile_map[req_taskname]
         # Special case for LIA, we register only one of the two files for the
         # tests, let's find which one it is.
-        # logging.debug("expectations=%s", expectations)
-        # logging.debug("task=%s ex_output=%s", req_taskname, ex_output)
-        # if isinstance(ex_output, list):
-        #     for exo in ex_output:
-        #         if exo in expectations:
-        #             res = exo
-        #             break
-        #     else:
-        #         res = None
-        #     single_ex_output = res
-        # else:
-        #     single_ex_output = ex_output
-        # assert single_ex_output in expectations, f"Task {single_ex_output} isn't expected (expectations: {list(expectations.keys())})"
         if isinstance(ex_output, list):
             single_ex_output = req_taskname
         else:
@@ -1003,9 +993,10 @@ def then_concatenate_2_files_(tasks, dependencies, a, calibration) -> None:
     # concat task name may differ from the produced filename
     dest = [tn for tn in required if task2outfile_map[tn] == concatfile(None, 'vv')]
     if a != 'no':
-        expectations[maskfile(None, 'vv')] = {'pipeline': 'GenerateMask',
-                                              'input_steps': {
-                                                  concatfile(None, 'vv'): ['in', FirstStep]}}
+        expectations[maskfile(None, 'vv')] = {
+            'pipeline': 'GenerateMask',
+            'input_steps': {
+                concatfile(None, 'vv'): ['in', FirstStep]}}
         dest.append(maskfile(None, 'vv'))
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1635,14 +1626,18 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id,
     out     = S2_LIA_file()
     out_sin = S2_sin_LIA_file()
     expectations = {
-        out_sin: {'pipeline': 'SelectSinLIA',
-                  'input_steps': {
-                      S2_sin_LIA_preselect_file(): ['in', FirstStep]
-                  }},
-        out: {'pipeline': 'SelectLIA',
-              'input_steps': {
-                  S2_LIA_preselect_file(): ['in', FirstStep]
-              }},
+        out_sin: {
+            'pipeline': 'SelectSinLIA',
+            'input_steps': {
+                S2_sin_LIA_preselect_file(): ['in', FirstStep]
+            }
+        },
+        out: {
+            'pipeline': 'SelectLIA',
+            'input_steps': {
+                S2_LIA_preselect_file(): ['in', FirstStep]
+            }
+        },
     }
     dest = [out_sin]
 
@@ -1668,10 +1663,10 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 def then_a_select_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_GAMMA_AREA_file()
     expectations = {
-            out: {'pipeline': 'SelectGAMMA_AREA',
-                  'input_steps': {
-                      S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
-                  }},
+        out: {'pipeline': 'SelectGAMMA_AREA',
+              'input_steps': {
+                  S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
+              }},
     }
     dest = []
     GAMMA_AREA_product_required = 'concat' not in pipeline_ids
@@ -1725,8 +1720,8 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 def then_a_concat_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_GAMMA_AREA_preselect_file()
     expectations = {
-            out: {'pipeline': 'ConcatGAMMA_AREA',
-                  'input_steps': {}},
+        out: {'pipeline': 'ConcatGAMMA_AREA',
+              'input_steps': {}},
     }
     dest = []
 
@@ -1775,8 +1770,8 @@ def then_ortho_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files
         out = ortho_GAMMA_AREA_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'OrthoGAMMA_AREA',
-                'input_steps': {GAMMA_AREA_file_s1(i) : ['in', FirstStep]}
+            'pipeline': 'OrthoGAMMA_AREA',
+            'input_steps': {GAMMA_AREA_file_s1(i) : ['in', FirstStep]}
         }
 
     required, previous, task2outfile_map = dependencies
@@ -1836,12 +1831,12 @@ def then_a_GAMMA_AREA_task_is_registered_s1(tasks, dependencies, expected_files_
         out = GAMMA_AREA_file_s1(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARGammaAreaImageEstimation',
-                'input_steps': {
-                    RESAMPLED_DEM_file(i): ['indem',     FirstStep],
-                    DEMPROJ_file(i):       ['indemproj', FirstStep],
-                    input_file(i, 'vv'):   ['insar',     FirstStep],
-                }
+            'pipeline': 'SARGammaAreaImageEstimation',
+            'input_steps': {
+                RESAMPLED_DEM_file(i): ['indem',     FirstStep],
+                DEMPROJ_file(i):       ['indemproj', FirstStep],
+                input_file(i, 'vv'):   ['insar',     FirstStep],
+            }
         }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1875,11 +1870,11 @@ def then_a_RESAMPLEDDEMPROJ_task_is_registered(tasks, dependencies, expected_fil
         out = DEMPROJ_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARDEMProjectionImageEstimation',
-                'input_steps': {
-                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                }
+            'pipeline': 'SARDEMProjectionImageEstimation',
+            'input_steps': {
+                RESAMPLED_DEM_file(i): ['indem',     FirstStep],
+                input_file(i, 'vv'):   ['insar',     FirstStep],
+            }
         }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1912,13 +1907,12 @@ def then_a_RESAMPLEDDEM_task_is_registered(tasks, dependencies, expected_files_i
         out = RESAMPLED_DEM_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'RigidTransformResample',
-                'input_steps': {
-                    DEM_file(i):          ['indem',     FirstStep],
-                    }
-                }
+            'pipeline': 'RigidTransformResample',
+            'input_steps': {
+                DEM_file(i): ['indem',     FirstStep],
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
-
