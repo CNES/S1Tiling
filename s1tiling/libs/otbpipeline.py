@@ -44,7 +44,7 @@ from itertools import filterfalse
 import logging
 import logging.handlers
 import multiprocessing
-from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runtime_checkable
+from typing import Dict, Generic, List, Optional, Protocol, Set, Tuple, Type, TypeVar, Union, runtime_checkable
 
 from distributed import get_worker
 # memory leaks
@@ -54,7 +54,6 @@ from pympler import tracker  # , muppy
 
 from .                  import Utils
 from .                  import exceptions
-from .configuration     import Configuration
 from .file_naming       import CannotGenerateFilename
 from .meta              import (
         Meta, TaskName, accept_as_compatible_input, is_running_dry, get_task_name, product_exists, out_filename,
@@ -70,8 +69,9 @@ from .utils.timer       import timethis
 
 
 # Typing hints
-TaskNode     = Union[Tuple, "FirstStep"]
-TaskNodeDict = Dict[str, Union[Tuple, "FirstStep"]]
+TaskNode            = Union[Tuple, "FirstStep"]
+TaskNodeDict        = Dict[str, Union[Tuple, "FirstStep"]]
+DomainConfiguration = TypeVar("DomainConfiguration")
 
 
 # Globals
@@ -88,6 +88,7 @@ class AnalysedTasks:
     """
     tasks            : TaskNodeDict
     required_products: List[str]
+
 
 @runtime_checkable
 class FirstStepFactory(Protocol):
@@ -618,7 +619,7 @@ def _register_new_input_and_update_out_filename(
         logger.debug('    The %s task depends on one more input, but only one will be kept.\n    %s has been updated.', task_name, new_task_meta)
 
 
-class PipelineInputs:
+class PipelineInputs(Generic[DomainConfiguration]):
     """
     Internal helper class used to centralize the instanciation of :class:`FirstStep` according to
     the exact pipeline instanciated.
@@ -650,7 +651,7 @@ class PipelineInputs:
     @timethis("instanciate_all inputs")
     def instanciate_all(
             self,
-            configuration: Configuration,
+            configuration: DomainConfiguration,
     ) -> Dict[str, List[Outcome[Meta]]]:
         """
         Returns all the :class:`FirstStep` instances organized by their associated sourced id.
@@ -669,20 +670,20 @@ class PipelineInputs:
         return inputs
 
 
-class PipelineDescriptionSequence:
+class PipelineDescriptionSequence(Generic[DomainConfiguration]):
     """
     This class is the main entry point to describe pipelines.
 
     Internally, it can be seen as a list of :class:`PipelineDescription` objects.
     """
-    def __init__(self, cfg: Configuration, dryrun: bool, debug_caches: bool) -> None:
+    def __init__(self, cfg: DomainConfiguration, dryrun: bool, debug_caches: bool) -> None:
         """
         Constructor.
         """
         assert cfg
         self.__cfg                  = cfg
         self.__pipelines            : List[PipelineDescription] = []
-        self.__inputs               = PipelineInputs()
+        self.__inputs               = PipelineInputs[DomainConfiguration]()
         self.__execution_parameters = {
                 'dryrun'      : dryrun,
                 'debug_caches': debug_caches,
@@ -721,9 +722,10 @@ class PipelineDescriptionSequence:
         :type kind:                 str
         :param first_steps_factory: Hook that'll build :class:`FirstSteps
                                     <s1tiling.libs.steps.FirstStep>` on the fly from the registered
-                                    :class:`Configuration
-                                    <s1tiling.libs.configuration.Configuration>` and the :func:`registered
-                                    extra parameters <register_extra_parameters_for_input_factories>`.
+                                    :class:`DomainConfiguration
+                                    <s1tiling.libs.configuration.DomainConfiguration>` and the
+                                    :func:`registered extra parameters
+                                    <register_extra_parameters_for_input_factories>`.
         :type first_steps_factory:  FirstStepFactory
 
         .. note::
@@ -755,9 +757,9 @@ class PipelineDescriptionSequence:
         Takes care of instanciating all :class:`FirstSteps <s1tiling.libs.steps.FirstStep>` with the
         registered :class:`FirstStepFactories <FirstStepFactory>`.
 
-        Only one parameter is assumed the registered :class:`Configuration
-        <s1tiling.libs.configuration.Configuration>` object. Other parameters are assumed from the
-        :func:`registered extra parameters <register_extra_parameters_for_input_factories>`.
+        Only one parameter is assumed the registered :class:`DomainConfiguration
+        <s1tiling.libs.configuration.DomainConfiguration>` object. Other parameters are assumed from
+        the :func:`registered extra parameters <register_extra_parameters_for_input_factories>`.
         """
         inputs : Dict[str, List[Outcome[Meta]]] = self.__inputs.instanciate_all(configuration=self.__cfg)
         logger.debug("FIRST: %s", pprint.pformat(inputs))
@@ -778,7 +780,7 @@ class PipelineDescriptionSequence:
         pipelines_outputs = first_inputs
 
         required = {}  # (first batch) Final products identified as _needed to be produced_
-        previous : Dict[TaskName, TaskInputInfo] = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
+        previous                         : Dict[TaskName, TaskInputInfo]        = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
         task_names_to_output_files_table : Dict[TaskName, Union[str,List[str]]] = {}
         # +-> TODO: cache previous in order to remember which files already exists or not
         #     the difficult part is to flag as "generation successful" or not
