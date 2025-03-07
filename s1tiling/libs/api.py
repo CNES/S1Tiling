@@ -650,12 +650,12 @@ def register_GAMMA_AREA_pipelines(
 
 
 def s1_raster_first_inputs_factory(
-        tile_name          : str,
-        configuration      : Configuration,
-        s1_file_manager    : S1FileManager,
-        output_name_formats: List[Tuple[str, str]],
-        dryrun             : bool,
-        **kwargs,  # pylint: disable=unused-argument
+    *,
+    tile_name          : str,
+    s1_file_manager    : S1FileManager,
+    output_name_formats: List[Tuple[str, str]],
+    dryrun             : bool,
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S1 images.
@@ -672,9 +672,9 @@ def s1_raster_first_inputs_factory(
 
 
 def s1_raster_first_inputs_factory_from_rasters(
-        tile_name      : str,
-        raster_list : List[Dict],
-        **kwargs,  # pylint: disable=unused-argument
+    tile_name      : str,
+    raster_list : List[Dict],
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S1 images: converts S1 raster list into
@@ -700,9 +700,10 @@ def s1_raster_first_inputs_factory_from_rasters(
 
 
 def tilename_first_inputs_factory(
-        tile_name    : str,
-        configuration: Configuration,
-        **kwargs,  # pylint: disable=unused-argument
+    *,
+    tile_name    : str,
+    configuration: Configuration,
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S2 MGRS tile information: name and footprint origin.

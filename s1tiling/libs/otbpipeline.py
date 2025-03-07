@@ -25,6 +25,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#
 # =========================================================================
 
 # from __future__ import annotations  # Require Python 3.7+...
@@ -33,6 +34,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import os
 import pprint
@@ -87,21 +89,15 @@ class AnalysedTasks:
     tasks            : TaskNodeDict
     required_products: List[str]
 
-
 @runtime_checkable
 class FirstStepFactory(Protocol):
     """
-    Defines the prototype of :class:`FirstStep <s1tiling.libs.steps.FirstStep>` factory functions accepted in
-    :func:`PipelineDescriptionSequence.register_inputs`.
-
-    :param str tile_name: Name of the tile the :class:`FirstSteps <s1tiling.libs.steps.FirstStep>`
-                          built relate to.
-
-                          .. todo:: Drop ``tile_name`` from expectations of generic pipeline
+    Defines the prototype of :class:`FirstStep <s1tiling.libs.steps.FirstStep>` factory functions
+    accepted in :func:`PipelineDescriptionSequence.register_inputs`.
 
     :param Configuration configuration: List of configuration options
     :param dict kwargs:                 Any other named parameters into which the actual factory can
-                                        search it specific parameters.
+                                        search its specific parameters.
     :return: A list of instanciated :class:`FirstStep <s1tiling.libs.steps.FirstStep>`
 
 
@@ -109,14 +105,8 @@ class FirstStepFactory(Protocol):
     fill in a few parameters like the ``configuration``. Other specific parameters are expected to
     be filled through
     :func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factories`.
-
     """
-    def __call__(
-            self,
-            tile_name     : str,
-            configuration : Configuration,
-            **kwargs,
-    ) -> List[Outcome[FirstStep]]: ...
+    __call__ : Callable[..., List[Outcome[FirstStep]]]
 
 
 class Pipeline:
