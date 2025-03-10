@@ -434,7 +434,7 @@ You can use this :download:`this template
 
       .. _Processing.produce_gamma_area_map:
   * - ``produce_gamma_area_map``
-    - When :ref:`GAMMA_AREA map <gamma_area-files>` is produced.
+    - When :ref:`GAMMA_AREA map <gamma_area_s2-files>` is produced.
 
       Possible values are:
 
@@ -450,7 +450,7 @@ You can use this :download:`this template
       .. _Processing.dem_warp_resampling_method:
   * - ``dem_warp_resampling_method``
     - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
-      <lia-files>` and  :ref:`GAMMA_AREA maps <gamma_area-files>`.
+      <lia-files>` and  :ref:`GAMMA_AREA maps <gamma_area_s2-files>`.
       This parameters permits to select the resampling method that
       :external:std:doc:`gdalwarp <programs/gdalwarp>` will use.
 
@@ -678,7 +678,7 @@ You can use this :download:`this template
           - :samp:`{{lia_dir}}`
 
             .. _Processing.dname_fmt.gamma_area_product:
-        * - :ref:`GAMMA_AREA <gamma_area-files>`
+        * - :ref:`GAMMA_AREA <gamma_area_s2-files>`
           - ``.gamma_area_product``
           - :samp:`{{gamma_area_dir}}`
 
@@ -750,7 +750,7 @@ You can use this :download:`this template
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
             .. _Processing.creation_options.gamma_area:
-        * - :ref:`GAMMA_AREA in meters square <gamma_area-files>`
+        * - :ref:`GAMMA_AREA in meters square <gamma_area_s2-files>`
           - ``.gamma_area``
           - ``float32 COMPRESS=DEFLATE&gdal``
 

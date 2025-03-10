@@ -169,10 +169,11 @@ care of installing S1Tiling on Linux machines
             :ref:`σ° NORMLIM calibration <scenario.s1processorlia>`.
 
          .. note::
-            You will still need to install `GAMMA_AREA extra applications
+            You will still need to install `γ area extra applications
             <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ in
-            order to :ref:`produce GAMMA_AREA maps <scenario.S1GammaAreaMap>`, or to apply
-            :ref:`γ° RTC calibration <scenario.S1ProcessorGAMMA_AREA>`.
+            order to :ref:`produce γ area maps <scenario.S1GammaAreaMap>`, or
+            to apply :ref:`γ° RTC calibration
+            <scenario.S1ProcessorRTC>`.
 
 Extra packages
 ++++++++++++++

@@ -5,7 +5,7 @@
 .. index:: Normlim data flow
 
 ======================================================================
-Normlim data flow
+:math:`σ^0_{T}` Normlim data flow
 ======================================================================
 
 .. contents:: Contents:
@@ -16,7 +16,7 @@ Two data flows are possibles:
 
 - with :ref:`S1LIAMap` only LIA maps are produced,
 - with :ref:`S1Processor` LIA maps are produced if not found, then
-  :math:`σ^0_{RTC}` NORMLIM orthorectified files are produced.
+  :math:`σ^0_{T}` NORMLIM orthorectified files are produced.
 
 Normlim global processing
 -------------------------
@@ -86,16 +86,16 @@ LIA specific processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d1_t1t2 [label="Raw d1 t1-t2",   href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d1_t2t3 [label="Raw d1 t2-t3",   href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         eof_dx      [label="EOF dn",         href="files.html#eof",    shape="doublecircle", fillcolor=cyan]
+         eof_dx      [label="EOF dn",         href="configuration.html#paths-eof-dir",   shape="doublecircle", fillcolor=cyan]
 
          # =====[ Classic workflow
          # β° calibrated + orthorectified nodes
@@ -109,9 +109,9 @@ LIA specific processings
          o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
          # Concatenated β° calibrated + orthorectified nodes
-         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
 
          # Classic workflow up to concatenated β° calibrated + orthorectified nodes
          raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
@@ -130,22 +130,22 @@ LIA specific processings
 
          # ===================================
          # =====[ LIA workflow
-         vrt_nwb       [label="DEM VRT 33NWB",                 fillcolor=palegoldenrod];
+         vrt_nwb       [label="DEM VRT 33NWB",                 href="files.html#dem-vrt-files",           fillcolor=palegoldenrod];
 
-         DEM_on_S2     [label="DEM projected on 33NWB",        fillcolor=palegoldenrod];
-         heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      fillcolor=palegoldenrod];
-         xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", fillcolor=palegoldenrod];
+         DEM_on_S2     [label="DEM projected on 33NWB",        href="files.html#dem-on-s2-files",         fillcolor=palegoldenrod];
+         heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      href="files.html#height-on-s2-files",      fillcolor=palegoldenrod];
+         xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", href="files.html#ground-and-sat-s2-files", fillcolor=palegoldenrod];
          normals_on_S2 [label="ground normals on 33NWB",       fillcolor=palegoldenrod];
 
-         nwb_lia       [label="sin(LIA) on 33NWB",             fillcolor="gold" ]
+         nwb_lia       [label="sin(LIA) on 33NWB",             href="files.html#lia-files", fillcolor="gold" ]
 
          mult_d1       [label="X", shape="circle"]
          mult_d2       [label="X", shape="circle"]
          mult_dn       [label="X", shape="circle"]
 
-         nwb_d1        [label="S2 σ° NORMLIM 33NWB d1", fillcolor=lightblue];
-         nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", fillcolor=lightblue];
-         nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", fillcolor=lightblue];
+         nwb_d1        [label="S2 σ° NORMLIM 33NWB d1", href="files.html#full-s2-tiles", fillcolor=lightblue];
+         nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", href="files.html#full-s2-tiles",fillcolor=lightblue];
+         nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", href="files.html#full-s2-tiles",fillcolor=lightblue];
 
          vrt_nwb       -> DEM_on_S2;
          DEM_on_S2     -> heights_on_S2;
@@ -360,7 +360,7 @@ Application of LIA maps to β° calibrated S2 images
 :Inputs:         - The :ref:`sine LIA map file <lia-files>` associated to the
                    S2 grid
                  - A β° calibrated, cut and orthorectified image on the S2 grid
-:Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
+:Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{T}`
                  calibrated
 :OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
@@ -438,14 +438,14 @@ LIA specific deprecated processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d1_t1t2 [label="Raw d1 t1-t2", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d1_t2t3 [label="Raw d1 t2-t3", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
          { rank = same ;  raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3}
 
@@ -460,9 +460,9 @@ LIA specific deprecated processings
          o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
          # Concatenated β° calibrated + orthorectified nodes
-         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
 
          # Classic workflow up to concatenated β° calibrated + orthorectified nodes
          raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];

@@ -78,11 +78,10 @@ logger = logging.getLogger('s1tiling.wrappers.gamma_area')
 
 class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
     """
-    Factory that concludes σ0 with GAMMA NAUGHT RTC calibration.
+    Factory that concludes β° with :math:`γ^0_{T}` RTC calibration.
 
-    It builds steps that multiply images calibrated with β0 LUT, and
-    orthorectified to S2 grid, with the gamma area map for the same S2 tile (and
-    orbit number and direction).
+    It builds steps that multiply images calibrated with β° LUT, and orthorectified to S2 grid, with
+    the gamma area map for the same S2 tile (and orbit number and direction).
 
     Requires the following information from the configuration object:
 

@@ -51,12 +51,12 @@ Incidence Angle specific processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         eof_dx      [label="EOF (110)", href="files.html#eof", shape="doublecircle", fillcolor=cyan]
+         eof_dx      [label="EOF (110)", href="configuration.html#paths-eof-dir", shape="doublecircle", fillcolor=cyan]
 
          # =====[ IA workflow
-         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 31TCH obt 110", fillcolor=palegoldenrod];
-         normals_on_S2 [label="ellipsoid normals on 31TCH obt 110",       fillcolor=palegoldenrod];
-         tch_ia        [label="sin(IA) on 31TCH obt 110",                 fillcolor="gold" ]
+         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 31TCH obt 110", href="files.html#wgs84-surface-and-sat-s2-files", fillcolor=palegoldenrod];
+         normals_on_S2 [label="ellipsoid normals on 31TCH obt 110",                                   fillcolor=palegoldenrod];
+         tch_ia        [label="sin(IA) on 31TCH obt 110",                 href="files.html#ia-files", fillcolor="gold" ]
 
          eof_dx        -> xyz_d1_t1;
          normals_on_S2 -> tch_ia;

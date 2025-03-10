@@ -41,7 +41,7 @@ Orthorectified S2 tiles
     - :samp:`s1{{a|b}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}.tif` when the tile has been produced from a single S1 image
 
     .. note::
-        :math:`σ^0_{RTC}` calibrated files will have their name end in
+        :math:`σ^0_{T}` calibrated files will have their name end in
         :file:`_NormLim.tif`
 
 :File name format:
@@ -398,7 +398,7 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
         - :samp:`S1 Tiling v{{version}}` -- |version| currently
 
 
-.. _gamma_area-files:
+.. _gamma_area_s2-files:
 .. index:: Gamma Area map file
 
 Gamma Area map file
@@ -793,8 +793,8 @@ These XYZ ECEF are produced from precise orbit files.
 
 .. _S1_on_dem-files:
 
-Files of S1 coordinates projected on DEM geometry
-+++++++++++++++++++++++++++++++++++++++++++++++++
+S1 coordinates projected on DEM geometry
+++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the :ref:`Virtual DEM <dem-vrt-files>` geometry. Their
           values contain the XYZ Cartesian coordinates of the pixel and the
@@ -860,8 +860,8 @@ Files of S1 coordinates projected on DEM geometry
 
 .. _gamma_area-s1-files:
 
-Files of GAMMA_AREA cartesian coordinates in S1 geometry
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+γ area cartesian coordinates in S1 geometry
++++++++++++++++++++++++++++++++++++++++++++
 
 :Content: Pixels are in the original Sentinel-1 image geometry. Their
           values contain the GAMMA_AREA cartesian coordinates of the pixel.
@@ -917,7 +917,7 @@ Half Local Incidence Angle map files -- pre-concatenation.
     These files directly match the :ref:`GAMMA_AREA maps computed on S1 images
     <gamma_area-s1-files>`, after orthorectification to the Sentinel-2 tile, and
     before their concatenation in the :ref:`final GAMMA_AREA maps in S2 geometry
-    <gamma_area-files>`.
+    <gamma_area_s2-files>`.
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
 

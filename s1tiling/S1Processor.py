@@ -75,7 +75,7 @@ from s1tiling.libs.S1FileManager import (
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=f"""\b
-    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap, S1GammaAreaMap
 
     \b
     Check out our docs at {__pages__} for more details.

@@ -27,6 +27,7 @@
 # Authors:
 # - Thierry KOLECK (CNES)
 # - Luc HERMITTE (CSGROUP)
+# - Fabien CONTIVAL (CSGROUP)
 #
 # =========================================================================
 
@@ -69,7 +70,16 @@ from s1tiling.libs.S1FileManager import (
 )
 
 
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog=f"""\b
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap, S1Processor
+
+    \b
+    Check out our docs at {__pages__} for more details.
+    Copyright 2017-2025 (c) CNES.
+    """
+)
 @click.version_option()
 @click.option(
         "--searched_items_per_page",
@@ -124,7 +134,9 @@ def run_gamma_area(
         **kwargs  # All click parameters that'll directly be forwarded to s1_process_gamma_area
 ) -> NoReturn:
     """
-    This function is used as entry point to create console scripts with setuptools.
+    Generates maps of Gamma Area for Sentinel-1 orbits over S2 MGRS tiles.
+
+    These maps can be used for γ° RTC calibration.
     """
     cli_main(
         s1_process_gamma_area,

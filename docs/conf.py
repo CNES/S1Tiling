@@ -298,3 +298,5 @@ def autodoc_process_docstring(app, what, name, obj, options, lines):
 
 # Configuration for inheritance_diagram
 inheritance_graph_attrs = dict(rankdir="TB")
+
+graphviz_output_format = 'svg'

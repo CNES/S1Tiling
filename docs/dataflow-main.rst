@@ -71,9 +71,9 @@ any order compatible with the dependencies represented in the graph),
          node [fontname="Verdana", fontsize="12"];
          edge [fontname="Sans", fontsize="9"];
 
-         raw_t1t2 [label="Raw t1-t2", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
-         raw_t2t3 [label="Raw t2-t3", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
-         raw_t3t4 [label="Raw t3-t4", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
+         raw_t1t2 [label="Raw t1-t2", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
+         raw_t2t3 [label="Raw t2-t3", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
+         raw_t3t4 [label="Raw t3-t4", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
 
          or_t1t2 [label="OrthoReady t1-t2", target="_top", href="files.html#orthoready-files", shape="note", fillcolor=lightyellow, style=filled]
          or_t2t3 [label="OrthoReady t2-t3", target="_top", href="files.html#orthoready-files", shape="note", fillcolor=lightyellow, style=filled]
@@ -84,8 +84,8 @@ any order compatible with the dependencies represented in the graph),
          o_nwb_t2 [label="Orthorectified 33NWB t2", target="_top", href="files.html#orthorectified-files", shape="note", fillcolor=lightyellow, style=filled]
          o_nwb_t3 [label="Orthorectified 33NWB t3", target="_top", href="files.html#orthorectified-files", shape="note", fillcolor=lightyellow, style=filled]
 
-         nwb [label="S2 33NWB" shape="note", target="_top", href="files.html#full-S2-tiles", fillcolor=lightblue, style=filled]
-         nwc [label="S2 33NWC" shape="note", target="_top", href="files.html#full-S2-tiles", fillcolor=lightblue, style=filled]
+         nwb [label="S2 33NWB" shape="note", target="_top", href="files.html#orthorectified-s2-tiles", fillcolor=lightblue, style=filled]
+         nwc [label="S2 33NWC" shape="note", target="_top", href="files.html#orthorectified-s2-tiles", fillcolor=lightblue, style=filled]
 
          raw_t1t2 -> or_t1t2 [label="calibration + cut"];
          raw_t2t3 -> or_t2t3 [label="calibration + cut"];

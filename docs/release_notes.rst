@@ -21,7 +21,7 @@ v1.2.0 Improvements
 
 - This new version can produce :ref:`Gamma Area Maps <scenario.S1GammaAreaMap>`
   over requested S2 tiles thanks to :ref:`S1GammaAreaMap`, or :ref:`generate S2
-  products <scenario.S1ProcessorRTC>` calibrated with :math:`γ^0_{RTC}`
+  products <scenario.S1ProcessorRTC>` calibrated with :math:`γ^0_{T}`
   calibration described in [Small2011]_.
   (`#90 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/90>`_).
 - Use precise orbit files, downloaded on-the-fly, to compute :ref:`Local
@@ -119,7 +119,7 @@ v1.0.0 Improvements
 - This new version can automatically produce :ref:`produce Local Incidence
   Angle Maps <scenario.S1LIAMap>` over requested S2 tiles thanks to
   :ref:`S1LIAMap`, or :ref:`generate S2 products <scenario.S1ProcessorLIA>`
-  calibrated with :math:`σ^0_{RTC}` NORMLIM calibration described in
+  calibrated with :math:`σ^0_{T}` NORMLIM calibration described in
   [Small2011]_.
   (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_,
   `#119 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/119>`_).

@@ -65,11 +65,11 @@ Eventually,
 
 .. _scenario.S1ProcessorLIA:
 
-Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with σ\ :sup:`0`\ :sub:`T` NORMLIM calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This scenario is a variation of the :ref:`previous one <scenario.S1Processor>`.
-The difference lies in the calibration applied: it is the :math:`σ^0_{RTC}`
+The difference lies in the calibration applied: it is the :math:`σ^0_{T}`
 NORMLIM calibration described in [Small2011]_.
 
 In S1Tiling, we have chosen to precompute Local Incidence Angle (LIA) maps on
@@ -127,16 +127,16 @@ S1Tiling will then automatically take care of:
                 33NWB β° calibrated -- 20200108
 
             .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_NormLim.jpeg
-                :alt: 33NWB NORMLIM σ° RTC calibrated
+                :alt: 33NWB NORMLIM σ° T calibrated
                 :scale: 50%
 
-                33NWB NORMLIM σ° RTC calibrated -- 20200108
+                33NWB NORMLIM σ° T calibrated -- 20200108
 
             .. figure:: _static/s1a_33NWB_vh_DES_007_20200108txxxxxx_Normlim_filtered_lee.jpeg
-                :alt: 33NWB NORMLIM σ° RTC calibrated and filtered
+                :alt: 33NWB NORMLIM σ° T calibrated and filtered
                 :scale: 50%
 
-                33NWB σ° RTC calibrated and despeckled (Lee) -- 20200108
+                33NWB σ° T calibrated and despeckled (Lee) -- 20200108
 
 
 
@@ -162,8 +162,8 @@ S1Tiling will then automatically take care of:
 
 .. _scenario.S1LIAMap:
 
-Pre-produce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`RTC` NORMLIM calibration
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Pre-produce maps of Local Incidence Angles for σ\ :sup:`0`\ :sub:`T` NORMLIM calibration
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 While :ref:`S1Processor` is able to produce the necessary LIA maps on the
 fly, it is not able to do so when parallelization is done manually over time
@@ -339,12 +339,12 @@ account:
 
 .. _scenario.S1ProcessorRTC:
 
-Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with γ\ :sup:`0`\ :sub:`RTC` calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Orthorectify pairs of Sentinel-1 images on Sentinel-2 grid with γ\ :sup:`0`\ :sub:`T` calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 This scenario is a variation of the :ref:`previous orthorectification scenario
 <scenario.S1Processor>`.
-The difference lies in the calibration applied: it is the :math:`γ^0_{RTC}`
+The difference lies in the calibration applied: it is the :math:`γ^0_{T}`
 calibration described in [Small2011]_.
 
 In S1Tiling, we have chosen to precompute Gamma Area maps on Sentinel-2 grid.
@@ -361,8 +361,8 @@ Regarding options, the only difference with previous scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that needs to be
   ``gamma_naught_rtc``,
-- :ref:`[Paths].gamma_area <Paths.gamma_area>`, the directory where Gamma Area
-  maps will be searched for, or produced in.
+- :ref:`[Paths].gamma_area <Paths.gamma_area>`, the directory where γ Area maps
+  will be searched for, or produced in.
 
 Also, these specific options can overriden:
 
@@ -389,22 +389,22 @@ S1Tiling will then automatically take care of:
 .. warning::
    If you wish to parallelize this scenario and dedicate a different cluster
    node to each date -- as recommended in “:ref:`scenario.parallelize_date`”
-   scenario, you will **NEED** to produce all the LIA maps beforehand.
+   scenario, you will **NEED** to produce all the γ areas maps beforehand.
    Otherwise, a same file may be concurrently written to from different nodes,
    and it will likely end up corrupted.
 
 .. note::
    This scenario requires `GammaNaughtRTC
    <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ binaries.
-   At the moment, γ\ :sup:`0`\ :sub:`RTC` binaries need to be compiled manually.
+   At the moment, γ\ :sup:`0`\ :sub:`T` binaries need to be compiled manually.
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
 
 
 .. _scenario.S1GammaAreaMap:
 
-Pre-produce Gamma Area maps for γ\ :sup:`0`\ :sub:`RTC` calibration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Pre-produce Gamma Area maps for γ\ :sup:`0`\ :sub:`T` calibration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 While :ref:`S1Processor` is able to produce the necessary Gamma Area maps
 on the fly, it is not able to do so when parallelization is done manually over
@@ -428,7 +428,7 @@ masking… But the following (non-obvious) options are mandatory:
 .. note::
    This scenario requires `GammaNaughtRTC
    <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ binaries.
-   At the moment, γ\ :sup:`0`\ :sub:`RTC` binaries need to be compiled manually.
+   At the moment, γ\ :sup:`0`\ :sub:`T` binaries need to be compiled manually.
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
 
