@@ -5,11 +5,11 @@ Bibliography
    SAR Imagery," in IEEE Transactions on Geoscience and Remote Sensing, vol.
    49, no. 8, pp. 3081-3093, Aug. 2011, doi: 10.1109/TGRS.2011.2120616.
 
-.. [Koleck2019] T. Koleck and M.A. Ballere, "S1Tiling, A multi-purpose Open
+.. [Koleck2019] T. Koleck and M. Ballere, "S1Tiling, A multi-purpose Open
    Source Processing Chain for 704 Sentinel-1 Tim Series". In Proceedings of
    the ESA, Living Planet Symposium, Milan, Italy, 13–17 May 2019.
 
-.. [Kolleck2021] T. Koleck and L. Hermitte, "S1Tiling: Pré-processing d'images
+.. [Koleck2021] T. Koleck and L. Hermitte, "S1Tiling: Pré-processing d'images
    Sentinel-1 avec l'OTB ", OTB User Days 2021, Toulouse (`video
    <https://www.youtube.com/watch?v=QiOcz_HFsCA>`__).
 
@@ -17,11 +17,11 @@ Bibliography
    build your Sentinel-1 time series ", Day-5 poster B1.07 , Living Planet
    Symposium, Bonn, Germany, 2022
 
-.. [Contival2022] F. Contival, L. Hermitte and T. Kolleck, "Gamma Naught RTC :
+.. [Contival2022] F. Contival, L. Hermitte and T. Koleck, "Gamma Naught RTC :
    An open source application based on DiapOTB", Day-5 poster B1.07 , Living
    Planet Symposium, Bonn, Germany, 2022
 
-.. [Kolleck2024] T. Koleck and L. Hermitte, "S1tiling Sentinel1
+.. [Koleck2024] T. Koleck and L. Hermitte, "S1tiling Sentinel1
    pre-processing", OTB Users Days 2024, Nov 2024, Toulouse, (`slides
    <https://www.orfeo-toolbox.org/packages/doc/UserDays2024/slides/koleck-s1tiling.pdf>`__,
    `video <https://youtu.be/dyODzN0Q9a0>`__)
