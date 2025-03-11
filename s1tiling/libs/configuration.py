@@ -313,7 +313,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.lia_directory           = accessor.get('Paths', 'lia', fallback=os.path.join(self.output_preprocess, '_LIA'))
         #: Destination directory where IA maps products are generated:  :ref:`[PATHS.ia] <paths.ia>`
         self.ia_directory            = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
-        #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.lia] <paths.gamma_area>`
+        #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.gamma_area] <paths.gamma_area>`
         self.gamma_area_directory    = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory           = accessor.get('Paths', 's1_images')
@@ -437,8 +437,11 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             accessor.throw("'lower_signal_value' parameter shall be a positive (small value) aimed at replacing null value produced by denoising.")
 
         # - - - - - - - - - -[ Gamma area computation
-        #: Resampling: See :ref:`[Processing.no_use_resampled_dem] <Processing.no_use_resampled_dem>`
-        self.no_use_resampled_dem                       = accessor.getboolean('Processing', 'no_use_resampled_dem', fallback=False)
+        #: Resampling: See :ref:`[Processing.use_resampled_dem] <Processing.use_resampled_dem>`
+        self.use_resampled_dem                          = accessor.getboolean('Processing', 'use_resampled_dem', fallback=True)
+        no_use_resampled_dem                            = accessor.getboolean('Processing', 'no_use_resampled_dem', fallback=None)
+        if no_use_resampled_dem is not None:
+            accessor.throw("'no_use_resampled_dem' has be deprecated, please use the positive option: 'use_resampled_dem' instead")
 
         #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
         self.resample_dem_factor_x                      = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
@@ -685,7 +688,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("  - superimpose interpol Geoid on S2          : %s",   self.interpolation_method)
         logging.info("- γ° RTC")
         logging.info("  - produce GAMMA_AREA map                    : %s",   self.produce_gamma_area_map)
-        logging.info("  - no_use_resampled_dem                      : %s",   self.no_use_resampled_dem)
+        logging.info("  - use_resampled_dem                         : %s",   self.use_resampled_dem)
         logging.info("  - resample_dem_factor_x                     : %s",   self.resample_dem_factor_x)
         logging.info("  - resample_dem_factor_y                     : %s",   self.resample_dem_factor_y)
         logging.info("  - distribute_area                           : %s",   self.distribute_area)

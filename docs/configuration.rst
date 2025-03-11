@@ -697,7 +697,6 @@ You can use this :download:`this template
       .. list-table::
         :widths: auto
         :header-rows: 1
-        :stub-columns: 1
 
         * - Products from
           - Option ``creation_options.?``
@@ -753,6 +752,98 @@ You can use this :download:`this template
         * - :ref:`GAMMA_AREA in meters square <gamma_area_s2-files>`
           - ``.gamma_area``
           - ``float32 COMPRESS=DEFLATE&gdal``
+
+      .. _Processing.rtc:
+  * - :math:`γ^0_{T}` RTC specific options
+    - The following options are exclusively used for the :ref:`preparation
+      <scenario.S1GammaAreaMap>` and the :ref:`application of γ area maps
+      <scenario.S1ProcessorRTC>`.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Option
+          - Purpose
+          - Default value
+
+            .. _Processing.use_resampled_dem:
+        * - ``use_resampled_dem``
+          - Tell to work on resampled DEM before computing γ area maps. The
+            resampling factors are specified in :ref:`resample_dem_factor_x
+            <processing.resample_dem_factor_x>` and :ref:`resample_dem_factor_y
+            <processing.resample_dem_factor_y>`
+          - ``True``
+
+            .. _Processing.resample_dem_factor_x:
+        * - ``resample_dem_factor_x``
+          - Resampling factor on X axis used on DEM when
+            :ref:`use_resampled_dem <processing.use_resampled_dem>` is set.
+          - 2.0
+
+            .. _Processing.resample_dem_factor_y:
+        * - ``resample_dem_factor_y``
+          - Resampling factor on Y axis used on DEM when
+            :ref:`use_resampled_dem <processing.use_resampled_dem>` is set.
+          - 2.0
+
+            .. _Processing.distribute_area:
+        * - ``distribute_area``
+          - Distribute area on pixel's neighbors (corners) in output geometry.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - ``False``
+
+            .. _Processing.gamma_area_nostreaming:
+        * - ``gamma_area_nostreaming``
+          - Disables (OTB) streaming in
+            :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - ``False``
+
+            .. _Processing.inner_margin_ratio_status:
+        * - ``inner_margin_ratio_status``
+          - todo: remove
+          - ``True``
+
+            .. _Processing.inner_margin_ratio:
+        * - ``inner_margin_ratio``
+          - Ratio of largest direction for DEM 's tile margin for inner tiles.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - 0.01
+
+            .. _Processing.outer_margin_ratio_status:
+        * - ``outer_margin_ratio_status``
+          - todo: remove
+          - ``True``
+
+            .. _Processing.outer_margin_ratio:
+        * - ``outer_margin_ratio``
+          - Ratio of largest direction for DEM 's tile margin for outer tiles.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - 0.04
+
+            .. _Processing.min_gamma_area:
+        * - ``min_gamma_area``
+          - Minimum area before entering shadow. |br|
+            Used in :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - 1.0
+
+            .. _Processing.calibration_factor:
+        * - ``calibration_factor``
+          - Scalar calibration factor value. |br|
+            Used in :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - 1.0
+
+            .. _Processing.gamma_area_to_gamma_naught_rtc_nostreaming:
+        * - ``gamma_area_to_gamma_naught_rtc_nostreaming``
+          - Disables (OTB) streaming in
+            :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - ``False``
+
+
 
 .. _Filtering:
 

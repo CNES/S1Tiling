@@ -369,8 +369,8 @@ Also, these specific options can overriden:
 - :ref:`[Processing].min_gamma_area <processing.min_gamma_area>`
 - :ref:`[Processing].calibration_factor <processing.calibration_factor>`
 - :ref:`[Processing].gamma_area_to_gamma_naught_rtc_nostreaming <processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
-- :ref:`[Processing].resample_dem_factor_x <processing.gamma_area>`
-- :ref:`[Processing].resample_dem_factor_y <processing.gamma_area>`
+- :ref:`[Processing].resample_dem_factor_x <processing.resample_dem_factor_x>`
+- :ref:`[Processing].resample_dem_factor_y <processing.resample_dem_factor_y>`
 
 - :ref:`[Processing].distribute_area <processing.distribute_area>`
 - :ref:`[Processing].gamma_area_nostreaming <processing.gamma_area_nostreaming>`
