@@ -302,9 +302,6 @@ class Configuration():
         self.resample_dem_factor_x             = 2.0
         self.resample_dem_factor_y             = 2.0
         self.distribute_area                   = False
-        self.gamma_area_nostreaming            = True
-        self.inner_margin_ratio_status         = True
-        self.outer_margin_ratio_status         = True
         self.inner_margin_ratio                = 0.01
         self.outer_margin_ratio                = 0.04
         self.min_gamma_area                    = 1.0

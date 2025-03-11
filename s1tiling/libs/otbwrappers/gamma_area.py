@@ -568,8 +568,6 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         )
         self.distributearea         = cfg.distribute_area
         self.nostreaming            = cfg.disable_streaming.get('gamma_area', False)
-        self.innermarginratiostatus = cfg.inner_margin_ratio_status
-        self.outermarginratiostatus = cfg.outer_margin_ratio_status
         self.innermarginratio       = cfg.inner_margin_ratio
         self.outermarginratio       = cfg.outer_margin_ratio
 
@@ -673,13 +671,13 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             'distributearea'        : self.distributearea,
             'nostreaming'           : self.nostreaming,
             'nodata'                : -32768,
-            'innermarginratiostatus': self.innermarginratiostatus,
-            'outermarginratiostatus': self.outermarginratiostatus,
         }
         if self.innermarginratio:
-            params["innermarginratio"] = self.innermarginratio
+            params["innermarginratio"]       = self.innermarginratio
+            params["innermarginratiostatus"] = True
         if self.outermarginratio:
-            params["outermarginratio"] = self.outermarginratio
+            params["outermarginratio"]       = self.outermarginratio
+            params["outermarginratiostatus"] = True
 
         return params
 

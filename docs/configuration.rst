@@ -830,27 +830,18 @@ You can use this :download:`this template
             Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
           - ``False``
 
-
-            .. _Processing.inner_margin_ratio_status:
-        * - ``inner_margin_ratio_status``
-          - todo: remove
-          - ``True``
-
             .. _Processing.inner_margin_ratio:
         * - ``inner_margin_ratio``
           - Ratio of largest direction for DEM 's tile margin for inner tiles.
+            Set to 0 to ignore.
             |br|
             Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
           - 0.01
 
-            .. _Processing.outer_margin_ratio_status:
-        * - ``outer_margin_ratio_status``
-          - todo: remove
-          - ``True``
-
             .. _Processing.outer_margin_ratio:
         * - ``outer_margin_ratio``
           - Ratio of largest direction for DEM 's tile margin for outer tiles.
+            Set to 0 to ignore.
             |br|
             Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
           - 0.04

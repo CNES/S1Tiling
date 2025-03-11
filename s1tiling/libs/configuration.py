@@ -451,10 +451,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
         self.distribute_area :bool                      = accessor.getboolean('Processing', 'distribute_area', fallback=False)
-        #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
-        self.inner_margin_ratio_status :bool            = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=True)
-        #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
-        self.outer_margin_ratio_status :bool            = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
         self.inner_margin_ratio :float                  = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
@@ -702,8 +698,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("  - resample_dem_factor_x                     : %s",   self.resample_dem_factor_x)
         logging.info("  - resample_dem_factor_y                     : %s",   self.resample_dem_factor_y)
         logging.info("  - distribute_area                           : %s",   self.distribute_area)
-        logging.info("  - inner_margin_ratio_status                 : %s",   self.inner_margin_ratio_status)
-        logging.info("  - outer_margin_ratio_status                 : %s",   self.outer_margin_ratio_status)
         logging.info("  - inner_margin_ratio                        : %s",   self.inner_margin_ratio)
         logging.info("  - outer_margin_ratio                        : %s",   self.outer_margin_ratio)
         logging.info("  - min_gamma_area                            : %s",   self.min_gamma_area)
