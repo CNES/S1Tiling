@@ -115,6 +115,7 @@ class Configuration():
         }
         self.dname_fmt               = {}
         self.creation_options        = {}
+        self.disable_streaming       = {}
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:

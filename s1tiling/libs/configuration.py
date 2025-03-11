@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,7 +46,7 @@ import logging.config
 import os
 from pathlib import Path
 import re
-from typing import Dict, List, NoReturn, Optional, Protocol, Union, Tuple, TypeVar
+from typing import Dict, List, NoReturn, Optional, Protocol, Sequence, Union, Tuple, TypeVar
 import otbApplication as otb
 import yaml
 
@@ -281,6 +281,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
         self.__init_creation_options(accessor)
+        self.__init_disable_streaming(accessor)
         self.__init_extra_metadata(accessor)
 
         # Other options
@@ -597,7 +598,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
     # ----------------------------------------------------------------------
     def __init_creation_options(self, accessor: _ConfigAccessor) -> None:
-        # Permit to override default file name formats
+        # Permit to override default file gdal creation options
         creation_options_keys = [
             'tiled', 'filtered', 'mask',
             's1_lia',  's1_sin_lia',
@@ -623,6 +624,19 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                         accessor.throw(f"{co} is not a valid GDAL creation option for {key}. Expected syntax is `<OPTIONNAME>=<value>`")
 
                 self.creation_options[key] = cos
+
+    # ----------------------------------------------------------------------
+    def __init_disable_streaming(self, accessor: _ConfigAccessor) -> None:
+        # Permit to disable streaming in some applications
+        self.disable_streaming = {
+            'normals_on_s2'    : True,  # Will acutally depend OTB version, and OTB#2442
+            'gamma_area'       : False,
+            'apply_gamma_area' : False,
+        }
+        for key in self.disable_streaming.keys():
+            disable = accessor.getboolean('Processing', f'disable_streaming.{key}', fallback=None)
+            if disable is not None:
+                self.disable_streaming[key] = disable
 
     # ----------------------------------------------------------------------
     def __init_extra_metadata(self, accessor: _ConfigAccessor) -> None:
@@ -688,14 +702,12 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("  - resample_dem_factor_x                     : %s",   self.resample_dem_factor_x)
         logging.info("  - resample_dem_factor_y                     : %s",   self.resample_dem_factor_y)
         logging.info("  - distribute_area                           : %s",   self.distribute_area)
-        logging.info("  - gamma_area_nostreaming                    : %s",   self.gamma_area_nostreaming)
         logging.info("  - inner_margin_ratio_status                 : %s",   self.inner_margin_ratio_status)
         logging.info("  - outer_margin_ratio_status                 : %s",   self.outer_margin_ratio_status)
         logging.info("  - inner_margin_ratio                        : %s",   self.inner_margin_ratio)
         logging.info("  - outer_margin_ratio                        : %s",   self.outer_margin_ratio)
         logging.info("  - min_gamma_area                            : %s",   self.min_gamma_area)
         logging.info("  - calibration_factor                        : %s",   self.calibration_factor)
-        logging.info("  - gamma_area_to_gamma_naught_rtc_nostreaming: %s",   self.gamma_area_to_gamma_naught_rtc_nostreaming)
 
         logging.info("[Mask]")
         logging.info("- generate_border_mask                        : %s",   self.mask_cond)
@@ -721,6 +733,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info('Creation options:')
         for k, co in self.creation_options.items():
             logging.info('- %s --> %s', k, co)
+        logging.info('Streaming options:')
+        for k, streaming in self.disable_streaming.items():
+            logging.info('- %s --> %s', k, "disabled" if streaming else "enabled")
 
     def init_logger(self, config_log_dir: Path, mode=None) -> None:
         """
@@ -904,7 +919,6 @@ def _extended_filename(
     cfg     : CreationOptionConfiguration,
     product : str,
     default : Sequence[str],
-    extra_ef: Sequence[str] = (),
 ) -> str:
     """
     Internal helper function that returns GDAL creation options through

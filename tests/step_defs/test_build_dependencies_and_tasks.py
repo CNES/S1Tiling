@@ -309,7 +309,6 @@ class Configuration():
         self.outer_margin_ratio                = 0.04
         self.min_gamma_area                    = 1.0
         self.calibration_factor                = 1.0
-        self.gamma_area_to_gamma_naught_rtc_nostreaming = False
         self.output_nodata                     = False
 
         assert self.dem_db_filepath.is_file()
@@ -321,6 +320,7 @@ class Configuration():
         }
         self.dname_fmt                         = {}
         self.creation_options                  = {}
+        self.disable_streaming                 = {}
         self.extra_metadata                    = {}
         self.dem_info                          = ''
 

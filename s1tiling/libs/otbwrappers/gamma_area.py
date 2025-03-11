@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,7 @@
 #
 # Authors: Fabien CONTIVAL (CS Group)
 #          Luc HERMITTE (CS Group)
+#
 # =========================================================================
 
 """
@@ -120,7 +121,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         )
         self.__mingammaarea = cfg.min_gamma_area
         self.__calibfactor  = cfg.calibration_factor
-        self.__nostreaming  = cfg.gamma_area_to_gamma_naught_rtc_nostreaming
+        self.__nostreaming  = cfg.disable_streaming.get('apply_gamma_area', False)
         self.__nodata       = nodata_RTC(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -566,7 +567,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             image_description='Gamma area image estimation',
         )
         self.distributearea         = cfg.distribute_area
-        self.nostreaming            = cfg.gamma_area_nostreaming
+        self.nostreaming            = cfg.disable_streaming.get('gamma_area', False)
         self.innermarginratiostatus = cfg.inner_margin_ratio_status
         self.outermarginratiostatus = cfg.outer_margin_ratio_status
         self.innermarginratio       = cfg.inner_margin_ratio

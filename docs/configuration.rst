@@ -753,6 +753,41 @@ You can use this :download:`this template
           - ``.gamma_area``
           - ``float32 COMPRESS=DEFLATE&gdal``
 
+      .. _Processing.disable_streaming:
+  * - ``disable_streaming.*``
+    - Disables `OTB streaming in some applications
+      <https://www.orfeo-toolbox.org/CookBook/C++/StreamingAndThreading.html>`_.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Option
+          - Step
+          - Default value
+          - Remarks
+
+            .. _Processing.disable_streaming.normals_on_s2:
+        * - ``.normals_on_s2``
+          - :class:`ComputeNormalsOnS2
+            <s1tiling.libs.otbwrappers.ComputeNormalsOnS2>`
+          - ``True``
+          - Work around issue `OTB #2442
+            <https://gitlab.orfeo-toolbox.org/orfeotoolbox/otb/-/issues/2442>`_.
+
+            .. _Processing.disable_streaming.gamma_area:
+        * - ``.gamma_area``
+          - :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - ``False``
+          -
+
+            .. _Processing.disable_streaming.apply_gamma_area:
+        * - ``.apply_gamma_area``
+          - :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - ``False``
+          -
+
       .. _Processing.rtc:
   * - :math:`γ^0_{T}` RTC specific options
     - The following options are exclusively used for the :ref:`preparation
@@ -795,11 +830,6 @@ You can use this :download:`this template
             Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
           - ``False``
 
-            .. _Processing.gamma_area_nostreaming:
-        * - ``gamma_area_nostreaming``
-          - Disables (OTB) streaming in
-            :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
-          - ``False``
 
             .. _Processing.inner_margin_ratio_status:
         * - ``inner_margin_ratio_status``
@@ -836,13 +866,6 @@ You can use this :download:`this template
           - Scalar calibration factor value. |br|
             Used in :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
           - 1.0
-
-            .. _Processing.gamma_area_to_gamma_naught_rtc_nostreaming:
-        * - ``gamma_area_to_gamma_naught_rtc_nostreaming``
-          - Disables (OTB) streaming in
-            :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
-          - ``False``
-
 
 
 .. _Filtering:
