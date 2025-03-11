@@ -444,44 +444,40 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             accessor.throw("'no_use_resampled_dem' has be deprecated, please use the positive option: 'use_resampled_dem' instead")
 
         #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
-        self.resample_dem_factor_x                      = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
+        self.resample_dem_factor_x :float               = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
         #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
-        self.resample_dem_factor_y                      = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
+        self.resample_dem_factor_y :float               = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
 
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
-        self.distribute_area                            = accessor.getboolean('Processing', 'distribute_area', fallback=False)
-        #: Gamma area: See :ref:`[Processing.gamma_area_nostreaming] <Processing.gamma_area_nostreaming>`
-        self.gamma_area_nostreaming                     = accessor.getboolean('Processing', 'gamma_area_nostreaming', fallback=False)
+        self.distribute_area :bool                      = accessor.getboolean('Processing', 'distribute_area', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio_status] <Processing.inner_margin_ratio_status>`
-        self.inner_margin_ratio_status                  = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=True)
+        self.inner_margin_ratio_status :bool            = accessor.getboolean('Processing', 'inner_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio_status] <Processing.outer_margin_ratio_status>`
-        self.outer_margin_ratio_status                  = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=True)
+        self.outer_margin_ratio_status :bool            = accessor.getboolean('Processing', 'outer_margin_ratio_status', fallback=True)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
-        self.inner_margin_ratio                         = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
+        self.inner_margin_ratio :float                  = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
-        self.outer_margin_ratio                         = accessor.getfloat('Processing', 'outer_margin_ratio', fallback=0.04)
+        self.outer_margin_ratio :float                  = accessor.getfloat('Processing', 'outer_margin_ratio', fallback=0.04)
 
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
-        self.min_gamma_area                             = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
+        self.min_gamma_area :float                      = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.calibration_factor] <Processing.calibration_factor>`
-        self.calibration_factor                         = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
-        #: Gamma area to gamma naught rtc: See :ref:`[Processing.gamma_area_to_gamma_naught_rtc_nostreaming] <Processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
-        self.gamma_area_to_gamma_naught_rtc_nostreaming = accessor.getboolean('Processing', 'gamma_area_to_gamma_naught_rtc_nostreaming', fallback=False)
+        self.calibration_factor :float                  = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
         ## #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
         ## self.output_nodata                              = accessor.getboolean('Processing', 'output_nodata', fallback=False)
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
-        self.out_spatial_res      = accessor.getfloat('Processing', 'output_spatial_resolution')
+        self.out_spatial_res :float    = accessor.getfloat('Processing', 'output_spatial_resolution')
 
         #: Grid spacing (in meters) for the interpolator in the orthorectification: See :ref:`[Processing.orthorectification_gridspacing] <Processing.orthorectification_gridspacing>`
-        self.grid_spacing         = accessor.getfloat('Processing', 'orthorectification_gridspacing')
+        self.grid_spacing :float       = accessor.getfloat('Processing', 'orthorectification_gridspacing')
         #: Orthorectification interpolation methode: See :ref:`[Processing.orthorectification_interpolation_method] <Processing.orthorectification_interpolation_method>`
-        self.interpolation_method = accessor.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
+        self.interpolation_method :str = accessor.get('Processing', 'orthorectification_interpolation_method', fallback='nn')
 
         # - - - - - - - - - -[ Tiles
         #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
-        self.output_grid          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/Features.shp'))
+        self.output_grid :str          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/Features.shp'))
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
@@ -503,24 +499,24 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Parallelization & RAM
         #: Number of tasks executed in parallel: See :ref:`[Processing.nb_parallel_processes] <Processing.nb_parallel_processes>`
-        self.nb_procs             = accessor.getint('Processing', 'nb_parallel_processes')
+        self.nb_procs :int        = accessor.getint('Processing', 'nb_parallel_processes')
         #: RAM allocated to OTB applications: See :ref:`[Processing.ram_per_process] <Processing.ram_per_process>`
-        self.ram_per_process      = accessor.getint('Processing', 'ram_per_process')
+        self.ram_per_process :int = accessor.getint('Processing', 'ram_per_process')
         #: Number of threads allocated to each OTB application: See :ref:`[Processing.nb_otb_threads] <Processing.nb_otb_threads>`
-        self.OTBThreads           = accessor.getint('Processing', 'nb_otb_threads')
+        self.OTBThreads :int      = accessor.getint('Processing', 'nb_otb_threads')
 
         # - - - - - - - - - -[ IA/LIA
         #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.ia_maps_to_produce] <Processing.ia_maps_to_produce>`
-        produce_ia_map_list_str   = accessor.get('Processing', 'ia_maps_to_produce', fallback='deg')
-        produce_ia_map_list       = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
+        produce_ia_map_list_str    = accessor.get('Processing', 'ia_maps_to_produce', fallback='deg')
+        produce_ia_map_list        = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
         self.ia_maps_to_produce: List[str] = produce_ia_map_list
 
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
-        self.produce_lia_map      = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
+        self.produce_lia_map :bool = accessor.getboolean('Processing', 'produce_lia_map', fallback=False)
 
         #: Resampling method used by :external:std:doc:`gdalwarp <programs/gdalwarp>` to project DEM on S2 tiles for L/IA computation purposes
         resamplings = ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'rms', 'mode', 'max', 'min', 'med', 'q1', 'q3', 'qum']
-        self.dem_warp_resampling_method = accessor.get('Processing', 'dem_warp_resampling_method', fallback="cubic")
+        self.dem_warp_resampling_method :str = accessor.get('Processing', 'dem_warp_resampling_method', fallback="cubic")
         if self.dem_warp_resampling_method not in resamplings:
             accessor.throw(f"{self.dem_warp_resampling_method} is an invalid choice for `dem_warp_resampling_method`. Choose one among {resamplings}")
 
@@ -533,7 +529,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ GAMMA AREA
         #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
-        self.produce_gamma_area_map = accessor.getboolean('Processing', 'produce_gamma_area_map', fallback=False)
+        self.produce_gamma_area_map :bool = accessor.getboolean('Processing', 'produce_gamma_area_map', fallback=False)
 
     # ----------------------------------------------------------------------
     def __init_filtering(self, accessor: _ConfigAccessor) -> None:
@@ -904,7 +900,12 @@ def pixel_type(cfg: CreationOptionConfiguration, product: str, default: Optional
     return PIXEL_TYPES.get(cos.get('pixel_type', default), None)
 
 
-def _extended_filename(cfg: CreationOptionConfiguration, product: str, default: List[str]) -> str:
+def _extended_filename(
+    cfg     : CreationOptionConfiguration,
+    product : str,
+    default : Sequence[str],
+    extra_ef: Sequence[str] = (),
+) -> str:
     """
     Internal helper function that returns GDAL creation options through
     :external:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
