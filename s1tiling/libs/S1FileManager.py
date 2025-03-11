@@ -69,7 +69,6 @@ from .Utils             import (
 from .S1DateAcquisition import S1DateAcquisition
 from .configuration     import (
     dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered,
-    dname_fmt_lia_product, dname_fmt_gamma_area_product, dname_fmt_mask,
 )
 from .otbpipeline       import mp_worker_config
 from .outcome           import S1DownloadOutcome
