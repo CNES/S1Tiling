@@ -552,7 +552,7 @@ def register_GAMMA_AREA_pipelines(
 
     # resample dem
     resampled_dem = dem
-    if not config.no_use_resampled_dem:
+    if config.use_resampled_dem:
         resampled_dem = pipelines.register_pipeline(
                 [ResampleDEM],
                 'RigidTransformResample',
