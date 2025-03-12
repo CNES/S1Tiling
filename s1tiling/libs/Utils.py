@@ -165,8 +165,9 @@ def fetch_nodata_value(
 
 def test_nodata_for_bandmath(nodata, bandname):
     """
-    Helper function that works around :external:doc:`BandMath OTB application <Applications/app_BandMath>`
-    that cannot test ``isnodata(im1b42)``. Also, testing NaN values need a dedicated workaround.
+    Helper function that works around :external+OTB:doc:`BandMath OTB application
+    <Applications/app_BandMath>` that cannot test ``isnodata(im1b42)``. Also, testing NaN values
+    need a dedicated workaround.
     """
     if nodata == 'nan' or math.isnan(nodata):
         return f'{bandname} != {bandname}'

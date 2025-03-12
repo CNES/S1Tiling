@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -335,9 +335,8 @@ k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
 
 class Calibrate(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
-    Calibration` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_SARCalibration` as
+    described in :ref:`SAR Calibration` documentation.
 
     Requires the following information from the configuration object:
 
@@ -391,8 +390,8 @@ class Calibrate(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`SARCalibration OTB
-        application <Applications/app_SARCalibration>`.
+        Returns the parameters to use with :external+OTB:doc:`SARCalibration OTB application
+        <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
                 'ram'           : ram(self.ram_per_process),
@@ -410,9 +409,8 @@ class Calibrate(OTBStepFactory):
 
 class CorrectDenoising(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
-    documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_BandMath` as described
+    in :ref:`SAR Calibration` documentation.
 
     It requires the following information from the configuration object:
 
@@ -484,9 +482,9 @@ class CorrectDenoising(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for changing no-non-data 0.0 into lower_signal_value,
-        and force nodata to 0.
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for changing no-non-data 0.0 into lower_signal_value, and force
+        nodata to 0.
 
         The nodata mask comes from the input SAR image.
 
@@ -510,8 +508,8 @@ class CorrectDenoising(OTBStepFactory):
 
 class CutBorders(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_ResetMargin` as
+    described in :ref:`Margins Cutting` documentation.
 
     Requires the following information from the configuration object:
 
@@ -564,8 +562,8 @@ class CutBorders(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`ResetMargin OTB
-        application <Applications/app_ResetMargin>`.
+        Returns the parameters to use with :external+OTB:doc:`ResetMargin OTB application
+        <Applications/app_ResetMargin>`.
         """
         params = {
                 'ram'              : ram(self.ram_per_process),
@@ -583,7 +581,7 @@ class CutBorders(OTBStepFactory):
 class _OrthoRectifierFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` as described in
+    :external+OTB:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     This factory will be specialized for calibrated S1 images
@@ -680,8 +678,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`OrthoRectification OTB
-        application <Applications/app_OrthoRectification>`.
+        Returns the parameters to use with :external+OTB:doc:`OrthoRectification OTB application
+        <Applications/app_OrthoRectification>`.
         """
         image       = self._get_input_image(meta)
         tile_name   = meta['tile_name']
@@ -715,9 +713,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
 
 class OrthoRectify(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` as described in
-    :ref:`OrthoRectification` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_OrthoRectification` as
+    described in :ref:`OrthoRectification` documentation.
 
     Requires the following information from the configuration object:
 
@@ -760,9 +757,8 @@ class OrthoRectify(_OrthoRectifierFactory):
 
 class _ConcatenatorFactory(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` as described in
-    :ref:`Concatenation` documentation.
+    Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
+    described in :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
 
@@ -833,8 +829,8 @@ class _ConcatenatorFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`Synthetize OTB
-        application <Applications/app_Synthetize>`.
+        Returns the parameters to use with :external+OTB:doc:`Synthetize OTB application
+        <Applications/app_Synthetize>`.
         """
         return {
                 'ram'              : ram(self.ram_per_process),
@@ -875,9 +871,8 @@ class _ConcatenatorFactory(OTBStepFactory):
 
 class Concatenate(_ConcatenatorFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` as described in
-    :ref:`Concatenation` documentation.
+    Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
+    described in :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
 
@@ -1013,7 +1008,7 @@ class BuildBorderMask(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
         <Applications/app_BandMath>` for computing border mask.
         """
         params : OTBParameters = {
@@ -1055,10 +1050,8 @@ class SmoothBorderMask(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`BinaryMorphologicalOperation OTB application
-        <Applications/app_BinaryMorphologicalOperation>` to smooth border
-        masks.
+        Returns the parameters to use with :external+OTB:doc:`BinaryMorphologicalOperation OTB
+        application <Applications/app_BinaryMorphologicalOperation>` to smooth border masks.
         """
         return {
                 'ram'                   : ram(self.ram_per_process),
@@ -1163,8 +1156,7 @@ class SpatialDespeckle(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`Despeckle OTB application
+        Returns the parameters to use with :external+OTB:doc:`Despeckle OTB application
         <Applications/app_Despeckle>` to perform speckle noise reduction.
         """
         assert self.__rad

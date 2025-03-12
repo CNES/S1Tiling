@@ -316,8 +316,8 @@ class ComputeEllipsoidNormalsOnS2(OTBStepFactory):
 class ComputeIAOnS2(_ComputeIncidenceAngle):
     """
     Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
-    <Applications/app_SARComputeIncidenceAngle>` on images in S2 geometry as described in
-    :ref:`IA maps computation <compute_eia-proc>` documentation.
+    <Applications/app_SARComputeIncidenceAngle>` on images in S2 geometry as described in :ref:`IA
+    maps computation <compute_eia-proc>` documentation.
 
     :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
     Incidence Angle Map.

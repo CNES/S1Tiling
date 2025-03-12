@@ -204,13 +204,29 @@ dependencies.
 Agglomerate DEM files in a VRT that covers S1 footprint (RTC)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-:Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
+:Input:       All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem-vrt-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS1`
 
 All DEM files that intersect an original :ref:`input S1 image
 <paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
+
+
+.. _resample_DEM-proc:
+.. index:: Resample DEM
+
+Resample DEM (RTC)
+++++++++++++++++++
+
+:Inputs:      A :ref:`VRT file <dem-vrt-files>`
+:Outputs:     Resampled DEM image
+:OTBApplication: :external+OTB:std:doc:`Applications/app_RigidTransformResample`
+:StepFactory: :class:`s1tiling.libs.otbwrappers.ResampleDEM`
+
+The DEM from the VRT are resampled by the chosen resampling factors
+(:ref:`resample_dem_factor_x <processing.resample_dem_factor_x>` and
+:ref:`resample_dem_factor_y <processing.resample_dem_factor_y>`).
 
 
 .. _sardemproject_s1-4rtc-proc:
@@ -220,9 +236,11 @@ Project SAR coordinates onto DEM
 ++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem-vrt-files>`, or a
+                   resampled version.
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
-:OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection <Applications/app_SARDEMProjection>`
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB
+                 SARDEMProjection <Applications/app_SARDEMProjection>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation`
 
 This step projects the coordinates of original :ref:`input S1 image
@@ -239,8 +257,8 @@ Project γ area coordinates onto SAR
                  - The associated :ref:`VRT file <dem-vrt-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`γ area cartesian coordinates file <gamma_area_s2-files>`
-:OTBApplication: :external:std:doc:`Our patched version of DiapOTB SARGammaAreaImageEstimation
-                 <Applications/app_SARGammaAreaImageEstimation>`
+:OTBApplication: `SARGammaAreaImageEstimation
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/rtc_gamma0>`_
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation`
 
 This step estimates the γ area coordinates on the ground in the geometry of the
@@ -256,7 +274,7 @@ Orthorectification of γ area maps
 :Inputs:      A :ref:`γ area map <gamma_area-s1-files>` in the original S1 image geometry
 :Output:      The associated :ref:`γ area map file(s) <gamma_area-s2-half-files>`
               orthorectified on the target S2 tile.
-:OTBApplication: :external:std:doc:`Orthorectification
+:OTBApplication: :external+OTB:std:doc:`Orthorectification
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyGAMMA_AREA`
 
@@ -280,7 +298,7 @@ Concatenation of γ area maps
 
 :Inputs:         A pair of :ref:`γ area map files <gamma_area-s2-half-files>` orthorectified on the target S2 tile.
 :Output:         The :ref:`γ area map file(s) <gamma_area_s2-files>` associated to the S2 grid
-:OTBApplication: :external:std:doc:`Synthetize <Applications/app_Synthetize>`
+:OTBApplication: :external+OTB:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatenateGAMMA_AREA`
 
 This step merges all the images of the orthorectified S1 γ area maps on a given
@@ -299,8 +317,8 @@ Application of γ area maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`γ^0_{T}`
                  calibrated
-:OTBApplication: :external:std:doc:`SARGammaAreaToGammaNaughtRTCImageEstimation
-                 <Applications/app_SARGammaAreaToGammaNaughtRTCImageEstimation>`
+:OTBApplication: `SARGammaAreaToGammaNaughtRTCImageEstimation
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/rtc_gamma0>`_
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration`
 
 This final step applies γ area map (in S2 grid geometry) to β° calibrated files

@@ -79,7 +79,8 @@ logger = logging.getLogger('s1tiling.wrappers.gamma_area')
 
 class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
     """
-    Factory that concludes β° with :math:`γ^0_{T}` RTC calibration.
+    Factory that concludes β° with :math:`γ^0_{T}` RTC calibration as described in
+    :ref:`apply_gamma_area-proc`.
 
     It builds steps that multiply images calibrated with β° LUT, and orthorectified to S2 grid, with
     the gamma area map for the same S2 tile (and orbit number and direction).
@@ -201,10 +202,26 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
 
 class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
-    Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
+    Factory that produces a :class:`Step` that builds a VRT from a list of DEM files, as described
+    in :ref:`prepare_VRT_s1-4rtc-proc`.
 
     The choice has been made to name the VRT file after the basename of the root S1 product and not
     the names of the DEM tiles.
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `dem_db_filepath`   -- to fill-up image metadata
+    - `dem_field_ids`     -- to fill-up image metadata
+    - `dem_main_field_id` -- to fill-up image metadata
+    - `tmp_dir`           -- useless in the in-memory nomical case
+    - `fname_fmt`         -- optional key: `s1_on_geoid_dem`, useless in the in-memory nominal case
+
+    Requires the following information from the metadata dictionary
+
+    - `basename`
+    - `input filename`
+    - `output filename`
     """
 
     def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
@@ -281,26 +298,25 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
 
 class ResampleDEM(OTBStepFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_RigidTransformResample`
-    as described in :ref:`Gamma area computation` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_RigidTransformResample`
+    as described in :ref:`resample_DEM-proc` documentation.
 
-    :external:doc:`Applications/app_RigidTransformResample` application resample a DEM by some factor (at least 2).
+    :external+OTB:doc:`Applications/app_RigidTransformResample` application resample a DEM by some
+    factor (at least 2).
 
     Requires the following information from the configuration object:
 
     - `ram_per_process`
-    - `dem_db_filepath`   -- to fill-up image metadata
-    - `dem_field_ids`     -- to fill-up image metadata
-    - `dem_main_field_id` -- to fill-up image metadata
     - `tmp_dir`           -- useless in the in-memory nomical case
     - `fname_fmt`         -- optional key: `s1_on_geoid_dem`, useless in the in-memory nominal case
+    - `resample_dem_factor_x`
+    - `resample_dem_factor_y`
 
     Requires the following information from the metadata dictionary
 
     - `basename`
     - `input filename`
     - `output filename`
-    - `nodata` -- optional
     """
 
     def __init__(self, cfg: Configuration) -> None:
@@ -358,8 +374,7 @@ class ResampleDEM(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`RigidTransformResample OTB application
+        Returns the parameters to use with :external+OTB:doc:`RigidTransformResample OTB application
         <Applications/app_RigidTransformResample>` to resample DEM.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
@@ -386,14 +401,19 @@ class ResampleDEM(OTBStepFactory):
 
 class SARDEMProjectionImageEstimation(OTBStepFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjectionImageEstimation`
-    as described in :ref:`Normals computation` documentation.
+    Factory that prepares steps that run
+    :external:doc:`Applications/app_SARDEMProjectionImageEstimation` as described in
+    :ref:`sardemproject_s1-4rtc-proc` documentation.
 
     :external:doc:`Applications/app_SARDEMProjectionImageEstimation` application puts a DEM file
     into SAR geometry and estimates two additional coordinates.
+
     For each point of the DEM input four components are calculated:
-    C (colunm into SAR image), L (line into SAR image), Z and Y. XYZ cartesian
-    components into projection are also computed for our needs.
+
+    - C (colunm into SAR image),
+    - L (line into SAR image),
+    - Z and Y.
+    - XYZ cartesian components into projection are also computed for our needs.
 
     Requires the following information from the configuration object:
 
@@ -411,10 +431,9 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
     - `output filename`
     - `nodata` -- optional
 
-    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any
-    DEM information already registered in dask worker (through
-    :external:doc:`Applications/app_OrthoRectification` for instance) and only use
-    the Geoid.
+    It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
+    already registered in dask worker (through
+    :external+OTB:doc:`Applications/app_OrthoRectification` for instance) and only use the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt = 'S1_on_DEM_{polarless_basename}'
@@ -506,9 +525,9 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`SARDEMProjectionImageEstimation OTB application
-        <Applications/app_SARDEMProjectionImageEstimation>` to project S1 geometry onto DEM tiles.
+        Returns the parameters to use with :external:doc:`SARDEMProjectionImageEstimation OTB
+        application <Applications/app_SARDEMProjectionImageEstimation>` to project S1 geometry onto
+        DEM tiles.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -537,11 +556,11 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
     """
     Factory that prepares steps that run
     :external:doc:`Applications/app_SARGammaAreaImageEstimation` as described in
-    :ref:`Normals computation` documentation.
+    :ref:`sargammaareaimageestimation-proc` documentation.
 
 
-    :external:doc:`Applications/app_SARGammaAreaImageEstimation` estimates a simulated
-    cartesian mean image thanks to a DEM file.
+    :external:doc:`Applications/app_SARGammaAreaImageEstimation` estimates a simulated cartesian
+    mean image thanks to a DEM file.
 
     Requires the following information from the configuration object:
 
@@ -648,10 +667,9 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`SARCartesianMeanEstimation OTB application
-        <Applications/app_SARCartesianMeanEstimation>` to compute cartesian
-        coordinates of each point of the origin S1 image.
+        Returns the parameters to use with :external:doc:`SARCartesianMeanEstimation OTB application
+        <Applications/app_SARCartesianMeanEstimation>` to compute cartesian coordinates of each
+        point of the origin S1 image.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -691,8 +709,8 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
 
 class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` on GAMMA_AREA images.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` on γ area
+    images, as described in :ref:`concat_gamma_area-proc`.
 
     Requires the following information from the configuration object:
 
@@ -764,8 +782,8 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
 
 class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` on GAMMA AREA maps.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_OrthoRectification` on
+    γ area maps, as described in :ref:`ortho_gamma_area-proc`.
 
     Requires the following information from the configuration object:
 
@@ -821,6 +839,7 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert imd['LineSpacing'] == '',  "LineSpacing should have been registered for removal. Let's keep it!"
         del imd['LineSpacing']
         del imd['PixelSpacing']
+
 
 class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     """

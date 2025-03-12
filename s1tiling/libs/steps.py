@@ -1142,7 +1142,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             :gen_tmp_dir:         Dirname format for the temporary product
             :gen_output_dir:      Optional Dirname format for the final product -- ``None`` if not required.
             :gen_output_filename: Ouput filename generator.
-            :extended_filename:   Optional extra :external:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
+            :extended_filename:   Optional extra :external+OTB:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
             :param_in:            Flag used by the default OTB application for the input file (default: "in")
             :param_out:           Flag used by the default OTB application for the ouput file (default: "out")
         """
@@ -1194,7 +1194,7 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Propagates the optional :external:std:doc:`extended filename
+        Propagates the optional :external+OTB:std:doc:`extended filename
         <ExtendedFilenames>` set in the construtor to the step meta data.
 
         .. note::

@@ -916,7 +916,7 @@ def _extended_filename(
 ) -> str:
     """
     Internal helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>`.
 
     This function takes care of fetching the right information and of
     reformatting it as an `extended filename option`.
@@ -929,7 +929,7 @@ def _extended_filename(
 def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for S2 tiled
     products.
     """
     return _extended_filename(cfg, 'tiled', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
@@ -938,7 +938,7 @@ def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_filtered(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
@@ -947,7 +947,7 @@ def extended_filename_filtered(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_mask(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for masks.
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for masks.
     """
     return _extended_filename(cfg, 'mask', ['COMPRESS=DEFLATE'])
 
@@ -955,7 +955,7 @@ def extended_filename_mask(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_lia_degree(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for LIA
     in degrees (*100) products.
 
     .. deprecated:: 1.2
@@ -966,7 +966,7 @@ def extended_filename_lia_degree(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_gamma_area(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for GAMMA AREA
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for GAMMA AREA
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
@@ -975,7 +975,7 @@ def extended_filename_gamma_area(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(LIA)
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for sin(LIA)
     products.
 
     deprecated:: 1.2

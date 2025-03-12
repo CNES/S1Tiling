@@ -255,14 +255,15 @@ intersphinx_mapping = {
     "Python": ("https://docs.python.org/3/", None),
     "Distributed": ("https://distributed.dask.org/en/latest/", None),
     "Dask": ("https://docs.dask.org/en/latest/", None),
-    "Gdal": ("https://gdal.org/", None),
+    "Gdal": ("https://gdal.org/en/stable/", None),
     # "numpy": ("http://docs.scipy.org/doc/numpy", None),
     "eodag": ("https://eodag.readthedocs.io/en/stable/", None),
 
 
     # 'https://www.orfeo-toolbox.org/CookBook/': None,
     # Using CookBook from OTB 7.4 as it still distributes DiapOTB.
-    "OTB": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
+    "OTB": ('https://www.orfeo-toolbox.org/CookBook/', None),
+    "OTB7": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
 }
 
 # Search w/

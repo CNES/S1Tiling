@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#
 # =========================================================================
 
 """
@@ -267,7 +268,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     described in :ref:`Project Geoid to S2 tile <project_geoid_to_s2-proc>`.
 
     This particular implementation uses another file in the expected geometry and
-    :external:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
+    :external+OTB:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
     :external:std:doc:`gdalwarp <programs/gdalwarp>`, OTB application supports non-raster geoid
     formats.
 
@@ -276,7 +277,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     - `ram_per_process`
     - `tmp_dir`    -- useless in the in-memory nomical case
     - `fname_fmt`  -- optional key: `geoid_on_s2`, useless in the in-memory nominal case
-    - `interpolation_method` -- for use by :external:std:doc:`super impose
+    - `interpolation_method` -- for use by :external+OTB:std:doc:`super impose
       <Applications/app_Superimpose>`
     - `out_spatial_res` -- as a workaround...
     - `nodatas.DEM`
@@ -318,7 +319,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:std:doc:`super impose
+        Returns the parameters to use with :external+OTB:std:doc:`super impose
         <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
         """
         in_s2_dem = in_filename(meta)
@@ -435,7 +436,7 @@ class SumAllHeights(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
         <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S2.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
@@ -642,7 +643,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     - `output filename`
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
-    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
+    already registered in dask worker (through :external+OTB:doc:`Applications/app_OrthoRectification`
     for instance) and only use the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
@@ -940,12 +941,12 @@ class ComputeNormalsOnS2(_ComputeNormals):
 
 class _ComputeIncidenceAngle(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`IA map
-    <compute_eia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
+    Abstract factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` as described in :ref:`IA map <compute_eia-proc>`
+    and :ref:`LIA map <compute_lia-proc>` computations documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -988,7 +989,12 @@ class _ComputeIncidenceAngle(OTBStepFactory):
             if fname_fmt:
                 params_out        .append(f'out.{ia_map.name}')
                 fname_fmts        .append(TemplateOutputFilenameGenerator(fname_fmt))
-                extended_filenames.append(extended_filename_ia(cfg, ia_map))
+                extended_filenames.append(
+                    extended_filename_ia(
+                        cfg,
+                        ia_map,
+                        cfg.disable_streaming.get('normals_on_s2', True) and incidence_angle_kind == "LIA"
+                    ))
                 pixel_types       .append(pixel_type_ia(cfg, ia_map, incidence_angle_kind))
                 self.__data_types .append(self._data_type_fmts[ia_map].format(IA=incidence_angle_kind))
                 image_description .append(image_description_dict[ia_map])
@@ -1003,7 +1009,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         super().__init__(
             cfg,
             appname='SARComputeIncidenceAngle',
-            name='ComputeLIA',
+            name='ComputeXIA',
             param_in='in.normals',  # In-memory connected to in.normals
             param_out=params_out,
             gen_tmp_dir=gen_tmp_dir,
@@ -1047,8 +1053,8 @@ class _ComputeIncidenceAngle(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`SARComputeLocalIncidenceAngle OTB
-        application <Applications/app_SARComputeLocalIncidenceAngle>`.
+        Returns the parameters to use with :external:doc:`SARComputeIncidenceAngle OTB application
+        <Applications/app_SARComputeIncidenceAngle>`.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -1073,12 +1079,12 @@ class _ComputeIncidenceAngle(OTBStepFactory):
 
 class ComputeLIAOnS2(_ComputeIncidenceAngle):
     """
-    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S2 geometry as described in
+    Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` on images in S2 geometry as described in
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1293,7 +1299,7 @@ class ApplyLIACalibration(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
         <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated image orthorectified to
         S2 tile.
         """
@@ -1357,8 +1363,8 @@ class SARDEMProjection(OTBStepFactory):
     - `nodata` -- optional
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
-    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
-    for instance) and only use the Geoid.
+    already registered in dask worker (through
+    :external+OTB:doc:`Applications/app_OrthoRectification` for instance) and only use the Geoid.
 
     .. deprecated:: 1.1
     """
@@ -1653,12 +1659,12 @@ class ComputeNormalsOnS1(_ComputeNormals):
 
 class ComputeLIAOnS1(_ComputeIncidenceAngle):
     """
-    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S1 geometry as described in
+    Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` on images in S1 geometry as described in
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1694,8 +1700,8 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
 
 class OrthoRectifyLIA(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_OrthoRectification` on LIA
-    maps.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_OrthoRectification` on
+    LIA maps.
 
     Requires the following information from the configuration object:
 
@@ -1776,7 +1782,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
 
 class ConcatenateLIA(_ConcatenatorFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_Synthetize` on LIA images.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` on LIA
+    images.
 
     Requires the following information from the configuration object:
 

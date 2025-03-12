@@ -341,6 +341,7 @@ calibration.
 .. autosummary::
    :toctree: api
 
+   s1tiling.libs.otbwrappers.ResampleDEM
    s1tiling.libs.otbwrappers.AgglomerateDEMOnS1
    s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation
    s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation
@@ -365,6 +366,7 @@ the previous ones. Starting from v1.1, they are deprecated.
    s1tiling.libs.otbwrappers.ComputeLIAOnS1
    s1tiling.libs.otbwrappers.ConcatenateLIA
    s1tiling.libs.otbwrappers.SelectBestCoverage
+   s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEM
 
 
 Filename generation

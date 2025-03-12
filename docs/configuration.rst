@@ -877,10 +877,10 @@ You can use this :download:`this template
 
       .. _Filtering.filter:
   * - ``filter``
-    - The following spatial speckling filter methods from :external:doc:`OTB
-      Despeckle application <Applications/app_Despeckle>` are supported:
-      ``Lee``, ``Frost``, ``Gammamap``, ``Kuan``. If ``none`` or empty, then
-      no filtering is done.
+    - The following spatial speckling filter methods from
+      :external+OTB:doc:`OTB Despeckle application
+      <Applications/app_Despeckle>` are supported: ``Lee``, ``Frost``,
+      ``Gammamap``, ``Kuan``. If ``none`` or empty, then no filtering is done.
 
       .. _Filtering.window_radius:
   * - ``window_radius``

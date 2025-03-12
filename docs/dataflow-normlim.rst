@@ -230,7 +230,7 @@ Project DEM on S2 tile
 
 :Inputs:         The :ref:`DEM VRT file <dem-vrt-files>` over the S2 tile
 :Output:         The :ref:`DEM projected on S2 tile <dem_on_S2-files>`
-:OTBApplication: :external:std:doc:`programs/gdalwarp`
+:Program:        :external:std:doc:`programs/gdalwarp`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectDEMToS2Tile`
 
 This step projects the :ref:`DEM VRT file <dem-vrt-files>` on the S2 geometry.
@@ -246,7 +246,7 @@ Project GEOID on S2 tile
                  - The :ref:`GEOID file <paths.geoid_file>`
 :Output:         None: chained in memory with :ref:`Height computation
                  <sum_dem_geoid_on_s2-proc>`
-:OTBApplication: :external:std:doc:`OTB Superimpose
+:OTBApplication: :external+OTB:std:doc:`OTB Superimpose
                  <Applications/app_Superimpose>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile`
 
@@ -264,7 +264,7 @@ Compute full height elevation on S2
                    <project_geoid_to_s2-proc>`
 :Output:         The :ref:`Height projected on S2 tile
                  <height_on_s2-files>`
-:OTBApplication: :external:std:doc:`OTB BandMath
+:OTBApplication: :external+OTB:std:doc:`OTB BandMath
                  <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SumAllHeights`
 
@@ -281,8 +281,9 @@ Compute ECEF ground and satellite positions on S2
                    tile.
 :Output:         :ref:`ECEF Ground and satellite positions
                  <ground_and_sat_s2-files>` on the S2 tile.
-:OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnDEM
-                 <Applications/app_SARComputeGroundAndSatPositionsOnDEM>`
+:OTBApplication: `SARComputeGroundAndSatPositionsOnDEM
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 (developed for the purpose of this project)
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
 This step computes the ground positions of the pixels in the S2 geometry, and
@@ -362,7 +363,7 @@ Application of LIA maps to β° calibrated S2 images
                  - A β° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{T}`
                  calibrated
-:OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
+:OTBApplication: :external+OTB:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
 This final step multiplies the sine LIA map (in S2 grid geometry) with β0
@@ -569,7 +570,8 @@ Project SAR coordinates onto DEM (LIA) -- deprecated
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
                  - The associated :ref:`VRT file <dem-vrt-files>`
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
-:OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection <Applications/app_SARDEMProjection>`
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB
+                 SARDEMProjection <Applications/app_SARDEMProjection>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjection`
 
 This step projects the coordinates of original :ref:`input S1 image
@@ -586,7 +588,8 @@ Project XYZ coordinates onto SAR -- deprecated
                  - The associated :ref:`VRT file <dem-vrt-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
-:OTBApplication: :external:std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB
+                 SARCartesianMeanEstimation
                  <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
@@ -604,7 +607,7 @@ Orthorectification of LIA maps -- deprecated
               LIA map <lia-s1-files>` in the original S1 image geometry
 :Output:      The associated :ref:`LIA map file(s) <lia-s2-half-files>`
               orthorectified on the target S2 tile.
-:OTBApplication: :external:std:doc:`Orthorectification
+:OTBApplication: :external+OTB:std:doc:`Orthorectification
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyLIA`
 
@@ -629,7 +632,7 @@ Concatenation of LIA maps -- deprecated
 :Inputs:         A pair of :ref:`LIA map files <lia-s2-half-files>` (sines or
                  degrees) orthorectified on the target S2 tile.
 :Output:         The :ref:`LIA map file(s) <lia-files>` associated to the S2 grid
-:OTBApplication: :external:std:doc:`Synthetize <Applications/app_Synthetize>`
+:OTBApplication: :external+OTB:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatLIA`
 
 This step merges all the images of the orthorectified S1 LIA maps on a given S2

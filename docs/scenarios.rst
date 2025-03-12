@@ -95,8 +95,8 @@ S1Tiling will then automatically take care of:
 
 - obtaining the precise orbit files (EOF), if none match the request
   parameters,
-- producing, or using existing, maps of sin(LIA) for each Sentinel-2 tiles --
-  given an orbit and its direction,
+- producing, or using existing, :ref:`maps of sin(LIA) <lia-files>` for each
+  Sentinel-2 tiles -- given an orbit and its direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
 .. list-table::
@@ -221,12 +221,12 @@ sequencing.
 
 The typical use case is the following:
 
-1. Sine and cosine maps have been generated (with :ref:`S1IAMap`), and
-   cached, for all MGRS Sentinel-2 tiles of interest.
-2. Series of calibrated and ortho-rectified Sentinel-1 data have been generated
-   for a given calibration (typically :ref:`σ° <processing.calibration>`), and
-   possibly made available on data providers like `CNES's Geodes
-   <https://geodes-portal.cnes.fr>`_.
+1. :ref:`Sine and cosine maps <ia-files>` have been generated (with
+   :ref:`S1IAMap`), and cached, for all MGRS Sentinel-2 tiles of interest.
+2. Series of :ref:`calibrated and ortho-rectified Sentinel-1 data
+   <full-S2-tiles>` have been generated for a given calibration (typically
+   :ref:`σ° <processing.calibration>`), and possibly made available on data
+   providers like `CNES's Geodes <https://geodes-portal.cnes.fr>`_.
 3. You can obtain the same product in other calibrations very quickly by
    applying the corrective sine/cosine map on the Sentinel-2 tiles product.
 
@@ -242,7 +242,7 @@ To convert a σ° calibrated product into:
 
   .. code:: bash
 
-    # By hand, with OTB, wrong CALIBRATION metadata
+    # Either by hand, with OTB, wrong CALIBRATION metadata
     otbcli_BandMath \
         -il  s1a_tile_polar_dir_087_time_sigma.tif sin_IA_s1a_tile_087.tif \
         -exp 'im1b1/im2b1' \
@@ -250,14 +250,14 @@ To convert a σ° calibrated product into:
     # Fix the incorrect metadata
     gdal_edit.py -mo CALIBRATION=beta s1a_tile_polar_dir_087_time_beta.tif
 
-    # By hand, with gdal, all metadata are lost
+    # Or, by hand, with gdal, all metadata are lost
     gdal_calc.py \
         -A    s1a_tile_polar_dir_087_time_sigma.tif \
         -B    sin_IA_s1a_tile_087.tif \
         --calc "A/B"
         --out s1a_tile_polar_dir_087_time_beta.tif
 
-    # Wrapped for batch application, with OTB, correct metadata
+    # Or, wrapped for batch application, with OTB, correct metadata
     apply-calibration-map.sh -c beta --dirmap path/to_sinIA_files path/to/S1Tiling/products
 
 - a γ° calibrated product, the image is divided by the :ref:`cosine map
@@ -265,7 +265,7 @@ To convert a σ° calibrated product into:
 
   .. code:: bash
 
-    # By hand, with OTB, wrong CALIBRATION metadata
+    # Either by hand, with OTB, wrong CALIBRATION metadata
     otbcli_BandMath \
         -il  s1a_tile_polar_dir_087_time_sigma.tif cos_IA_s1a_tile_087.tif \
         -exp 'im1b1/im2b1' \
@@ -273,14 +273,14 @@ To convert a σ° calibrated product into:
     # Fix the incorrect metadata
     gdal_edit.py -mo CALIBRATION=gamma s1a_tile_polar_dir_087_time_beta.tif
 
-    # By hand, with gdal, all metadata are lost
+    # Or, by hand, with gdal, all metadata are lost
     gdal_calc.py \
         -A    s1a_tile_polar_dir_087_time_sigma.tif \
         -B    cos_IA_s1a_tile_087.tif \
         --calc "A/B"
         --out s1a_tile_polar_dir_087_time_gamma.tif
 
-    # Wrapped for batch application, with OTB, correct metadata
+    # Or, wrapped for batch application, with OTB, correct metadata
     apply-calibration-map.sh -c gamma --dirmap path/to_cosIA_files path/to/S1Tiling/products
 
 
@@ -361,28 +361,26 @@ Regarding options, the only difference with previous scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that needs to be
   ``gamma_naught_rtc``,
-- :ref:`[Paths].gamma_area <Paths.gamma_area>`, the directory where γ Area maps
-  will be searched for, or produced in.
+- :ref:`[Paths].gamma_area <Paths.gamma_area>`, the directory where :ref:`γ
+  area maps <gamma_area_s2-files>` will be searched for, or produced in.
 
-Also, these specific options can overriden:
+Also, these specific options can be overridden:
 
 - :ref:`[Processing].min_gamma_area <processing.min_gamma_area>`
 - :ref:`[Processing].calibration_factor <processing.calibration_factor>`
-- :ref:`[Processing].gamma_area_to_gamma_naught_rtc_nostreaming <processing.gamma_area_to_gamma_naught_rtc_nostreaming>`
+- :ref:`[Processing].disable_streaming.gamma_area <processing.disable_streaming.apply_gamma_area>`
 - :ref:`[Processing].resample_dem_factor_x <processing.resample_dem_factor_x>`
 - :ref:`[Processing].resample_dem_factor_y <processing.resample_dem_factor_y>`
 
 - :ref:`[Processing].distribute_area <processing.distribute_area>`
-- :ref:`[Processing].gamma_area_nostreaming <processing.gamma_area_nostreaming>`
-- :ref:`[Processing].inner_margin_ratio_status <processing.inner_margin_ratio_status>`
-- :ref:`[Processing].outer_margin_ratio_status <processing.outer_margin_ratio_status>`
+- :ref:`[Processing].disable_streaming.gamma_area <processing.disable_streaming.gamma_area>`
 - :ref:`[Processing].inner_margin_ratio <processing.inner_margin_ratio>`
 - :ref:`[Processing].outer_margin_ratio <processing.outer_margin_ratio>`
 
 S1Tiling will then automatically take care of:
 
-- producing, or using existing, Gamma Area maps for each Sentinel-2 tiles --
-  given an orbit and its direction,
+- producing, or using existing, :ref:`γ area maps <gamma_area_s2-files>` for
+  each Sentinel-2 tiles -- given an orbit and its direction,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
 
@@ -406,9 +404,10 @@ S1Tiling will then automatically take care of:
 Pre-produce Gamma Area maps for γ\ :sup:`0`\ :sub:`T` calibration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-While :ref:`S1Processor` is able to produce the necessary Gamma Area maps
-on the fly, it is not able to do so when parallelization is done manually over
-time ranges -- as described in “:ref:`scenario.parallelize_date`” scenario.
+While :ref:`S1Processor` is able to produce the necessary :ref:`γ area maps
+<gamma_area_s2-files>` on the fly, it is not able to do so when parallelization
+is done manually over time ranges -- as described in
+“:ref:`scenario.parallelize_date`” scenario.
 
 A different program is provided to compute the Gamma Area maps beforehand:
 :ref:`S1GammaAreaMap`. It takes the exact same parameter files as
@@ -444,9 +443,10 @@ masking… But the following (non-obvious) options are mandatory:
 Generate masks on final products
 ++++++++++++++++++++++++++++++++
 
-Pixel masks of valid data can be produced in all :ref:`S1Processor`
-scenarios when the option :ref:`generate_border_mask
+:ref:`Pixel masks <mask-files>` of valid data can be produced in all
+:ref:`S1Processor` scenarios when the option :ref:`generate_border_mask
 <Mask.generate_border_mask>` is ``True``.
+
 
 .. _scenario.parallelize_date:
 

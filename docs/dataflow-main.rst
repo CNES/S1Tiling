@@ -163,7 +163,7 @@ SAR Calibration
 
 :Input:          An original :ref:`input S1 image <paths.s1_images>`
 :Output:         None: chained in memory with :ref:`cutting <cutting-proc>`
-:OTBApplication: :external:std:doc:`OTB SARCalibration application
+:OTBApplication: :external+OTB:std:doc:`OTB SARCalibration application
                  <Applications/app_SARCalibration>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.Calibrate`
 
@@ -194,13 +194,13 @@ Margins cutting
 :Output:         - Either chained in memory with :ref:`orthorectification
                    <orthorectification-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
-:OTBApplication: :external:std:doc:`OTB ResetMargin application
+:OTBApplication: :external+OTB:std:doc:`OTB ResetMargin application
                  <Applications/app_ResetMargin>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.CutBorders`
 
 This step takes care of resetting margins content to nodata=0 when too many
 no-data are detected within the margin. This phenomenon happens on coasts. The
-margins aren't cut out like what :external:std:doc:`ExtractROI
+margins aren't cut out like what :external+OTB:std:doc:`ExtractROI
 <Applications/app_ExtractROI>` would do but filled with 0's, which permits to
 keep the initial geometry.
 
@@ -240,7 +240,7 @@ Orthorectification
 :Input:          - Either chained in memory from :ref:`cutting <cutting-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
 :Output:         :ref:`orthorectified S1 images <orthorectified-files>`
-:OTBApplication: :external:std:doc:`OTB OrthoRectification application
+:OTBApplication: :external+OTB:std:doc:`OTB OrthoRectification application
                  <Applications/app_OrthoRectification>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.OrthoRectify`
 
@@ -267,7 +267,7 @@ Concatenation
                  <orthorectified-files>`
 :Output:         The main product of S1 Tiling: the :ref:`final S2 tiles
                  <full-S2-tiles>`
-:OTBApplication: :external:std:doc:`OTB Synthetize application
+:OTBApplication: :external+OTB:std:doc:`OTB Synthetize application
                  <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.Concatenate`
 
@@ -304,7 +304,7 @@ Despeckling
 
 :Inputs:          :ref:`final S2 tiles <full-S2-tiles>`
 :Output:          :ref:`filtered S2 images <filtered-files>`
-:OTBApplications: :external:std:doc:`OTB Despeckle application <Applications/app_Despeckle>`
+:OTBApplications: :external+OTB:std:doc:`OTB Despeckle application <Applications/app_Despeckle>`
 :StepFactories:   :class:`s1tiling.libs.otbwrappers.SpatialDespeckle`
 
 If :ref:`requested <Filtering.filter>`, speckle filtering is applied to
@@ -319,8 +319,8 @@ Border mask generation
 
 :Inputs:          :ref:`final S2 tiles <full-S2-tiles>`
 :Output:          :ref:`border masks <mask-files>`
-:OTBApplications: - :external:std:doc:`OTB BandMath application <Applications/app_BandMath>`
-                  - :external:std:doc:`OTB BinaryMorphologicalOperation application
+:OTBApplications: - :external+OTB:std:doc:`OTB BandMath application <Applications/app_BandMath>`
+                  - :external+OTB:std:doc:`OTB BinaryMorphologicalOperation application
                     <Applications/app_BinaryMorphologicalOperation>`
 :StepFactories:   - :class:`s1tiling.libs.otbwrappers.BuildBorderMask`
                   - :class:`s1tiling.libs.otbwrappers.SmoothBorderMask`
@@ -330,9 +330,9 @@ If :ref:`requested <Mask.generate_border_mask>`, :ref:`border masks
 
 The actual generation is done in two steps:
 
-1. :external:std:doc:`OTB BandMath application <Applications/app_BandMath>` is
+1. :external+OTB:std:doc:`OTB BandMath application <Applications/app_BandMath>` is
    used to generate border masks by saturating non-zero data to 1's.
-2. :external:std:doc:`OTB BinaryMorphologicalOperation application
+2. :external+OTB:std:doc:`OTB BinaryMorphologicalOperation application
    <Applications/app_BinaryMorphologicalOperation>` is used to smooth border
    masks with a ball of 5x5 radius used for *opening*.
 

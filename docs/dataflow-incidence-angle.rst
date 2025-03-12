@@ -74,8 +74,9 @@ Compute ECEF Ellipsoid surface and satellite positions on S2
 :Inputs:         A :ref:`matching EOF file <downloading_eof>`
 :Output:         :ref:`ECEF WGS84 ellipsoid surface and satellite positions
                  <wgs84_surface_and_sat_s2-files>` on the S2 tile.
-:OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnEllipsoid
-                 <Applications/app_SARComputeGroundAndSatPositionsOnEllipsoid>`
+:OTBApplication: `SARComputeGroundAndSatPositionsOnEllipsoid
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 (developed for the purpose of this project)
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid`
 
 This step computes the WGS84 ellipsoid surface positions of the pixels in the
