@@ -989,12 +989,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
             if fname_fmt:
                 params_out        .append(f'out.{ia_map.name}')
                 fname_fmts        .append(TemplateOutputFilenameGenerator(fname_fmt))
-                extended_filenames.append(
-                    extended_filename_ia(
-                        cfg,
-                        ia_map,
-                        cfg.disable_streaming.get('normals_on_s2', True) and incidence_angle_kind == "LIA"
-                    ))
+                extended_filenames.append(extended_filename_ia(cfg, ia_map))
                 pixel_types       .append(pixel_type_ia(cfg, ia_map, incidence_angle_kind))
                 self.__data_types .append(self._data_type_fmts[ia_map].format(IA=incidence_angle_kind))
                 image_description .append(image_description_dict[ia_map])
