@@ -331,8 +331,8 @@ class ResampleDEM(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description="DEM resampling",
         )
-        self.factor_x            = cfg.resample_dem_factor_x
-        self.factor_y            = cfg.resample_dem_factor_y
+        self.__factor_x = cfg.resample_dem_factor_x
+        self.__factor_y = cfg.resample_dem_factor_y
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -385,8 +385,8 @@ class ResampleDEM(OTBStepFactory):
             "ram"                      : ram(self.ram_per_process),
             "in"                       : indem,
             "transform.type"           : "id",
-            "transform.type.id.scalex" : self.factor_x,
-            "transform.type.id.scaley" : self.factor_y,
+            "transform.type.id.scalex" : self.__factor_x,
+            "transform.type.id.scaley" : self.__factor_y,
         }
 
         return params
@@ -585,10 +585,10 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description='Gamma area image estimation',
         )
-        self.distributearea         = cfg.distribute_area
-        self.nostreaming            = cfg.disable_streaming.get('gamma_area', False)
-        self.innermarginratio       = cfg.inner_margin_ratio
-        self.outermarginratio       = cfg.outer_margin_ratio
+        self.__distributearea         = cfg.distribute_area
+        self.__nostreaming            = cfg.disable_streaming.get('gamma_area', False)
+        self.__innermarginratio       = cfg.inner_margin_ratio
+        self.__outermarginratio       = cfg.outer_margin_ratio
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -686,15 +686,15 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             'indirectiondeml'       : int(meta['directiontoscandeml']),
             'mlran'                 : 1,
             'mlazi'                 : 1,
-            'distributearea'        : self.distributearea,
-            'nostreaming'           : self.nostreaming,
+            'distributearea'        : self.__distributearea,
+            'nostreaming'           : self.__nostreaming,
             'nodata'                : -32768,
         }
-        if self.innermarginratio:
-            params["innermarginratio"]       = self.innermarginratio
+        if self.__innermarginratio:
+            params["innermarginratio"]       = self.__innermarginratio
             params["innermarginratiostatus"] = True
-        if self.outermarginratio:
-            params["outermarginratio"]       = self.outermarginratio
+        if self.__outermarginratio:
+            params["outermarginratio"]       = self.__outermarginratio
             params["outermarginratiostatus"] = True
 
         return params
