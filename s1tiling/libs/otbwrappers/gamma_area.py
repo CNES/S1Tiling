@@ -127,15 +127,12 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs, and set compression method to
-        DEFLATE.
+        Complete meta information with inputs, calibration type, and β° file to remove.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs']           = all_inputs
         meta['calibration_type'] = 'GammaNaughtRTC'  # Update meta from now on
 
-        # As of v1.1, when S2 product is marked required iff calibration_is_done_in_S1,
-        # IOW, it's not required in normlim case, and we can safely remove the calibrated β0 file.
         in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
         meta['files_to_remove'] = [in_concat_S2]
         return meta
