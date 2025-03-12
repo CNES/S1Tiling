@@ -897,7 +897,8 @@ class CreationOptionConfiguration(Protocol):
 
     Can be seen an a ISP compliant concept for Configuration object regarding creation options.
     """
-    creation_options: Dict
+    creation_options : Dict
+    disable_streaming: Dict[str, bool]
 
 
 def pixel_type(cfg: CreationOptionConfiguration, product: str, default: Optional[str] = None):  # -> PixelType:
@@ -913,6 +914,7 @@ def _extended_filename(
     cfg     : CreationOptionConfiguration,
     product : str,
     default : Sequence[str],
+    extra_ef: Sequence[str] = (),
 ) -> str:
     """
     Internal helper function that returns GDAL creation options through
@@ -923,7 +925,7 @@ def _extended_filename(
     """
     cos = cfg.creation_options.get(product, {})
     gdal_options = cos.get('gdal_options', default)
-    return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options])
+    return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
 
 
 def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
@@ -969,7 +971,7 @@ def extended_filename_gamma_area(cfg: CreationOptionConfiguration) -> str:
     :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for GAMMA AREA
     products.
     """
-    return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE'])
+    return _extended_filename(cfg, 'gamma_area', ['COMPRESS=DEFLATE'])
 
 
 def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:

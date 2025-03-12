@@ -721,7 +721,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.ia_deg:
         * - :ref:`IA (in degrees * 100) <ia-files>`
           - ``.ia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal``
+          - ``uint16 COMPRESS=DEFLATE``
 
             .. _Procescosg.creation_options.ia_cos:
         * - :ref:`cos(IA) <ia-files>`
@@ -741,7 +741,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`
           - ``.lia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal``
+          - ``uint16 COMPRESS=DEFLATE``
 
             .. _Processing.creation_options.lia_sin:
         * - :ref:`sin(LIA) <lia-files>`
@@ -751,7 +751,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.gamma_area:
         * - :ref:`GAMMA_AREA in meters square <gamma_area_s2-files>`
           - ``.gamma_area``
-          - ``float32 COMPRESS=DEFLATE&gdal``
+          - ``float32 COMPRESS=DEFLATE``
 
       .. _Processing.disable_streaming:
   * - ``disable_streaming.*``
