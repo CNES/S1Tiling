@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -953,7 +953,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
             apply_GAMMA_AREA = pipelines.register_pipeline(
                     apply_GAMMA_AREA_seq, product_required=True,
-                    inputs={'GAMMA_AREA': gammanaughtareas, 'concat_S2': concat_S2},
+                    inputs={'gamma_area': gammanaughtareas, 'concat_S2': concat_S2},
                     is_name_incremental=True,
             )
             last_product_S2 = apply_GAMMA_AREA

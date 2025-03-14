@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 #
 # =========================================================================
 
@@ -852,8 +853,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'transform.type.id.scaley': 2.0,
             'out'                     : file_db.resampleddemfile(idx, True),
         }, None, {
-            'POLARIZATION'  : '',  # <=> removing the key
-            'TIFFTAG_IMAGEDESCRIPTION' : 'DEM resampling',
+            'TIFFTAG_IMAGEDESCRIPTION' : 'DEM resampled X*2.0 Y*2.0',
         })
 
         application_mocker.set_expectations('SARDEMProjectionImageEstimation', {

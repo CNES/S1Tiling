@@ -460,8 +460,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.min_gamma_area :float                      = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.calibration_factor] <Processing.calibration_factor>`
         self.calibration_factor :float                  = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
-        ## #: Gamma area to gamma naught rtc: See :ref:`[Processing.output_nodata] <Processing.output_nodata>`
-        ## self.output_nodata                              = accessor.getboolean('Processing', 'output_nodata', fallback=False)
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`

@@ -143,11 +143,11 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         """
         super().update_image_metadata(meta, all_inputs)
         inputs = meta['inputs']
-        in_GAMMA_AREA = fetch_input_data('GAMMA_AREA', inputs).out_filename
+        in_gamma_area = fetch_input_data('gamma_area', inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['CALIBRATION']     = meta['calibration_type']
-        imd['GAMMA_AREA_FILE'] = os.path.basename(in_GAMMA_AREA)
+        imd['GAMMA_AREA_FILE'] = os.path.basename(in_gamma_area)
 
     def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
         """
@@ -182,10 +182,10 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
         in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
-        in_GAMMA_AREA = fetch_input_data('GAMMA_AREA', inputs).out_filename
+        in_gamma_area = fetch_input_data('gamma_area', inputs).out_filename
         params : OTBParameters = {
             'ram'         : ram(self.ram_per_process),
-            'ingammaarea' : in_GAMMA_AREA,
+            'ingammaarea' : in_gamma_area,
             'inbetanaught': in_concat_S2,
             'mingammaarea': self.__mingammaarea,
             'calibfactor' : self.__calibfactor,
@@ -326,7 +326,7 @@ class ResampleDEM(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            image_description="DEM resampling",
+            image_description=f"DEM resampled X*{cfg.resample_dem_factor_x} Y*{cfg.resample_dem_factor_y}",
         )
         self.__factor_x = cfg.resample_dem_factor_x
         self.__factor_y = cfg.resample_dem_factor_y
@@ -367,7 +367,6 @@ class ResampleDEM(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -747,7 +746,6 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         super().update_image_metadata(meta, all_inputs)
         imd = meta['image_metadata']
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
-        #imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
