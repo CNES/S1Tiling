@@ -630,7 +630,7 @@ class _OrthoRectifierFactory(OTBStepFactory):
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        # assert os.path.isfile(self.__GeoidFile), f"{self.__GeoidFile} doesn't exist"
+        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_dem_dir          = cfg.tmp_dem_dir

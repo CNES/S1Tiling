@@ -623,7 +623,8 @@ def s1_raster_first_inputs_factory_from_rasters(
         **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
-    :class:`FirstStepFactory` hook dedicated to S1 images.
+    :class:`FirstStepFactory` hook dedicated to S1 images: converts S1 raster list into
+    :class:`FirstStep` instance list.
     """
     assert raster_list
     first_inputs = []
@@ -1343,6 +1344,7 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
             nb_max_search_retries=nb_max_search_retries,
