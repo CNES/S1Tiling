@@ -70,6 +70,7 @@ from ..configuration import (
         Configuration,
         dname_fmt_gamma_area_product, dname_fmt_tiled,
         extended_filename_gamma_area,
+        fname_fmt_gamma_area_product,
         nodata_RTC,
 )
 
@@ -862,8 +863,7 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
     - `dname_fmt`  -- optional key: `gamma_area_product`
     """
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt = cfg.fname_fmt.get('gamma_area', fname_fmt)
+        fname_fmt = fname_fmt_gamma_area_product(cfg)
         dname_fmt = dname_fmt_gamma_area_product(cfg)
         super().__init__(
             cfg,

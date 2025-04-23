@@ -833,6 +833,15 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     return fname_fmt
 
 
+def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname.gamma_area_product`` actual value,
+    or its default value.
+    """
+    fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
+    return cfg.fname_fmt.get('gamma_area', fname_fmt)
+
+
 def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.dname.tiled`` actual
