@@ -38,7 +38,7 @@ s1tiling_version=1.2.0alpha
 otb_ver=9.1.0
 # otb_ver=8.1.2
 # git_node=develop
-git_RTC_gamma0_node=develop
+git_RTC_gamma0_node=main
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
@@ -67,7 +67,7 @@ env="${public_prefix}-${date}"
 # -> HAL
 # projets_root="/softs/projets"
 # -> TREX
-projets_root="${projets_root:/work/softs/projets}"
+projets_root="${projets_root:-/work/softs/projets}"
 
 prefix_root="${projets_root}/s1tiling/rh${RH_FLAVOR}"
 module_root="${projets_root}/modulefiles/s1tiling"
