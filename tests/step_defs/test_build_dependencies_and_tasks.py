@@ -275,7 +275,7 @@ class Configuration():
         """
         constructor
         """
-        self.GeoidFile                         = 'UNUSED HERE'
+        self.GeoidFile                         = 'mygeoid.gtx'  # mocked for check in ortho
         self.calibration_type                  = 'sigma'
         self.output_grid                       = str(resource_dir/'shapefile/Features.shp')
         self.grid_spacing                      = 40
@@ -317,7 +317,7 @@ class Configuration():
         }
         self.dname_fmt                         = {}
         self.creation_options                  = {}
-        self.disable_streaming                 = {}
+        self.disable_streaming                 = {'normals_on_s2': False}
         self.extra_metadata                    = {}
         self.dem_info                          = ''
 
@@ -347,8 +347,11 @@ def expected_files_id() -> List[int]:
     return ex
 
 @pytest.fixture
-def configuration() -> Configuration:
+def configuration(known_files, mocker) -> Configuration:
     config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR, gamma_areadir=GAMMA_AREADIR)
+    # Let's always register GeoidFile
+    known_files.append(os.path.join(config.tmpdir, 'geoid', config.GeoidFile))
+    mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     return config
 
 @pytest.fixture
@@ -723,7 +726,6 @@ def when_analyse_dependencies(pipelines, raster_list, dependencies, mocker, know
         'absolute_orbit' : 30704,
     })
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
-    mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     pipelines.register_extra_parameters_for_input_factories(
             tile_name=TILE,
             raster_list=raster_list,

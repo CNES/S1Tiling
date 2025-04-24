@@ -118,12 +118,29 @@ def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
     """
     Mock-replacement for :func:`Utils.list_dirs`
     """
-    logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pattern, known_dirs)
+    logging.debug('mock.list_dirs(%r, %r) ---> %s', dir, pattern, known_dirs)
     if pattern:
         filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
     else:
         filt = lambda path: '/' not in path.name
     dir_entries = [MockDirEntry(kd, inputdir) for kd in known_dirs]
+    res = [de for de in dir_entries if filt(de)]
+    logging.debug('res --> %s', res)
+    return res
+
+
+def list_files(dir, pattern, known_files, inputdir) -> List[MockDirEntry]:
+    """
+    Mock-replacement for :func:`Utils.list_files`
+    """
+    logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
+    if not pattern:
+        filt = lambda path: '/' not in path.name
+    elif isinstance(pattern, re.Pattern):
+        filt = lambda path: '/' not in path.name and re.match(pattern, path.name)
+    else:
+        filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
+    dir_entries = [MockDirEntry(kd, inputdir) for kd in known_files]
     res = [de for de in dir_entries if filt(de)]
     logging.debug('res --> %s', res)
     return res
@@ -347,7 +364,7 @@ class OTBApplicationsMockContext:
         self.__applications           : List[MockOTBApplication] = []
         self.__expectations           : List[Dict]               = []
         self.__configuration                                     = cfg
-        self.__known_files                                       = dem_files[:]
+        self.__known_files                                       = dem_files[:] + [os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))]
         self.__tmp_to_out_map                                    = tmp_to_out_map
         self.__last_expected_metadata                            = {}
         self.__mismatching_metadata                              = []
