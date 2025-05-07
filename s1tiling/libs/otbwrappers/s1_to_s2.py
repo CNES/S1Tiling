@@ -330,7 +330,7 @@ class AnalyseBorders(StepFactory):
         return meta
 
 
-k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'beta'}
+k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'sigma'}
 
 
 class Calibrate(OTBStepFactory):
