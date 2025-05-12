@@ -68,7 +68,8 @@ from ..              import Utils
 from ..configuration import (
         Configuration,
         dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
-        extended_filename_filtered, extended_filename_mask, extended_filename_tiled,
+        extended_filename_filtered,
+        extended_filename_hidden, extended_filename_mask, extended_filename_tiled,
         fname_fmt_concatenation, fname_fmt_filtered,
 )
 from ..configuration import pixel_type as cfg_pixel_type  # avoid name hiding
@@ -357,13 +358,15 @@ class Calibrate(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
-        super().__init__(cfg,
-                appname='SARCalibration',
-                name='Calibration',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
+        super().__init__(
+            cfg,
+            appname='SARCalibration',
+            name='Calibration',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'calibration'),
+            image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
@@ -429,12 +432,14 @@ class CorrectDenoising(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
         fname_fmt = cfg.fname_fmt.get('correct_denoising', fname_fmt)
-        super().__init__(cfg,
-                appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
+        super().__init__(
+            cfg,
+            appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'correct_denoising'),
+            image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
         )
         self.__lower_signal_value = cfg.lower_signal_value
 
@@ -497,11 +502,11 @@ class CorrectDenoising(OTBStepFactory):
         in_cal = fetch_input_data('in_cal', inputs).out_filename
         in_sar = fetch_input_data('in_sar', inputs).out_filename
         params : OTBParameters = {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : [in_cal, in_sar],
-                # self.param_out     : out_filename(meta),
-                # 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
-                'exp'              : f'im2b1==0?0:im1b1==0?{self.__lower_signal_value}:im1b1'
+            'ram'              : ram(self.ram_per_process),
+            self.param_in      : [in_cal, in_sar],
+            # self.param_out     : out_filename(meta),
+            # 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
+            'exp'              : f'im2b1==0?0:im1b1==0?{self.__lower_signal_value}:im1b1'
         }
         return params
 
@@ -531,17 +536,18 @@ class CutBorders(OTBStepFactory):
         fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
         fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
         super().__init__(
-                cfg,
-                appname='ResetMargin', name='BorderCutting',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            cfg,
+            appname='ResetMargin', name='BorderCutting',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'cut_borders'),
         )
 
     def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+        self,
+        execution_parameters: Dict,
+        previous_steps: List[InputList]
     ) -> AbstractStep:
         """
         This overrides checks whether ResetMargin would cut any border.
@@ -605,28 +611,28 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `tile_origin`
     """
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            cfg              : Configuration,
-            *,
-            fname_fmt        : str,
-            image_description: str,
-            extended_filename: Optional[str] = None,
-            pixel_type       : Optional[int] = None,
+        self,
+        cfg              : Configuration,
+        *,
+        fname_fmt        : str,
+        image_description: str,
+        extended_filename: Optional[str] = None,
+        pixel_type       : Optional[int] = None,
     ) -> None:
         """
         Constructor.
         Extract and cache configuration options.
         """
         super().__init__(
-                cfg,
-                appname='OrthoRectification', name='OrthoRectification',
-                param_in='io.in', param_out='io.out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,  # Use gen_tmp_dir,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description=image_description,
-                extended_filename=extended_filename,
-                pixel_type=pixel_type,
+            cfg,
+            appname='OrthoRectification', name='OrthoRectification',
+            param_in='io.in', param_out='io.out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description=image_description,
+            extended_filename=extended_filename,
+            pixel_type=pixel_type,
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
@@ -744,11 +750,11 @@ class OrthoRectify(_OrthoRectifierFactory):
         if otb_version() < '8.0.0':
             extended_filename += '&writegeom=false'
         super().__init__(
-                cfg,
-                fname_fmt=fname_fmt,
-                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename,
-                pixel_type=cfg_pixel_type(cfg, 'tiled'),
+            cfg,
+            fname_fmt=fname_fmt,
+            image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename,
+            pixel_type=cfg_pixel_type(cfg, 'tiled'),
         )
 
     def _get_input_image(self, meta: Meta) -> str:
@@ -896,13 +902,13 @@ class Concatenate(_ConcatenatorFactory):
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
         super().__init__(
-                cfg,
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=gen_output_dir,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename_tiled(cfg),
-                pixel_type=cfg_pixel_type(cfg, 'tiled'),
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=gen_output_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename_tiled(cfg),
+            pixel_type=cfg_pixel_type(cfg, 'tiled'),
         )
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
@@ -988,13 +994,13 @@ class BuildBorderMask(OTBStepFactory):
         Constructor.
         """
         super().__init__(
-                cfg,
-                appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
-                pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
-                image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
+            cfg,
+            appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
+            pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
+            image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
         )
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -1103,15 +1109,15 @@ class SpatialDespeckle(OTBStepFactory):
         fname_fmt = fname_fmt_filtered(cfg)
         dname_fmt = dname_fmt_filtered(cfg)
         super().__init__(
-                cfg,
-                appname='Despeckle', name='Despeckle',
-                param_in='in', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=dname_fmt,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
-                extended_filename=extended_filename_filtered(cfg),
-                pixel_type=cfg_pixel_type(cfg, 'filtered'),
+            cfg,
+            appname='Despeckle', name='Despeckle',
+            param_in='in', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=dname_fmt,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
+            extended_filename=extended_filename_filtered(cfg),
+            pixel_type=cfg_pixel_type(cfg, 'filtered'),
         )
         self.__filter  = cfg.filter
         self.__rad     = cfg.filter_options.get('rad', 0)

@@ -46,32 +46,33 @@ from s1tiling.libs.otbtools import otb_version
 
 from ..file_naming   import TemplateOutputFilenameGenerator
 from ..meta import (
-        Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
+    Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
 )
 from ..steps import (
-        InputList, OTBParameters, ExeParameters,
-        _check_input_step_type,
-        AbstractStep,
-        _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
-        commit_execution,
-        ram,
+    InputList, OTBParameters, ExeParameters,
+    _check_input_step_type,
+    AbstractStep,
+    _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
+    commit_execution,
+    ram,
 )
 from ..otbpipeline   import (
     fetch_input_data, TaskInputInfo,
 )
 from .helpers        import (
-        does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
+    does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
 )
 from .s1_to_s2       import (
-        _ConcatenatorFactory, _OrthoRectifierFactory,
+    _ConcatenatorFactory, _OrthoRectifierFactory,
 )
 from ..              import Utils
 from ..configuration import (
-        Configuration,
-        dname_fmt_gamma_area_product, dname_fmt_tiled,
-        extended_filename_gamma_area,
-        fname_fmt_gamma_area_product,
-        nodata_RTC,
+    Configuration,
+    dname_fmt_gamma_area_product, dname_fmt_tiled,
+    extended_filename_gamma_area,
+    extended_filename_hidden,
+    fname_fmt_gamma_area_product,
+    nodata_RTC,
 )
 
 
@@ -327,6 +328,7 @@ class ResampleDEM(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'resampled_dem'),
             image_description=f"DEM resampled X*{cfg.resample_dem_factor_x} Y*{cfg.resample_dem_factor_y}",
         )
         self.__factor_x = cfg.resample_dem_factor_x
@@ -442,6 +444,7 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 's1_on_dem'),
             image_description="SARDEM projection onto DEM list",
         )
         self.__dem_db_filepath   = cfg.dem_db_filepath
@@ -580,6 +583,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'gamma_area'),
             image_description='Gamma area image estimation',
         )
         self.__distributearea         = cfg.distribute_area

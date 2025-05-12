@@ -276,6 +276,12 @@ def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdi
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
 
+k_calib_convert = {
+    'normlim': 'beta',
+    'gamma_naught_rtc': 'sigma',
+}
+
+
 def mock_upto_concat_S2(
         application_mocker: OTBApplicationsMockContext,
         file_db           : FileDB,
@@ -283,7 +289,7 @@ def mock_upto_concat_S2(
         N                 : int,
         old_IPF           : bool=False
 ):
-    raw_calibration = 'beta' if (calibration == 'normlim' or calibration == 'gamma_naught_rtc') else calibration
+    raw_calibration = k_calib_convert.get(calibration, calibration)
     for i in range(N):
         orbit_info = file_db.get_orbit_information(i)
         input_file = file_db.input_file_vv(i)
@@ -440,7 +446,7 @@ def mock_upto_concat_S2(
 def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibration, N):
     k_calibration_table = {
         'normlim'          : 'NormLim',
-         'gamma_naught_rtc':  'GammaNaughtRTC',
+        'gamma_naught_rtc':  'GammaNaughtRTC',
     }
     raw_calibration = k_calibration_table.get(calibration, calibration)
     if N >= 2:

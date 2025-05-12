@@ -43,6 +43,9 @@ v1.2.0 Improvements
   - :ref:`DEM_INFO <paths.dem_info>` that will be set when relevant,
   - and any pairs of ``key=value`` that are specified in the :ref:`[Metadata]
     <metadata>` configuration section.
+- Undocumented creations options are available on :ref:`intermediary files
+  <temporary-files>` investigated with to :option:`--debug-caches
+  <S1Processor --debug-caches>` option.
 
 
 Version 1.1.0

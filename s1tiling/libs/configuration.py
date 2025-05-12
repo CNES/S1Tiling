@@ -555,17 +555,25 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     def __init_fname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         fname_fmt_keys = [
-            'calibration', 'correct_denoising', 'cut_borders',
-            'orthorectification', 'concatenation', 'filtered',
-            'dem_on_s2', 'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2',
-            'normals_on_s2', 'normals_wgs84_on_s2',
+            # - public files
+            'concatenation', 'filtered',
             'lia_product', 'ia_product', 's2_lia_corrected',
-            's1_on_geoid_dem',
             'gamma_area_product', 's2_gamma_area_corrected',
-            'gamma_area_orthorectification', 'gamma_area_concatenation',
-            # Keys to deprecated workflow
-            'dem_s1_agglomeration', 's1_on_dem', 'xyz', 'normals_on_s1', 's1_lia',  's1_sin_lia',
+            # - internal S1 -> S2 files
+            'calibration', 'correct_denoising', 'cut_borders', 'orthorectification',
+            # - internal LIA related files
+            'dem_s2_agglomeration', 'dem_on_s2', 'geoid_on_s2', 'height_on_s2',
+            'ground_and_sat_s2', 'normals_on_s2',
+            # - internal IA related files
+            'ground_and_sat_s2_ellipsoid', 'normals_wgs84_on_s2',
+            # - internal Keys to deprecated σ° LIA workflow
+            'dem_s1_agglomeration',
+            'xyz', 'normals_on_s1', 's1_lia',  's1_sin_lia',
             'lia_orthorectification', 'lia_concatenation',
+            # - internal γ° RTC related files
+            's1_on_dem', 'gamma_area',
+            's1_on_geoid_dem', 'resampled_dem',
+            'gamma_area_concatenation', 'gamma_area_orthorectification',
         ]
         self.fname_fmt = {}
         for key in fname_fmt_keys:
@@ -597,10 +605,21 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             'tiled', 'filtered', 'mask',
             's1_lia',  's1_sin_lia',
             'lia_deg', 'lia_sin', 'ia_deg', 'ia_sin', 's1_gamma_area',
+            # Invisible support of creation options for hidden/temporary files
+            # (in those cases, we reuse the keys from fname_fmt)
+            # - internal S1 -> S2 files
+            'calibration', 'correct_denoising', 'cut_borders', 'orthorectification',
+            # - internal LIA related files
+            'geoid_on_s2', 'height_on_s2', 'ground_and_sat_s2', 'normals_on_s2',
+            # - internal IA related files
+            'ground_and_sat_s2_ellipsoid', 'normals_wgs84_on_s2',
+            # - internal γ° RTC related files
+            's1_on_dem', 'gamma_area', 'resampled_dem',
         ]
         self.creation_options = {}
         for key in creation_options_keys:
             s_cos = accessor.get('Processing', f'creation_options.{key}', fallback=None)
+            # logging.debug(" creation_options.%s = %s", key, s_cos)
             # Default value is defined in associated StepFactories
             if s_cos:
                 l_cos = [x for x in SPLIT_PATTERN.split(s_cos) if x]
@@ -611,7 +630,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                 else:
                     cos['gdal_options'] = l_cos[0:]
                 for co in cos['gdal_options']:
-                    KEY_PATTERN = re.compile(r'[A-Z]+=')
+                    KEY_PATTERN = re.compile(r'[A-Z_0-9]+=')
                     if not KEY_PATTERN.match(co):
                         # The only validation used is UPPERCASE=value
                         # We don't check against a list that may change over time. In that case the error will be caught later.
@@ -932,7 +951,8 @@ def _extended_filename(
     """
     cos = cfg.creation_options.get(product, {})
     gdal_options = cos.get('gdal_options', default)
-    return '?' + ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
+    res = ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
+    return f'?{res}' if res else ''
 
 
 def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
@@ -990,6 +1010,16 @@ def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def extended_filename_hidden(cfg: CreationOptionConfiguration, product: str) -> str:
+    """
+    Helper wrapper around :func:`_extended_filename()` for temporary (and hidden files) for which
+    there is no default extended_filename. It'll help force a compression during investigation
+    scenarios.
+    When default are known, we need to add a new dedicated wrapper.
+    """
+    return _extended_filename(cfg, product, ())
 
 
 def _get_nodata(d: Dict[str, Optional[Union[str, int, float]]], key: str, default_value: Union[str, int, float]):

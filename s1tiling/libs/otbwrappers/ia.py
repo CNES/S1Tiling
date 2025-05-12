@@ -43,7 +43,7 @@ from typing import List
 
 from .lia              import _ComputeIncidenceAngle
 from .s1_to_s2         import s2_tile_extent
-from ..configuration   import Configuration, dname_fmt_ia_product, nodata_XYZ
+from ..configuration   import Configuration, dname_fmt_ia_product, extended_filename_hidden, nodata_XYZ
 from ..file_naming     import TemplateOutputFilenameGenerator
 from ..incidence_angle import IA_map, eia_map_fname_fmt
 from ..meta            import Meta, out_filename
@@ -247,6 +247,7 @@ class ComputeEllipsoidNormalsOnS2(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'normals_wgs84_on_s2'),
             image_description='Image normals To WGS84 Ellipsoid on S2 grid',
         )
         self.__out_spatial_res      = cfg.out_spatial_res

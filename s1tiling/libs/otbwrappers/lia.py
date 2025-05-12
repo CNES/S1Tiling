@@ -92,6 +92,7 @@ from ..configuration   import (
     Configuration,
     dname_fmt_lia_product,
     dname_fmt_tiled,
+    extended_filename_hidden,
     extended_filename_lia_degree,
     extended_filename_lia_sin,
     extended_filename_tiled,
@@ -298,6 +299,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'geoid_on_s2'),
             image_description="Geoid superimposed on S2 tile",
         )
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
@@ -363,6 +365,7 @@ class SumAllHeights(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'height_on_s2'),
             image_description='DEM + GEOID height info projected on S2 tile',
         )
         self.__nodata = nodata_DEM(cfg)
@@ -495,6 +498,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'ground_and_sat_s2'),
             image_description="XYZ ground and satellite positions on S2 tile",
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
@@ -853,6 +857,7 @@ class _ComputeNormals(OTBStepFactory):
         gen_tmp_dir       : str,
         output_fname_fmt  : str,
         image_description : str,
+        extended_filename : Optional[str],
     ) -> None:
         super().__init__(
             cfg,
@@ -863,6 +868,7 @@ class _ComputeNormals(OTBStepFactory):
             gen_tmp_dir=gen_tmp_dir,
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(output_fname_fmt),
+            extended_filename=extended_filename,
             image_description=image_description,
         )
         self.__nodata = nodata_XYZ(cfg)
@@ -936,6 +942,7 @@ class ComputeNormalsOnS2(_ComputeNormals):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             output_fname_fmt=fname_fmt,
+            extended_filename=extended_filename_hidden(cfg, 'normals_on_s2'),
             image_description='Image normals on S2 grid',
         )
 
@@ -1649,6 +1656,7 @@ class ComputeNormalsOnS1(_ComputeNormals):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             output_fname_fmt=fname_fmt,
+            extended_filename=extended_filename_hidden(cfg, 'normals_on_s1'),
             image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
         )
 
