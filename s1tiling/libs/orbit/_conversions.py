@@ -75,5 +75,5 @@ class OrbitConverter:
 ORBIT_CONVERTERS = {
     "S1A": OrbitConverter(73, 175),
     "S1B": OrbitConverter(27, 175),
-    "S1C": OrbitConverter(99, 175),
+    "S1C": OrbitConverter(172, 175),
 }
