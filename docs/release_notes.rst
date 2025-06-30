@@ -42,6 +42,8 @@ v1.2.0 Improvements
   - :ref:`DEM_INFO <paths.dem_info>` that will be set when relevant,
   - and any pairs of ``key=value`` that are specified in the :ref:`[Metadata]
     <metadata>` configuration section.
+- File decoding and encoding is now done is parallel
+  (`#184 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/184>`_).
 
 Version 1.1.0
 -------------
