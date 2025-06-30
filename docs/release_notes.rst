@@ -16,6 +16,9 @@ v1.2.0 Breaking changes
   reached its end-of-life in 2024.
   S1Tiling may work with older version of Python, but with no guarantees
   (`#158 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/158>`_).
+- The default Geoid file used is changed from :file:`egm96.grd` to
+  :file:`egm96.gtx`
+  (`#185 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/185>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
@@ -39,7 +42,6 @@ v1.2.0 Improvements
   - :ref:`DEM_INFO <paths.dem_info>` that will be set when relevant,
   - and any pairs of ``key=value`` that are specified in the :ref:`[Metadata]
     <metadata>` configuration section.
-
 
 Version 1.1.0
 -------------
