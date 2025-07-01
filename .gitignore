@@ -16,6 +16,9 @@ ignore.utf-8.add.spl
 # Vim tags
 tags
 
+# Other EDI files
+.vscode
+
 # KWStyle hook output
 *.kws
 
@@ -60,3 +63,9 @@ dist/
 report.xml
 Pipfile
 Pipfile.lock
+.coverage
+
+# Experiments & misc
+deprecated
+DEM_tools
+reports

@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _files:
 
 .. index:: files
@@ -50,7 +55,11 @@ Orthorectified S2 tiles
     - defined in :ref:`[Processing].creation_options.tiled
       <processing.creation_options.tiled>`
 
-:Metadata: The following metadata is added to the origin S1 images
+:Metadata:
+
+    GeoTIFF metadata will contain: the ones coming from the input S1 GRD
+    products, the extra ones specified in :ref:`[Metadata] <metadata>`
+    configuration section, plus the following ones:
 
     .. list-table::
       :widths: auto
@@ -68,6 +77,14 @@ Orthorectified S2 tiles
         - time of the second S1 image (in UTC format since v1.1)
       * - ``CALIBRATION``
         - :ref:`chosen calibration option <Processing.calibration>`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
@@ -82,6 +99,9 @@ Orthorectified S2 tiles
         - :samp:`{{orbitNumber}}`
       * - ``ORBIT_DIRECTION``
         - :samp:`{{orbitDirection}}`
+      * - ``ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``POLARIZATION``
@@ -121,7 +141,6 @@ Mask files
     - defaults to Byte GeoTIFF, deflate compressed
     - defined in :ref:`[Processing].creation_options.mask
       <processing.creation_options.mask>`
-
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -167,7 +186,6 @@ Filtered files
     - defaults to Float32 GeoTIFF, deflate compressed
     - defined in :ref:`[Processing].creation_options.filtered
       <processing.creation_options.filtered>`
-
 
 :Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following as the only difference:
 
@@ -238,8 +256,11 @@ Local Incidence Angle map files
       (/:ref:`[Processing].creation_options.lia_deg
       <processing.creation_options.lia_deg>`)
 
+:Metadata:
 
-:Metadata: The following image metadata is set:
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
 
     .. list-table::
       :widths: auto
@@ -251,12 +272,21 @@ Local Incidence Angle map files
 
       * - ``DATA_TYPE``
         - :samp:`100 * degrees(LIA)` / :samp:`sin(LIA)`
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b|c}}`
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``IMAGE_TYPE``
         - :samp:`LIA`
       * - ``RELATIVE_ORBIT_NUMBER``
@@ -325,8 +355,11 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
       (/:ref:`[Processing].creation_options.ia_deg
       <processing.creation_options.ia_deg>`)
 
+:Metadata:
 
-:Metadata: The following image metadata is set:
+    GeoTIFF metadata will contain the extra metadata specified in
+    :ref:`[Metadata] <metadata>` configuration section, plus the following
+    ones:
 
     .. list-table::
       :widths: auto
@@ -349,8 +382,6 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
         - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
         - :samp:`{{orbitnumber}}`
-      * - ``ORTHORECTIFIED``
-        - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -459,8 +490,10 @@ Orthorectified S1 images
 
 :Product encoding: Float32 GeoTIFF, deflate compressed
 
-:Metadata: The metadata listed for :ref:`the S2 tile product <full-S2-tiles>`
-           are actually produced at this step.
+:Metadata:
+
+    The metadata listed for :ref:`the S2 tile product <full-S2-tiles>` are
+    actually produced at this step.
 
 .. note::
    These files are automatically cleaned up.
@@ -512,14 +545,20 @@ DEM data projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
+      * - ``DEM_LIST``
+        - List of DEM tiles used to generate the file
+      * - ``DEM_RESAMPLING_METHOD``
+        - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
+      * - ``ORTHORECTIFIED``
+        - :samp:`true`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
         - :ref:`chosen output spatial resolution option <Processing.output_spatial_resolution>`
-      * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
-      * - ``ORTHORECTIFIED``
-        - :samp:`true`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Warped DEM to S2 tile`
 
@@ -546,6 +585,9 @@ Height (DEM+Geoid) projected on S2 tile
 
       * - Metadata
         - Value
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`DEM + GEOID height info projected on S2 tile`
 
@@ -586,8 +628,12 @@ files.
       * - Metadata
         - Value
 
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
       * - ``FLYING_UNIT_CODE``
@@ -700,8 +746,12 @@ Files of S1 coordinates projected on DEM geometry (deprecated)
 
       * - ``ACQUISITION_DATETIME``
         - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
@@ -913,8 +963,12 @@ present in Sentinel-1 SAR input products.
 
       * - ``ACQUISITION_DATETIME``
         - time of the first S1 image (in UTC format since v1.1)
+      * - ``DEM_INFO``
+        - Key to identify which DEM has been used. |br|
+          Comes from :ref:`[Paths].dem_info <paths.dem_info>` or
+          :ref:`basename([Paths].dem_dir) <paths.dem_info>`.
       * - ``DEM_LIST``
-        - List of DEM (SRTM currently) tiles used to generate the file
+        - List of DEM tiles used to generate the file
       * - ``FLYING_UNIT_CODE``
         - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``

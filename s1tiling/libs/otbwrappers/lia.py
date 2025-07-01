@@ -201,6 +201,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description="Warped DEM to S2 tile",
         )
+        self.__dem_info          = cfg.dem_info
         self.__out_spatial_res   = cfg.out_spatial_res
         self.__resampling_method = cfg.dem_warp_resampling_method
         self.__nb_threads        = cfg.nb_procs
@@ -226,6 +227,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         imd = meta['image_metadata']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
+        imd['DEM_INFO']                   = self.__dem_info
         imd['DEM_RESAMPLING_METHOD']      = self.__resampling_method
         imd['ORTHORECTIFIED']             = 'true'
         # TODO: Import DEM_LIST from input VRT image
@@ -309,9 +311,10 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
-        imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
-        imd['ORTHORECTIFIED']             = 'true'
+        imd['GEOID_ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                        = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']            = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']                    = str(self.__out_spatial_res)
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -342,7 +345,6 @@ class SumAllHeights(OTBStepFactory):
     - `nodata.DEM` -- optional
 
     It requires the following information from the metadata dictionary:
-
     """
     def __init__(self, cfg: Configuration) -> None:
         """
@@ -409,6 +411,28 @@ class SumAllHeights(OTBStepFactory):
         assert 'in_s2_geoid' in keys
         return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
 
+    def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
+        logger.debug("Fetch DEM_RESAMPLING_METHOD from '%s'", inputpath)
+        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
+            dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
+            if not dst:
+                raise RuntimeError(f"Cannot open DEM/S2 file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
+            res = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
+            del dst
+            return res
+        return 'No idea in dry run mode'
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Metadata coming from the DEM image are lost => we fetch them in the DEM file.
+        """
+        super().update_image_metadata(meta, all_inputs)
+
+        in_s2_dem   = fetch_input_data('in_s2_dem',   all_inputs).out_filename
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['DEM_RESAMPLING_METHOD'] = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
+
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`BandMath OTB application
@@ -473,6 +497,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         self.__nodata = nodata_XYZ(cfg)
+        self.__dem_info = cfg.dem_info
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
@@ -544,6 +569,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_INFO']                 = self.__dem_info
         imd['DEM_LIST']                 = ', '.join(meta['dems'])
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
@@ -636,6 +662,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
         self.__nodata = nodata_XYZ(cfg)
+        self.__dem_info = cfg.dem_info
 
     @staticmethod
     def reduce_inputs(inputs: List[Meta]) -> List:
@@ -758,6 +785,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION']             = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_INFO']                 = self.__dem_info
         imd['DEM_LIST']                 = ', '.join(meta['dems'])
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
@@ -1432,6 +1460,7 @@ class SARDEMProjection(OTBStepFactory):
         self.__dem_db_filepath     = cfg.dem_db_filepath
         self.__dem_field_ids       = cfg.dem_field_ids
         self.__dem_main_field_id   = cfg.dem_main_field_id
+        self.__dem_info            = cfg.dem_info
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -1479,6 +1508,7 @@ class SARDEMProjection(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
+        imd['DEM_INFO']     = self.__dem_info
         imd['DEM_LIST']     = ', '.join(meta['dems'])
 
     def add_image_metadata(self, meta: Meta, app) -> None:
@@ -1856,6 +1886,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
             'LIA'     : extended_filename_lia_degree(cfg),
             'sin_LIA' : extended_filename_lia_sin(cfg),
         }
+        self.__dem_info = cfg.dem_info
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
@@ -1872,6 +1903,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
         """
         super().update_image_metadata(meta, all_inputs)
         imd = meta['image_metadata']
+        imd['DEM_INFO']  = self.__dem_info
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:

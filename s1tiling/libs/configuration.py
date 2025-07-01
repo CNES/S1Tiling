@@ -245,6 +245,15 @@ class _ConfigAccessor:
         """Helper function to report errors while extracting boolean configuration options"""
         return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
 
+    def get_items(self, section: str) -> Dict:
+        """Helper function to return configuration items from a section"""
+        res = {}
+        if self.__config.has_section(section):
+            options = self.__config.options(section) - self.__config.defaults().keys()
+            for option in options:
+                res[option] = self.__config.get(section, option, raw=True)
+        return res
+
 
 # The configuration decoding specific to S1Tiling application
 class Configuration:  # pylint: disable=too-many-instance-attributes
@@ -271,6 +280,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
         self.__init_creation_options(accessor)
+        self.__init_extra_metadata(accessor)
 
         # Other options
         #: Type of images handled
@@ -309,7 +319,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # "dem_dir" or Fallback to old deprecated key: "srtm"
         #: Where DEM files are expected to be found: See :ref:`[PATHS.dem_dir] <paths.dem_dir>`!
-        self.dem                 = accessor.get('Paths', 'dem_dir', fallback='') or accessor.get('Paths', 'srtm')
+        self.dem                 = accessor.get('Paths', 'dem_dir',  fallback='') or accessor.get('Paths', 'srtm')
+        #: DEM identifier to save in GeoTIFF metadata: See :ref:`[PATHS.dem_info] <paths.dem_info>`!
+        self.dem_info            = accessor.get('Paths', 'dem_info', fallback=os.path.basename(self.dem))
         dem_database             = accessor.get('Paths', 'dem_database', fallback='')
         # TODO: Inject resource_dir/'shapefile' if relative dir and not existing
         #: Path to the internal DEM tiles database: automatically set
@@ -571,6 +583,13 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                 self.creation_options[key] = cos
 
     # ----------------------------------------------------------------------
+    def __init_extra_metadata(self, accessor: _ConfigAccessor) -> None:
+        # TODO: how can we handle metadata that don't always make sense like DEM kind...
+        # => take the directory of the DEM files, or the ID key or the .gpkg file, or a manual option
+        #: Extra geotiff metadata options to write in all products
+        self.extra_metadata = accessor.get_items('Metadata')
+
+    # ----------------------------------------------------------------------
     def show_configuration(self) -> None:  # pylint: disable=too-many-statements
         """
         Displays the configuration
@@ -630,15 +649,18 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             elif self.filter in ['frost']:
                 logging.info("- deramp                           : %s", self.filter_options['deramp'])
 
+        logging.info('Extra metadata                     : %s', len(self.extra_metadata))
+        for meta, value in self.extra_metadata.items():
+            logging.info('- %s --> %s', meta, value)
         logging.info('Output directories:')
         for k, fmt in self.dname_fmt.items():
-            logging.info(' - %s --> %s', k, fmt)
+            logging.info('- %s --> %s', k, fmt)
         logging.info('Filename formats:')
         for k, fmt in self.fname_fmt.items():
-            logging.info(' - %s --> %s', k, fmt)
+            logging.info('- %s --> %s', k, fmt)
         logging.info('Creation options:')
         for k, co in self.creation_options.items():
-            logging.info(' - %s --> %s', k, co)
+            logging.info('- %s --> %s', k, co)
 
     def init_logger(self, config_log_dir: Path, mode=None) -> None:
         """
