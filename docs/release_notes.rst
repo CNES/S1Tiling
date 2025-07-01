@@ -16,6 +16,9 @@ v1.2.0 Breaking changes
   reached its end-of-life in 2024.
   S1Tiling may work with older version of Python, but with no guarantees
   (`#158 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/158>`_).
+- The default Geoid file used is changed from :file:`egm96.grd` to
+  :file:`egm96.gtx`
+  (`#185 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/185>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
@@ -41,7 +44,8 @@ v1.2.0 Improvements
     <metadata>` configuration section.
 - Add support for Sentinel1-C launched end 2024
   (`#175 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/175>`_).
-
+- File decoding and encoding is now done is parallel
+  (`#184 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/184>`_).
 
 Version 1.1.0
 -------------

@@ -116,6 +116,9 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, tmpdir, dem
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
+    resources_dir = crt_dir.parent.absolute() / 's1tiling/resources'
+    os.environ['S1TILING_RESOURCES']               = str(resources_dir)
+
     # images = [
     #         '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx.tif',
     #         '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx.tif',
