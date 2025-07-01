@@ -179,10 +179,11 @@ You can use this :download:`this template
   * - ``platform_list``
     - Defines the list of platforms from where come the products to download
       and process.
-      Valid values are ``S1A`` or ``S1B``.
+      Valid values are ``S1A``, ``S1B``, or ``S1C``.
 
       .. warning::
-        A single value is expected in :ref:`NORMLIM scenarios <scenarios>`.
+        A single value is expected in :ref:`NORMLIM and Ellipsoid Incide Angle
+        scenarios <scenarios>`.
 
       .. _DataSource.polarisation:
   * - ``polarisation``
@@ -476,7 +477,7 @@ You can use this :download:`this template
           - Applies to geometry
 
         * - flying_unit_code
-          - ``s1a``, ``s1b``
+          - ``s1a``, ``s1b``, ``s1c``
           - S1/S2
         * - tile_name
           - ex: ``33NWB``

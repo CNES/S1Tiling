@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -70,9 +70,10 @@ class OrbitConverter:
         return res
 
 
-#: Modulo and offset tables for Sentinel-1A and Sentinel-1B
-#: Eventually, this should be patched to support Sentinel-1C...
+#: Modulo and offset tables for Sentinel-1A, Sentinel-1B, and Sentinel1-C
+#: Eventually, this should be patched to support Sentinel-1D...
 ORBIT_CONVERTERS = {
     "S1A": OrbitConverter(73, 175),
     "S1B": OrbitConverter(27, 175),
+    "S1C": OrbitConverter(172, 175),
 }

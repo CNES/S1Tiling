@@ -3,8 +3,8 @@
 Process return code
 -------------------
 
-The following exit code are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
-or :ref:`S1IAMap` returns:
+The following exit codes are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
+or :ref:`S1IAMap` return:
 
 .. list-table::
   :widths: auto

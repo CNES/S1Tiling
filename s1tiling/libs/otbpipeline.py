@@ -1088,6 +1088,7 @@ class PoolOfOTBExecutions:
         nb_cmd = len(self.__pool)
 
         os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(self.__nb_threads)
+        os.environ["GDAL_NUM_THREADS"] = str(self.__nb_threads)
         os.environ['OTB_LOGGER_LEVEL'] = 'DEBUG'
         if self.__debug_otb:  # debug OTB applications with gdb => do not spawn process!
             execute4mp(self.__pool[0])
