@@ -349,6 +349,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     _extend_config(config, extra_opts, overwrite=False)
 
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(config.OTBThreads)
+    os.environ["GDAL_NUM_THREADS"] = str(config.OTBThreads)
 
     # For the OTB applications that don't receive the path as a parameter (like SARDEMProjection)
     # -> we set $OTB_GEOID_FILE

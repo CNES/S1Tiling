@@ -15,6 +15,9 @@ v1.2.0 Breaking changes
   reached its end-of-life in 2024.
   S1Tiling may work with older versions of Python, but with no guarantees
   (`#158 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/158>`_).
+- The default Geoid file used is changed from :file:`egm96.grd` to
+  :file:`egm96.gtx`
+  (`#185 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/185>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
@@ -43,10 +46,13 @@ v1.2.0 Improvements
   - :ref:`DEM_INFO <paths.dem_info>` that will be set when relevant,
   - and any pairs of ``key=value`` that are specified in the :ref:`[Metadata]
     <metadata>` configuration section.
+- Add support for Sentinel1-C launched end 2024
+  (`#175 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/175>`_).
+- File decoding and encoding is now done is parallel
+  (`#184 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/184>`_).
 - Undocumented creations options are available on :ref:`intermediary files
   <temporary-files>` investigated with to :option:`--debug-caches
   <S1Processor --debug-caches>` option.
-
 
 Version 1.1.0
 -------------
@@ -107,7 +113,7 @@ v1.1.0 Breaking changes
 
 - ``ACQUISITION_DATETIME`` image metadata is now in UTC format (e.g.
   ``2020:01:08T04:41:50Z``). In previous versions it used to have the same
-  format as ``TIFFTAG_DATETIME`` (i.e.: ``2020:01:08 04:41:50``)
+  format as ``TIFFTAG_DATETIME`` (i.e., ``2020:01:08 04:41:50``)
 
 
 Version 1.0.0
@@ -136,13 +142,13 @@ v1.0.0 Improvements
   <DataSource.platform_list>`, :ref:`orbit_direction
   <DataSource.orbit_direction>`, :ref:`relative_orbit_list
   <DataSource.relative_orbit_list>` and :ref:`tile_to_product_overlap_ratio
-  <DataSource.tile_to_product_overlap_ratio>`.
+  <DataSource.tile_to_product_overlap_ratio>`
   (`#83 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/83>`_,
   `#110 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/110>`_,
-  `#133 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/133>`_.
+  `#133 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/133>`_).
 
 - Null values obtained after the optional *denoising* done during the
-  :ref:`calibration <calibration-proc>` wil be set to a :ref:`minimal signal
+  :ref:`calibration <calibration-proc>` will be set to a :ref:`minimal signal
   value <Processing.lower_signal_value>` > 0. The objective is to keep 0 as the
   *nodata* value.
   (`#87 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/87>`_).
@@ -216,7 +222,7 @@ v0.3.1 Bugs fixed
 Version 0.3.0
 -------------
 
-This version is a minor release with critical but non trivial fixes before
+This version is a minor release with critical but non-trivial fixes before
 version 1.0.0
 
 v0.3.0 Improvements
