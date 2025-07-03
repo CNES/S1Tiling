@@ -956,7 +956,7 @@ class Concatenate(_ConcatenatorFactory):
                 filename        = out_filename(meta)
                 exist_task_name = os.path.isfile(task_name)
                 exist_file_name = os.path.isfile(filename)
-                logger.debug('Checking concatenation product:\n- %s => %s (task)\n- %s => %s (file)',
+                logger.debug('Checking concatenation product:\n- %r => %s (task)\n- %r => %s (file)',
                         task_name, '∃' if exist_task_name else '∅',
                         filename,  '∃' if exist_file_name else '∅')
                 return exist_task_name or exist_file_name

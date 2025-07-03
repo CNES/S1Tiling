@@ -863,7 +863,7 @@ class StoreStep(_ProducerStep):
         for po, tmp, ef in zip(p_out, files, extended_filenames):
             assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            logger.debug(" - set ouput param: %s = %s + %s", po, tmp, ef)
+            logger.debug(" - set output param: %s = %s + %s", po, tmp, ef)
             self._app.SetParameterString(po, tmp + ef)
 
     def _do_execute(self, parameters, dryrun: bool) -> None:
