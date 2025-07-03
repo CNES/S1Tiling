@@ -55,7 +55,7 @@ class FileDB:
         'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
         'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
 
-        # Local Incidence Angle
+        # Local Incidence Angle V1 & γ Area RTC
         'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
         'resampleddemfile'    : 'RESAMPLED_DEM_{s1_polarless}{tmp}.tiff',
         'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
@@ -65,9 +65,13 @@ class FileDB:
         'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
         'orthodegLIAfile'     : 'LIA_{s2_polarless}{tmp}',
         'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
+
+        # γ Area RTC
+        'height_on_s1'        : 'DEM+GEOID_{s1_polarless}{tmp}.tiff',
         'gamma_areafile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
         'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
 
+        # Local Incidence Angle
         'vrt_on_s2'           : 'DEM_{tile}{tmp}.vrt',
         'dem_on_s2'           : 'DEM_projected_on_{tile}{tmp}.tiff',
         'geoid_on_s2'         : 'GEOID_projected_on_{tile}{tmp}.tiff',
@@ -279,33 +283,34 @@ class FileDB:
                 # cal_ok and orthoready have {nr} and {polarity} => can't be used to fill in known_files
                 # (self.cal_ok,                       NFiles),
                 # (self.ortho_ready,                  NFiles),
-                (self.orthofile,                    NFiles),
+                (self.orthofile,                     NFiles),
                 # concatfile_from_one messes up known_files => disable
                 # (self.concatfile_from_one,          NFiles),
-                (self.concatfile_from_two,          NConcats),
-                (self.masktmp_from_one,             NFiles),
-                (self.masktmp_from_two,             NConcats),
-                (self.maskfile_from_one,            NFiles),
-                (self.maskfile_from_two,            NConcats),
+                (self.concatfile_from_two,           NConcats),
+                (self.masktmp_from_one,              NFiles),
+                (self.masktmp_from_two,              NConcats),
+                (self.maskfile_from_one,             NFiles),
+                (self.maskfile_from_two,             NConcats),
 
-                (self.vrtfile,                      NFiles),
-                (self.resampleddemfile,             NFiles),
-                (self.sardemprojfile,               NFiles),
-                (self.xyzfile,                      NFiles),
-                (self.normalsfile,                  NFiles),
-                (self.degLIAfile,                   NFiles),
-                (self.sinLIAfile,                   NFiles),
-                (self.orthodegLIAfile,              NFiles),
-                (self.orthosinLIAfile,              NFiles),
-                (self.concatLIAfile_from_two,       NConcats),
-                (self.concatsinLIAfile_from_two,    NConcats),
-                (self.sigma0_normlim_file_from_one, NFiles),
-                (self.sigma0_normlim_file_from_two, NConcats),
-                (self.gamma_areafile,               NFiles),
-                (self.orthoGAMMA_AREAfile,          NFiles),
+                (self.vrtfile,                       NFiles),
+                (self.resampleddemfile,              NFiles),
+                (self.height_on_s1,                  NFiles),
+                (self.sardemprojfile,                NFiles),
+                (self.xyzfile,                       NFiles),
+                (self.normalsfile,                   NFiles),
+                (self.degLIAfile,                    NFiles),
+                (self.sinLIAfile,                    NFiles),
+                (self.orthodegLIAfile,               NFiles),
+                (self.orthosinLIAfile,               NFiles),
+                (self.concatLIAfile_from_two,        NConcats),
+                (self.concatsinLIAfile_from_two,     NConcats),
+                (self.sigma0_normlim_file_from_one,  NFiles),
+                (self.sigma0_normlim_file_from_two,  NConcats),
+                (self.gamma_areafile,                NFiles),
+                (self.orthoGAMMA_AREAfile,           NFiles),
                 (self.concatGAMMA_AREAfile_from_two, NConcats),
-                (self.gamma0_rtc_file_from_one, NFiles),
-                (self.gamma0_rtc_file_from_two, NConcats),
+                (self.gamma0_rtc_file_from_one,      NFiles),
+                (self.gamma0_rtc_file_from_two,      NConcats),
         ]
         names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
                 (self.orthofile,                    NFiles),
@@ -624,6 +629,14 @@ class FileDB:
     def resampleddemfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["resampleddemfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def height_on_s1(self, idx, tmp: bool) -> str:
+        crt = self.FILES[idx]
+        if tmp:
+            # default DEM nodata==-32768
+            ext = '?' + self.extended_nodata.format(nodata='-32768')
+        else:
+            ext = ''
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["height_on_s1"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sardemprojfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
@@ -814,6 +827,8 @@ class FileDB:
         crt = self.CONCATS[idx]
         return self._gamma0_rtc_file_for_all(crt, tmp, polarity)
 
+    def s2_product_dir(self):
+        return f'{self.__output_dir}/{self.__tile}'
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'

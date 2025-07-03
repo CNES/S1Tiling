@@ -45,6 +45,8 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
 
+from s1tiling.libs.otbwrappers.gamma_area import NaNifyNoData, ProjectGeoidToDEM
+
 from .S1DateAcquisition import S1DateAcquisition
 from .S1FileManager import (
     S1FileManager,
@@ -554,28 +556,48 @@ def register_GAMMA_AREA_pipelines(
     Internal function that takes care to register all pipelines related to
     GAMMA AREA map.
     """
-    # build VRT
+    # Build VRT
     dem = pipelines.register_pipeline(
             [AgglomerateDEMOnS1],
             'AgglomerateDEM',
             inputs={'insar': 'basename'},
     )
 
-    # resample dem
+    # Resample DEM
     resampled_dem = dem
     if config.use_resampled_dem:
         resampled_dem = pipelines.register_pipeline(
-                [ResampleDEM],
+                [NaNifyNoData, ResampleDEM],
                 'RigidTransformResample',
                 inputs={'indem': dem},
         )
 
-    # project dem
+    # Combine dem + geoid in order to optimize SARDEMProjection execution
+    # 66% of its execution time would be lost in mutexes for accessing Geoid elevation on each point
+    # otherwise.
+    heights = pipelines.register_pipeline(
+        [
+            ProjectGeoidToDEM,
+            SumAllHeights(
+                product_key='4RTC',
+                key_map={'indem': 'indem', 'ingeoid': 'ingeoid'},
+                fname_fmt_default='DEM+GEOID_{polarless_basename}',
+                dname_fmt_default='S1',
+                image_description='DEM + GEOID',
+            ),
+        ],
+        'Combine DEM+height',
+        is_name_incremental=True,
+        inputs={'indem': resampled_dem},
+    )
+
+    # Project DEM
     demproj = pipelines.register_pipeline(
             [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
             'SARDEMProjection',
             is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': resampled_dem},
+            # inputs={'insar': 'basename', 'indem': resampled_dem},
+            inputs={'insar': 'basename', 'indem': heights},
     )
 
     # gamma area

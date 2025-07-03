@@ -68,6 +68,7 @@ nodata_SAR=0
 nodata_DEM=-32768
 nodata_XYZ='nan'
 nodata_LIA='nan'
+nodata_RTC='nan'
 
 
 def process(tmpdir, outputdir, liadir, gamma_areadir, baseline_reference_outputs, test_file, watch_ram, dirs_to_clean=None):
@@ -789,6 +790,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
     }, None, {
+        'TIFFTAG_GDAL_NODATA'      : '-32768',
         'TIFFTAG_IMAGEDESCRIPTION' : 'DEM + GEOID height info projected on S2 tile',
         'DEM_RESAMPLING_METHOD'    : 'cubic',
         'ORTHORECTIFIED'           : 'true',
@@ -844,34 +846,92 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
 def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
     demdir = file_db.demdir
     for idx in range(2):
-        orbit_info        = file_db.get_orbit_information(idx)
-        cov               = file_db.dem_coverage(idx)
-        exp_dem_names     = sorted(cov)
-        exp_out_vrt       = file_db.vrtfile(idx, False)
-        exp_out_resampled_dem       = file_db.resampleddemfile(idx, False)
-        exp_out_dem       = file_db.sardemprojfile(idx, False)
-        exp_in_dem_files  = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
+        orbit_info            = file_db.get_orbit_information(idx)
+        cov                   = file_db.dem_coverage(idx)
+        exp_dem_names         = sorted(cov)
+        exp_out_vrt           = file_db.vrtfile(idx, False)
+        exp_out_resampled_dem = file_db.resampleddemfile(idx, False)
+        exp_out_dem           = file_db.sardemprojfile(idx, False)
+        exp_in_dem_files      = [f"{demdir}/{dem}.hgt" for dem in exp_dem_names]
 
-        application_mocker.set_expectations(AgglomerateDEMOnS1.agglomerate, [file_db.vrtfile(idx, True)] + exp_in_dem_files, None, None)
+        # Build VRT
+        application_mocker.set_expectations(
+            AgglomerateDEMOnS1.agglomerate,
+            [file_db.vrtfile(idx, True)] + exp_in_dem_files,
+            None,
+            None
+        )
 
+        # Resample DEM
+        # > NaNifyNoData
+        is_nodata_DEM_bandmath = Utils.test_nodata_for_bandmath(bandname="im1b1", nodata=nodata_DEM)
+        application_mocker.set_expectations('BandMath', {
+            'il'         : [ exp_out_vrt ],
+            'ram'        : param_ram(2048),
+            'exp'        : f'{is_nodata_DEM_bandmath} ? 0./0. : im1b1',
+            'out'        : 'RigidTransformResample|>'+file_db.resampleddemfile(idx, True),
+        }, None, {
+            'TIFFTAG_IMAGEDESCRIPTION' : 'The same but with NaN',
+        })
+
+        # > RigidTransformResample
         application_mocker.set_expectations('RigidTransformResample', {
+            'in'                      : [exp_out_vrt + '|>BandMath'],
             'ram'                     : param_ram(2048),
-            'in'                      : exp_out_vrt,
             'transform.type'          : "id",
             'transform.type.id.scalex': 2.0,
             'transform.type.id.scaley': 2.0,
             'out'                     : file_db.resampleddemfile(idx, True),
         }, None, {
+            'DEM_RESAMPLING_METHOD'    : 'X*2.0, Y*2.0',
             'TIFFTAG_IMAGEDESCRIPTION' : 'DEM resampled X*2.0 Y*2.0',
         })
 
-        application_mocker.set_expectations('SARDEMProjectionImageEstimation', {
+        # SumAllHeights
+        # > ProjectGeoidToS2Tile
+        spacing=10.0
+        application_mocker.set_expectations('Superimpose', {
+            'ram'                     : param_ram(2048),
+            'inr'                     : exp_out_resampled_dem,
+            'inm'                     : file_db.GeoidFile,
+            'interpolator'            : 'nn',
+            'interpolator.bco.radius' : 2,
+            'fv'                      : nodata_DEM,
+            'out'                     : 'BandMath|>' + file_db.height_on_s1(idx, True),
+        }, None, {
+            # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
+            # 'DEM_LIST'                   : ', '.join(exp_dem_names),
+            'SPATIAL_RESOLUTION'                   : f"{spacing}",
+            'TIFFTAG_IMAGEDESCRIPTION'             : 'Geoid superimposed on DEM',
+            'GEOID_ORTHORECTIFICATION_INTERPOLATOR': 'nn',
+        })
+
+        # > DEM + GEOID
+        is_nodata_DEM_bandmath = Utils.test_nodata_for_bandmath(bandname="im2b1", nodata=nodata_DEM)
+        application_mocker.set_expectations('BandMath', {
+            'il'         : [
+                exp_out_resampled_dem+"|>Superimpose",
+                exp_out_resampled_dem,
+                # exp_out_geoid_s2
+            ],
+            'ram'        : param_ram(2048),
+            'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
+            'out'        : file_db.height_on_s1(idx, True),
+        }, None, {
+            'TIFFTAG_GDAL_NODATA'      : '-32768',
+            'TIFFTAG_IMAGEDESCRIPTION' : 'DEM + GEOID',
+            'DEM_RESAMPLING_METHOD'    : 'cubic',
+        })
+
+        # Project DEM
+        application_mocker.set_expectations('SARDEMProjection2', {
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
-            'indem'      : exp_out_resampled_dem,
+            # 'indem'      : exp_out_resampled_dem,
+            'indem'      : file_db.height_on_s1(idx, False),
             'withxyz'    : True,
-            'nodata'     : -32768,
-            'elev.geoid' : file_db.GeoidFile,
+            'nodata'     : str(nodata_RTC),
+            'elev.geoid' : '@',
             'out'        : file_db.sardemprojfile(idx, True),
         }, None, {
             'ACQUISITION_DATETIME'     : file_db.start_time(idx),
@@ -888,20 +948,21 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
 
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'                   : param_ram(2048),
-            'insar'                 : file_db.input_file_vv(idx),
+            'distributearea'        : False,
             'indem'                 : exp_out_resampled_dem,
             'indemproj'             : exp_out_dem,
             'indirectiondemc'       : 24,
             'indirectiondeml'       : 12,
-            'mlran'                 : 1,
+            'inputwindow'           : 'everything',
+            'insar'                 : file_db.input_file_vv(idx),
             'mlazi'                 : 1,
-            'distributearea'        : False,
-            'nostreaming'           : False,
-            'nodata'                : -32768,
-            'innermarginratiostatus': True,
-            'outermarginratiostatus': True,
+            'mlran'                 : 1,
+            'streaming'             : 'enable',
+            'warn'                  : 'once',
             'innermarginratio'      : 0.01,
+            'innermarginratiostatus': True,
             'outermarginratio'      : 0.04,
+            'outermarginratiostatus': True,
             'out'                   : file_db.gamma_areafile(idx, True),
         }, None, {
             'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
@@ -1053,6 +1114,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
         'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
         'out'        : file_db.height_on_s2(True),
     }, None, {
+        'TIFFTAG_GDAL_NODATA'      : '-32768',
         'TIFFTAG_IMAGEDESCRIPTION' : 'DEM + GEOID height info projected on S2 tile',
         'DEM_RESAMPLING_METHOD'    : 'cubic',
         'ORTHORECTIFIED'           : 'true',

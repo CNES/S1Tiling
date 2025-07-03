@@ -44,7 +44,7 @@ from osgeo import gdal
 
 from s1tiling.libs.otbtools import otb_version
 
-from ..file_naming   import TemplateOutputFilenameGenerator
+from ..file_naming   import ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator
 from ..meta import (
     Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
 )
@@ -72,7 +72,9 @@ from ..configuration import (
     extended_filename_gamma_area,
     extended_filename_hidden,
     fname_fmt_gamma_area_product,
+    nodata_DEM,
     nodata_RTC,
+    nodata_XYZ,
 )
 
 
@@ -295,6 +297,41 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         ]
 
 
+class NaNifyNoData(OTBStepFactory):
+    """
+    Factory that prepares steps that replace nodata value with NaN.
+    This is a way to make sure we don't do computations on top of nodata values
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        super().__init__(
+            cfg,
+            appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_nan_nodata.tif']),
+            image_description=f"The same but with NaN",
+        )
+        self.__nodata = nodata_DEM(cfg)
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for computing border mask.
+        """
+        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        inputs = meta['inputs']
+        indem  = fetch_input_data('indem', inputs).out_filename
+        in_nodata = Utils.fetch_nodata_value(indem, is_running_dry(meta), self.__nodata)  # usually -32768
+        params : OTBParameters = {
+                'ram'              : ram(self.ram_per_process),
+                self.param_in      : [indem],
+                # self.param_out     : out_filename(meta),
+                'exp'              : f'im1b1 == {in_nodata} ? 0./0. : im1b1'
+        }
+        # logger.debug('%s(%s)', self.appname, params)
+        return params
+
+
 class ResampleDEM(OTBStepFactory):
     """
     Factory that prepares steps that run :external+OTB:doc:`Applications/app_RigidTransformResample`
@@ -324,7 +361,7 @@ class ResampleDEM(OTBStepFactory):
         super().__init__(
             cfg,
             appname='RigidTransformResample', name='ResampleDEM',
-            param_in=None, param_out='out',
+            param_in='in', param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -370,16 +407,18 @@ class ResampleDEM(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
+        imd['DEM_RESAMPLING_METHOD'] = f'X*{self.__factor_x}, Y*{self.__factor_y}'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external+OTB:doc:`RigidTransformResample OTB application
         <Applications/app_RigidTransformResample>` to resample DEM.
         """
-        assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
-        inputs = meta['inputs']
-        indem  = fetch_input_data('indem', inputs).out_filename
+        # assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
+        # inputs = meta['inputs']
+        # indem  = fetch_input_data('indem', inputs).out_filename
 
+        indem = in_filename(meta)
         params : OTBParameters = {
             "ram"                      : ram(self.ram_per_process),
             "in"                       : indem,
@@ -396,6 +435,78 @@ class ResampleDEM(OTBStepFactory):
         RigidTransformResample comes from gamma0-rtc.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
+
+
+# TODO: factorize with ProjectGeoidToS2Tile
+class ProjectGeoidToDEM(OTBStepFactory):
+    """
+    Factory that produces a :class:`Step` that projects any kind of Geoid onto target DEM footprint as
+    described in :ref:`Project Geoid to DEM footprint <project_geoid_to_dem-proc>`.
+
+    This particular implementation uses another file in the expected geometry and
+    :external+OTB:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
+    :external:std:doc:`gdalwarp <programs/gdalwarp>`, OTB application supports non-raster geoid
+    formats.
+
+    It requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `tmp_dir`    -- useless in the in-memory nomical case
+    - `fname_fmt`  -- optional key: `geoid_on_s2`, useless in the in-memory nominal case
+    - `interpolation_method` -- for use by :external+OTB:std:doc:`super impose
+      <Applications/app_Superimpose>`
+    - `out_spatial_res` -- as a workaround...
+    - `nodatas.DEM`
+
+    It requires the following information from the metadata dictionary:
+
+    - `tile_name`
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = 'GEOID_{polarless_rootname}.tiff'
+        fname_fmt = cfg.fname_fmt.get('geoid_on_dem', fname_fmt)
+        super().__init__(
+            cfg,
+            param_in="inr",
+            param_out="out",
+            appname='Superimpose',
+            name='ProjectGeoidToDEM',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'geoid_on_dem'),
+            image_description="Geoid superimposed on DEM",
+        )
+        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
+        self.__interpolation_method = cfg.interpolation_method
+        self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
+        self.__nodata               = nodata_DEM(cfg)
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set S2 related information, that'll be carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['GEOID_ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['SPATIAL_RESOLUTION']                    = str(self.__out_spatial_res)
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external+OTB:std:doc:`super impose
+        <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
+        """
+        in_s2_dem = in_filename(meta)
+        return {
+            'ram'                     : ram(self.ram_per_process),
+            'inr'                     : in_s2_dem,  # Reference input is the DEM projected on S2
+            'inm'                     : self.__GeoidFile,
+            'interpolator'            : self.__interpolation_method,  # TODO: add parameter
+            'interpolator.bco.radius' : 2,  # 2 is the default value for bco
+            'fv'                      : self.__nodata,  # Make sure meta data are correctly set
+        }
 
 
 class SARDEMProjectionImageEstimation(OTBStepFactory):
@@ -439,7 +550,8 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('s1_on_dem', fname_fmt)
         super().__init__(
             cfg,
-            appname='SARDEMProjectionImageEstimation', name='SARDEMProjectionImageEstimation',
+            appname='SARDEMProjection2',
+            name='SARDEMProjectionImageEstimation',
             param_in=None, param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
@@ -450,7 +562,7 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         self.__dem_db_filepath   = cfg.dem_db_filepath
         self.__dem_field_ids     = cfg.dem_field_ids
         self.__dem_main_field_id = cfg.dem_main_field_id
-        self.__GeoidFile         = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        self.__nodata            = nodata_XYZ(cfg)
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -538,8 +650,8 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             'insar'     : in_filename(meta),
             'indem'     : indem,
             'withxyz'   : True,
-            'nodata'    : -32768,
-            'elev.geoid': self.__GeoidFile,
+            'nodata'    : str(self.__nodata),
+            'elev.geoid': "@",
         }
 
         return params
@@ -586,10 +698,10 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
             extended_filename=extended_filename_hidden(cfg, 'gamma_area'),
             image_description='Gamma area image estimation',
         )
-        self.__distributearea         = cfg.distribute_area
-        self.__nostreaming            = cfg.disable_streaming.get('gamma_area', False)
-        self.__innermarginratio       = cfg.inner_margin_ratio
-        self.__outermarginratio       = cfg.outer_margin_ratio
+        self.__distributearea   = cfg.distribute_area
+        self.__streaming        = not cfg.disable_streaming.get('gamma_area', False)
+        self.__innermarginratio = cfg.inner_margin_ratio
+        self.__outermarginratio = cfg.outer_margin_ratio
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
@@ -679,17 +791,20 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         indemproj = fetch_input_data('indemproj', inputs).out_filename
 
         params : OTBParameters = {
-            'ram'                   : ram(self.ram_per_process),
-            'insar'                 : insar,
-            'indem'                 : indem,
-            'indemproj'             : indemproj,
-            'indirectiondemc'       : int(meta['directiontoscandemc']),
-            'indirectiondeml'       : int(meta['directiontoscandeml']),
-            'mlran'                 : 1,
-            'mlazi'                 : 1,
-            'distributearea'        : self.__distributearea,
-            'nostreaming'           : self.__nostreaming,
-            'nodata'                : -32768,
+            'ram'            : ram(self.ram_per_process),
+            'distributearea' : self.__distributearea,
+            'indem'          : indem,
+            'indemproj'      : indemproj,
+            'indirectiondemc': int(meta['directiontoscandemc']),
+            'indirectiondeml': int(meta['directiontoscandeml']),
+            'inputwindow'    : 'everything',
+            'insar'          : insar,
+            'mlazi'          : 1,
+            'mlran'          : 1,
+            'streaming'      : 'enable' if self.__streaming else 'disable',
+            'warn'           : 'once',
+            # 'precision'      : 'forcefloat',  # fixme: add option
+            # 'nodata'       : -32768,
         }
         if self.__innermarginratio:
             params["innermarginratio"]       = self.__innermarginratio

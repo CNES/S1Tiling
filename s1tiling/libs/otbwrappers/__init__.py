@@ -74,7 +74,9 @@ from .gamma_area import (
     ApplyGammaNaughtRTCCalibration,
 
     AgglomerateDEMOnS1,
+    NaNifyNoData,
     ResampleDEM,
+    ProjectGeoidToDEM,
     SARDEMProjectionImageEstimation,
     SARGammaAreaImageEstimation,
     OrthoRectifyGAMMA_AREA,
@@ -126,7 +128,9 @@ __all__ = [
     "ApplyGammaNaughtRTCCalibration",
 
     "AgglomerateDEMOnS1",
+    "NaNifyNoData",
     "ResampleDEM",
+    "ProjectGeoidToDEM",
     "SARDEMProjectionImageEstimation",
     "SARGammaAreaImageEstimation",
     "OrthoRectifyGAMMA_AREA",
