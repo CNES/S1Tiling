@@ -431,7 +431,17 @@ def given_pipeline_that_computes_LIA_in_s2(pipelines, pipeline_ids) -> None:
     )
 
     s2_height = pipelines.register_pipeline(
-            [ProjectGeoidToS2Tile, SumAllHeights], "GenerateHeightForS2Tile",
+            [
+                ProjectGeoidToS2Tile,
+                SumAllHeights(
+                    product_key='height_on_s2',
+                    key_map={'indem': 'in_s2_dem', 'ingeoid': 'in_s2_geoid'},
+                    fname_fmt_default='DEM+GEOID_projected_on_{tile_name}.tiff',
+                    dname_fmt_default='S2/{tile_name}',
+                    image_description='DEM + GEOID height info projected on S2 tile',
+                )
+            ],
+            "GenerateHeightForS2Tile",
             is_name_incremental=True,
             inputs={"in_s2_dem": s2_dem},
     )

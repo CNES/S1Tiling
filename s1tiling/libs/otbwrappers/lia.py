@@ -336,7 +336,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         }
 
 
-class SumAllHeights(OTBStepFactory):
+class _SumAllHeights(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that adds DEM + Geoid that cover a same footprint, as
     described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
@@ -345,30 +345,47 @@ class SumAllHeights(OTBStepFactory):
 
     - `ram_per_process`
     - `tmp_dir`    -- useless in the in-memory nomical case
-    - `fname_fmt`  -- optional key: `height_on_s2`, useless in the in-memory nominal case
+    - `fname_fmt`  -- optional key: `{product_key}`, useless in the in-memory nominal case
     - `nodata.DEM` -- optional
 
     It requires the following information from the metadata dictionary:
     """
+    # Useless definition used to trick pylint in believing self._key_map is set.
+    # Indeed, it's expected to be set in child classes. But pylint has now way of knowing that.
+    _key_map           : Optional[Dict[str, str]] = None
+    _fname_fmt_default : Optional[str]            = None
+    _dname_fmt_default : Optional[str]            = None
+    _product_key       : Optional[str]            = None
+    _image_description : Optional[str]            = None
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
-        fname_fmt = 'DEM+GEOID_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('height_on_s2', fname_fmt)
+        # Preconditions
+        assert self._fname_fmt_default, "This class shall be specialized through SumAllHeights() function"
+        assert self._dname_fmt_default, "This class shall be specialized through SumAllHeights() function"
+        assert self._key_map,           "This class shall be specialized through SumAllHeights() function"
+        assert self._product_key,       "This class shall be specialized through SumAllHeights() function"
+        assert self._image_description, "This class shall be specialized through SumAllHeights() function"
+
+        fname_fmt = cfg.fname_fmt.get(self._product_key, self._fname_fmt_default)
+        dname_fmt = os.path.join(cfg.tmpdir, self._dname_fmt_default)
         super().__init__(
             cfg,
             appname='BandMath',
             name='SumAllHeights',
             param_in='il',
             param_out='out',
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_tmp_dir=dname_fmt,
             gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            extended_filename=extended_filename_hidden(cfg, 'height_on_s2'),
-            image_description='DEM + GEOID height info projected on S2 tile',
+            extended_filename=extended_filename_hidden(cfg, self._product_key),
+            image_description=self._image_description,
         )
         self.__nodata = nodata_DEM(cfg)
+        self.__indem   = self._key_map['indem']
+        self.__ingeoid = self._key_map['ingeoid']
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -376,7 +393,7 @@ class SumAllHeights(OTBStepFactory):
         removal.
         """
         meta = super().complete_meta(meta, all_inputs)
-        dem_on_s2 = fetch_input_data('in_s2_dem', all_inputs).out_filename
+        dem_on_s2 = fetch_input_data(self.__indem, all_inputs).out_filename
         meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
         logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
         # Make sure to set nodata metadata in output image
@@ -395,10 +412,10 @@ class SumAllHeights(OTBStepFactory):
 
         # "in_s2_geoid" is expected at level -1, likelly named '__last'
         s2_geoid = fetch_input_data('__last', previous_steps[-1])
-        # "in_s2_dem"     is expected at level -2, likelly named 'in_s2_dem'
-        s2_dem   = fetch_input_data('in_s2_dem', previous_steps[-2])
+        # "in_s2_dem"     is expected at level -2, likelly named self.__indem
+        s2_dem   = fetch_input_data(self.__indem, previous_steps[-2])
 
-        inputs = [{'in_s2_geoid': s2_geoid, 'in_s2_dem': s2_dem}]
+        inputs = [{self.__ingeoid: s2_geoid, self.__indem: s2_dem}]
         _check_input_step_type(inputs)
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
@@ -413,8 +430,8 @@ class SumAllHeights(OTBStepFactory):
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
         assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
-        assert 'in_s2_geoid' in keys
-        return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
+        assert self.__ingeoid in keys
+        return [input[self.__ingeoid] for input in inputs if self.__ingeoid in input.keys()][0]
 
     def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
         logger.debug("Fetch DEM_RESAMPLING_METHOD from '%s'", inputpath)
@@ -433,10 +450,13 @@ class SumAllHeights(OTBStepFactory):
         """
         super().update_image_metadata(meta, all_inputs)
 
-        in_s2_dem   = fetch_input_data('in_s2_dem',   all_inputs).out_filename
+        in_s2_dem   = fetch_input_data(self.__indem,   all_inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['DEM_RESAMPLING_METHOD'] = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
+        imd['TIFFTAG_GDAL_NODATA'] = str(self.__nodata)
+        dem_resampling_method = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
+        if dem_resampling_method:
+            imd['DEM_RESAMPLING_METHOD'] = dem_resampling_method
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -445,16 +465,50 @@ class SumAllHeights(OTBStepFactory):
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_s2_dem   = fetch_input_data('in_s2_dem',   inputs).out_filename
-        in_s2_geoid = fetch_input_data('in_s2_geoid', inputs).out_filename
-        dem_nodata = Utils.fetch_nodata_value(in_s2_dem, is_running_dry(meta), self.__nodata)  # usually -32768
+        in_s2_dem    = fetch_input_data(self.__indem,   inputs).out_filename
+        in_s2_geoid  = fetch_input_data(self.__ingeoid, inputs).out_filename
+        dem_nodata   = Utils.fetch_nodata_value(in_s2_dem,   is_running_dry(meta), self.__nodata)  # usually -32768
+        # geoid_nodata = Utils.fetch_nodata_value(in_s2_geoid, is_running_dry(meta), self.__nodata)  # usually -32768/-88.8888
         params : OTBParameters = {
             'ram'         : ram(self.ram_per_process),
             self.param_in : [in_s2_geoid, in_s2_dem],
+            # 'exp'         : f'({Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} || {Utils.test_nodata_for_bandmath(geoid_nodata,"im1b1")}) ? {self.__nodata} : im1b1+im2b1'
             'exp'         : f'{Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} ? {self.__nodata} : im1b1+im2b1'
         }
         return params
 
+
+def SumAllHeights(
+    product_key      : str,
+    key_map          : Dict[str, str],
+    fname_fmt_default: str,
+    dname_fmt_default: str,
+    image_description: str,
+) -> type:
+    """
+    Factory function that returns a :class:`_SumAllHeights` child class created on the fly.
+
+    The new class name will be :samp:`SumAllHeights_{{product_key}}`.
+
+    :param str product_key:       Key used to fetch information from :class:`Configuration` object.
+    :param dict key_map:          Maps formal input names (``indem`` and ``ingeoid``) to actual
+                                  input names
+    :param str fname_fmt_default: Default filename format string.
+    :param str dname_fmt_default: Default dirname format string.
+    :param str image_description: Image description tag
+    """
+    # We return a new class
+    return type(
+        f"SumAllHeights_{product_key}",  # Class name
+        (_SumAllHeights,),         # Parent
+        {
+            '_key_map'          : key_map,
+            '_fname_fmt_default': fname_fmt_default,
+            '_dname_fmt_default': dname_fmt_default,
+            '_product_key'      : product_key,
+            '_image_description': image_description,
+        }
+    )
 
 class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     """
