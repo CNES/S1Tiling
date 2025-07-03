@@ -293,14 +293,16 @@ def mock_upto_concat_S2(
         N                 : int,
         old_IPF           : bool=False
 ):
+    assert calibration[0] != '_'
     raw_calibration = k_calib_convert.get(calibration, calibration)
     for i in range(N):
         orbit_info = file_db.get_orbit_information(i)
         input_file = file_db.input_file_vv(i)
         # expected_ortho_file = file_db.orthofile(i, False)
 
-        orthofile = file_db.orthofile(i, True, calibration='_'+raw_calibration)
-        assert '_'+raw_calibration in orthofile
+        orthofile = file_db.orthofile(i, True, calibration=f'_{raw_calibration}')
+        assert f'_{raw_calibration}' in orthofile
+        assert '__' not in orthofile
 
         # Workaround defect on skipping cut margins
         out_calib = ('ResetMargin|>OrthoRectification|>' if old_IPF else 'OrthoRectification|>' )+orthofile
@@ -430,12 +432,12 @@ def mock_upto_concat_S2(
             #     })
     else:
         for i in range((N+1)//2):
-            orthofile1 = file_db.orthofile(2*i,   False, calibration='_'+raw_calibration)
-            orthofile2 = file_db.orthofile(2*i+1, False, calibration='_'+raw_calibration)
+            orthofile1 = file_db.orthofile(2*i,   False, calibration=f'_{raw_calibration}')
+            orthofile2 = file_db.orthofile(2*i+1, False, calibration=f'_{raw_calibration}')
             application_mocker.set_expectations('Synthetize', {
                 'ram'      : param_ram(2048),
                 'il'       : [orthofile1, orthofile2],
-                'out'      : file_db.concatfile_from_two(i, True, calibration='_'+raw_calibration),
+                'out'      : file_db.concatfile_from_two(i, True, calibration=f'_{calibration}'),
             }, None,
             {
                 'ACQUISITION_DATETIME'     : file_db.start_time_for_two(i),
@@ -472,8 +474,8 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
 
     for i in range((N+1) // 2):  # Make sure to iterate even with odd number of inputs
         assert raw_calibration
-        out_mask = outfile(i, True, calibration=('_'+raw_calibration))
-        assert ('_' + raw_calibration) in out_mask
+        out_mask = outfile(i, True, calibration=f'_{raw_calibration}')
+        assert (f'_{raw_calibration}') in out_mask
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
             'il'       : [infile(i, False)],
@@ -1375,6 +1377,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
     configuration.calibration_type = 'normlim'
     configuration.lia_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
@@ -1417,7 +1420,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
     is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     application_mocker.set_expectations('BandMath', {
         'ram'      : param_ram(2048),
-        'il'       : [file_db.concatfile_from_two(0, False, calibration='_beta'), file_db.selectedsinLIAfile()],
+        'il'       : [file_db.concatfile_from_two(0, False, calibration='_normlim'), file_db.selectedsinLIAfile()],
         'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
         'out'      : file_db.sigma0_normlim_file_from_two(0, True),
     }, None,
@@ -1457,6 +1460,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'normlim'
     configuration.lia_directory = liadir.absolute()
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(
@@ -1504,7 +1508,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
     for idx in range(number_dates):
         application_mocker.set_expectations('BandMath', {
             'ram'      : param_ram(2048),
-            'il'       : [file_db.concatfile_from_two(idx, False, calibration='_beta'), file_db.selectedsinLIAfile()],
+            'il'       : [file_db.concatfile_from_two(idx, False, calibration='_normlim'), file_db.selectedsinLIAfile()],
             'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
             'out'      : file_db.sigma0_normlim_file_from_two(idx, True),
         }, None,
@@ -1603,6 +1607,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
     configuration.gamma_area_directory    = gamma_areadir.absolute()
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpsigma.tif'
     logging.info("Gamma0 RTC mocked test")
 
     file_db = FileDB(
@@ -1640,10 +1645,11 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
     mock_GAMMA_AREA_v1_0(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'gamma_naught_rtc', 2)
 
+    insigmanaught = file_db.concatfile_from_two(0, False, calibration='_gamma_naught_rtc')
     application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
         'ram'                   : param_ram(2048),
         'ingammaarea'           : file_db.selectedGAMMA_AREAfile(),
-        'inbetanaught'          : file_db.concatfile_from_two(0, False, calibration='_beta'),
+        'inbetanaught'          : insigmanaught,
         'mingammaarea'          : 1.0,
         'nostreaming'           : False,
         'calibfactor'           : 1.0,
@@ -1685,6 +1691,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
     configuration.gamma_area_directory = gamma_areadir.absolute()
+    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpsigma.tif'
     logging.info("Gamma0 RTC mocked test")
 
     file_db = FileDB(
@@ -1728,19 +1735,20 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
 
     for idx in range(number_dates):
+        insigmanaught = file_db.concatfile_from_two(idx, False, calibration='_gamma_naught_rtc')
         application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
-            'ram': param_ram(2048),
-            'ingammaarea': file_db.selectedGAMMA_AREAfile(),
-            'inbetanaught': file_db.concatfile_from_two(idx, False, calibration='_beta'),
-            'mingammaarea': 1.0,
-            'nostreaming': False,
-            'calibfactor': 1.0,
-            'outputnodata': False,
-            'nodata': 0,
-            'out': file_db.gamma0_rtc_file_from_two(idx, True),
+            'ram'          : param_ram(2048),
+            'ingammaarea'  : file_db.selectedGAMMA_AREAfile(),
+            'inbetanaught' : insigmanaught,
+            'mingammaarea' : 1.0,
+            'nostreaming'  : False,
+            'calibfactor'  : 1.0,
+            'outputnodata' : False,
+            'nodata'       : 0,
+            'out'          : file_db.gamma0_rtc_file_from_two(idx, True),
         }, None, {
-            'CALIBRATION': 'GammaNaughtRTC',
-            'GAMMA_AREA_FILE': os.path.basename(file_db.selectedGAMMA_AREAfile()),
+            'CALIBRATION'             : 'GammaNaughtRTC',
+            'GAMMA_AREA_FILE'         : os.path.basename(file_db.selectedGAMMA_AREAfile()),
             'TIFFTAG_IMAGEDESCRIPTION': 'Gamma0 RTC Calibrated Sentinel-1A IW GRD',
         })
 

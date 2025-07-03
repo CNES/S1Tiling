@@ -58,7 +58,7 @@ k_input_keys  = [
     # 'transform.type.id.scalex',
     # 'transform.type.id.scaley',
     'ingammaarea',
-    'inbetanaught',
+    'insigmanaught',
     # 'mingammaarea',
     # 'calibfactor',
     # 'nostreaming',

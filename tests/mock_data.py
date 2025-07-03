@@ -40,6 +40,10 @@ from s1tiling.libs.otbtools import otb_version
 
 # from .mock_otb import compute_coverage
 
+
+k_calib_convert = {'_normlim' : '_tmpbeta', '_gamma_naught_rtc' : '_tmpsigma'}
+
+
 def tmp_suffix(tmp: Union[bool,str]) -> str:
     return '.tmp' if tmp else ''
 
@@ -312,6 +316,12 @@ class FileDB:
                 (self.gamma0_rtc_file_from_one,      NFiles),
                 (self.gamma0_rtc_file_from_two,      NConcats),
         ]
+        names_to_map_for_rtc_calib : List[Tuple[Callable, int]] = [
+                (self.concatfile_from_two,           NConcats),
+        ]
+        names_to_map_for_lia_calib : List[Tuple[Callable, int]] = [
+                (self.concatfile_from_two,           NConcats),
+        ]
         names_to_map_for_beta_calib : List[Tuple[Callable, int]] = [
                 (self.orthofile,                    NFiles),
                 # (self.concatfile_from_one,          NFiles),
@@ -354,6 +364,20 @@ class FileDB:
                 assert tmp not in self.__tmp_to_out_map
                 assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
                 self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_beta')
+        # coded σ° LIA-calibration cases...
+        for func, nb in names_to_map_for_lia_calib:
+            for idx in range(nb):
+                tmp = func(idx, True, calibration='_normlim')
+                assert tmp not in self.__tmp_to_out_map
+                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_normlim')
+        # coded γ°RTC-calibration cases...
+        for func, nb in names_to_map_for_rtc_calib:
+            for idx in range(nb):
+                tmp = func(idx, True, calibration='_gamma_naught_rtc')
+                assert tmp not in self.__tmp_to_out_map
+                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_gamma_naught_rtc')
         # mapping when there is no idx.
         for func, nb in names_to_map_no_idx:
             tmp = func(True)
@@ -554,19 +578,26 @@ class FileDB:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
+    # ----------[ ortho
     def orthofile(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
+        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+            **crt,
+            tmp=tmp_suffix(tmp),
+            calibration=calibration
+        ).format(polarity=polarity)
 
+    # ----------[ concat
     def _concatfile_for_all(self, crt, tmp, polarity, calibration) -> str:
-        if tmp or (calibration == '_beta'):
+        if tmp or (calibration in k_calib_convert):
+            calibration = k_calib_convert.get(calibration, calibration)
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> TMP', tmp, calibration)
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         else:
-            # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT', tmp, calibration)
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
+            # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT ==> %r', tmp, calibration, dir)
         ext = self.extended_compress_predictor if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
         return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
