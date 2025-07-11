@@ -126,7 +126,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         )
         self.__mingammaarea = cfg.min_gamma_area
         self.__calibfactor  = cfg.calibration_factor
-        self.__nostreaming  = cfg.disable_streaming.get('apply_gamma_area', False)
+        self.__streaming    = not cfg.disable_streaming.get('apply_gamma_area', False)
         self.__nodata       = nodata_RTC(cfg)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
@@ -188,15 +188,15 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
         in_gamma_area = fetch_input_data('gamma_area', inputs).out_filename
         params : OTBParameters = {
-            'ram'         : ram(self.ram_per_process),
-            'ingammaarea' : in_gamma_area,
-            'inbetanaught': in_concat_S2,
-            'mingammaarea': self.__mingammaarea,
-            'calibfactor' : self.__calibfactor,
-            'nostreaming' : self.__nostreaming,
-            'outputnodata': self.__nodata is not None,
-            # TODO: simplify nodata parameters in that application
-            'nodata'      : int(self.__nodata) if self.__nodata else 0,
+            'ram'          : ram(self.ram_per_process),
+            'ingammaarea'  : in_gamma_area,
+            'insigmanaught': in_concat_S2,
+            'mingammaarea' : self.__mingammaarea,
+            'calibfactor'  : self.__calibfactor,
+            'streaming'    : 'enable' if self.__streaming else 'disable',
+            'outputnodata' : self.__nodata is not None,
+            # TODO         : simplify nodata parameters in that application
+            'nodata'       : self.__nodata if self.__nodata else '0',
         }
         return params
 

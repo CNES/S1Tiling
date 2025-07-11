@@ -1647,15 +1647,15 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
 
     insigmanaught = file_db.concatfile_from_two(0, False, calibration='_gamma_naught_rtc')
     application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
-        'ram'                   : param_ram(2048),
-        'ingammaarea'           : file_db.selectedGAMMA_AREAfile(),
-        'inbetanaught'          : insigmanaught,
-        'mingammaarea'          : 1.0,
-        'nostreaming'           : False,
-        'calibfactor'           : 1.0,
-        'outputnodata'          : False,
-        'nodata'                : 0,
-        'out': file_db.gamma0_rtc_file_from_two(0, True),
+        'ram'           : param_ram(2048),
+        'ingammaarea'   : file_db.selectedGAMMA_AREAfile(),
+        'insigmanaught' : insigmanaught,
+        'mingammaarea'  : 1.0,
+        'calibfactor'   : 1.0,
+        'streaming'     : 'enable',
+        'outputnodata'  : False,
+        'nodata'        : '0',
+        'out'           : file_db.gamma0_rtc_file_from_two(0, True),
     }, None, {
         'CALIBRATION'              : 'GammaNaughtRTC',
         'GAMMA_AREA_FILE'          : os.path.basename(file_db.selectedGAMMA_AREAfile()),
@@ -1737,15 +1737,15 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     for idx in range(number_dates):
         insigmanaught = file_db.concatfile_from_two(idx, False, calibration='_gamma_naught_rtc')
         application_mocker.set_expectations('SARGammaAreaToGammaNaughtRTCImageEstimation', {
-            'ram'          : param_ram(2048),
-            'ingammaarea'  : file_db.selectedGAMMA_AREAfile(),
-            'inbetanaught' : insigmanaught,
-            'mingammaarea' : 1.0,
-            'nostreaming'  : False,
-            'calibfactor'  : 1.0,
-            'outputnodata' : False,
-            'nodata'       : 0,
-            'out'          : file_db.gamma0_rtc_file_from_two(idx, True),
+            'ram'           : param_ram(2048),
+            'ingammaarea'   : file_db.selectedGAMMA_AREAfile(),
+            'insigmanaught' : insigmanaught,
+            'mingammaarea'  : 1.0,
+            'streaming'     : 'enable',
+            'calibfactor'   : 1.0,
+            'outputnodata'  : False,
+            'nodata'        : '0',
+            'out'           : file_db.gamma0_rtc_file_from_two(idx, True),
         }, None, {
             'CALIBRATION'             : 'GammaNaughtRTC',
             'GAMMA_AREA_FILE'         : os.path.basename(file_db.selectedGAMMA_AREAfile()),
