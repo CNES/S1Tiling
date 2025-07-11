@@ -305,11 +305,11 @@ class NaNifyNoData(OTBStepFactory):
     def __init__(self, cfg: Configuration) -> None:
         super().__init__(
             cfg,
-            appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+            appname='BandMath', name='NaNifyNoData', param_in='il', param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_nan_nodata.tif']),
-            image_description=f"The same but with NaN",
+            image_description="The same but with NaN",
         )
         self.__nodata = nodata_DEM(cfg)
 

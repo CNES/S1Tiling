@@ -646,7 +646,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             'gamma_area'       : False,
             'apply_gamma_area' : False,
         }
-        for key in self.disable_streaming.keys():
+        for key in self.disable_streaming:
             disable = accessor.getboolean('Processing', f'disable_streaming.{key}', fallback=None)
             if disable is not None:
                 self.disable_streaming[key] = disable
