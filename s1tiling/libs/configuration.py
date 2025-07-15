@@ -551,6 +551,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.nodatas['LIA'] = accessor.get('Processing', 'nodata.LIA', fallback=None)  # None=>default
         self.nodatas['IA']  = accessor.get('Processing', 'nodata.IA',  fallback=None)  # None=>default
         self.nodatas['RTC'] = accessor.get('Processing', 'nodata.RTC', fallback=None)  # None=>no nodata
+        self.nodatas['XYZ'] = accessor.get('Processing', 'nodata.XYZ', fallback=None)  # None=>default
 
         # - - - - - - - - - -[ GAMMA AREA
         #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
@@ -652,6 +653,14 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             # logging.debug(" creation_options.%s = %s", key, s_cos)
             # Default value is defined in associated StepFactories
             if s_cos:
+                _analyse_creation_option(
+                    self.creation_options,
+                    s_cos,
+                    key,
+                    accessor.throw,
+                )
+                return
+
                 l_cos = _split_option(s_cos)
                 cos = {}
                 if l_cos[0] in PIXEL_TYPES:
@@ -672,7 +681,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     def __init_disable_streaming(self, accessor: _ConfigAccessor) -> None:
         # Permit to disable streaming in some applications
         self.disable_streaming = {
-            'normals_on_s2'    : True,  # Will acutally depend OTB version, and OTB#2442
+            'normals_on_s2'    : otb_version() < '9.1.1',
             'gamma_area'       : False,
             'apply_gamma_area' : False,
         }
@@ -835,6 +844,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         return self.__dems_by_s2_tiles[tile_name]
 
 
+# ================================================================================
+# Name formats
 class NameFormattingConfiguration(Protocol):
     """
     Specialized protocol for configuration information related to name generation configuration data.
@@ -947,6 +958,8 @@ def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     return cfg.dname_fmt.get('eof_product', '{eof_dir}')
 
 
+# ================================================================================
+# Creation options
 class CreationOptionConfiguration(Protocol):
     """
     Specialized protocol for configuration information related to creation option configuration data.
@@ -956,6 +969,31 @@ class CreationOptionConfiguration(Protocol):
     creation_options : Dict
     disable_streaming: Dict[str, bool]
 
+
+def _analyse_creation_option(
+    creation_options: Dict,
+    s_cos           : str,
+    key             : str,
+    throw           : Callable[[str], None],
+) -> None:
+    assert s_cos, "Creation option string shall not be empty"
+    # logging.debug(" creation_options.%s = %s", key, s_cos)
+    # Default value is defined in associated StepFactories
+    l_cos = _split_option(s_cos)
+    cos = {}
+    if l_cos[0] in PIXEL_TYPES:
+        cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
+        cos['gdal_options'] = l_cos[1:]
+    else:
+        cos['gdal_options'] = l_cos[0:]
+    for co in cos['gdal_options']:
+        KEY_PATTERN = re.compile(r'[A-Z_0-9]+=')
+        if not KEY_PATTERN.match(co):
+            # The only validation used is UPPERCASE=value
+            # We don't check against a list that may change over time. In that case the error will be caught later.
+            throw(f"{co} is not a valid GDAL creation option for {key}. Expected syntax is `<OPTIONNAME>=<value>`")
+
+    creation_options[key] = cos
 
 def pixel_type(cfg: CreationOptionConfiguration, product: str, default: Optional[str] = None):  # -> PixelType:
     """
@@ -1064,6 +1102,8 @@ def extended_filename_hidden(cfg: CreationOptionConfiguration, product: str) -> 
     return _extended_filename(cfg, product, ())
 
 
+# ================================================================================
+# no-data
 def _get_nodata(d: Dict[str, Optional[Union[str, int, float]]], key: str, default_value: Union[str, int, float]):
     """
     Internal helper to extract nodata value from configuration directionaries.
