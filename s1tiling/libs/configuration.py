@@ -58,8 +58,6 @@ from ..__meta__ import __version__ as s1tiling_version
 
 resource_dir = Path(__file__).parent.parent.absolute() / 'resources'
 
-SPLIT_PATTERN = re.compile(r"^\s+|\s*,\s*|\s+$")
-
 PIXEL_TYPES = {
     'uint8'   : otb.ImagePixelType_uint8,
     'int16'   : otb.ImagePixelType_int16,
@@ -67,12 +65,44 @@ PIXEL_TYPES = {
     'int32'   : otb.ImagePixelType_int32,
     'uint32'  : otb.ImagePixelType_uint32,
     'float'   : otb.ImagePixelType_float,
+    'float32' : otb.ImagePixelType_float,  # alias for float
     'double'  : otb.ImagePixelType_double,
+    'float64' : otb.ImagePixelType_double,  # alias for double
     'cint16'  : otb.ImagePixelType_cint16,
     'cint32'  : otb.ImagePixelType_cint32,
     'cfloat'  : otb.ImagePixelType_cfloat,
     'cdouble' : otb.ImagePixelType_cdouble,
 }
+
+SPLIT_PATTERN = re.compile(r"[\s,]+")
+
+
+def _split_option(option_str: str) -> List[str]:
+    """
+    Factorize option splitting
+
+    >>> _split_option('S1A, S1C')
+    ['S1A', 'S1C']
+    >>> _split_option('S1A, S1C  ')
+    ['S1A', 'S1C']
+    >>> _split_option('  S1A, S1C  ')
+    ['S1A', 'S1C']
+    >>> _split_option('  S1A, S1C')
+    ['S1A', 'S1C']
+    >>> _split_option('S1A S1C')
+    ['S1A', 'S1C']
+    >>> _split_option('S1A   S1C  ')
+    ['S1A', 'S1C']
+    >>> _split_option('  S1A S1C  ')
+    ['S1A', 'S1C']
+    >>> _split_option('  S1A S1C')
+    ['S1A', 'S1C']
+    >>> _split_option('  S1A S1B,S1C')
+    ['S1A', 'S1B', 'S1C']
+    >>> _split_option('TILED=YES')
+    ['TILED=YES']
+    """
+    return [x for x in SPLIT_PATTERN.split(option_str) if x]
 
 
 def _load_log_config(cfgpaths: Path) -> Dict:
@@ -369,7 +399,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.last_date           = accessor.get('DataSource', 'last_date')
 
         platform_list_str        = accessor.get('DataSource', 'platform_list', fallback='')
-        platform_list            = [x for x in SPLIT_PATTERN.split(platform_list_str) if x]
+        platform_list            = _split_option(platform_list_str)
         unsupported_platforms    = [p for p in platform_list if p and not p.startswith("S1")]
         if unsupported_platforms:
             accessor.throw(f"Non supported requested platforms: {', '.join(unsupported_platforms)}")
@@ -490,7 +520,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         else:
             tiles = accessor.get('Processing', 'tiles')
             #: List of S2 tiles to process: See :ref:`[Processing.tiles] <Processing.tiles>`
-            self.tile_list = [s.strip() for s in re.split(r'\s*,\s*', tiles)]
+            self.tile_list = _split_option(tiles)
 
         # - - - - - - - - - -[ Parallelization & RAM
         #: Number of tasks executed in parallel: See :ref:`[Processing.nb_parallel_processes] <Processing.nb_parallel_processes>`
@@ -503,7 +533,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         # - - - - - - - - - -[ IA/LIA
         #: List of IA maps to produce (sin, tan, cos, [deg]): See :ref:`[Processing.ia_maps_to_produce] <Processing.ia_maps_to_produce>`
         produce_ia_map_list_str    = accessor.get('Processing', 'ia_maps_to_produce', fallback='deg')
-        produce_ia_map_list        = [x for x in SPLIT_PATTERN.split(produce_ia_map_list_str) if x]
+        produce_ia_map_list        = _split_option(produce_ia_map_list_str)
         self.ia_maps_to_produce: List[str] = produce_ia_map_list
 
         #: Tells whether LIA map in degrees * 100 shall be produced alongside the sine map: See :ref:`[Processing.produce_lia_map] <Processing.produce_lia_map>`
@@ -622,7 +652,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             # logging.debug(" creation_options.%s = %s", key, s_cos)
             # Default value is defined in associated StepFactories
             if s_cos:
-                l_cos = [x for x in SPLIT_PATTERN.split(s_cos) if x]
+                l_cos = _split_option(s_cos)
                 cos = {}
                 if l_cos[0] in PIXEL_TYPES:
                     cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
