@@ -71,6 +71,7 @@ from ..configuration import (
     dname_fmt_gamma_area_product, dname_fmt_tiled,
     extended_filename_gamma_area,
     extended_filename_hidden,
+    extended_filename_s1_on_dem,
     fname_fmt_gamma_area_product,
     nodata_DEM,
     nodata_RTC,
@@ -556,7 +557,7 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            extended_filename=extended_filename_hidden(cfg, 's1_on_dem'),
+            extended_filename=extended_filename_s1_on_dem(cfg),
             image_description="SARDEM projection onto DEM list",
         )
         self.__dem_db_filepath   = cfg.dem_db_filepath

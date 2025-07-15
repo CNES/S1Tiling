@@ -981,6 +981,9 @@ def _extended_filename(
     """
     cos = cfg.creation_options.get(product, {})
     gdal_options = cos.get('gdal_options', default)
+    # logging.debug("gdal_options[%s] = %r  | default=%r", product, gdal_options, default)
+    assert gdal_options is not None, f"Invalid value stored in gdal_options"
+    assert isinstance(gdal_options, Sequence) and not isinstance(gdal_options, str), f"{gdal_options=!r} is not a list"
     res = ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
     return f'?{res}' if res else ''
 
@@ -1040,6 +1043,15 @@ def extended_filename_lia_sin(cfg: CreationOptionConfiguration) -> str:
     deprecated:: 1.2
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])
+
+
+def extended_filename_s1_on_dem(cfg: CreationOptionConfiguration) -> str:
+    """
+    Helper function that returns GDAL creation options through
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for `S1 info projected on DEM
+    geometry` products.
+    """
+    return _extended_filename(cfg, 's1_on_dem', ['COMPRESS=DEFLATE', 'BIGTIFF=YES', 'PREDICTOR=3', 'TILED=YES', 'BLOCKXSIZE=1024', 'BLOCKYSIZE=1024'])
 
 
 def extended_filename_hidden(cfg: CreationOptionConfiguration, product: str) -> str:
