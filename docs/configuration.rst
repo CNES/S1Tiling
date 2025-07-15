@@ -749,6 +749,11 @@ You can use this :download:`this template
           - ``.lia_sin``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
 
+            .. _Processing.creation_options.s1_on_dem:
+        * - :ref:`S1 image information projected on DEM <S1_on_dem-files>`
+          - ``.s1_on_dem``
+          - ``float32 COMPRESS=DEFLATE, BIGTIFF=YES, PREDICTOR=3, TILED=YES, BLOCKXSIZE=1024, BLOCKYSIZE=1024``
+
             .. _Processing.creation_options.gamma_area:
         * - :ref:`GAMMA_AREA in meters square <gamma_area_s2-files>`
           - ``.gamma_area``
@@ -781,7 +786,9 @@ You can use this :download:`this template
         * - ``.gamma_area``
           - :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
           - ``False``
-          -
+          - Eliminates artefacts in between streaming tile when ``True``, which
+            requires a lot of memory see :ref:`γ Area production scenario
+            <scenario.S1GammaAreaMap.ram-greedy>`.
 
             .. _Processing.disable_streaming.apply_gamma_area:
         * - ``.apply_gamma_area``

@@ -811,9 +811,11 @@ S1 coordinates projected on DEM geometry
 
     ``fname_fmt.s1_on_dem`` = :samp:`S1_on_DEM_{{polarless_basename}}`
 
-:Product encoding: Float32 GeoTIFF, 7 bands: C (column into SAR image), L (line
-                   into SAR image), Z and Y, XCartesian, YCartesian,
-                   ZCartesian.
+:Product encoding: Float32 GeoTIFF, deflate compressed, and tiled by default.
+                   But float64 precision is recommended when possible.
+                   |br|
+                   7 bands: C (column into SAR image), L (line into SAR image),
+                   Z and Y, X-Cartesian, Y-Cartesian, Z-Cartesian.
 
 :Metadata: The following metadata is added to the origin S1 images
 

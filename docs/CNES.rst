@@ -350,6 +350,12 @@ cluster like TREX.
   * - :ref:`[Processing].ram_per_process <Processing.ram_per_process>`
     - RAM allowed per OTB application pipeline, in MB.
 
+      .. important::
+         In case of the :ref:`production of γ Area maps
+         <scenario.S1GammaAreaMap>` without loss of any precision, at least 70
+         GB is recommended. Anything less may end-up with numeric imprecisions
+         on the frontier of each computed stream.
+
   * - SLURM resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs, but they should use different working spaces

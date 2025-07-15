@@ -438,6 +438,32 @@ masking… But the following (non-obvious) options are mandatory:
    See :ref:`Using S1GammaAreaMap with a docker <docker.S1GammaAreaMap>`.
 
 
+.. _scenario.S1GammaAreaMap.ram-greedy:
+.. warning::
+   `SARGammaAreaImageEstimation application <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_
+   is really RAM greedy.
+   In order to work on ground coordinates, with a precision under 1 meter, we
+   need to project :ref:`Cartesian coordinates from S1 image onto DEM geometry
+   <S1_on_dem-files>` in ``float64`` precision. These files weight around 60
+   Giga Bytes, in memory, when :ref:`DEM are 2x,2x resampled
+   <Processing.use_resampled_dem>`. The precision can be tuned with
+   :ref:`[Processing].creation_options.s1_on_dem option
+   <Processing.creation_options.s1_on_dem>`. This option will also permit to
+   reduce the file footprint through compression.
+
+   Finally, to guarantee no artefact happens between streaming tiles,
+   `SARGammaAreaImageEstimation` needs to load the entirety of these files;
+   in order words, :ref:`streaming would need to be disabled
+   <Processing.disable_streaming.gamma_area>`.
+
+   .. code:: ini
+
+       [Processing]
+       ram_per_process              = 70000
+       disable_streaming.gamma_area = True
+       creation_options.s1_on_dem   = float64 COMPRESS=DEFLATE, BIGTIFF=YES, PREDICTOR=3, TILED=YES, BLOCKXSIZE=1024, BLOCKYSIZE=1024
+
+
 .. _scenario.masks:
 
 Generate masks on final products
