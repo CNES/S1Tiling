@@ -95,6 +95,7 @@ from ..configuration   import (
     extended_filename_hidden,
     extended_filename_lia_degree,
     extended_filename_lia_sin,
+    extended_filename_s1_on_dem,
     extended_filename_tiled,
     nodata_DEM,
     nodata_LIA,
@@ -1049,9 +1050,15 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         image_description  : List[str] = []
         def register_output(fname_fmt, ia_map: IA_map):
             if fname_fmt:
+                default_disable_streaming = otb_version() < '9.1.1'
                 params_out        .append(f'out.{ia_map.name}')
                 fname_fmts        .append(TemplateOutputFilenameGenerator(fname_fmt))
-                extended_filenames.append(extended_filename_ia(cfg, ia_map))
+                extended_filenames.append(
+                    extended_filename_ia(
+                        cfg,
+                        ia_map,
+                        cfg.disable_streaming.get('normals_on_s2', default_disable_streaming) and incidence_angle_kind == "LIA"
+                    ))
                 pixel_types       .append(pixel_type_ia(cfg, ia_map, incidence_angle_kind))
                 self.__data_types .append(self._data_type_fmts[ia_map].format(IA=incidence_angle_kind))
                 image_description .append(image_description_dict[ia_map])
@@ -1437,6 +1444,7 @@ class SARDEMProjection(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_s1_on_dem(cfg),
             image_description="SARDEM projection onto DEM list",
         )
         self.__dem_db_filepath     = cfg.dem_db_filepath
