@@ -251,6 +251,7 @@ class FileDB:
     extended_nodata             = '&nodata={nodata}'
     extended_compress           = '?&gdal:co:COMPRESS=DEFLATE'
     extended_compress_predictor = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:PREDICTOR=3'
+    extended_tiled_compress     = '?&gdal:co:COMPRESS=DEFLATE&gdal:co:BIGTIFF=YES&gdal:co:PREDICTOR=3&gdal:co:TILED=YES&gdal:co:BLOCKXSIZE=1024&gdal:co:BLOCKYSIZE=1024'
     extended_geom_compress      = extended_compress_predictor
     extended_geom_compress_nopr = extended_compress
     if otb_version() < "8.0.0":
@@ -669,8 +670,9 @@ class FileDB:
             ext = ''
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["height_on_s1"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sardemprojfile(self, idx, tmp) -> str:
+        ext = self.extended_tiled_compress if tmp else ''
         crt = self.FILES[idx]
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def xyzfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
