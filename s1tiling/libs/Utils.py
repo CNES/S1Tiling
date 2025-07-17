@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -161,6 +161,27 @@ def fetch_nodata_value(
             return nodata if nodata is not None else default_value
     else:
         return default_value
+
+
+def set_nodata_value(
+        inputpath: Union[str, Path],
+        is_running_dry: bool,
+        value: Union[int,float,str],
+        band_nr: int = 1
+) -> None:
+    """
+    Set no data value
+    """
+    logger.debug("Set No-data value to %s in '%s'", value, inputpath)
+    if is_running_dry:
+        return
+    with gdal_open(inputpath, gdal.GA_Update) as ds:
+        if not ds:
+            raise RuntimeError(f"Cannot open file {inputpath!r} to set no-data value.")
+        band = ds.GetRasterBand(band_nr)
+        if not band:
+            raise RuntimeError(f"Cannot open access band {band_nr} in file {inputpath!r} to set no-data value.")
+        band.SetNoDataValue(value)
 
 
 def test_nodata_for_bandmath(nodata, bandname):

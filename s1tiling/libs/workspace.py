@@ -40,6 +40,8 @@ import shutil
 import tempfile
 from typing import Dict, List, Optional, Protocol, Tuple, Union
 
+from s1tiling.libs.Utils import fetch_nodata_value, set_nodata_value
+
 from . import exceptions
 from .configuration import (
     Configuration, dname_fmt_filtered, dname_fmt_gamma_area_product, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
@@ -206,9 +208,15 @@ class DEMWorkspace:
             if not geoid_filelink.exists():
                 geoid_filelink.parent.mkdir(parents=True, exist_ok=True)
                 do_localize(geoid_file, geoid_filelink)
-                # in case there is an associated file like (egm96.grd.hdr), copy/symlink it as well
-                if os.path.isfile(with_hdr := f"{geoid_file}.hdr"):
-                    do_localize(with_hdr, geoid_filelink.with_suffix(geoid_filelink.suffix+'.hdr'))
+                # in case there is an associated file like `egm96.grd.hdr` or `egm96.gtx.aux.xml`, copy/symlink it as well
+                for suffix in ('hdr', 'aux.xml'):
+                    if os.path.isfile(with_extra := f"{geoid_file}.{suffix}"):
+                        do_localize(with_extra, geoid_filelink.with_suffix(f'{geoid_filelink.suffix}.{suffix}'))
+            # Make sure Geoid nodata value is not something like -88.88
+            geoid_nodata = float(fetch_nodata_value(geoid_filelink, is_running_dry=False, default_value=0))
+            logger.debug("'%s' nodata is %s", geoid_filelink, geoid_nodata)
+            if -200 < geoid_nodata < 200 :
+                set_nodata_value(geoid_filelink, is_running_dry=False, value=-32768)
 
         return self.__tmpdemdir.name
 
