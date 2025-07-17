@@ -205,6 +205,9 @@ def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, 
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
 
+    resources_dir = crt_dir.parent.absolute() / 's1tiling/resources'
+    os.environ['S1TILING_RESOURCES']               = str(resources_dir)
+
     images = [
             '33NWB/s1a_33NWB_vh_DES_007_20200108txxxxxx_BorderMask.tif',
             '33NWB/s1a_33NWB_vv_DES_007_20200108txxxxxx_BorderMask.tif',
@@ -278,6 +281,10 @@ def set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdi
     os.environ['S1TILING_TEST_SRTM']               = str(demdir.absolute())
     os.environ['S1TILING_TEST_TMPDIR']             = str(tmpdir.absolute())
     os.environ['S1TILING_TEST_RAM']                = str(ram)
+
+    crt_dir       = pathlib.Path(__file__).parent.absolute()
+    resources_dir = crt_dir.parent.absolute() / 's1tiling/resources'
+    os.environ['S1TILING_RESOURCES']               = str(resources_dir)
 
 
 k_calib_convert = {
@@ -935,7 +942,9 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'nodata'     : str(nodata_RTC),
             'elev.geoid' : '@',
             'out'        : file_db.sardemprojfile(idx, True),
-        }, None, {
+        }, {
+            # 'out': otb.ImagePixelType_float
+        }, {
             'ACQUISITION_DATETIME'     : file_db.start_time(idx),
             'DEM_LIST'                 : ', '.join(exp_dem_names),
             'FLYING_UNIT_CODE'         : 's1a',
