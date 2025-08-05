@@ -12,11 +12,11 @@
    :local:
    :depth: 3
 
-Two data flows are possibles:
+Two data flows are possible:
 
-- with :program:`S1GammaAreaMap` only γ area maps are produced,
-- with :program:`S1Processor` γ area maps are produced if not found, then
-  :math:`γ^0_{T}` orthorectified files are produced.
+- with :ref:`S1GammaAreaMap` only γ area maps are produced,
+- with :ref:`S1Processor` γ area maps are produced if not found, then
+  :math:`γ^0_{T}` calibrated and orthorectified files are produced.
 
 :math:`γ^0_{T}` RTC global processing
 -------------------------------------
@@ -51,12 +51,12 @@ For each S2 tile,
 
 3. Then, for each polarisation (S1Processor scenario only),
 
-   1. It :ref:`calibrates with β° LUT <calibration-proc>`, :ref:`cuts
+   1. It :ref:`calibrates with σ° LUT <calibration-proc>`, :ref:`cuts
       <cutting-proc>` and :ref:`orthorectifies <orthorectification>` all the S1
       images onto the S2 grid,
    2. It :ref:`superposes (concatenates) <concatenation-proc>` the
       orthorectified images into a single S2 tile,
-   3. It :ref:`normalizes <apply_gamma_area-proc>` the β° orthorectified image
+   3. It :ref:`normalizes <apply_gamma_area-proc>` the σ° orthorectified image
       with the γ area map.
 
 
@@ -142,27 +142,27 @@ dependencies.
          { rank = same ;  raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3}
 
          # =====[ Classic workflow
-         o_nwb_d1_t1 [label="Orthorectified β° 33NWB d1 t1", href="files.html#orthorectified-files", fillcolor=lightyellow]
-         o_nwb_d1_t2 [label="Orthorectified β° 33NWB d1 t2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d1_t1 [label="Orthorectified σ° 33NWB d1 t1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d1_t2 [label="Orthorectified σ° 33NWB d1 t2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
-         o_nwb_d2_t1 [label="Orthorectified β° 33NWB d2 t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
-         o_nwb_d2_t2 [label="Orthorectified β° 33NWB d2 t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d2_t1 [label="Orthorectified σ° 33NWB d2 t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_d2_t2 [label="Orthorectified σ° 33NWB d2 t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
-         o_nwb_dn_t1 [label="Orthorectified β° 33NWB dn t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
-         o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_dn_t1 [label="Orthorectified σ° 33NWB dn t'1", href="files.html#orthorectified-files", fillcolor=lightyellow]
+         o_nwb_dn_t2 [label="Orthorectified σ° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
-         # Concatenated β° calibrated + orthorectified nodes
-         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
-         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
-         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
+         # Concatenated σ° calibrated + orthorectified nodes
+         nwb_d1_b0 [label="S2 σ° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 σ° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 σ° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
 
-         # Classic workflow up to concatenated β° calibrated + orthorectified nodes
-         raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
-         raw_d1_t2t3 -> o_nwb_d1_t2 [label="β° cal | noise | cut | ortho"];
-         raw_d2_t1t2 -> o_nwb_d2_t1 [label="β° cal | noise | cut | ortho"];
-         raw_d2_t2t3 -> o_nwb_d2_t2 [label="β° cal | noise | cut | ortho"];
-         raw_dn_t1t2 -> o_nwb_dn_t1 [label="β° cal | noise | cut | ortho"];
-         raw_dn_t2t3 -> o_nwb_dn_t2 [label="β° cal | noise | cut | ortho"];
+         # Classic workflow up to concatenated σ° calibrated + orthorectified nodes
+         raw_d1_t1t2 -> o_nwb_d1_t1 [label="σ° cal | noise | cut | ortho"];
+         raw_d1_t2t3 -> o_nwb_d1_t2 [label="σ° cal | noise | cut | ortho"];
+         raw_d2_t1t2 -> o_nwb_d2_t1 [label="σ° cal | noise | cut | ortho"];
+         raw_d2_t2t3 -> o_nwb_d2_t2 [label="σ° cal | noise | cut | ortho"];
+         raw_dn_t1t2 -> o_nwb_dn_t1 [label="σ° cal | noise | cut | ortho"];
+         raw_dn_t2t3 -> o_nwb_dn_t2 [label="σ° cal | noise | cut | ortho"];
 
          o_nwb_d1_t1 -> nwb_d1_b0 [label="concatenation"];
          o_nwb_d1_t2 -> nwb_d1_b0 [label="concatenation"];
@@ -241,6 +241,12 @@ Project SAR coordinates onto DEM
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
 :OTBApplication: :external:std:doc:`Our patched version of DiapOTB
                  SARDEMProjection <Applications/app_SARDEMProjection>`
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation`
 
 This step projects the coordinates of original :ref:`input S1 image
@@ -259,6 +265,12 @@ Project γ area coordinates onto SAR
 :Output:         A :ref:`γ area cartesian coordinates file <gamma_area_s2-files>`
 :OTBApplication: `SARGammaAreaImageEstimation
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/rtc_gamma0>`_
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation`
 
 This step estimates the γ area coordinates on the ground in the geometry of the
@@ -309,19 +321,25 @@ concatenated by taking the first non-null pixel.
 .. _apply_gamma_area-proc:
 .. index:: Application of RTC maps
 
-Application of γ area maps to β° calibrated S2 images
+Application of γ area maps to σ° calibrated S2 images
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - The :ref:`γ area map file <gamma_area_s2-files>` associated to
                    the S2 grid
-                 - A β° calibrated, cut and orthorectified image on the S2 grid
+                 - A σ° calibrated, cut and orthorectified image on the S2 grid
 :Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`γ^0_{T}`
                  calibrated
 :OTBApplication: `SARGammaAreaToGammaNaughtRTCImageEstimation
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/rtc_gamma0>`_
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration`
 
-This final step applies γ area map (in S2 grid geometry) to β° calibrated files
+This final step applies γ area map (in S2 grid geometry) to σ° calibrated files
 orthorectified on the S2 grid.
 
 

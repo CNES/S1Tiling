@@ -77,6 +77,12 @@ Compute ECEF Ellipsoid surface and satellite positions on S2
 :OTBApplication: `SARComputeGroundAndSatPositionsOnEllipsoid
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
                  (developed for the purpose of this project)
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid`
 
 This step computes the WGS84 ellipsoid surface positions of the pixels in the

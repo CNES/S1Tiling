@@ -26,7 +26,7 @@ The following exit codes are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
       timeout, the associated S2 products will not be generated and this exit
       code will be used. See the log produced.
 
-      If more critical errors occur, this exit will be superseded.
+      If more critical errors occur, this exit code will be superseded.
   * - 69
     - .. todo::
 
@@ -37,7 +37,7 @@ The following exit codes are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
         Cache disk full (when using option :option:`--cache-before-ortho
         <S1Processor --cache-before-ortho>`)
   * - 71
-    - An empty data safe has been found and needs to be removed so it can be
+    - An empty data safe has been found and needs to be removed, so it can be
       fetched again. See the log produced.
   * - 72
     - Error detected in the configuration file. See the log produced.
@@ -63,8 +63,8 @@ The following exit codes are produced when :ref:`S1Processor`, :ref:`S1LIAMap`
       incorrect. See the log produced.
   * - 77
     - Some processing cannot be done because external applications cannot
-      be executed. Likely OTB and/or NORMLIM related applications aren't
-      correctly installed.
+      be executed. Likely OTB and/or NORMLIM and/or γ° RTC related applications
+      aren't correctly installed.
       See the log produced.
 
   * - any other

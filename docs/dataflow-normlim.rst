@@ -12,23 +12,24 @@
    :local:
    :depth: 3
 
-Two data flows are possibles:
+Two data flows are possible:
 
 - with :ref:`S1LIAMap` only LIA maps are produced,
 - with :ref:`S1Processor` LIA maps are produced if not found, then
-  :math:`σ^0_{T}` NORMLIM orthorectified files are produced.
+  :math:`σ^0_{T}` NORMLIM calibrated and orthorectified files are produced.
 
 Normlim global processing
 -------------------------
 
-The following processing is the new default processing from S1Tiling v1.2.
+The following processing described is the new processing starting from S1Tiling
+v1.2.
 
 S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads S1 images <downloading_s1>` (S1Processor scenario only)
-   The download is done on condition  the images are not already available
+1. It :ref:`downloads S1 images <downloading_s1>` (S1Processor scenario only).
+   The download is done on condition the images are not already available
    in :ref:`input data cache <paths.s1_images>`.
 
 2. It :ref:`downloads precise orbit files (EOF) <downloading_eof>` that cover
@@ -284,6 +285,12 @@ Compute ECEF ground and satellite positions on S2
 :OTBApplication: `SARComputeGroundAndSatPositionsOnDEM
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
                  (developed for the purpose of this project)
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
 This step computes the ground positions of the pixels in the S2 geometry, and
@@ -366,7 +373,7 @@ Application of LIA maps to β° calibrated S2 images
 :OTBApplication: :external+OTB:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
-This final step multiplies the sine LIA map (in S2 grid geometry) with β0
+This final step multiplies the sine LIA map (in S2 grid geometry) with β°
 calibrated files orthorectified on the S2 grid.
 
 
@@ -379,9 +386,9 @@ S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect the
-   S2 tile, within the specified time range, that are not already available in
-   :ref:`input data cache <paths.s1_images>`
+1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect
+   the S2 tile, within the specified time range, that are not already available
+   in :ref:`input data cache <paths.s1_images>`
    (all scenarios)
 
 2. Then, it makes sure the :ref:`associated sine LIA map <lia-files>` exists

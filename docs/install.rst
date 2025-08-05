@@ -84,13 +84,21 @@ clusters. It may be a good starting point. See
 :ref:`CNES installation script <install_cnes>` below.
 
    .. note::
-      On CNES cluster where OTB has been compiled from sources, you can simply
-      load the associated module:
+      On CNES cluster where OTB has been compiled from sources, you can start
+      S1Tiling installation from the associated OTB module:
 
       .. code-block:: bash
 
         # Example, on TREX:
-        module load otb/9.0.0-python3.8
+        module load otb/9.1.1-python3.12
+
+      Then, follow the previous procedure.
+
+      But better yet, loading s1tiling shall be enough:
+
+      .. code-block:: bash
+
+        module load s1tiling
 
 
 Installation scripts
@@ -249,10 +257,10 @@ Using S1LIAMap or S1IAMap with a docker
 
 It's also possible to run :ref:`S1LIAMap` or :ref:`S1IAMap` in the docker --
 see :ref:`LIA Map production scenario <scenario.S1LIAMap>` and :ref:`Ellipsoid
-IA Map production scenario <scenario.S1IAMap>`. In order to do that, pass
+IA Map production scenario <scenario.S1IAMap>`. In order to do so, pass
 ``--lia``, or ``--ia`` as the first parameter to the docker *entry point*.
 
-In other word, run the docker with something like the following
+In other words, run the docker with something like the following
 
 .. code-block:: bash
 
@@ -274,10 +282,10 @@ Using S1GammaAreaMap with a docker
 
 It's also possible to run :ref:`S1GammaAreaMap` in the docker -- see
 :ref:`GAMMA_AREA Map production scenario <scenario.S1GammaAreaMap>`. In order
-to do that, pass ``--gamma_area`` as the first parameter to the docker *entry
+to do so, pass ``--gamma_area`` as the first parameter to the docker *entry
 point*.
 
-In other word, run the docker with something like the following
+In other words, run the docker with something like the following
 
 .. code-block:: bash
 

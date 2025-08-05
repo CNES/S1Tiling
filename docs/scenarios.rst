@@ -55,7 +55,7 @@ Then running S1Tiling is as simple as:
 Eventually,
 
 - The S1 products will be downloaded in :ref:`s1_images <paths.s1_images>`.
-- The orthorectified tiles will be generated in :ref:`output <paths.output>`.
+- The orthorectified images will be generated in :ref:`output <paths.output>`.
 - Temporary files will be produced in :ref:`tmp <paths.tmp>`.
 
 .. note:: S1 Tiling never cleans the :ref:`tmp directory <paths.tmp>` as its
@@ -96,7 +96,7 @@ S1Tiling will then automatically take care of:
 - obtaining the precise orbit files (EOF), if none match the request
   parameters,
 - producing, or using existing, :ref:`maps of sin(LIA) <lia-files>` for each
-  Sentinel-2 tiles -- given an orbit and its direction,
+  MGRS Sentinel-2 tiles -- given an orbit,
 - producing intermediary products calibrated with β\ :sup:`0` LUT.
 
 .. list-table::
@@ -141,9 +141,9 @@ S1Tiling will then automatically take care of:
 
 
 .. warning::
-   If you wish to parallelize this scenario and dedicate a different cluster
+   If you wish to parallelize this scenario and to dedicate a different cluster
    node to each date -- as recommended in “:ref:`scenario.parallelize_date`”
-   scenario, you will **NEED** to produce all the LIA maps beforehand.
+   scenario, you will **NEED** to produce all the LIA maps **beforehand**.
    Otherwise, a same file may be concurrently written to from different nodes,
    and it will likely end up corrupted.
 
@@ -174,10 +174,10 @@ A dedicated program is provided to compute the LIA maps beforehand:
 :ref:`S1Processor`. A few options will be ignored though: calibration type,
 masking… But the following (non-obvious) options are mandatory:
 
-- :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
-  single value shall be used
+- :ref:`[DataSource].platform_list <datasource.platform_list>` -- however only
+  a single value will be used
 - :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>` --
-  but only a single value shall be used
+  however only a single value will be used
 - :ref:`[DataSource].first_date <datasource.first_date>` and
   :ref:`[DataSource].last_date <datasource.last_date>` if
   :ref:`[DataSource].download <datasource.download>` is ``True`` and EOF files
@@ -213,9 +213,9 @@ masking… But the following (non-obvious) options are mandatory:
 Produce maps of Ellipsoid Incidence Angles
 ++++++++++++++++++++++++++++++++++++++++++
 
-S1Tiling permits producing :ref:`maps of cosine, sine and/or tangent of the
-incidence angle over the WGS84 ellipsoid <ia-files>`, thanks to :ref:`S1IAMap
-program <S1IAMap>`.
+S1Tiling can produce :ref:`maps of cosine, sine and/or tangent of the incidence
+angle over the WGS84 ellipsoid <ia-files>`, thanks to :ref:`S1IAMap program
+<S1IAMap>`.
 See :ref:`dataflow-eia` for more detailed information on the internal operation
 sequencing.
 
@@ -230,71 +230,9 @@ The typical use case is the following:
 3. You can obtain the same product in other calibrations very quickly by
    applying the corrective sine/cosine map on the Sentinel-2 tiles product.
 
-When input product has been :ref:`σ° calibrated <processing.calibration>`,
-products in other calibrations can be obtained thanks to
-:download:`apply-calibration-map.sh
-<../s1tiling/resources/apply-calibration-map.sh>`.
-
-To convert a σ° calibrated product into:
-
-- a β° calibrated product, the image is divided by the :ref:`sine map
-  <ia-files>`
-
-  .. code:: bash
-
-    # Either by hand, with OTB, wrong CALIBRATION metadata
-    otbcli_BandMath \
-        -il  s1a_tile_polar_dir_087_time_sigma.tif sin_IA_s1a_tile_087.tif \
-        -exp 'im1b1/im2b1' \
-        -out s1a_tile_polar_dir_087_time_beta.tif
-    # Fix the incorrect metadata
-    gdal_edit.py -mo CALIBRATION=beta s1a_tile_polar_dir_087_time_beta.tif
-
-    # Or, by hand, with gdal, all metadata are lost
-    gdal_calc.py \
-        -A    s1a_tile_polar_dir_087_time_sigma.tif \
-        -B    sin_IA_s1a_tile_087.tif \
-        --calc "A/B"
-        --out s1a_tile_polar_dir_087_time_beta.tif
-
-    # Or, wrapped for batch application, with OTB, correct metadata
-    apply-calibration-map.sh -c beta --dirmap path/to_sinIA_files path/to/S1Tiling/products
-
-- a γ° calibrated product, the image is divided by the :ref:`cosine map
-  <ia-files>`
-
-  .. code:: bash
-
-    # Either by hand, with OTB, wrong CALIBRATION metadata
-    otbcli_BandMath \
-        -il  s1a_tile_polar_dir_087_time_sigma.tif cos_IA_s1a_tile_087.tif \
-        -exp 'im1b1/im2b1' \
-        -out s1a_tile_polar_dir_087_time_gamma.tif
-    # Fix the incorrect metadata
-    gdal_edit.py -mo CALIBRATION=gamma s1a_tile_polar_dir_087_time_beta.tif
-
-    # Or, by hand, with gdal, all metadata are lost
-    gdal_calc.py \
-        -A    s1a_tile_polar_dir_087_time_sigma.tif \
-        -B    cos_IA_s1a_tile_087.tif \
-        --calc "A/B"
-        --out s1a_tile_polar_dir_087_time_gamma.tif
-
-    # Or, wrapped for batch application, with OTB, correct metadata
-    apply-calibration-map.sh -c gamma --dirmap path/to_cosIA_files path/to/S1Tiling/products
-
-
-.. note::
-   Given the calibration is applied on the Sentinel-2 tile geometry, and not in
-   the original Sentinel-1 image geometry, small precision differences may be
-   observed between this approach and :ref:`the one where the desired
-   calibration is applied at the beginning of the processing
-   <scenario.S1Processor>`.
-
-Relevant parameters
-^^^^^^^^^^^^^^^^^^^
-
-It takes a very similar parameter files as :ref:`S1Processor`.
+Relevant parameters (step 1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+It takes a very similar parameter file as :ref:`S1Processor`.
 Actually the same file can be used: only relevant parameters will be taken in
 account:
 
@@ -322,6 +260,77 @@ account:
         # Yes, the same file works!
         S1IAMap MyS1ToS2.cfg
 
+Apply IA maps to σ° calibrated S1Tiling products (step 3)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When an input product has been :ref:`σ° calibrated <processing.calibration>`,
+products in other calibrations can be generated thanks to
+:download:`apply-calibration-map.sh
+<../s1tiling/resources/apply-calibration-map.sh>`. This is the recommended
+approach.
+
+To convert a σ° calibrated product into:
+
+- a β° calibrated product, the σ° image needs to be divided by the :ref:`sine
+  map <ia-files>`
+
+  .. code:: bash
+
+    # Either by hand, with OTB, which leaves incorrect CALIBRATION metadata
+    otbcli_BandMath \
+        -il  s1a_tile_polar_dir_087_time_sigma.tif sin_IA_s1a_tile_087.tif \
+        -exp 'im1b1/im2b1' \
+        -out s1a_tile_polar_dir_087_time_beta.tif
+    # Fix the incorrect metadata
+    gdal_edit.py -mo CALIBRATION=beta s1a_tile_polar_dir_087_time_beta.tif
+
+    # ----------------------------------------------------------------------
+    # Or, by hand, with gdal, but all metadata will be lost
+    gdal_calc.py \
+        -A    s1a_tile_polar_dir_087_time_sigma.tif \
+        -B    sin_IA_s1a_tile_087.tif \
+        --calc "A/B"
+        --out s1a_tile_polar_dir_087_time_beta.tif
+
+    # ----------------------------------------------------------------------
+    # Or, wrapped for batch application, with OTB, correct metadata
+    # RECOMMENDED approach
+    apply-calibration-map.sh -c beta --dirmap path/to_sinIA_files path/to/S1Tiling/products
+
+- a γ° calibrated product, the σ° image needs to be divided by the :ref:`cosine
+  map <ia-files>`
+
+  .. code:: bash
+
+    # Either by hand, with OTB, which leaves incorrect CALIBRATION metadata
+    otbcli_BandMath \
+        -il  s1a_tile_polar_dir_087_time_sigma.tif cos_IA_s1a_tile_087.tif \
+        -exp 'im1b1/im2b1' \
+        -out s1a_tile_polar_dir_087_time_gamma.tif
+    # Fix the incorrect metadata
+    gdal_edit.py -mo CALIBRATION=gamma s1a_tile_polar_dir_087_time_beta.tif
+
+    # ----------------------------------------------------------------------
+    # Or, by hand, with gdal, but all metadata will be lost
+    gdal_calc.py \
+        -A    s1a_tile_polar_dir_087_time_sigma.tif \
+        -B    cos_IA_s1a_tile_087.tif \
+        --calc "A/B"
+        --out s1a_tile_polar_dir_087_time_gamma.tif
+
+    #-------------------- --------------------------------------------------
+    # Or, wrapped for batch application, with OTB, correct metadata
+    # RECOMMENDED approach
+    apply-calibration-map.sh -c gamma --dirmap path/to_cosIA_files path/to/S1Tiling/products
+
+Notes
+^^^^^
+
+.. note::
+   Given the calibration is applied on the Sentinel-2 tile geometry, and not in
+   the original Sentinel-1 image geometry, small precision differences may be
+   observed between this approach and :ref:`the one where the desired
+   calibration is applied at the beginning of the processing
+   <scenario.S1Processor>`.
 
 .. note::
    This scenario requires `NORMLIM σ°
@@ -357,6 +366,14 @@ orthorectification, on a Sentinel-2 tile, and eventually concatenated.
 The resulting map will then be used for all series of orthorectified pairs of
 Sentinel-1 images that intersect the associated S2 tile, on the same orbit.
 
+S1Tiling will automatically take care of:
+
+- producing, or using existing, :ref:`γ area maps <gamma_area_s2-files>` for
+  each Sentinel-2 tiles -- given an orbit and its direction,
+- producing intermediary products calibrated with σ\ :sup:`0` LUT.
+
+Relevant parameters
+^^^^^^^^^^^^^^^^^^^
 Regarding options, the only difference with previous scenario are:
 
 - the :ref:`calibration option <Processing.calibration>` that needs to be
@@ -377,13 +394,8 @@ Also, these specific options can be overridden:
 - :ref:`[Processing].inner_margin_ratio <processing.inner_margin_ratio>`
 - :ref:`[Processing].outer_margin_ratio <processing.outer_margin_ratio>`
 
-S1Tiling will then automatically take care of:
-
-- producing, or using existing, :ref:`γ area maps <gamma_area_s2-files>` for
-  each Sentinel-2 tiles -- given an orbit and its direction,
-- producing intermediary products calibrated with β\ :sup:`0` LUT.
-
-
+Notes
+^^^^^
 .. warning::
    If you wish to parallelize this scenario and dedicate a different cluster
    node to each date -- as recommended in “:ref:`scenario.parallelize_date`”
@@ -492,10 +504,10 @@ jobarrays for instances.
 
 
 .. warning::
-   This scenario is not compatible with ``normlim`` calibration where the LIA
-   maps would be computed on-the-fly. For ``normlim`` calibration, it's
-   imperative to precompute (and store LIA maps) before going massively
-   parallel.
+   This scenario is not compatible with ``normlim`` and ``gamma_naught_rtc``
+   calibrations where the LIA or γ Area maps would be computed on-the-fly. For
+   these calibrations, it's imperative to precompute (and store the correction
+   maps) before going massively parallel.
 
 
 .. _scenario.choose_dem:
@@ -526,7 +538,7 @@ In order to use other DEM inputs, we need:
    |br|
    Set the :ref:`[PATHS].dem_format <paths.dem_format>` key accordingly.
    |br|
-   The default :file:`{{id}}.hgt` associates the ``id`` key to STRM 30 m DEM
+   The default :file:`{{id}}.hgt` associates the ``id`` key to STRM 30m DEM
    files.
    |br|
    Using `eotile <https://github.com/CS-SI/eotile>`_ :file:`DEM_Union.gpkg` as

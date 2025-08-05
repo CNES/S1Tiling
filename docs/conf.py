@@ -116,7 +116,7 @@ def ultimateReplace(app, docname, source):
         result = result.replace(key, app.config.ultimate_replacements[key])
     source[0] = result
 
-reference_otb_version = '9.0.0'
+reference_otb_version = '9.1.1'
 
 print(f'Reference OTB Version: {reference_otb_version} -- used in documentation')
 ultimate_replacements = {
@@ -142,6 +142,10 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# Authorize duplicated label automatically generated from section titles
+# https://stackoverflow.com/a/77577337/15934
+suppress_warnings = ['autosectionlabel.*']
 
 
 # -- Options for HTML output ----------------------------------------------
