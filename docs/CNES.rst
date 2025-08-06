@@ -43,8 +43,8 @@ user guides.
 Installation on TREX
 --------------------
 
-You may prefer to install S1Tiling yourself. In that case, there are mainly two
-X two ways to install S1Tiling on CNES clusters.
+You may prefer to install S1Tiling yourself. In that case, there are mainly 2 ×
+2 ways to install S1Tiling on CNES clusters.
 
 If one wants to install S1Tiling from sources instead of PyPi, it could be done
 from the following context. Then, in later steps, use ``"${S1TILING_SRC_DIR}"``
@@ -61,8 +61,8 @@ instead of ``s1tiling`` as ``pip`` parameter.
     cd "${S1TILING_ROOT_DIR}"
     git clone git@gitlab.orfeo-toolbox.org:s1-tiling/s1tiling.git ${S1TILING_SOURCES}
 
-...from available OTB module (and w/ pip)
-+++++++++++++++++++++++++++++++++++++++++++
+…from available OTB module (and w/ pip)
++++++++++++++++++++++++++++++++++++++++
 
 .. code:: bash
 
@@ -108,8 +108,8 @@ To use it
     Prefer the next approach based on conda if you wish to use a different
     version of Python.
 
-...from available OTB module (and w/ conda)
-+++++++++++++++++++++++++++++++++++++++++++
+…from available OTB module (and w/ conda)
++++++++++++++++++++++++++++++++++++++++++
 
 .. note::
    This approach permits to select a different version of Python, but it will
@@ -154,8 +154,8 @@ To use it
     ml purge
 
 
-...from released OTB binaries...
-++++++++++++++++++++++++++++++++
+…from released OTB binaries…
+++++++++++++++++++++++++++++
 
 Given :file:`otbenv.profile` cannot be unloaded, prefer the above methods based
 on OTB module.
@@ -183,8 +183,8 @@ project) environment.
    (``${S1TILING_SRC_DIR}/s1tiling/resources/gdal-config``) or to download
    from :download:`here: gdal-config <../s1tiling/resources/gdal-config>`.
 
-...and with conda
-~~~~~~~~~~~~~~~~~
+…and with conda
+~~~~~~~~~~~~~~~
 
 Given the OTB binaries installed, we still need to update the Python bindings
 for the chosen version of Python.
@@ -236,8 +236,8 @@ To use it
     conda deactivate
     ml purge
 
-...and with pip
-~~~~~~~~~~~~~~~~~
+…and with pip
+~~~~~~~~~~~~~
 
 Given the OTB binaries installed, we still need to update the Python bindings
 for the chosen version of Python.
@@ -359,7 +359,7 @@ cluster like TREX.
   * - SLURM resources
     - - At this time, S1 Tiling does not support multiple and related jobs. We
         can have multiple jobs, but they should use different working spaces
-        and so on. This means SLURM number of nodes and number tasks values
+        and so on. This means SLURM number of nodes and number of tasks values
         shall be one.
 
       - The number of CPUs should be equal to the number of threads * the

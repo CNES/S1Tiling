@@ -84,8 +84,8 @@ dependencies.
          edge [fontname="Sans", fontsize="9"];
 
          # ====[ γ area workflow
-         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2",         href="files.html#dem-vrt-files", fillcolor=palegoldenrod, group=rtc_t1];
-         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3",         href="files.html#dem-vrt-files", fillcolor=palegoldenrod, group=rtc_t2];
+         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2",         href="files.html#dem_vrt_on_s1-files", fillcolor=palegoldenrod, group=rtc_t1];
+         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3",         href="files.html#dem_vrt_on_s1-files", fillcolor=palegoldenrod, group=rtc_t2];
 
          S1_on_DEM_d1_t1t2 [label="S1 on DEM d1 t1-t2", href="files.html#s1-on-dem-files", fillcolor=palegoldenrod, group=rtc_t1];
          S1_on_DEM_d1_t2t3 [label="S1 on DEM d1 t2-t3", href="files.html#s1-on-dem-files", fillcolor=palegoldenrod, group=rtc_t2];
@@ -205,12 +205,12 @@ Agglomerate DEM files in a VRT that covers S1 footprint (RTC)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Input:       All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
-:Output:      A :ref:`VRT file <dem-vrt-files>`
+:Output:      A :ref:`VRT file <dem_vrt_on_s1-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS1`
 
 All DEM files that intersect an original :ref:`input S1 image
-<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
+<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem_vrt_on_s1-files>`.
 
 
 .. _resample_DEM-proc:
@@ -219,7 +219,7 @@ All DEM files that intersect an original :ref:`input S1 image
 Resample DEM (RTC)
 ++++++++++++++++++
 
-:Inputs:      A :ref:`VRT file <dem-vrt-files>`
+:Inputs:      A :ref:`VRT file <dem_vrt_on_s1-files>`
 :Outputs:     Resampled DEM image
 :OTBApplication: :external+OTB:std:doc:`Applications/app_RigidTransformResample`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.ResampleDEM`
@@ -236,7 +236,7 @@ Project SAR coordinates onto DEM
 ++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`, or a
+                 - The associated :ref:`VRT file <dem_vrt_on_s1-files>`, or a
                    resampled version.
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
 :OTBApplication: :external:std:doc:`Our patched version of DiapOTB
@@ -260,7 +260,7 @@ Project γ area coordinates onto SAR
 +++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem_vrt_on_s1-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`γ area cartesian coordinates file <gamma_area_s2-files>`
 :OTBApplication: `SARGammaAreaImageEstimation

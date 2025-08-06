@@ -84,10 +84,10 @@ logger = logging.getLogger('s1tiling.wrappers.gamma_area')
 
 class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
     """
-    Factory that concludes β° with :math:`γ^0_{T}` RTC calibration as described in
+    Factory that concludes σ° with :math:`γ^0_{T}` RTC calibration as described in
     :ref:`apply_gamma_area-proc`.
 
-    It builds steps that multiply images calibrated with β° LUT, and orthorectified to S2 grid, with
+    It builds steps that multiply images calibrated with σ° LUT, and orthorectified to S2 grid, with
     the gamma area map for the same S2 tile (and orbit number and direction).
 
     Requires the following information from the configuration object:
@@ -132,7 +132,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Complete meta information with inputs, calibration type, and β° file to remove.
+        Complete meta information with inputs, calibration type, and σ° file to remove.
         """
         meta = super().complete_meta(meta, all_inputs)
         meta['inputs']           = all_inputs

@@ -131,7 +131,7 @@ LIA specific processings
 
          # ===================================
          # =====[ LIA workflow
-         vrt_nwb       [label="DEM VRT 33NWB",                 href="files.html#dem-vrt-files",           fillcolor=palegoldenrod];
+         vrt_nwb       [label="DEM VRT 33NWB",                 href="files.html#dem_vrt_on_s2-files",           fillcolor=palegoldenrod];
 
          DEM_on_S2     [label="DEM projected on 33NWB",        href="files.html#dem-on-s2-files",         fillcolor=palegoldenrod];
          heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      href="files.html#height-on-s2-files",      fillcolor=palegoldenrod];
@@ -215,12 +215,12 @@ Agglomerate DEM files in a VRT that covers S2 footprint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect the target S2 tile
-:Output:      A :ref:`VRT file <dem-vrt-files>`
+:Output:      A :ref:`VRT file <dem_vrt_on_s2-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS2`
 
 All DEM files that intersect the target S2 tile are agglomerated in a :ref:`VRT
-file <dem-vrt-files>`.
+file <dem_vrt_on_s2-files>`.
 
 
 .. _project_dem_to_s2-proc:
@@ -229,12 +229,12 @@ file <dem-vrt-files>`.
 Project DEM on S2 tile
 ++++++++++++++++++++++
 
-:Inputs:         The :ref:`DEM VRT file <dem-vrt-files>` over the S2 tile
+:Inputs:         The :ref:`DEM VRT file <dem_vrt_on_s2-files>` over the S2 tile
 :Output:         The :ref:`DEM projected on S2 tile <dem_on_S2-files>`
 :Program:        :external:std:doc:`programs/gdalwarp`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectDEMToS2Tile`
 
-This step projects the :ref:`DEM VRT file <dem-vrt-files>` on the S2 geometry.
+This step projects the :ref:`DEM VRT file <dem_vrt_on_s2-files>` on the S2 geometry.
 
 .. _project_geoid_to_s2-proc:
 .. index:: Project GEOID on S2 tile
@@ -251,7 +251,7 @@ Project GEOID on S2 tile
                  <Applications/app_Superimpose>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile`
 
-This step projects the :ref:`DEM VRT file <dem-vrt-files>` on the S2 geometry.
+This step projects the :ref:`DEM VRT file <dem_vrt_on_s2-files>` on the S2 geometry.
 
 .. _sum_dem_geoid_on_s2-proc:
 .. index:: Compute full height elevation on S2
@@ -560,12 +560,12 @@ Agglomerate DEM files in a VRT that covers S1 footprint (LIA) -- deprecated
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
-:Output:      A :ref:`VRT file <dem-vrt-files>`
+:Output:      A :ref:`VRT file <dem_vrt_on_s2-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS1`
 
 All DEM files that intersect an original :ref:`input S1 image
-<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
+<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem_vrt_on_s2-files>`.
 
 
 .. _sardemproject_s1-proc:
@@ -575,7 +575,7 @@ Project SAR coordinates onto DEM (LIA) -- deprecated
 ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem_vrt_on_s2-files>`
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
 :OTBApplication: :external:std:doc:`Our patched version of DiapOTB
                  SARDEMProjection <Applications/app_SARDEMProjection>`
@@ -592,7 +592,7 @@ Project XYZ coordinates onto SAR -- deprecated
 ++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem_vrt_on_s2-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
 :OTBApplication: :external:std:doc:`Our patched version of DiapOTB
