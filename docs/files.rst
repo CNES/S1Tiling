@@ -429,7 +429,7 @@ Gamma Area map file
     All the seen areas are summed by mean of integral.
 
     The values have been orthorectified on the Sentinel-2 tile from a pair of
-    :ref:`GAMMA_AREA maps computed on S1 images <gamma_area-s1-files>`.
+    :ref:`GAMMA_AREA maps computed on S1 images <gamma_area_s1-files>`.
 
 :Footprint: Sentinel-2 MGRS tile.
 
@@ -809,8 +809,9 @@ DEM VRT on S1 files
 +++++++++++++++++++
 
 :Content:          Virtual aggregate of all the DEM files that fully cover the
-                   associated input S1 images (in both polarities).
-:Footprint:        Sentinel-1 input image
+                   associated input S1 image.
+:Footprint:        Outer bounding box of all the DEM that intersect the
+                   Sentinel-1 reference image.
 :Directory:         :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 :File name:        :samp:`DEM_s1{{a|b|c}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.vrt`
 :File name format: ``fname_fmt.dem_s1_agglomeration`` = :samp:`DEM_{{polarless_rootname}}.vrt`
@@ -818,6 +819,72 @@ DEM VRT on S1 files
 :Metadata:         No metadata is added by S1Tiling to these files.
 :Clean-up:         These files are removed automatically
 
+
+.. _resampled_dem-files:
+
+Resampled DEM
++++++++++++++
+
+:Content:          Resampled version of all the DEM files that fully cover the
+                   associated input S1 images (in both polarities).
+:Footprint:        Outer bounding box of all the DEM that intersect the
+                   Sentinel-1 reference image.
+:Directory:         :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
+:File name:        :samp:`RESAMPLED_DEM_s1{{a|b|c}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tiff`
+:File name format: ``fname_fmt.resampled_dem`` = :samp:`RESAMPLED_DEM_{{polarless_basename}}`
+:Product encoding: Float32 GeoTIFF, uncompressed.
+:Metadata:         The following metadata change from the :ref:`DEM  vrt intersecting S1 image <dem_vrt_on_s1-files>`
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+      * - No-data value
+        - `NaN`
+      * - ``DEM_RESAMPLING_METHOD``
+        - :samp:`X*{{factor_x}}, Y*{{factor_y}}`
+
+:Clean-up:         These files are removed automatically
+
+
+.. _height_on_DEM-files:
+
+Height (DEM+Geoid) on resampled DEM geometry
+++++++++++++++++++++++++++++++++++++++++++++
+
+:Content:          Height information (DEM + Geoid combined) on the footprint
+                   of the DEM files that intersect the Sentinel-1 reference
+                   image according to :ref:`project_geoid_4rtc-proc` and
+                   :ref:`Sum DEM + Geoid <sum_dem_geoid_4rtc-proc>`.
+:Footprint:        Outer bounding box of all the DEM that intersect the
+                   Sentinel-1 reference image.
+:Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
+:File name:        :samp:`DEM+GEOID_s1{{a|b|c}}-iw-grd-{{start_stamp}}-{{end_stamp}}-{{nr1}}-{{nr2}}.tiff`
+:File name format: ``fname_fmt.height_4rtc`` = :samp:`DEM+GEOID_{{polarless_basename}}`
+:Product encoding: Float32 GeoTIFF, uncompressed.
+:Metadata:
+
+    The following metadata change from the :ref:`DEM  vrt intersecting S1 image
+    <dem_vrt_on_s1-files>`, or the :ref:`Resampled DEM image
+    <resampled_dem-files>`.
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+      * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
+        - :ref:`chosen orthorectification interpolation_method option
+          <Processing.orthorectification_interpolation_method>`
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`DEM + GEOID height info projected on S2 tile`
+
+:Clean-up:         These files are removed automatically
 
 .. _S1_on_dem-files:
 
@@ -828,10 +895,11 @@ S1 coordinates projected on DEM geometry
           Their values contain the XYZ Cartesian coordinates of the pixel and
           the position of the matching pixel in the original Sentinel-1 image.
           This file is produced with `our fork of DiapOTB SARDEMProjection
-          <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARDEMProjectionImageEstimation>`_
+          <https://gitlab.orfeo-toolbox.org/remote_modules/diapotb/-/wikis/Applications/app_SARDEMProjection>`_
           application.
 
-:Footprint: Sentinel-1 input image
+:Footprint: Outer bounding box of all the DEM that intersect the Sentinel-1
+            reference image.
 
 :Directory: :ref:`%(tmp) <paths.tmp>`:samp:`/S1/`
 
@@ -890,13 +958,13 @@ S1 coordinates projected on DEM geometry
        These files still **need** to be removed manually. This should change
        eventually, or it may be conditioned to an option.
 
-.. _gamma_area-s1-files:
+.. _gamma_area_s1-files:
 
-γ area Cartesian coordinates in S1 geometry
-+++++++++++++++++++++++++++++++++++++++++++
+γ area map in Sentinel-1 image geometry
++++++++++++++++++++++++++++++++++++++++
 
-:Content: Pixels are in the original Sentinel-1 image geometry. Their
-          values contain the γ-area Cartesian coordinates of the pixel.
+:Content: Pixels are in the original Sentinel-1 image geometry. Their values
+          contain the γ-area of the pixel.
           This file is produced with `SARGammaAreaImageEstimation
           <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_
           application.
@@ -949,7 +1017,7 @@ Half γ area map files -- pre-concatenation
     Map of γ areas (GAMMA_AREA)
 
     These files directly match the :ref:`γ area maps computed on S1 images
-    <gamma_area-s1-files>`, after orthorectification to the Sentinel-2 tile, and
+    <gamma_area_s1-files>`, after orthorectification to the Sentinel-2 tile, and
     before their concatenation in the :ref:`final γ area maps in S2 geometry
     <gamma_area_s2-files>`.
 
@@ -967,7 +1035,7 @@ Half γ area map files -- pre-concatenation
 
 :Product encoding: Float32 (and Int16) GeoTIFF, deflate compressed
 
-:Metadata: The following metadata is changed from the :ref:`un-orthorectified γ area maps <gamma_area-s1-files>`
+:Metadata: The following metadata is changed from the :ref:`un-orthorectified γ area maps <gamma_area_s1-files>`
 
     .. list-table::
       :widths: auto

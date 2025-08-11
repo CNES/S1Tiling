@@ -34,20 +34,27 @@ For each S2 tile,
    exists (all scenarios),
 
    0. It selects a pair of :ref:`input S1 images <paths.s1_images>` that
-      intersect the S2 tile,
+      intersect the S2 tile, it:
    1. For each :ref:`input S1 image <paths.s1_images>`
 
-       1. It :ref:`prepares a VRT <prepare_VRT_s1-4rtc-proc>` of the DEM files
-          that cover the image,
-       2. It :ref:`projects <sardemproject_s1-4rtc-proc>` the coordinates of
-          the input S1 image onto the geometry of the VRT,
-       3. It :ref:`computes the γ area map <sargammaareaimageestimation-proc>`
+       1. It :ref:`prepares a VRT <prepare_VRT_4rtc-proc>` of the DEM files
+          that intersect the S1 image,
+       2. It optionally :ref:`resample the DEM VRT <resample_DEM-proc>` on the
+          footprint of the VRT,
+       3. It :ref:`project GEOID information <project_geoid_4rtc-proc>` on the
+          geometry of the VRT or that resampled DEM,
+       4. It :ref:`sums both elevation information
+          <sum_dem_geoid_4rtc-proc>` on the geometry of the VRT or that
+          resampled DEM,
+       5. It :ref:`projects <sardemproject_s1-4rtc-proc>` the coordinates of
+          the input S1 image onto the geometry of the VRT or the resampled DEM,
+       6. It :ref:`computes the γ area map <sargammaareaimageestimation-proc>`
           of each ground point,
-       4. It :ref:`orthorectifies the γ area map <ortho_gamma_area-proc>` to
+       7. It :ref:`orthorectifies the γ area map <ortho_gamma_area-proc>` to
           the S2 tile
 
    2. It :ref:`concatenates <concat_gamma_area-proc>` both files into a single
-      sine γ area map for the S2 tile.
+      γ area map for the S2 tile.
 
 3. Then, for each polarisation (S1Processor scenario only),
 
@@ -198,13 +205,14 @@ dependencies.
      }
 
 
-.. _prepare_VRT_s1-4rtc-proc:
+.. _prepare_VRT_4rtc-proc:
 .. index:: Agglomerate DEM
 
 Agglomerate DEM files in a VRT that covers S1 footprint (RTC)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-:Input:       All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
+:Input:       All DEM files that intersect an original :ref:`input S1 image
+              <paths.s1_images>`
 :Output:      A :ref:`VRT file <dem_vrt_on_s1-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS1`
@@ -212,15 +220,19 @@ Agglomerate DEM files in a VRT that covers S1 footprint (RTC)
 All DEM files that intersect an original :ref:`input S1 image
 <paths.s1_images>` are agglomerated in a :ref:`VRT file <dem_vrt_on_s1-files>`.
 
+.. note::
+   DEM files that don't intersect the input S1 image will not be agglomerated,
+   and `holes` may appear in the resulting outer bounding box of the VRT.
+
 
 .. _resample_DEM-proc:
-.. index:: Resample DEM
+.. index:: Resample DEM for γ area computation
 
 Resample DEM (RTC)
 ++++++++++++++++++
 
 :Inputs:      A :ref:`VRT file <dem_vrt_on_s1-files>`
-:Outputs:     Resampled DEM image
+:Outputs:     :ref:`Resampled DEM image <resampled_dem-files>`
 :OTBApplication: :external+OTB:std:doc:`Applications/app_RigidTransformResample`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.ResampleDEM`
 
@@ -228,16 +240,67 @@ The DEM from the VRT are resampled by the chosen resampling factors
 (:ref:`resample_dem_factor_x <processing.resample_dem_factor_x>` and
 :ref:`resample_dem_factor_y <processing.resample_dem_factor_y>`).
 
+.. note::
+   When the VRT of the inputs DEM is built, we may not have DEM information
+   everywhere in the outer rectangular bounding box. Values may be missing.
+
+   In order for :external+OTB:std:doc:`Applications/app_RigidTransformResample`
+   to not mess up missing DEM values, no-data values are changed to NaN values
+   on-the-fly before the interpolations thanks to
+   :class:`s1tiling.libs.otbwrappers.NaNifyNoData`.
+
+
+.. _project_geoid_4rtc-proc:
+.. index:: Project GEOID on (/resampled) DEM for γ area computation
+
+Project GEOID on (/resampled) DEM
++++++++++++++++++++++++++++++++++
+
+:Inputs:         - The :ref:`resampled DEM intersecting the S1 image
+                   <resampled_dem-files>` as reference, or the :ref:`DEM VRT
+                   <dem_vrt_on_s1-files>`
+                 - The :ref:`GEOID file <paths.geoid_file>`
+:Output:         None: chained in memory with :ref:`Height computation
+                 <sum_dem_geoid_4rtc-proc>`
+:OTBApplication: :external+OTB:std:doc:`OTB Superimpose
+                 <Applications/app_Superimpose>`
+:StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectGeoidToDEM`
+
+This step projects the :ref:`GEOID file <paths.geoid_file>` on the geometry of
+the DEM retained (and optional resampled).
+
+
+.. _sum_dem_geoid_4rtc-proc:
+.. index:: Compute full height elevation for γ area computation
+
+Compute full height elevation on (/resampled) DEM
++++++++++++++++++++++++++++++++++++++++++++++++++
+
+:Inputs:         - The :ref:`resampled DEM intersecting the S1 image
+                   <resampled_dem-files>` as reference, or the :ref:`DEM VRT
+                   <dem_vrt_on_s1-files>`
+                 - The projected GEOID on the same geometry -- chained in memory
+                   from :ref:`GEOID projection step
+                   <project_geoid_4rtc-proc>`
+:Output:         The :ref:`Height projected on (resampled) DEM
+                 <height_on_DEM-files>`
+:OTBApplication: :external+OTB:std:doc:`OTB BandMath
+                 <Applications/app_BandMath>`
+:StepFactory:    :class:`s1tiling.libs.otbwrappers.SumAllHeights`
+
+This step sums both DEM and GEOID information projected on the geometry of the
+DEM retained (and optional resampled).
+
 
 .. _sardemproject_s1-4rtc-proc:
-.. index:: Project SAR coordinates onto DEM
+.. index:: Project SAR coordinates onto DEM for γ area computation
 
 Project SAR coordinates onto DEM
 ++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem_vrt_on_s1-files>`, or a
-                   resampled version.
+                 - The associated :ref:`DEM VRT file <dem_vrt_on_s1-files>`, or
+                   a :ref:`resampled version <resampled_dem-files>`.
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
 :OTBApplication: :external:std:doc:`Our patched version of DiapOTB
                  SARDEMProjection <Applications/app_SARDEMProjection>`
@@ -260,9 +323,10 @@ Project γ area coordinates onto SAR
 +++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem_vrt_on_s1-files>`
+                 - The :ref:`height projected on resampled DEM
+                   <height_on_DEM-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
-:Output:         A :ref:`γ area cartesian coordinates file <gamma_area_s2-files>`
+:Output:         A :ref:`γ area map file on S1 geometry <gamma_area_s1-files>`
 :OTBApplication: `SARGammaAreaImageEstimation
                  <https://gitlab.orfeo-toolbox.org/s1-tiling/rtc_gamma0>`_
 
@@ -276,6 +340,14 @@ Project γ area coordinates onto SAR
 This step estimates the γ area coordinates on the ground in the geometry of the
 original :ref:`input S1 image <paths.s1_images>`.
 
+It uses the following parameters from the request configuration file:
+
+- :ref:`[Processing].distribute_area <Processing.distribute_area>`
+- :ref:`[Processing].inner_margin_ratio <Processing.inner_margin_ratio>`
+- :ref:`[Processing].outer_margin_ratio <Processing.outer_margin_ratio>`
+- :ref:`[Processing].disable_streaming.gamma_area
+  <Processing.disable_streaming.gamma_area>`
+
 
 .. _ortho_gamma_area-proc:
 .. index:: Orthorectification of γ area maps
@@ -283,14 +355,16 @@ original :ref:`input S1 image <paths.s1_images>`.
 Orthorectification of γ area maps
 +++++++++++++++++++++++++++++++++
 
-:Inputs:      A :ref:`γ area map <gamma_area-s1-files>` in the original S1 image geometry
-:Output:      The associated :ref:`γ area map file(s) <gamma_area-s2-half-files>`
-              orthorectified on the target S2 tile.
+:Inputs:      A :ref:`γ area map file <gamma_area_s1-files>` in the original
+              Sentinel-1 image geometry
+:Output:      The associated :ref:`γ area map file <gamma_area-s2-half-files>`
+              orthorectified on the target MGRS Sentinel-2 tile
 :OTBApplication: :external+OTB:std:doc:`Orthorectification
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyGAMMA_AREA`
 
-This steps ortho-rectifies the γ area map image(s) in S1 geometry to S2 grid.
+This steps ortho-rectifies the γ area map image file from S1 geometry to S2
+grid.
 
 It uses the following parameters from the request configuration file:
 
@@ -308,8 +382,10 @@ It uses the following parameters from the request configuration file:
 Concatenation of γ area maps
 ++++++++++++++++++++++++++++
 
-:Inputs:         A pair of :ref:`γ area map files <gamma_area-s2-half-files>` orthorectified on the target S2 tile.
-:Output:         The :ref:`γ area map file(s) <gamma_area_s2-files>` associated to the S2 grid
+:Inputs:         A pair of :ref:`γ area map files <gamma_area-s2-half-files>`
+                 orthorectified on the target S2 tile.
+:Output:         The :ref:`γ area map file <gamma_area_s2-files>` associated to
+                 the S2 grid
 :OTBApplication: :external+OTB:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatenateGAMMA_AREA`
 
@@ -341,6 +417,13 @@ Application of γ area maps to σ° calibrated S2 images
 
 This final step applies γ area map (in S2 grid geometry) to σ° calibrated files
 orthorectified on the S2 grid.
+
+It uses the following parameters from the request configuration file:
+
+- :ref:`[Processing].min_gamma_area <Processing.min_gamma_area>`
+- :ref:`[Processing].calibration_factor <Processing.calibration_factor>`
+- :ref:`[Processing].disable_streaming.apply_gamma_area <Processing.disable_streaming.apply_gamma_area>`
+- :ref:`[Processing].nodata.RTC <Processing.nodata.RTC>`
 
 
 .. _gamma_area-data-caches:

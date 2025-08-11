@@ -340,7 +340,8 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
 class _SumAllHeights(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that adds DEM + Geoid that cover a same footprint, as
-    described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
+    described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`, and :ref:`Sum DEM + Geoid
+    <sum_dem_geoid_on_s1-proc>`.
 
     It requires the following information from the configuration object:
 
@@ -394,9 +395,9 @@ class _SumAllHeights(OTBStepFactory):
         removal.
         """
         meta = super().complete_meta(meta, all_inputs)
-        dem_on_s2 = fetch_input_data(self.__indem, all_inputs).out_filename
-        meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
-        logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
+        indem = fetch_input_data(self.__indem, all_inputs).out_filename
+        meta['files_to_remove'] = [indem]  # input DEM on S1 or S2 footprint
+        logger.debug('Register files to remove after %s computation: %s', self._product_key, meta['files_to_remove'])
         # Make sure to set nodata metadata in output image
         meta['out_extended_filename_complement'] = f'?&nodata={self.__nodata}'
         return meta
@@ -406,17 +407,17 @@ class _SumAllHeights(OTBStepFactory):
         Extract the last inputs to use at the current level from all previous products seens in the
         pipeline.
 
-        This method is overridden in order to fetch N-1 "in_s2_dem" input.
+        This method is overridden in order to fetch N-1 "indem" input.
         It has been specialized for S1Tiling exact pipelines.
         """
         assert len(previous_steps) > 1
 
-        # "in_s2_geoid" is expected at level -1, likelly named '__last'
-        s2_geoid = fetch_input_data('__last', previous_steps[-1])
-        # "in_s2_dem"     is expected at level -2, likelly named self.__indem
-        s2_dem   = fetch_input_data(self.__indem, previous_steps[-2])
+        # "in_geoid" is expected at level -1, likelly named '__last'
+        in_geoid = fetch_input_data('__last', previous_steps[-1])
+        # "in_dem"     is expected at level -2, likelly named self.__indem
+        in_dem   = fetch_input_data(self.__indem, previous_steps[-2])
 
-        inputs = [{self.__ingeoid: s2_geoid, self.__indem: s2_dem}]
+        inputs = [{self.__ingeoid: in_geoid, self.__indem: in_dem}]
         _check_input_step_type(inputs)
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
@@ -425,7 +426,7 @@ class _SumAllHeights(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "in_s2_geoid" step instanciated in
+        In current case, the canonical input comes from the "ingeoid" step instanciated in
         :func:`s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
@@ -439,7 +440,7 @@ class _SumAllHeights(OTBStepFactory):
         if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
             if not dst:
-                raise RuntimeError(f"Cannot open DEM/S2 file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
+                raise RuntimeError(f"Cannot open DEM/{self._dname_fmt_default} file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
             res = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
             del dst
             return res
@@ -451,28 +452,29 @@ class _SumAllHeights(OTBStepFactory):
         """
         super().update_image_metadata(meta, all_inputs)
 
-        in_s2_dem   = fetch_input_data(self.__indem,   all_inputs).out_filename
+        in_dem   = fetch_input_data(self.__indem,   all_inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['TIFFTAG_GDAL_NODATA'] = str(self.__nodata)
-        dem_resampling_method = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
+        dem_resampling_method = self.fetch_upstream_dem_resampling_method(in_dem, meta)
         if dem_resampling_method:
             imd['DEM_RESAMPLING_METHOD'] = dem_resampling_method
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S2.
+        <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S1/S2
+        footprint.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_s2_dem    = fetch_input_data(self.__indem,   inputs).out_filename
-        in_s2_geoid  = fetch_input_data(self.__ingeoid, inputs).out_filename
-        dem_nodata   = Utils.fetch_nodata_value(in_s2_dem,   is_running_dry(meta), self.__nodata)  # usually -32768
-        # geoid_nodata = Utils.fetch_nodata_value(in_s2_geoid, is_running_dry(meta), self.__nodata)  # usually -32768/-88.8888
+        in_dem    = fetch_input_data(self.__indem,   inputs).out_filename
+        in_geoid  = fetch_input_data(self.__ingeoid, inputs).out_filename
+        dem_nodata   = Utils.fetch_nodata_value(in_dem,   is_running_dry(meta), self.__nodata)  # usually -32768
+        # geoid_nodata = Utils.fetch_nodata_value(in_geoid, is_running_dry(meta), self.__nodata)  # usually -32768/-88.8888
         params : OTBParameters = {
             'ram'         : ram(self.ram_per_process),
-            self.param_in : [in_s2_geoid, in_s2_dem],
+            self.param_in : [in_geoid, in_dem],
             # 'exp'         : f'({Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} || {Utils.test_nodata_for_bandmath(geoid_nodata,"im1b1")}) ? {self.__nodata} : im1b1+im2b1'
             'exp'         : f'{Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} ? {self.__nodata} : im1b1+im2b1'
         }

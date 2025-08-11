@@ -205,7 +205,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
 class AgglomerateDEMOnS1(AnyProducerStepFactory):
     """
     Factory that produces a :class:`Step` that builds a VRT from a list of DEM files, as described
-    in :ref:`prepare_VRT_s1-4rtc-proc`.
+    in :ref:`prepare_VRT_4rtc-proc`.
 
     The choice has been made to name the VRT file after the basename of the root S1 product and not
     the names of the DEM tiles.

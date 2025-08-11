@@ -852,7 +852,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
     })
 
 
-def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
+def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
     demdir = file_db.demdir
     for idx in range(2):
         orbit_info            = file_db.get_orbit_information(idx)
@@ -906,7 +906,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'interpolator'            : 'nn',
             'interpolator.bco.radius' : 2,
             'fv'                      : nodata_DEM,
-            'out'                     : 'BandMath|>' + file_db.height_on_s1(idx, True),
+            'out'                     : 'BandMath|>' + file_db.height_4rtc(idx, True),
         }, None, {
             # 'ACQUISITION_DATETIME'       : file_db.start_time(0),
             # 'DEM_LIST'                   : ', '.join(exp_dem_names),
@@ -925,7 +925,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             ],
             'ram'        : param_ram(2048),
             'exp'        : f'{is_nodata_DEM_bandmath} ? {nodata_DEM} : im1b1+im2b1',
-            'out'        : file_db.height_on_s1(idx, True),
+            'out'        : file_db.height_4rtc(idx, True),
         }, None, {
             'TIFFTAG_GDAL_NODATA'      : '-32768',
             'TIFFTAG_IMAGEDESCRIPTION' : 'DEM + GEOID',
@@ -937,7 +937,7 @@ def mock_GAMMA_AREA_v1_0(application_mocker: OTBApplicationsMockContext, file_db
             'ram'        : param_ram(2048),
             'insar'      : file_db.input_file_vv(idx),
             # 'indem'      : exp_out_resampled_dem,
-            'indem'      : file_db.height_on_s1(idx, False),
+            'indem'      : file_db.height_4rtc(idx, False),
             'withxyz'    : True,
             'nodata'     : str(nodata_RTC),
             'elev.geoid' : '@',
@@ -1539,7 +1539,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
 
 @pytest.mark.parametrize("register_expectations,processor",
                          [
-                             (mock_GAMMA_AREA_v1_0, s1_process_gamma_area),
+                             (mock_GAMMA_AREA_v1_2, s1_process_gamma_area),
                          ])
 def test_33NWB_202001_gamma_area_mocked(
         baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram,
@@ -1651,7 +1651,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
     mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', 2)
-    mock_GAMMA_AREA_v1_0(application_mocker, file_db)
+    mock_GAMMA_AREA_v1_2(application_mocker, file_db)
     mock_masking(application_mocker, file_db, 'gamma_naught_rtc', 2)
 
     insigmanaught = file_db.concatfile_from_two(0, False, calibration='_gamma_naught_rtc')
@@ -1740,7 +1740,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
     mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
-    mock_GAMMA_AREA_v1_0(application_mocker, file_db)  # always N=2
+    mock_GAMMA_AREA_v1_2(application_mocker, file_db)  # always N=2
     mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
 
     for idx in range(number_dates):

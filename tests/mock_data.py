@@ -71,7 +71,7 @@ class FileDB:
         'orthosinLIAfile'     : 'sin_LIA_{s2_polarless}{tmp}',
 
         # γ Area RTC
-        'height_on_s1'        : 'DEM+GEOID_{s1_polarless}{tmp}.tiff',
+        'height_4rtc'         : 'DEM+GEOID_{s1_polarless}{tmp}.tiff',
         'gamma_areafile'      : 'GAMMA_AREA_{s1_polarless}{tmp}.tiff',
         'orthoGAMMA_AREAfile' : 'GAMMA_AREA_{s2_polarless}{tmp}',
 
@@ -299,7 +299,7 @@ class FileDB:
 
                 (self.vrtfile,                       NFiles),
                 (self.resampleddemfile,              NFiles),
-                (self.height_on_s1,                  NFiles),
+                (self.height_4rtc,                   NFiles),
                 (self.sardemprojfile,                NFiles),
                 (self.xyzfile,                       NFiles),
                 (self.normalsfile,                   NFiles),
@@ -661,14 +661,14 @@ class FileDB:
     def resampleddemfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["resampleddemfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def height_on_s1(self, idx, tmp: bool) -> str:
+    def height_4rtc(self, idx, tmp: bool) -> str:
         crt = self.FILES[idx]
         if tmp:
             # default DEM nodata==-32768
             ext = '?' + self.extended_nodata.format(nodata='-32768')
         else:
             ext = ''
-        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["height_on_s1"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
+        return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["height_4rtc"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
     def sardemprojfile(self, idx, tmp) -> str:
         ext = self.extended_tiled_compress if tmp else ''
         crt = self.FILES[idx]

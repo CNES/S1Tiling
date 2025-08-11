@@ -327,15 +327,28 @@ You can use this :download:`this template
       used.
 
       .. _Processing.nodata:
-  * - ``nodata.IA``
-    - No-data value to use in :ref:`IA files <ia-files>`
+  * - ``nodata.*``
+    -
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
 
-  * - ``nodata.LIA``
-    - No-data value to use in :ref:`LIA files <lia-files>`
+        * - Option
+          - Description
 
-  * - ``nodata.RTC``
-    - No-data value to use when applying :ref:`Gamma Area map
-      <apply_gamma_area-proc>`
+            .. _Processing.nodata.IA:
+        * - ``nodata.IA``
+          - No-data value to use in :ref:`IA files <ia-files>`
+
+            .. _Processing.nodata.LIA:
+        * - ``nodata.LIA``
+          - No-data value to use in :ref:`LIA files <lia-files>`
+
+            .. _Processing.nodata.RTC:
+        * - ``nodata.RTC``
+          - No-data value to use when applying :ref:`Gamma Area map
+            <apply_gamma_area-proc>`
 
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``

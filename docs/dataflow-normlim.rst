@@ -251,7 +251,7 @@ Project GEOID on S2 tile
                  <Applications/app_Superimpose>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile`
 
-This step projects the :ref:`DEM VRT file <dem_vrt_on_s2-files>` on the S2 geometry.
+This step projects the :ref:`GEOID file <paths.geoid_file>` on the S2 geometry.
 
 .. _sum_dem_geoid_on_s2-proc:
 .. index:: Compute full height elevation on S2

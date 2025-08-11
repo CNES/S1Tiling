@@ -645,7 +645,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             # - internal IA related files
             'ground_and_sat_s2_ellipsoid', 'normals_wgs84_on_s2',
             # - internal γ° RTC related files
-            's1_on_dem', 'gamma_area', 'resampled_dem',
+            'height_4rtc', 's1_on_dem', 'gamma_area', 'resampled_dem',
         ]
         self.creation_options = {}
         for key in creation_options_keys:

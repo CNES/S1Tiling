@@ -579,7 +579,7 @@ def register_GAMMA_AREA_pipelines(
         [
             ProjectGeoidToDEM,
             SumAllHeights(
-                product_key='4RTC',
+                product_key='height_4rtc',
                 key_map={'indem': 'indem', 'ingeoid': 'ingeoid'},
                 fname_fmt_default='DEM+GEOID_{polarless_basename}',
                 dname_fmt_default='S1',
@@ -604,6 +604,7 @@ def register_GAMMA_AREA_pipelines(
     gamma_area = pipelines.register_pipeline(
             [SARGammaAreaImageEstimation],
             'SARGammaAreaImageEstimation',
+            # TODO: indem parameter doesn't make sens in the application code...
             inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj},
     )
 
