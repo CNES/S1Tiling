@@ -605,7 +605,7 @@ def register_GAMMA_AREA_pipelines(
             [SARGammaAreaImageEstimation],
             'SARGammaAreaImageEstimation',
             # TODO: indem parameter doesn't make sens in the application code...
-            inputs={'insar': 'basename', 'indem': resampled_dem, 'indemproj': demproj},
+            inputs={'insar': 'basename', 'indem': heights, 'indemproj': demproj},
     )
 
     # ortho gamma area
