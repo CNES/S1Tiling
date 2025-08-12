@@ -960,7 +960,8 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
         application_mocker.set_expectations('SARGammaAreaImageEstimation', {
             'ram'                   : param_ram(2048),
             'distributearea'        : False,
-            'indem'                 : exp_out_resampled_dem,
+            # 'indem'                 : exp_out_resampled_dem,
+            'indem'                 : file_db.height_4rtc(idx, False),
             'indemproj'             : exp_out_dem,
             'indirectiondemc'       : 24,
             'indirectiondeml'       : 12,
