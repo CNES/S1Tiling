@@ -57,7 +57,7 @@ from ..steps import (
     ram,
 )
 from ..otbpipeline   import (
-    fetch_input_data, TaskInputInfo,
+    fetch_input_data, TaskInputInfo, fetch_input_data_all_inputs,
 )
 from .helpers        import (
     does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
@@ -386,6 +386,22 @@ class ResampleDEM(OTBStepFactory):
         meta['reduce_inputs_insar'] = lambda inputs: [inputs[0]]  # TODO!!!
         return meta
 
+    def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
+        """
+        Extract the last inputs to use at the current level from all previous products seens in the
+        pipeline.
+
+        This method is overridden in order to fetch N-1 "indem" input.
+        It has been specialized for S1Tiling exact pipelines.
+        """
+        for i, st in enumerate(previous_steps):
+            logger.debug("INPUTS: %s previous step[%s] = %s", self.__class__.__name__, i, st)
+
+        inputs = [fetch_input_data_all_inputs({"indem"}, previous_steps)]
+        _check_input_step_type(inputs)
+        logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
+        return inputs
+
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         - Complete meta information with hook for updating image metadata
@@ -394,11 +410,14 @@ class ResampleDEM(OTBStepFactory):
           later to fill-in the image metadata.
         """
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
         _, inbasename = os.path.split(in_filename(meta))
         meta['inbasename'] = inbasename
+
+        in_dem_vrt = fetch_input_data('indem', all_inputs).out_filename
+        meta['files_to_remove'] = [in_dem_vrt]
+        logger.debug('Register files to remove after %s computation: %s', self.__class__.__name__, meta['files_to_remove'])
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -738,7 +757,6 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         """
         inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
         meta = super().complete_meta(meta, all_inputs)
-        meta['inputs'] = all_inputs
         if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
             self.fetch_direction(inputpath, meta)
         indem     = fetch_input_data('indem',     all_inputs).out_filename
