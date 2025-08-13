@@ -397,10 +397,25 @@ class ResampleDEM(OTBStepFactory):
         for i, st in enumerate(previous_steps):
             logger.debug("INPUTS: %s previous step[%s] = %s", self.__class__.__name__, i, st)
 
-        inputs = [fetch_input_data_all_inputs({"indem"}, previous_steps)]
+        input_dict = fetch_input_data_all_inputs({"indem"}, previous_steps)
+        input_dict.update({'nanified_dem': fetch_input_data('__last', previous_steps[-1])})
+        inputs = [ input_dict ]
         _check_input_step_type(inputs)
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
+
+    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
+        """
+        Helper function to retrieve the canonical input associated to a list of inputs.
+
+        In current case, the canonical input comes from the "__last" :class:`NaNifyNoData` step
+        instanciated in :func:`s1tiling.s1_process_gamma_area` pipeline builder.
+        """
+        _check_input_step_type(inputs)
+        keys = set().union(*(input.keys() for input in inputs))
+        assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
+        assert 'nanified_dem' in keys
+        return [input['nanified_dem'] for input in inputs if 'nanified_dem' in input.keys()][0]
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """

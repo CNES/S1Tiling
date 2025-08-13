@@ -558,7 +558,7 @@ def fetch_input_data(key: str, inputs: InputList) -> AbstractStep:
     inputs.
     """
     keys = set().union(*(input.keys() for input in inputs))
-    assert key in keys, f"Cannot find input '{key}' among {keys}"
+    assert key in keys, f"Cannot find input '{key}' among {keys}. Have you overridden _get_inputs()?"
     return [input[key] for input in inputs if key in input.keys()][0]
 
 
