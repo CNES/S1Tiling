@@ -91,8 +91,17 @@ dependencies.
          edge [fontname="Sans", fontsize="9"];
 
          # ====[ γ area workflow
-         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2",         href="files.html#dem_vrt_on_s1-files", fillcolor=palegoldenrod, group=rtc_t1];
-         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3",         href="files.html#dem_vrt_on_s1-files", fillcolor=palegoldenrod, group=rtc_t2];
+         dem         [label="DEMs",         href="configuration.html#paths-dem-database",  shape="doublecircle", fillcolor=cyan];
+         geoid       [label="Geoid",         href="configuration.html#paths-geoid-file",   shape="doublecircle", fillcolor=cyan];
+
+         vrt_d1_t1t2 [label="DEM VRT d1 t1-t2",         href="files.html#dem-vrt-on-s1-files", fillcolor=palegoldenrod, group=rtc_t1];
+         vrt_d1_t2t3 [label="DEM VRT d1 t2-t3",         href="files.html#dem-vrt-on-s1-files", fillcolor=palegoldenrod, group=rtc_t2];
+
+         RESAMPLED_DEM_d1_t1t2 [label="Resampled DEM d1 t1-t2", href="files.html#resampled-dem-files", fillcolor=palegoldenrod, group=rtc_t1];
+         RESAMPLED_DEM_d1_t2t3 [label="Resampled DEM d1 t2-t3", href="files.html#resampled-dem-files", fillcolor=palegoldenrod, group=rtc_t2];
+
+         height_d1_t1t2 [label="DEM+GEOID", href="files.html#height-on-dem-files", fillcolor=palegoldenrod, group=rtc_t1];
+         height_d1_t2t3 [label="DEM+GEOID", href="files.html#height-on-dem-files", fillcolor=palegoldenrod, group=rtc_t2];
 
          S1_on_DEM_d1_t1t2 [label="S1 on DEM d1 t1-t2", href="files.html#s1-on-dem-files", fillcolor=palegoldenrod, group=rtc_t1];
          S1_on_DEM_d1_t2t3 [label="S1 on DEM d1 t2-t3", href="files.html#s1-on-dem-files", fillcolor=palegoldenrod, group=rtc_t2];
@@ -111,20 +120,33 @@ dependencies.
          nwb_d2      [label="S2 γ° RTC 33NWB d2", href="files.html#full-s2-tiles", fillcolor=lightblue];
          nwb_dn      [label="S2 γ° RTC 33NWB dn", href="files.html#full-s2-tiles", fillcolor=lightblue];
 
-         mult_d1     [label="X", shape="circle"]
-         mult_d2     [label="X", shape="circle"]
-         mult_dn     [label="X", shape="circle"]
+         mult_d1     [label="X", shape="circle"];
+         mult_d2     [label="X", shape="circle"];
+         mult_dn     [label="X", shape="circle"];
 
+         dem         -> vrt_d1_t1t2;
+         dem         -> vrt_d1_t2t3;
          raw_d1_t1t2 -> vrt_d1_t1t2 [label=""];
          raw_d1_t2t3 -> vrt_d1_t2t3 [label=""];
 
-         vrt_d1_t1t2 -> S1_on_DEM_d1_t1t2;
-         vrt_d1_t2t3 -> S1_on_DEM_d1_t2t3;
+         vrt_d1_t1t2 -> RESAMPLED_DEM_d1_t1t2 [label="NaNify nodata|Resample"];
+         vrt_d1_t2t3 -> RESAMPLED_DEM_d1_t2t3 [label="NaNify nodata|Resample"];
+
+         geoid                 -> height_d1_t1t2 [label="Geoid projected to DEM"];
+         geoid                 -> height_d1_t2t3 [label="Geoid projected to DEM"];
+         RESAMPLED_DEM_d1_t1t2 -> height_d1_t1t2 ;
+         RESAMPLED_DEM_d1_t2t3 -> height_d1_t2t3 ;
+
+         height_d1_t1t2 -> S1_on_DEM_d1_t1t2;
+         height_d1_t2t3 -> S1_on_DEM_d1_t2t3;
+
          raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
          raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
 
-         vrt_d1_t1t2       -> gamma_area_d1_t1t2;
-         vrt_d1_t2t3       -> gamma_area_d1_t2t3;
+         # vrt_d1_t1t2       -> gamma_area_d1_t1t2;
+         # vrt_d1_t2t3       -> gamma_area_d1_t2t3;
+         height_d1_t1t2    -> gamma_area_d1_t1t2;
+         height_d1_t2t3    -> gamma_area_d1_t2t3;
          raw_d1_t1t2       -> gamma_area_d1_t1t2;
          raw_d1_t2t3       -> gamma_area_d1_t2t3;
          S1_on_DEM_d1_t1t2 -> gamma_area_d1_t1t2;
