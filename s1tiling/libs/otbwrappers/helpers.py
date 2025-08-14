@@ -62,6 +62,17 @@ def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) ->
     return all(str(input_meta[k]) == str(output_meta[k]) for k in fields)
 
 
+def does_gamma_area_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) -> bool:
+    """
+    Tells whether a given ComputeGroundAndSatPositionsOnDEM input is compatible
+    with the the current S2 tile.
+
+    ``tile_name`` has to be identical.
+    """
+    fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+    return all(input_meta[k] == output_meta[k] for k in fields)
+
+
 def does_s2_data_match_s2_tile(output_meta: Meta, input_meta: Meta) -> bool:
     """
     Tells whether a given sin_LIA input is compatible with the the current S2 tile.

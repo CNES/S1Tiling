@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =========================================================================
-#   Program:   S1Processor
+#   Program:   S1Tiling
 #
 #   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
@@ -167,9 +167,10 @@ setup(
     scripts = ['s1tiling/S1Processor.py'],
     entry_points = {
         'console_scripts': [
-            'S1Processor = s1tiling.S1Processor:run',
-            'S1LIAMap    = s1tiling.S1LIAMap:run_lia',
-            'S1IAMap     = s1tiling.S1IAMap:run_ia',
+            'S1Processor    = s1tiling.S1Processor:run',
+            'S1LIAMap       = s1tiling.S1LIAMap:run_lia',
+            'S1IAMap        = s1tiling.S1IAMap:run_ia',
+            'S1GammaAreaMap = s1tiling.S1GammaAreaMap:run_gamma_area'
         ],
     },
 )

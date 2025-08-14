@@ -68,9 +68,10 @@ INPUT  = 'INPUT'
 OUTPUT = 'OUTPUT'
 EOFDIR = 'EOFDIR'
 LIADIR = 'LIADIR'
+GAMMA_AREADIR = 'GAMMA_AREADIR'
 TILE   = '33NWB'
 
-file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
 def safe_dir(idx) -> str:
     return file_db.safe_dir(idx)
@@ -114,6 +115,7 @@ class Configuration():
         }
         self.dname_fmt               = {}
         self.creation_options        = {}
+        self.disable_streaming       = {}
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:

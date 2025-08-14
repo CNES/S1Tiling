@@ -62,7 +62,7 @@ def declare_know_files(
         file_db           : FileDB,
         application_mocker: OTBApplicationsMockContext
 ) -> None:
-    # logging.debug('_declare_know_files(%s)', patterns)
+    # logging.debug('declare_know_files(%s)', patterns)
     all_files = file_db.all_files() + file_db.all_annotations()
     # logging.debug('- all_files: %s', all_files)
     files = []
@@ -94,10 +94,11 @@ def declare_know_files(
     # TODO: Test written meta data as well
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyLIA.add_ortho_metadata', lambda slf, mt, app : True)
+    # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectifyGAMMA_AREA.add_ortho_metadata', lambda slf, mt, app : True)
     def mock_write_image_metadata(slf: _ProducerStep, dryrun: bool):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
-        application_mocker.assert_these_metadata_are_expected(img_meta, slf.pipeline_name, fullpath)
+        application_mocker.register_any_unexpected_image_metadata(img_meta, slf.pipeline_name, fullpath)
 
         logging.debug('Set metadata in %s', fullpath)
         for (kw, val) in img_meta.items():
@@ -120,6 +121,13 @@ def declare_know_files(
         known_files.remove(inp)
     mocker.patch('s1tiling.libs.otbwrappers.lia.commit_execution', mock_commit_execution_for_SelectLIA)
 
+    def mock_commit_execution_for_SelectGAMMA_AREA(inp, out):
+        logging.debug('mock.mv %s %s', inp, out)
+        assert os.path.isfile(inp)
+        known_files.append(out)
+        known_files.remove(inp)
+    mocker.patch('s1tiling.libs.otbwrappers.gamma_area.commit_execution', mock_commit_execution_for_SelectGAMMA_AREA)
+
     def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???
         fullpath = mt.get('out_filename')
@@ -130,6 +138,7 @@ def declare_know_files(
         assert 'dems' in mt, f"Metadata don't contain 'dems', only: {mt.keys()}"
         return mt
     mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjection.add_image_metadata', mock_add_image_metadata)
+    mocker.patch('s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation.add_image_metadata', mock_add_image_metadata)
 
     def mock_direction_to_scan(slf, meta: Meta) -> Meta:
         logging.debug('Mocking direction to scan')
@@ -138,7 +147,8 @@ def declare_know_files(
         meta['gain']                = 42
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.SARCartesianMeanEstimation.fetch_direction', lambda slf, ip, mt : mock_direction_to_scan(slf, mt))
-    mocker.patch('s1tiling.libs.otbwrappers.SumAllHeights.fetch_upstream_dem_resampling_method', lambda slf, ip, mt : 'cubic')
+    mocker.patch('s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation.fetch_direction', lambda slf, ip, mt: mock_direction_to_scan(slf, mt))
+    mocker.patch('s1tiling.libs.otbwrappers.lia._SumAllHeights.fetch_upstream_dem_resampling_method', lambda slf, ip, mt : 'cubic')
 
     def mock_fetch_nodata_value(inputpath, is_running_dry, default_value, band_nr:int = 1) -> float:
         return default_value

@@ -4,17 +4,16 @@ Release notes
 =============
 
 Version 1.2.0
--------------
 
 v1.2.0 Breaking changes
 +++++++++++++++++++++++
 
 - Compatibility to OTB 7.x (and even 8.x) is no longer actively pursued.
-  S1Tiling may work with older version of OTB, but with no guarantees
+  S1Tiling may work with older versions of OTB, but with no guarantees
   (`#164 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/164>`_).
 - Compatibility to Python 3.8 is no longer actively pursued as Python 3.8 has
   reached its end-of-life in 2024.
-  S1Tiling may work with older version of Python, but with no guarantees
+  S1Tiling may work with older versions of Python, but with no guarantees
   (`#158 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/158>`_).
 - The default Geoid file used is changed from :file:`egm96.grd` to
   :file:`egm96.gtx`
@@ -23,6 +22,11 @@ v1.2.0 Breaking changes
 v1.2.0 Improvements
 +++++++++++++++++++
 
+- This new version can produce :ref:`Gamma Area Maps <scenario.S1GammaAreaMap>`
+  over requested S2 tiles thanks to :ref:`S1GammaAreaMap`, or :ref:`generate S2
+  products <scenario.S1ProcessorRTC>` calibrated with :math:`γ^0_{T}`
+  calibration described in [Small2011]_.
+  (`#90 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/90>`_).
 - Use precise orbit files, downloaded on-the-fly, to compute :ref:`Local
   Incidence Angle maps <lia-files>`
   (`#151 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_).
@@ -46,6 +50,10 @@ v1.2.0 Improvements
   (`#175 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/175>`_).
 - File decoding and encoding is now done is parallel
   (`#184 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/184>`_).
+- Undocumented creations options are available on :ref:`intermediary files
+  <temporary-files>` investigated with to :option:`--debug-caches
+  <S1Processor --debug-caches>` option.
+- Files removal is now tested ([d3934aa]).
 
 Version 1.1.0
 -------------
@@ -53,11 +61,9 @@ Version 1.1.0
 This version integrates 3 main improvements:
 
 - it can support :ref:`DEM from any sources <scenario.choose_dem>` (Copernicus
-  DEM, RGE Alti DEM...),
+  DEM, RGE Alti DEM…),
 - it supports OTB 8 (and OTB 9) applications (while staying backward compatible
   with OTB 7.4.2),
-- it improves the quality and the processing performances of
-  LIA/:math:`σ^0_{RTC}` NORMLIM calibration.
 
 v1.1.0 Improvements
 +++++++++++++++++++
@@ -120,10 +126,11 @@ changes have been made in parameters, internal API…
 v1.0.0 Improvements
 +++++++++++++++++++
 
-- This new version can automatically :ref:`produce Local Incidence Angle Maps
-  <scenario.S1LIAMap>` over requested S2 tiles thanks to :ref:`S1LIAMap`,
-  or :ref:`generate S2 products <scenario.S1ProcessorLIA>` calibrated with
-  :math:`σ^0_{RTC}` NORMLIM calibration described in [Small2011]_.
+- This new version can automatically produce :ref:`produce Local Incidence
+  Angle Maps <scenario.S1LIAMap>` over requested S2 tiles thanks to
+  :ref:`S1LIAMap`, or :ref:`generate S2 products <scenario.S1ProcessorLIA>`
+  calibrated with :math:`σ^0_{T}` NORMLIM calibration described in
+  [Small2011]_.
   (`#56 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/56>`_,
   `#119 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/119>`_).
 

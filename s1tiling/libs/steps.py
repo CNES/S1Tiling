@@ -291,7 +291,7 @@ class _ProducerStep(AbstractStep):
         expected final name.
         """
         dryrun = is_running_dry(execution_parameters)
-        logger.debug("_ProducerStep: %s (%s)", self, self.meta)
+        logger.debug("_ProducerStep: %s (%s)", self.__class__.__name__, self.meta)
         do_measure = True  # TODO
         pipeline_name = self.pipeline_name
         if files_exist(self.out_filename):
@@ -350,7 +350,7 @@ class _ProducerStep(AbstractStep):
             if debug_caches:
                 logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
-                logger.debug('Cleaning intermediary files: %s used for  %s', files, self.out_filename)
+                logger.debug('%sCleaning intermediary files: %s used for  %s', "(FAKE) " if dryrun else "", files, self.out_filename)
                 if not dryrun:
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)
@@ -863,7 +863,7 @@ class StoreStep(_ProducerStep):
         for po, tmp, ef in zip(p_out, files, extended_filenames):
             assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            logger.debug(" - set ouput param: %s = %s + %s", po, tmp, ef)
+            logger.debug(" - set output param: %s = %s + %s", po, tmp, ef)
             self._app.SetParameterString(po, tmp + ef)
 
     def _do_execute(self, parameters, dryrun: bool) -> None:
@@ -996,13 +996,14 @@ class _FileProducingStepFactory(StepFactory):
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
-        # TODO: for a domain independent StepFactory, extract the following directory names handling
-        #       to an external domain specific strategy returned by the configuration object, and
-        #       interrogated by the leaf StepFactories.
+        # TODO: TSSLC: for a domain independent StepFactory, extract the following directory names
+        #       handling to an external domain specific strategy returned by the configuration
+        #       object, and interrogated by the leaf StepFactories.
         self.__tmpdir              = cfg.tmpdir
         self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
         self.__liadir              = getattr(cfg, 'lia_directory', None)
         self.__iadir               = getattr(cfg, 'ia_directory', None)
+        self.__gamma_areadir       = getattr(cfg, 'gamma_area_directory', None)
         self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
         logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
 
@@ -1031,6 +1032,7 @@ class _FileProducingStepFactory(StepFactory):
             tmp_dir=self.__tmpdir,
             lia_dir=self.__liadir,
             ia_dir=self.__iadir,
+            gamma_area_dir=self.__gamma_areadir,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
@@ -1140,7 +1142,7 @@ class OTBStepFactory(_FileProducingStepFactory):
             :gen_tmp_dir:         Dirname format for the temporary product
             :gen_output_dir:      Optional Dirname format for the final product -- ``None`` if not required.
             :gen_output_filename: Ouput filename generator.
-            :extended_filename:   Optional extra :external:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
+            :extended_filename:   Optional extra :external+OTB:std:doc:`OTB extended filename extension <ExtendedFilenames>`.
             :param_in:            Flag used by the default OTB application for the input file (default: "in")
             :param_out:           Flag used by the default OTB application for the ouput file (default: "out")
         """
@@ -1192,7 +1194,7 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Propagates the optional :external:std:doc:`extended filename
+        Propagates the optional :external+OTB:std:doc:`extended filename
         <ExtendedFilenames>` set in the construtor to the step meta data.
 
         .. note::

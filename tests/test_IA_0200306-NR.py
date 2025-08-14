@@ -231,7 +231,18 @@ def test_33NWB_202001_ia_mocked(
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
-    file_db = FileDB(inputdir, eofdir, tmpdir.absolute(), outputdir.absolute(), iadir.absolute(), tile, demdir="UNUSED", geoid_file=None)
+    # file_db = FileDB(inputdir, eofdir, tmpdir.absolute(), outputdir.absolute(), iadir.absolute(), tile, demdir="UNUSED", geoid_file=None)
+    file_db = FileDB(
+        inputdir=inputdir,
+        eofdir=eofdir,
+        tmpdir=tmpdir.absolute(),
+        outputdir=outputdir.absolute(),
+        xiadir=iadir.absolute(),
+        gamma_areadir="UNUSED",
+        tile=tile,
+        demdir="UNUSED",
+        geoid_file=None,
+    )
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')
     eof_file = os.path.join(eofdir, 'S1A_OPER_AUX_POEORB_OPOD_20210316T205443_V20200108T225942_20200110T005942.EOF')
     mocked_eof = MockedSentinelOrbitFile(eof_file, 'S1A')

@@ -5,30 +5,31 @@
 .. index:: Normlim data flow
 
 ======================================================================
-Normlim data flow
+:math:`σ^0_{T}` Normlim data flow
 ======================================================================
 
 .. contents:: Contents:
    :local:
    :depth: 3
 
-Two data flows are possibles:
+Two data flows are possible:
 
 - with :ref:`S1LIAMap` only LIA maps are produced,
 - with :ref:`S1Processor` LIA maps are produced if not found, then
-  :math:`σ^0_{RTC}` NORMLIM orthorectified files are produced.
+  :math:`σ^0_{T}` NORMLIM calibrated and orthorectified files are produced.
 
 Normlim global processing
 -------------------------
 
-The following processing is the new default processing from S1Tiling v1.2.
+The following processing described is the new processing starting from S1Tiling
+v1.2.
 
 S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads S1 images <downloading_s1>` (S1Processor scenario only)
-   The download is done on condition  the images are not already available
+1. It :ref:`downloads S1 images <downloading_s1>` (S1Processor scenario only).
+   The download is done on condition the images are not already available
    in :ref:`input data cache <paths.s1_images>`.
 
 2. It :ref:`downloads precise orbit files (EOF) <downloading_eof>` that cover
@@ -86,16 +87,16 @@ LIA specific processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d1_t1t2 [label="Raw d1 t1-t2",   href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d1_t2t3 [label="Raw d1 t2-t3",   href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         eof_dx      [label="EOF dn",         href="files.html#eof",    shape="doublecircle", fillcolor=cyan]
+         eof_dx      [label="EOF dn",         href="configuration.html#paths-eof-dir",   shape="doublecircle", fillcolor=cyan]
 
          # =====[ Classic workflow
          # β° calibrated + orthorectified nodes
@@ -109,9 +110,9 @@ LIA specific processings
          o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
          # Concatenated β° calibrated + orthorectified nodes
-         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
 
          # Classic workflow up to concatenated β° calibrated + orthorectified nodes
          raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
@@ -130,22 +131,22 @@ LIA specific processings
 
          # ===================================
          # =====[ LIA workflow
-         vrt_nwb       [label="DEM VRT 33NWB",                 fillcolor=palegoldenrod];
+         vrt_nwb       [label="DEM VRT 33NWB",                 href="files.html#dem_vrt_on_s2-files",           fillcolor=palegoldenrod];
 
-         DEM_on_S2     [label="DEM projected on 33NWB",        fillcolor=palegoldenrod];
-         heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      fillcolor=palegoldenrod];
-         xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", fillcolor=palegoldenrod];
+         DEM_on_S2     [label="DEM projected on 33NWB",        href="files.html#dem-on-s2-files",         fillcolor=palegoldenrod];
+         heights_on_S2 [label="geoid|DEM+geoid on 33NWB",      href="files.html#height-on-s2-files",      fillcolor=palegoldenrod];
+         xyz_d1_t1     [label="ground+satellite XYZ on 33NWB", href="files.html#ground-and-sat-s2-files", fillcolor=palegoldenrod];
          normals_on_S2 [label="ground normals on 33NWB",       fillcolor=palegoldenrod];
 
-         nwb_lia       [label="sin(LIA) on 33NWB",             fillcolor="gold" ]
+         nwb_lia       [label="sin(LIA) on 33NWB",             href="files.html#lia-files", fillcolor="gold" ]
 
          mult_d1       [label="X", shape="circle"]
          mult_d2       [label="X", shape="circle"]
          mult_dn       [label="X", shape="circle"]
 
-         nwb_d1        [label="S2 σ° NORMLIM 33NWB d1", fillcolor=lightblue];
-         nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", fillcolor=lightblue];
-         nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", fillcolor=lightblue];
+         nwb_d1        [label="S2 σ° NORMLIM 33NWB d1", href="files.html#full-s2-tiles", fillcolor=lightblue];
+         nwb_d2        [label="S2 σ° NORMLIM 33NWB d2", href="files.html#full-s2-tiles",fillcolor=lightblue];
+         nwb_dn        [label="S2 σ° NORMLIM 33NWB dn", href="files.html#full-s2-tiles",fillcolor=lightblue];
 
          vrt_nwb       -> DEM_on_S2;
          DEM_on_S2     -> heights_on_S2;
@@ -214,12 +215,12 @@ Agglomerate DEM files in a VRT that covers S2 footprint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect the target S2 tile
-:Output:      A :ref:`VRT file <dem-vrt-files>`
+:Output:      A :ref:`VRT file <dem_vrt_on_s2-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS2`
 
 All DEM files that intersect the target S2 tile are agglomerated in a :ref:`VRT
-file <dem-vrt-files>`.
+file <dem_vrt_on_s2-files>`.
 
 
 .. _project_dem_to_s2-proc:
@@ -228,12 +229,12 @@ file <dem-vrt-files>`.
 Project DEM on S2 tile
 ++++++++++++++++++++++
 
-:Inputs:         The :ref:`DEM VRT file <dem-vrt-files>` over the S2 tile
+:Inputs:         The :ref:`DEM VRT file <dem_vrt_on_s2-files>` over the S2 tile
 :Output:         The :ref:`DEM projected on S2 tile <dem_on_S2-files>`
-:OTBApplication: :external:std:doc:`programs/gdalwarp`
+:Program:        :external:std:doc:`programs/gdalwarp`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectDEMToS2Tile`
 
-This step projects the :ref:`DEM VRT file <dem-vrt-files>` on the S2 geometry.
+This step projects the :ref:`DEM VRT file <dem_vrt_on_s2-files>` on the S2 geometry.
 
 .. _project_geoid_to_s2-proc:
 .. index:: Project GEOID on S2 tile
@@ -246,11 +247,11 @@ Project GEOID on S2 tile
                  - The :ref:`GEOID file <paths.geoid_file>`
 :Output:         None: chained in memory with :ref:`Height computation
                  <sum_dem_geoid_on_s2-proc>`
-:OTBApplication: :external:std:doc:`OTB Superimpose
+:OTBApplication: :external+OTB:std:doc:`OTB Superimpose
                  <Applications/app_Superimpose>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ProjectGeoidToS2Tile`
 
-This step projects the :ref:`DEM VRT file <dem-vrt-files>` on the S2 geometry.
+This step projects the :ref:`GEOID file <paths.geoid_file>` on the S2 geometry.
 
 .. _sum_dem_geoid_on_s2-proc:
 .. index:: Compute full height elevation on S2
@@ -264,7 +265,7 @@ Compute full height elevation on S2
                    <project_geoid_to_s2-proc>`
 :Output:         The :ref:`Height projected on S2 tile
                  <height_on_s2-files>`
-:OTBApplication: :external:std:doc:`OTB BandMath
+:OTBApplication: :external+OTB:std:doc:`OTB BandMath
                  <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SumAllHeights`
 
@@ -281,8 +282,15 @@ Compute ECEF ground and satellite positions on S2
                    tile.
 :Output:         :ref:`ECEF Ground and satellite positions
                  <ground_and_sat_s2-files>` on the S2 tile.
-:OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnDEM
-                 <Applications/app_SARComputeGroundAndSatPositionsOnDEM>`
+:OTBApplication: `SARComputeGroundAndSatPositionsOnDEM
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 (developed for the purpose of this project)
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnDEMFromEOF`
 
 This step computes the ground positions of the pixels in the S2 geometry, and
@@ -360,12 +368,12 @@ Application of LIA maps to β° calibrated S2 images
 :Inputs:         - The :ref:`sine LIA map file <lia-files>` associated to the
                    S2 grid
                  - A β° calibrated, cut and orthorectified image on the S2 grid
-:Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{RTC}`
+:Output:         :ref:`final S2 tiles <full-S2-tiles>`, :math:`σ^0_{T}`
                  calibrated
-:OTBApplication: :external:std:doc:`BandMath <Applications/app_BandMath>`
+:OTBApplication: :external+OTB:std:doc:`BandMath <Applications/app_BandMath>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ApplyLIACalibration`
 
-This final step multiplies the sine LIA map (in S2 grid geometry) with β0
+This final step multiplies the sine LIA map (in S2 grid geometry) with β°
 calibrated files orthorectified on the S2 grid.
 
 
@@ -378,9 +386,9 @@ S1 Tiling processes by looping on all required S2 tiles within the time range.
 
 For each S2 tile,
 
-1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect the
-   S2 tile, within the specified time range, that are not already available in
-   :ref:`input data cache <paths.s1_images>`
+1. It :ref:`downloads <downloading_s1>` the necessary S1 images that intersect
+   the S2 tile, within the specified time range, that are not already available
+   in :ref:`input data cache <paths.s1_images>`
    (all scenarios)
 
 2. Then, it makes sure the :ref:`associated sine LIA map <lia-files>` exists
@@ -438,14 +446,14 @@ LIA specific deprecated processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         raw_d1_t1t2 [label="Raw d1 t1-t2", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d1_t2t3 [label="Raw d1 t2-t3", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d1_t1t2 [label="Raw d1 t1-t2", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d1_t2t3 [label="Raw d1 t2-t3", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_d2_t1t2 [label="Raw d2 t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_d2_t2t3 [label="Raw d2 t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
-         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="files.html#inputs", shape="folder", fillcolor=green]
-         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="files.html#inputs", shape="folder", fillcolor=green]
+         raw_dn_t1t2 [label="Raw dn t1'-t2'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
+         raw_dn_t2t3 [label="Raw dn t2'-t3'", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green]
 
          { rank = same ;  raw_d1_t1t2 raw_d1_t2t3 raw_d2_t1t2 raw_d2_t2t3 raw_dn_t1t2 raw_dn_t2t3}
 
@@ -460,9 +468,9 @@ LIA specific deprecated processings
          o_nwb_dn_t2 [label="Orthorectified β° 33NWB dn t'2", href="files.html#orthorectified-files", fillcolor=lightyellow]
 
          # Concatenated β° calibrated + orthorectified nodes
-         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-S2-tiles", fillcolor=pink]
-         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-S2-tiles", fillcolor=pink]
+         nwb_d1_b0 [label="S2 β° 33NWB d1", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_d2_b0 [label="S2 β° 33NWB d2", href="files.html#full-s2-tiles", fillcolor=pink]
+         nwb_dn_b0 [label="S2 β° 33NWB dn", href="files.html#full-s2-tiles", fillcolor=pink]
 
          # Classic workflow up to concatenated β° calibrated + orthorectified nodes
          raw_d1_t1t2 -> o_nwb_d1_t1 [label="β° cal | noise | cut | ortho"];
@@ -490,11 +498,14 @@ LIA specific deprecated processings
          xyz_d1_t1t2 [label="XYZ d1 t1-t2", fillcolor=palegoldenrod];
          xyz_d1_t2t3 [label="XYZ d1 t2-t3", fillcolor=palegoldenrod];
 
+         # LIA on S1
          lia_d1_t1t2 [label="sin(LIA) d1 t1-t2", fillcolor=palegoldenrod];
          lia_d1_t2t3 [label="sin(LIA) d1 t2-t3", fillcolor=palegoldenrod];
 
+         # LIA orthorectified on S2
          o_lia_d1_t1 [label="sin(LIA) d1 t1 on 33NWB", fillcolor=palegoldenrod];
          o_lia_d1_t2 [label="sin(LIA) d1 t2 on 33NWB", fillcolor=palegoldenrod];
+         # LIA concatenated a selected (best coverage)
          nwb_lia     [label="sin(LIA) on 33NWB", fillcolor=gold];
 
          nwb_d1      [label="S2 σ° NORMLIM 33NWB d1", fillcolor=lightblue];
@@ -513,21 +524,21 @@ LIA specific deprecated processings
          raw_d1_t1t2 -> S1_on_DEM_d1_t1t2;
          raw_d1_t2t3 -> S1_on_DEM_d1_t2t3;
 
-         vrt_d1_t1t2 -> xyz_d1_t1t2;
-         vrt_d1_t2t3 -> xyz_d1_t2t3;
-         raw_d1_t1t2 -> xyz_d1_t1t2;
-         raw_d1_t2t3 -> xyz_d1_t2t3;
+         vrt_d1_t1t2       -> xyz_d1_t1t2;
+         vrt_d1_t2t3       -> xyz_d1_t2t3;
+         raw_d1_t1t2       -> xyz_d1_t1t2;
+         raw_d1_t2t3       -> xyz_d1_t2t3;
          S1_on_DEM_d1_t1t2 -> xyz_d1_t1t2;
          S1_on_DEM_d1_t2t3 -> xyz_d1_t2t3;
 
          xyz_d1_t1t2 -> lia_d1_t1t2 [label=""];
          xyz_d1_t2t3 -> lia_d1_t2t3 [label=""];
 
-         lia_d1_t1t2 -> o_lia_d1_t1;
-         lia_d1_t2t3 -> o_lia_d1_t2;
+         lia_d1_t1t2 -> o_lia_d1_t1 [label="ortho"];
+         lia_d1_t2t3 -> o_lia_d1_t2 [label="ortho"];
 
-         o_lia_d1_t1 -> nwb_lia;
-         o_lia_d1_t2 -> nwb_lia;
+         o_lia_d1_t1 -> nwb_lia [label="concatenation"];
+         o_lia_d1_t2 -> nwb_lia [label="concatenation"];
 
          nwb_lia   -> mult_d1;
          nwb_lia   -> mult_d2;
@@ -545,28 +556,29 @@ LIA specific deprecated processings
 .. _prepare_VRT_s1-proc:
 .. index:: Agglomerate DEM
 
-Agglomerate DEM files in a VRT that covers S1 footprint
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Agglomerate DEM files in a VRT that covers S1 footprint (LIA) -- deprecated
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      All DEM files that intersect an original :ref:`input S1 image <paths.s1_images>`
-:Output:      A :ref:`VRT file <dem-vrt-files>`
+:Output:      A :ref:`VRT file <dem_vrt_on_s2-files>`
 :Function:    :func:`osgeo.gdal.BuildVRT`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.AgglomerateDEMOnS1`
 
 All DEM files that intersect an original :ref:`input S1 image
-<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem-vrt-files>`.
+<paths.s1_images>` are agglomerated in a :ref:`VRT file <dem_vrt_on_s2-files>`.
 
 
 .. _sardemproject_s1-proc:
 .. index:: Project SAR coordinates onto DEM
 
-Project SAR coordinates onto DEM
-++++++++++++++++++++++++++++++++
+Project SAR coordinates onto DEM (LIA) -- deprecated
+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem_vrt_on_s2-files>`
 :Output:         A :ref:`SAR DEM projected file <S1_on_dem-files>`
-:OTBApplication: :external:std:doc:`DiapOTB SARDEMProjection <Applications/app_SARDEMProjection>`
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB
+                 SARDEMProjection <Applications/app_SARDEMProjection>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARDEMProjection`
 
 This step projects the coordinates of original :ref:`input S1 image
@@ -576,14 +588,15 @@ This step projects the coordinates of original :ref:`input S1 image
 .. _sarcartesianmeanestimation-proc:
 .. index:: Project XYZ coordinates onto SAR
 
-Project XYZ coordinates onto SAR
-++++++++++++++++++++++++++++++++
+Project XYZ coordinates onto SAR -- deprecated
+++++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         - An original :ref:`input S1 image <paths.s1_images>` (geometry)
-                 - The associated :ref:`VRT file <dem-vrt-files>`
+                 - The associated :ref:`VRT file <dem_vrt_on_s2-files>`
                  - The associated :ref:`SAR DEM projected file <S1_on_dem-files>`
 :Output:         A :ref:`XYZ Cartesian coordinates file <xyz-files>`
-:OTBApplication: :external:std:doc:`Our patched version of DiapOTB SARCartesianMeanEstimation
+:OTBApplication: :external:std:doc:`Our patched version of DiapOTB
+                 SARCartesianMeanEstimation
                  <Applications/app_SARCartesianMeanEstimation>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.SARCartesianMeanEstimation`
 
@@ -594,14 +607,14 @@ of the original :ref:`input S1 image <paths.s1_images>`.
 .. _ortho_lia-proc:
 .. index:: Orthorectification of LIA maps
 
-Orthorectification of LIA maps
-++++++++++++++++++++++++++++++
+Orthorectification of LIA maps -- deprecated
+++++++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:      A :ref:`Sine Local Incidence Angle map, and an optional degrees
               LIA map <lia-s1-files>` in the original S1 image geometry
 :Output:      The associated :ref:`LIA map file(s) <lia-s2-half-files>`
               orthorectified on the target S2 tile.
-:OTBApplication: :external:std:doc:`Orthorectification
+:OTBApplication: :external+OTB:std:doc:`Orthorectification
                  <Applications/app_OrthoRectification>`
 :StepFactory: :class:`s1tiling.libs.otbwrappers.OrthoRectifyLIA`
 
@@ -620,13 +633,13 @@ It uses the following parameters from the request configuration file:
 .. _concat_lia-proc:
 .. index:: Concatenation of LIA maps
 
-Concatenation of LIA maps
-+++++++++++++++++++++++++
+Concatenation of LIA maps -- deprecated
++++++++++++++++++++++++++++++++++++++++
 
 :Inputs:         A pair of :ref:`LIA map files <lia-s2-half-files>` (sines or
                  degrees) orthorectified on the target S2 tile.
 :Output:         The :ref:`LIA map file(s) <lia-files>` associated to the S2 grid
-:OTBApplication: :external:std:doc:`Synthetize <Applications/app_Synthetize>`
+:OTBApplication: :external+OTB:std:doc:`Synthetize <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ConcatLIA`
 
 This step merges all the images of the orthorectified S1 LIA maps on a given S2

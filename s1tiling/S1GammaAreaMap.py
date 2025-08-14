@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 # =========================================================================
-#   Program:   S1LIAMap
+#   Program:   S1GammaAreaMap
 #
 #   All rights reserved.
 #   Copyright 2017-2025 (c) CNES.
-#   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -28,19 +27,20 @@
 # Authors:
 # - Thierry KOLECK (CNES)
 # - Luc HERMITTE (CSGROUP)
+# - Fabien CONTIVAL (CSGROUP)
 #
 # =========================================================================
 
 """
 S1Tiling Command Line Interface
 
-Usage: S1LIAMap [OPTIONS] CONFIGFILE
+Usage: S1GammaAreaMap [OPTIONS] CONFIGFILE
 
-  Generate Incidence Angle map(s) to the WGS84 Ellipsoid.
+  Generate Gamma-naught RTC map.
 
   It performs the following steps:
-   1- Download EOF files on the selected time range and relative orbits
-   2- Compute the selected LIA map(s)
+   1- Download S1 images from S1 data provider (through eodag)
+   2- Create related γ°RTC maps
 
   Parameters have to be set by the user in the S1Processor.cfg file
 
@@ -53,6 +53,7 @@ Options:
   --graphs    Generate task graphs showing the processing flow that need to be done.
 """
 
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 from typing import NoReturn
@@ -60,24 +61,46 @@ from typing import NoReturn
 import click
 
 from s1tiling.libs.cli import cli_main
-from s1tiling.libs.api import s1_process_lia
+from s1tiling.libs.api import s1_process_gamma_area
 from s1tiling.__meta__ import __version__, __pages__
 
+from s1tiling.libs.S1FileManager import (
+        EODAG_DEFAULT_DOWNLOAD_WAIT, EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        EODAG_DEFAULT_SEARCH_MAX_RETRIES, EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+)
 
-# ======================================================================
-# S1LIAMap
+
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=f"""\b
-    This tools is part of S1Tiling {__version__}. See also: S1IAMap, S1GammaAreaMap, S1Processor
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1IAMap, S1Processor
 
     \b
     Check out our docs at {__pages__} for more details.
     Copyright 2017-2025 (c) CNES.
-    Copyright 2022-2024 (c) CS GROUP France.
     """
 )
 @click.version_option()
+@click.option(
+        "--searched_items_per_page",
+        default=EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+        help="Number of products simultaneously requested by eodag"
+)
+@click.option(
+        "--nb_max_search_retries",
+        default=EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+        help="Number of times to retry on timeout when searching for compatible remote products"
+)
+@click.option(
+        "--eodag_download_timeout",
+        default=EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+        help="If download fails, maximum time in mins before stop retrying to download"
+)
+@click.option(
+        "--eodag_download_wait",
+        default=EODAG_DEFAULT_DOWNLOAD_WAIT,
+        help="If download fails, wait time in minutes between two download tries"
+)
 @click.option(
         "--trace-errors",
         is_flag=True,
@@ -104,22 +127,25 @@ from s1tiling.__meta__ import __version__, __pages__
         is_flag=True,
         help="Generate SVG images showing task graphs of the processing flows")
 @click.argument('config_filename', type=click.Path(exists=True))
-def run_lia(
+def run_gamma_area(
         config_filename,
-        **kwargs  # All click parameters that'll directly be forwarded to s1_process_lia
+        eodag_download_wait,
+        eodag_download_timeout,
+        **kwargs  # All click parameters that'll directly be forwarded to s1_process_gamma_area
 ) -> NoReturn:
     """
-    Generates maps of Local Incidence Angles for Sentinel-1 orbits over S2 MGRS tiles.
+    Generates maps of Gamma Area for Sentinel-1 orbits over S2 MGRS tiles.
 
-    These maps can be used for NORMLIM σ° calibration.
+    These maps can be used for γ° RTC calibration.
     """
     cli_main(
-        s1_process_lia,
+        s1_process_gamma_area,
         config_filename,
+        dl_wait=eodag_download_wait, dl_timeout=eodag_download_timeout,
         **kwargs
     )
 
 
 # ======================================================================
 if __name__ == '__main__':  # Required for Dask: https://github.com/dask/distributed/issues/2422
-    run_lia()  # pylint: disable=no-value-for-parameter
+    run_gamma_area()  # pylint: disable=no-value-for-parameter

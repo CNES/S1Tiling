@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # =========================================================================
-#   Program:   S1Processor
+#   Program:   S1IAMap
 #
 #   All rights reserved.
 #   Copyright 2017-2025 (c) CNES.
@@ -68,7 +68,7 @@ from s1tiling.__meta__ import __version__, __pages__
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=f"""\b
-    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1Processor
+    This tools is part of S1Tiling {__version__}. See also: S1LIAMap, S1GammaAreaMap, S1Processor
 
     \b
     Check out our docs at {__pages__} for more details.

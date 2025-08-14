@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -68,7 +68,8 @@ from ..              import Utils
 from ..configuration import (
         Configuration,
         dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
-        extended_filename_filtered, extended_filename_mask, extended_filename_tiled,
+        extended_filename_filtered,
+        extended_filename_hidden, extended_filename_mask, extended_filename_tiled,
         fname_fmt_concatenation, fname_fmt_filtered,
 )
 from ..configuration import pixel_type as cfg_pixel_type  # avoid name hiding
@@ -330,14 +331,13 @@ class AnalyseBorders(StepFactory):
         return meta
 
 
-k_calib_convert = {'normlim' : 'beta'}
+k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'sigma'}
 
 
 class Calibrate(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_SARCalibration` as described in :ref:`SAR
-    Calibration` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_SARCalibration` as
+    described in :ref:`SAR Calibration` documentation.
 
     Requires the following information from the configuration object:
 
@@ -358,13 +358,15 @@ class Calibrate(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_calOk.tiff'
         fname_fmt = cfg.fname_fmt.get('calibration', fname_fmt)
-        super().__init__(cfg,
-                appname='SARCalibration',
-                name='Calibration',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
+        super().__init__(
+            cfg,
+            appname='SARCalibration',
+            name='Calibration',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'calibration'),
+            image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD',
         )
         # Warning: config object cannot be stored and passed to workers!
         # => We extract what we need
@@ -391,8 +393,8 @@ class Calibrate(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`SARCalibration OTB
-        application <Applications/app_SARCalibration>`.
+        Returns the parameters to use with :external+OTB:doc:`SARCalibration OTB application
+        <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
                 'ram'           : ram(self.ram_per_process),
@@ -410,9 +412,8 @@ class Calibrate(OTBStepFactory):
 
 class CorrectDenoising(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_BandMath` as described in :ref:`SAR Calibration`
-    documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_BandMath` as described
+    in :ref:`SAR Calibration` documentation.
 
     It requires the following information from the configuration object:
 
@@ -431,12 +432,14 @@ class CorrectDenoising(OTBStepFactory):
         """
         fname_fmt = '{rootname}_{calibration_type}_NoiseFixed.tiff'
         fname_fmt = cfg.fname_fmt.get('correct_denoising', fname_fmt)
-        super().__init__(cfg,
-                appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
+        super().__init__(
+            cfg,
+            appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'correct_denoising'),
+            image_description='{calibration_type} calibrated Sentinel-{flying_unit_code_short} IW GRD with noise corrected',
         )
         self.__lower_signal_value = cfg.lower_signal_value
 
@@ -484,9 +487,9 @@ class CorrectDenoising(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for changing no-non-data 0.0 into lower_signal_value,
-        and force nodata to 0.
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for changing no-non-data 0.0 into lower_signal_value, and force
+        nodata to 0.
 
         The nodata mask comes from the input SAR image.
 
@@ -499,19 +502,19 @@ class CorrectDenoising(OTBStepFactory):
         in_cal = fetch_input_data('in_cal', inputs).out_filename
         in_sar = fetch_input_data('in_sar', inputs).out_filename
         params : OTBParameters = {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : [in_cal, in_sar],
-                # self.param_out     : out_filename(meta),
-                # 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
-                'exp'              : f'im2b1==0?0:im1b1==0?{self.__lower_signal_value}:im1b1'
+            'ram'              : ram(self.ram_per_process),
+            self.param_in      : [in_cal, in_sar],
+            # self.param_out     : out_filename(meta),
+            # 'exp'              : f'im1b1==0?{self.__lower_signal_value}:im1b1'
+            'exp'              : f'im2b1==0?0:im1b1==0?{self.__lower_signal_value}:im1b1'
         }
         return params
 
 
 class CutBorders(OTBStepFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_ResetMargin` as described in :ref:`Margins Cutting` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_ResetMargin` as
+    described in :ref:`Margins Cutting` documentation.
 
     Requires the following information from the configuration object:
 
@@ -533,17 +536,18 @@ class CutBorders(OTBStepFactory):
         fname_fmt = '{rootname}_{calibration_type}_OrthoReady.tiff'
         fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
         super().__init__(
-                cfg,
-                appname='ResetMargin', name='BorderCutting',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            cfg,
+            appname='ResetMargin', name='BorderCutting',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'cut_borders'),
         )
 
     def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+        self,
+        execution_parameters: Dict,
+        previous_steps: List[InputList]
     ) -> AbstractStep:
         """
         This overrides checks whether ResetMargin would cut any border.
@@ -564,8 +568,8 @@ class CutBorders(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`ResetMargin OTB
-        application <Applications/app_ResetMargin>`.
+        Returns the parameters to use with :external+OTB:doc:`ResetMargin OTB application
+        <Applications/app_ResetMargin>`.
         """
         params = {
                 'ram'              : ram(self.ram_per_process),
@@ -583,7 +587,7 @@ class CutBorders(OTBStepFactory):
 class _OrthoRectifierFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` as described in
+    :external+OTB:doc:`Applications/app_OrthoRectification` as described in
     :ref:`OrthoRectification` documentation.
 
     This factory will be specialized for calibrated S1 images
@@ -607,32 +611,32 @@ class _OrthoRectifierFactory(OTBStepFactory):
     - `tile_origin`
     """
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            cfg              : Configuration,
-            *,
-            fname_fmt        : str,
-            image_description: str,
-            extended_filename: Optional[str] = None,
-            pixel_type       : Optional[int] = None,
+        self,
+        cfg              : Configuration,
+        *,
+        fname_fmt        : str,
+        image_description: str,
+        extended_filename: Optional[str] = None,
+        pixel_type       : Optional[int] = None,
     ) -> None:
         """
         Constructor.
         Extract and cache configuration options.
         """
         super().__init__(
-                cfg,
-                appname='OrthoRectification', name='OrthoRectification',
-                param_in='io.in', param_out='io.out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,  # Use gen_tmp_dir,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description=image_description,
-                extended_filename=extended_filename,
-                pixel_type=pixel_type,
+            cfg,
+            appname='OrthoRectification', name='OrthoRectification',
+            param_in='io.in', param_out='io.out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description=image_description,
+            extended_filename=extended_filename,
+            pixel_type=pixel_type,
         )
         self.__out_spatial_res      = cfg.out_spatial_res
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        # assert os.path.isfile(self.__GeoidFile), f"{self.__GeoidFile} doesn't exist"
+        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
         self.__grid_spacing         = cfg.grid_spacing
         self.__interpolation_method = cfg.interpolation_method
         self.__tmp_dem_dir          = cfg.tmp_dem_dir
@@ -680,8 +684,8 @@ class _OrthoRectifierFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`OrthoRectification OTB
-        application <Applications/app_OrthoRectification>`.
+        Returns the parameters to use with :external+OTB:doc:`OrthoRectification OTB application
+        <Applications/app_OrthoRectification>`.
         """
         image       = self._get_input_image(meta)
         tile_name   = meta['tile_name']
@@ -708,16 +712,15 @@ class _OrthoRectifierFactory(OTBStepFactory):
                 'outputs.ulx'      : extent['xmin'],
                 'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
                 'elev.dem'         : self.__tmp_dem_dir,
-                'elev.geoid'       : self.__GeoidFile
+                'elev.geoid'       : self.__GeoidFile,
         }
         return parameters
 
 
 class OrthoRectify(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run
-    :external:doc:`Applications/app_OrthoRectification` as described in
-    :ref:`OrthoRectification` documentation.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_OrthoRectification` as
+    described in :ref:`OrthoRectification` documentation.
 
     Requires the following information from the configuration object:
 
@@ -747,11 +750,11 @@ class OrthoRectify(_OrthoRectifierFactory):
         if otb_version() < '8.0.0':
             extended_filename += '&writegeom=false'
         super().__init__(
-                cfg,
-                fname_fmt=fname_fmt,
-                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename,
-                pixel_type=cfg_pixel_type(cfg, 'tiled'),
+            cfg,
+            fname_fmt=fname_fmt,
+            image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename,
+            pixel_type=cfg_pixel_type(cfg, 'tiled'),
         )
 
     def _get_input_image(self, meta: Meta) -> str:
@@ -760,9 +763,8 @@ class OrthoRectify(_OrthoRectifierFactory):
 
 class _ConcatenatorFactory(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` as described in
-    :ref:`Concatenation` documentation.
+    Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
+    described in :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
 
@@ -833,8 +835,8 @@ class _ConcatenatorFactory(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`Synthetize OTB
-        application <Applications/app_Synthetize>`.
+        Returns the parameters to use with :external+OTB:doc:`Synthetize OTB application
+        <Applications/app_Synthetize>`.
         """
         return {
                 'ram'              : ram(self.ram_per_process),
@@ -875,9 +877,8 @@ class _ConcatenatorFactory(OTBStepFactory):
 
 class Concatenate(_ConcatenatorFactory):
     """
-    Abstract factory that prepares steps that run
-    :external:doc:`Applications/app_Synthetize` as described in
-    :ref:`Concatenation` documentation.
+    Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
+    described in :ref:`Concatenation` documentation.
 
     Requires the following information from the configuration object:
 
@@ -901,13 +902,13 @@ class Concatenate(_ConcatenatorFactory):
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
         super().__init__(
-                cfg,
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=gen_output_dir,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
-                extended_filename=extended_filename_tiled(cfg),
-                pixel_type=cfg_pixel_type(cfg, 'tiled'),
+            cfg,
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=gen_output_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='{calibration_type} calibrated orthorectified Sentinel-{flying_unit_code_short} IW GRD',
+            extended_filename=extended_filename_tiled(cfg),
+            pixel_type=cfg_pixel_type(cfg, 'tiled'),
         )
 
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
@@ -955,7 +956,7 @@ class Concatenate(_ConcatenatorFactory):
                 filename        = out_filename(meta)
                 exist_task_name = os.path.isfile(task_name)
                 exist_file_name = os.path.isfile(filename)
-                logger.debug('Checking concatenation product:\n- %s => %s (task)\n- %s => %s (file)',
+                logger.debug('Checking concatenation product:\n- %r => %s (task)\n- %r => %s (file)',
                         task_name, '∃' if exist_task_name else '∅',
                         filename,  '∃' if exist_file_name else '∅')
                 return exist_task_name or exist_file_name
@@ -993,13 +994,13 @@ class BuildBorderMask(OTBStepFactory):
         Constructor.
         """
         super().__init__(
-                cfg,
-                appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=None,  # Use gen_tmp_dir
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
-                pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
-                image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
+            cfg,
+            appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir
+            gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
+            pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
+            image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD border mask S2 tile',
         )
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
@@ -1013,7 +1014,7 @@ class BuildBorderMask(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
         <Applications/app_BandMath>` for computing border mask.
         """
         params : OTBParameters = {
@@ -1055,10 +1056,8 @@ class SmoothBorderMask(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`BinaryMorphologicalOperation OTB application
-        <Applications/app_BinaryMorphologicalOperation>` to smooth border
-        masks.
+        Returns the parameters to use with :external+OTB:doc:`BinaryMorphologicalOperation OTB
+        application <Applications/app_BinaryMorphologicalOperation>` to smooth border masks.
         """
         return {
                 'ram'                   : ram(self.ram_per_process),
@@ -1110,15 +1109,15 @@ class SpatialDespeckle(OTBStepFactory):
         fname_fmt = fname_fmt_filtered(cfg)
         dname_fmt = dname_fmt_filtered(cfg)
         super().__init__(
-                cfg,
-                appname='Despeckle', name='Despeckle',
-                param_in='in', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=dname_fmt,
-                gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-                image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
-                extended_filename=extended_filename_filtered(cfg),
-                pixel_type=cfg_pixel_type(cfg, 'filtered'),
+            cfg,
+            appname='Despeckle', name='Despeckle',
+            param_in='in', param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=dname_fmt,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Orthorectified and despeckled Sentinel-{flying_unit_code_short} IW GRD S2 tile',
+            extended_filename=extended_filename_filtered(cfg),
+            pixel_type=cfg_pixel_type(cfg, 'filtered'),
         )
         self.__filter  = cfg.filter
         self.__rad     = cfg.filter_options.get('rad', 0)
@@ -1163,8 +1162,7 @@ class SpatialDespeckle(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with
-        :external:doc:`Despeckle OTB application
+        Returns the parameters to use with :external+OTB:doc:`Despeckle OTB application
         <Applications/app_Despeckle>` to perform speckle noise reduction.
         """
         assert self.__rad

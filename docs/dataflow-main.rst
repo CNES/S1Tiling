@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. include:: <isoamsa.txt>
 
 .. _dataflow-main:
@@ -27,7 +32,9 @@ For each S2 tile,
 
    1. It :ref:`calibrates <calibration-proc>`, :ref:`cuts <cutting-proc>` and
       :ref:`orthorectifies <orthorectification-proc>` all the S1 images onto
-      the S2 grid
+      the S2 grid. |br|
+      Note that workarounds are also implemented to correctly distinguish noisy
+      low input signal pixel values from no-data pixel values.
    2. It :ref:`superposes (concatenates) <concatenation-proc>` the
       orthorectified images into a single S2 tile.
    3. It :ref:`filters <filter-proc>` the orthorectified images to reduce the
@@ -47,14 +54,15 @@ care of distributing the computations.
 
 In the following processing of 33NWB and 33NWC from 2020-01-01 to 2020-01-10,
 only two S2 images are generated. It's done by processing in parallel (but in
-any order compatible with the dependencies represented in the graph),
+any order which stays compatible with the dependencies represented in the
+graph),
 
 - the S1 image inputs (first column) by :ref:`calibrating <calibration-proc>`
-  and :ref:`cutting <cutting-proc>` them to obtain...
+  and :ref:`cutting <cutting-proc>` them to obtain…
 - the :ref:`orthoready files <orthoready-files>` (second column), which are in
-  turn :ref:`orthorectified <orthorectification>` to obtain...
+  turn :ref:`orthorectified <orthorectification>` to obtain…
 - the :ref:`orthorectified files <orthorectified-files>` (third column), which
-  are in turn :ref:`concatenated <concatenation>` to obtain...
+  are in turn :ref:`concatenated <concatenation>` to obtain…
 - the :ref:`final S2 products <full-S2-tiles>` (fourth column),
 - :ref:`border masks <mask-files>`  can in turn be :ref:`generated
   <mask_generation-proc>` from them -- not represented on the graph.
@@ -71,9 +79,9 @@ any order compatible with the dependencies represented in the graph),
          node [fontname="Verdana", fontsize="12"];
          edge [fontname="Sans", fontsize="9"];
 
-         raw_t1t2 [label="Raw t1-t2", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
-         raw_t2t3 [label="Raw t2-t3", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
-         raw_t3t4 [label="Raw t3-t4", target="_top", href="files.html#inputs", shape="folder", fillcolor=green, style=filled]
+         raw_t1t2 [label="Raw t1-t2", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
+         raw_t2t3 [label="Raw t2-t3", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
+         raw_t3t4 [label="Raw t3-t4", target="_top", href="configuration.html#paths-s1-images", shape="folder", fillcolor=green, style=filled]
 
          or_t1t2 [label="OrthoReady t1-t2", target="_top", href="files.html#orthoready-files", shape="note", fillcolor=lightyellow, style=filled]
          or_t2t3 [label="OrthoReady t2-t3", target="_top", href="files.html#orthoready-files", shape="note", fillcolor=lightyellow, style=filled]
@@ -84,8 +92,8 @@ any order compatible with the dependencies represented in the graph),
          o_nwb_t2 [label="Orthorectified 33NWB t2", target="_top", href="files.html#orthorectified-files", shape="note", fillcolor=lightyellow, style=filled]
          o_nwb_t3 [label="Orthorectified 33NWB t3", target="_top", href="files.html#orthorectified-files", shape="note", fillcolor=lightyellow, style=filled]
 
-         nwb [label="S2 33NWB" shape="note", target="_top", href="files.html#full-S2-tiles", fillcolor=lightblue, style=filled]
-         nwc [label="S2 33NWC" shape="note", target="_top", href="files.html#full-S2-tiles", fillcolor=lightblue, style=filled]
+         nwb [label="S2 33NWB" shape="note", target="_top", href="files.html#orthorectified-s2-tiles", fillcolor=lightblue, style=filled]
+         nwc [label="S2 33NWC" shape="note", target="_top", href="files.html#orthorectified-s2-tiles", fillcolor=lightblue, style=filled]
 
          raw_t1t2 -> or_t1t2 [label="calibration + cut"];
          raw_t2t3 -> or_t2t3 [label="calibration + cut"];
@@ -118,7 +126,7 @@ The downloading of S1 products is optional and done only if
 :ref:`[DataSource].download <DataSource.download>` option is set to ``True``.
 
 S1 products are downloaded with `eodag <https://github.com/CS-SI/eodag>`_.
-See :ref:`[DataSource].eodag_config <DataSource.eodag_config>`  regarding its
+See :ref:`[DataSource].eodag_config <DataSource.eodag_config>` regarding its
 configuration.
 
 Downloaded files are stored into the directory specified by
@@ -163,13 +171,13 @@ SAR Calibration
 
 :Input:          An original :ref:`input S1 image <paths.s1_images>`
 :Output:         None: chained in memory with :ref:`cutting <cutting-proc>`
-:OTBApplication: :external:std:doc:`OTB SARCalibration application
+:OTBApplication: :external+OTB:std:doc:`OTB SARCalibration application
                  <Applications/app_SARCalibration>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.Calibrate`
 
 This step applies σ°, β°, or γ° radiometric correction.
 The type of calibration is controlled with :ref:`[Processing].calibration
-<Processing.calibration>` option. It also permits to remove thermal noise
+<Processing.calibration>` option. It also permits removing thermal noise
 :ref:`if required <Processing.remove_thermal_noise>`.
 
 .. note:: At the end of this step, no file is produced as calibration is piped
@@ -194,29 +202,29 @@ Margins cutting
 :Output:         - Either chained in memory with :ref:`orthorectification
                    <orthorectification-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
-:OTBApplication: :external:std:doc:`OTB ResetMargin application
+:OTBApplication: :external+OTB:std:doc:`OTB ResetMargin application
                  <Applications/app_ResetMargin>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.CutBorders`
 
 This step takes care of resetting margins content to nodata=0 when too many
 no-data are detected within the margin. This phenomenon happens on coasts. The
-margins aren't cut out like what :external:std:doc:`ExtractROI
+margins aren't cut out like what :external+OTB:std:doc:`ExtractROI
 <Applications/app_ExtractROI>` would do but filled with 0's, which permits to
 keep the initial geometry.
 
 The implemented heuristic is the following:
 
-- 1600 pixels (16km) on the top (/resp on the bottom) of the image will be cut
+- 1600 pixels (16 km) on the top (/resp on the bottom) of the image will be cut
   if more than 2000 NoData (NoData is assimilated with 0 here) pixels are
   detected on the 100th row from the top (/resp from the bottom).
 
-- On Sentinel-1 IPF < v2.90 products, 1000 pixels (2 x 10 km) will always be
+- On Sentinel-1 IPF < v2.90 products, 1000 pixels (2 × 10 km) will always be
   cut on both sides (see `MPC-0243: Masking "No-value" Pixels on GRD Products
   generated by the Sentinel-1 ESA IPF
   <https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000>`_).
 
 - Starting from IPF v 2.90, Sentinel-1 products already have bands of nodata.
-  No other marging cutting is done on the sides.
+  No other margin cutting is done on the sides.
 
 .. note::
    The heuristic can be overridden thanks
@@ -224,11 +232,11 @@ The implemented heuristic is the following:
    <Processing.override_azimuth_cut_threshold_to>` option.
 
 At the end of this step, :ref:`orthorectification ready images
-<orthoready-files>` may be produced. It could be interresting to :ref:`cache
-<data-caches>` these product as a same cut-and-calibrated S1 image can be
+<orthoready-files>` may be produced. It could be interesting to :ref:`cache
+<data-caches>` this product as a same cut-and-calibrated S1 image can be
 orthorectified into several S2 grids it intersects. The default processing of
 these products in memory can be disabled by passing ``--cache-before-ortho`` to
-program:`S1Processor`.
+:ref:`S1Processor`.
 
 
 .. _orthorectification-proc:
@@ -240,7 +248,7 @@ Orthorectification
 :Input:          - Either chained in memory from :ref:`cutting <cutting-proc>`
                  - or :ref:`orthorectification ready images <orthoready-files>`
 :Output:         :ref:`orthorectified S1 images <orthorectified-files>`
-:OTBApplication: :external:std:doc:`OTB OrthoRectification application
+:OTBApplication: :external+OTB:std:doc:`OTB OrthoRectification application
                  <Applications/app_OrthoRectification>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.OrthoRectify`
 
@@ -267,13 +275,13 @@ Concatenation
                  <orthorectified-files>`
 :Output:         The main product of S1 Tiling: the :ref:`final S2 tiles
                  <full-S2-tiles>`
-:OTBApplication: :external:std:doc:`OTB Synthetize application
+:OTBApplication: :external+OTB:std:doc:`OTB Synthetize application
                  <Applications/app_Synthetize>`
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.Concatenate`
 
 This step takes care of merging all the images of the orthorectified S1
 products on a given S2 grid. As all orthorectified images are almost exclusive,
-they are concatenated by taking the first non null pixel.
+they are concatenated by taking the first non-null pixel.
 
 This step produces the main product of S1 Tiling: the :ref:`final S2 tiles
 <full-S2-tiles>`.
@@ -304,7 +312,7 @@ Despeckling
 
 :Inputs:          :ref:`final S2 tiles <full-S2-tiles>`
 :Output:          :ref:`filtered S2 images <filtered-files>`
-:OTBApplications: :external:std:doc:`OTB Despeckle application <Applications/app_Despeckle>`
+:OTBApplications: :external+OTB:std:doc:`OTB Despeckle application <Applications/app_Despeckle>`
 :StepFactories:   :class:`s1tiling.libs.otbwrappers.SpatialDespeckle`
 
 If :ref:`requested <Filtering.filter>`, speckle filtering is applied to
@@ -319,8 +327,8 @@ Border mask generation
 
 :Inputs:          :ref:`final S2 tiles <full-S2-tiles>`
 :Output:          :ref:`border masks <mask-files>`
-:OTBApplications: - :external:std:doc:`OTB BandMath application <Applications/app_BandMath>`
-                  - :external:std:doc:`OTB BinaryMorphologicalOperation application
+:OTBApplications: - :external+OTB:std:doc:`OTB BandMath application <Applications/app_BandMath>`
+                  - :external+OTB:std:doc:`OTB BinaryMorphologicalOperation application
                     <Applications/app_BinaryMorphologicalOperation>`
 :StepFactories:   - :class:`s1tiling.libs.otbwrappers.BuildBorderMask`
                   - :class:`s1tiling.libs.otbwrappers.SmoothBorderMask`
@@ -330,11 +338,11 @@ If :ref:`requested <Mask.generate_border_mask>`, :ref:`border masks
 
 The actual generation is done in two steps:
 
-1. :external:std:doc:`OTB BandMath application <Applications/app_BandMath>` is
+1. :external+OTB:std:doc:`OTB BandMath application <Applications/app_BandMath>` is
    used to generate border masks by saturating non-zero data to 1's.
-2. :external:std:doc:`OTB BinaryMorphologicalOperation application
+2. :external+OTB:std:doc:`OTB BinaryMorphologicalOperation application
    <Applications/app_BinaryMorphologicalOperation>` is used to smooth border
-   masks with a ball of 5x5 radius used for *opening*.
+   masks with a ball of 5×5 radius used for *opening*.
 
 
 .. _data-caches:
@@ -375,7 +383,7 @@ processing of S1 images to help to delete those temporary files as soon as
 possible. In other words, it's up to you to clean these temporary files, and to
 make sure to not request too many S2 tiles on long time ranges.
 
-That's why the default behaviour is to process "OrthoReady" product in memory.
+That's why the default behaviour is to process "OrthoReady" products in memory.
 Also, this is not necessarily a big performance issue.
 Indeed, given OTB internals, producing an orthorectified S1 image onto a S2
 tile does not calibrate the whole S1 image, but only the minimal region

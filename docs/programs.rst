@@ -10,8 +10,9 @@ S1Tiling provides 3 programs:
    :maxdepth: 3
 
    s1processor
-   s1liamap
    s1iamap
+   s1liamap
+   s1gammaareamap
    exit-codes
 
 

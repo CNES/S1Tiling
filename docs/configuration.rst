@@ -39,13 +39,13 @@ You can use this :download:`this template
 
       .. _paths.s1_images:
   * - ``s1_images``
-    - Where S1 images are downloaded thanks to `EODAG
+    - Where S1 images are downloaded to, thanks to `EODAG
       <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
       that directory -- the 1000 last products that have been downloaded.
       |br|
-      This enables to cache downloaded S1 images in beteen runs.
+      This enables to cache downloaded S1 images in between runs.
 
       .. _paths.output:
   * - ``output``
@@ -53,13 +53,18 @@ You can use this :download:`this template
 
       .. _paths.ia:
   * - ``ia``
-    - Where (non Local) Incidence Maps and sin(IA) products are generated. Its
-      default value is ``{output}/_IA``.
+    - Where (Ellipsoid) Incidence Maps and cos(IA)/sin(IA) products are
+      generated. Its default value is ``{output}/_IA``.
 
       .. _paths.lia:
   * - ``lia``
     - Where Local Incidence Maps and sin(LIA) products are generated. Its
       default value is ``{output}/_LIA``.
+
+      .. _paths.gamma_area:
+  * - ``gamma_area``
+    - Where γ Area products are generated. Its default value is
+      ``{output}/_GAMMA_AREA``.
 
       .. _paths.tmp:
   * - ``tmp``
@@ -70,6 +75,8 @@ You can use this :download:`this template
   * - ``geoid_file``
     - Path to Geoid model. If left unspecified, it'll point automatically to
       the geoid resource shipped with S1 Tiling.
+
+      .. warning:: Make sure to use an EGM2008 model for Copernicus DEM files.
 
       .. _paths.dem_database:
   * - ``dem_database``
@@ -98,14 +105,16 @@ You can use this :download:`this template
       ``DEM_INFO`` key. If not defined, the last part (basename) of
       :ref:`[Paths].dem_dir <paths.dem_dir>` will be used.
 
+      See § :ref:`scenario.choose_dem` entry for more detailled information.
+
       .. _paths.srtm:
   * - ``srtm``
     - **(deprecated)** Use :ref:`[PATHS].dem_dir <paths.dem_dir>`. Path to SRTM files.
 
       .. _paths.eof_dir:
   * - ``eof_dir``
-    - Where precise orbit orbit files (EOF) are expected to be found, or where
-      they would be downloaded on the fly.
+    - Where precise orbit files (EOF) are expected to be found, or where they
+      would be downloaded to on the fly.
       Default value is ``{output}/_EOF``.
 
       See also :ref:`faq.eof`.
@@ -126,15 +135,22 @@ You can use this :download:`this template
 
       .. _DataSource.download:
   * - ``download``
-    - If ``True``, activates the downloading from specified data provider for
-      the ROI, otherwise only local S1 images already in :ref:`s1_images
-      <paths.s1_images>` will be processed.
+    - When ``True``, enables the downloading:
+
+      - of Sentinel-1 images, that intersects the ROI, from the specified data
+        provider -- only local images already in :ref:`s1_images
+        <paths.s1_images>` will be processed otherwise.
+      - and of missing EOF products, in scenarios that require them (currently
+        for the production of :ref:`LIA <scenario.S1LIAMap>` and :ref:`IA
+        <scenario.S1IAMap>` maps).
 
       .. _DataSource.eodag_config:
   * - ``eodag_config``
     - Designates where the EODAG configuration file is expected to be found.
       |br|
-      Default value: :file:`%(HOME)s/.config/eodag/eodag.yml`.
+      Default value is fetched in order: :samp:`${{EODAG_CFG_FILE}}` >
+      :samp:`${{EODAG_CFG_DIR}}/eodag.yml` >
+      :file:`%(HOME)s/.config/eodag/eodag.yml`.
 
       From S1Tiling point of view, EODAG configuration file will list the
       authentification credentials for the know providers and their respective
@@ -177,25 +193,29 @@ You can use this :download:`this template
 
       .. _DataSource.platform_list:
   * - ``platform_list``
-    - Defines the list of platforms from where come the products to download
-      and process.
-      Valid values are ``S1A``, ``S1B``, or ``S1C``.
+    - Filter to restrict the list of Sentinel-1 platforms from where the
+      products, to download and process, come from. |br|
+      Valid values are comma separated lists of ``S1A``, ``S1B``, and ``S1C``.
+      By default (when left unspecified), no filter is applied.
 
       .. warning::
-        A single value is expected in :ref:`NORMLIM and Ellipsoid Incide Angle
-        scenarios <scenarios>`.
+        Only one single value is expected in :ref:`NORMLIM and Ellipsoid
+        Incidence Angle scenarios <scenarios>`.
 
       .. _DataSource.polarisation:
   * - ``polarisation``
-    - Defines the polarisation mode of the products to download and process.
+    - Filter on the polarisation mode of the Sentinel-1 products to download
+      and process.  |br|
       Only six values are valid: ``HH-HV``, ``VV-VH``, ``VV``, ``VH``, ``HV``,
       and ``HH``.
 
       .. _DataSource.orbit_direction:
   * - ``orbit_direction``
-    - Download only the products acquired in ascending (``ASC``) or in
-      descending (``DES``) order.  By default (when left unspecified), no
-      filter is applied.
+    - Filter on the orbit direction of the Sentinel-1 products to download and
+      process. |br|
+      Only two values are valid: ``ASC`` (ascending mode order) and ``DSC``
+      (descending mode order). By default (when left unspecified), no filter is
+      applied.
 
       .. warning::
         Each relative orbit is exclusive to one orbit direction,
@@ -205,8 +225,10 @@ You can use this :download:`this template
 
       .. _DataSource.relative_orbit_list:
   * - ``relative_orbit_list``
-    - Download only the products from the specified relative orbits. By default
-      (when left unspecified), no filter is applied.
+    - Filter to download and process only the Sentinel-1 products from the
+      specified relative orbits. |br|
+      Valid values are comma separated list of relative orbit numbers (∈
+      [1..175]). By default (when left unspecified), no filter is applied.
 
       .. warning::
         Each relative orbit is exclusive to one orbit direction,
@@ -214,8 +236,8 @@ You can use this :download:`this template
         :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
         considered as exclusive.
       .. warning::
-        A single value is expected in :ref:`NORMLIM and Ellipsoid Incide Angle
-        scenarios <scenarios>`.
+        One and exactly one single value is expected in :ref:`NORMLIM and
+        Ellipsoid Incidence Angle scenarios <scenarios>`.
 
       .. _DataSource.first_date:
   * - ``first_date``
@@ -247,8 +269,9 @@ You can use this :download:`this template
 
       .. _Mask.generate_border_mask:
   * - ``generate_border_mask``
-    - This option allows you to choose if you want to generate border masks of
-      the S2 image files produced. Values are ``True`` or ``False``.
+    - Enable the generation of border masks for the S2-aligned image files
+      produced. |br|
+      Valid values are ``True`` or ``False``.
 
 
 .. _Processing:
@@ -284,8 +307,8 @@ You can use this :download:`this template
 
       .. _Processing.calibration:
   * - ``calibration``
-    - Defines the calibration type: ``gamma``, ``beta``, ``sigma``, or
-      ``normlim``.
+    - Defines the calibration type to apply: ``gamma``, ``beta``, ``sigma``,
+      ``normlim`` or ``gamma_naught_rtc``.
 
       .. _Processing.remove_thermal_noise:
   * - ``remove_thermal_noise``
@@ -304,11 +327,28 @@ You can use this :download:`this template
       used.
 
       .. _Processing.nodata:
-  * - ``nodata.IA``
-    - No-data value to use in :ref:`IA files <ia-files>`
+  * - ``nodata.*``
+    -
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
 
-  * - ``nodata.LIA``
-    - No-data value to use in :ref:`LIA files <lia-files>`
+        * - Option
+          - Description
+
+            .. _Processing.nodata.IA:
+        * - ``nodata.IA``
+          - No-data value to use in :ref:`IA files <ia-files>`
+
+            .. _Processing.nodata.LIA:
+        * - ``nodata.LIA``
+          - No-data value to use in :ref:`LIA files <lia-files>`
+
+            .. _Processing.nodata.RTC:
+        * - ``nodata.RTC``
+          - No-data value to use when applying :ref:`Gamma Area map
+            <apply_gamma_area-proc>`
 
       .. _Processing.output_spatial_resolution:
   * - ``output_spatial_resolution``
@@ -323,8 +363,8 @@ You can use this :download:`this template
       .. _Processing.orthorectification_gridspacing:
   * - ``orthorectification_gridspacing``
     - Grid spacing (in meters) for the interpolator in the orthorectification
-      process. For more information, please consult the `OTB OrthoRectification
-      application
+      process. For more information, please consult `OTB OrthoRectification
+      application documentation
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
       A nice value is ``4 x output_spatial_resolution``
@@ -332,14 +372,14 @@ You can use this :download:`this template
       .. _Processing.orthorectification_interpolation_method:
   * - ``orthorectification_interpolation_method``
     - Interpolation method used in the orthorectification process.
-      For more information, please consult the `OTB OrthoRectification
-      application
+      For more information, please consult `OTB OrthoRectification application
+      documentation
       <https://www.orfeo-toolbox.org/CookBook/Applications/app_OrthoRectification.html>`_.
 
       Default value is set to nearest neighbor interpolation (``nn``) to keep
       compatibilty with previous results ; Linear method could be more
       interesting.
-      Note that the bco method is not currently supported.
+      Note that the ``bco`` method is not currently supported.
 
       .. _Processing.tiles:
   * - ``tiles``, ``tiles_list_in_file``
@@ -376,10 +416,10 @@ You can use this :download:`this template
 
       .. _Processing.nb_parallel_processes:
   * - ``nb_parallel_processes``
-    - Number of processes to be running in :ref:`parallel <parallelization>`
+    - Number of processes to run in :ref:`parallel <parallelization>`
       |br|
       This number defines the number of Dask Tasks (and indirectly of OTB
-      applications) to be executed in parallel.
+      applications) that will be executed in parallel.
 
       .. note::
         For optimal performances, ``nb_parallel_processes*nb_otb_threads``
@@ -416,7 +456,7 @@ You can use this :download:`this template
   * - ``ia_maps_to_produce``
     - By default, :ref:`S1IAMap program <scenario.S1IAMap>` produce a map of
       the incidence angle to the WGS84 ellipsoid in degrees x 100. This option
-      permis to select which of the 4 :ref:`IA maps <ia-files>` will be
+      permits to select which of the 4 :ref:`IA maps <ia-files>` will be
       generated.
 
       :``deg``: map in degrees x 100
@@ -424,10 +464,25 @@ You can use this :download:`this template
       :``sin``: sine map
       :``tan``: tangent map
 
+      .. _Processing.produce_gamma_area_map:
+  * - ``produce_gamma_area_map``
+    - When :ref:`GAMMA_AREA map <gamma_area_s2-files>` is produced.
+
+      Possible values are:
+
+      :``True``:         Do generate the GAMMA_AREA map.
+      :``False``:        Don't generate the GAMMA_AREA map.
+
+      .. note::
+        This option will be ignored when no GAMMA_AREA map is required. The
+        GAMMA_AREA map is produced by :ref:`S1GammaAreaMap program
+        <scenario.S1GammaAreaMap>` , or when :ref:`calibration mode
+        <Processing.calibration>` is ``"gamma_naught_rtc"``.
+
       .. _Processing.dem_warp_resampling_method:
   * - ``dem_warp_resampling_method``
     - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
-      <lia-files>`.
+      <lia-files>` and  :ref:`GAMMA_AREA maps <gamma_area_s2-files>`.
       This parameters permits to select the resampling method that
       :external:std:doc:`gdalwarp <programs/gdalwarp>` will use.
 
@@ -525,7 +580,7 @@ You can use this :download:`this template
           - S1
 
         * - calibration_type
-          - ``beta``/``gamma``/``sigma``/``dn``/``Normlim``
+          - ``beta``/``gamma``/``sigma``/``dn``/``Normlim``/``gamma_naught_rtc``
           - S1/S2
 
         * - polarless_basename
@@ -566,6 +621,19 @@ You can use this :download:`this template
 
       Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
 
+      .. _Processing.fname_fmt.gamma_area_corrected:
+  * - ``fname_fmt.s2_gamma_area_corrected``
+    - File format pattern for :ref:`concatenation products <full-S2-tiles>`
+      when GammaNaughtRTC calibrated.
+
+      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC.tif`
+
+      .. _Processing.fname_fmt.gamma_area_product:
+  * - ``fname_fmt.gamma_area_product``
+    - File format pattern for GAMMA_AREA files
+
+      Default value: :samp:`GAMMA_AREA_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
     - File format pattern for :ref:`filtered files <filtered-files>`
@@ -573,7 +641,10 @@ You can use this :download:`this template
       Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
       for β°, σ° and γ° calibrations,
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
+      Default value:
+
+      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
+      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC_filtered.tif` when GammaNaughtRTC calibrated.
 
       .. _Processing.dname_fmt:
   * - ``dname_fmt.*``
@@ -602,6 +673,8 @@ You can use this :download:`this template
           - :ref:`[PATHS].ia <paths.ia>`
         * - :samp:`{{lia_dir}}`
           - :ref:`[PATHS].lia <paths.lia>`
+        * - :samp:`{{gamma_area_dir}}`
+          - :ref:`[PATHS].gamma_area <paths.gamma_area>`
 
       .. list-table::
         :widths: auto
@@ -613,7 +686,7 @@ You can use this :download:`this template
           - Default value
 
             .. _Processing.dname_fmt.tiled:
-        * - :ref:`(β°/σ°/γ°/NORMLIM) Final tiled product <full-S2-tiles>`
+        * - :ref:`(β°/σ°/γ°/NORMLIM/γ°RTC) Final tiled product <full-S2-tiles>`
           - ``.tiled``
           - :samp:`{{out_dir}}/{{tile_name}}`
 
@@ -632,6 +705,11 @@ You can use this :download:`this template
           - ``.lia_product``
           - :samp:`{{lia_dir}}`
 
+            .. _Processing.dname_fmt.gamma_area_product:
+        * - :ref:`GAMMA_AREA <gamma_area_s2-files>`
+          - ``.gamma_area_product``
+          - :samp:`{{gamma_area_dir}}`
+
             .. _Processing.dname_fmt.filtered:
         * - :ref:`Filtering <filtered-files>`
           - ``.filtered``
@@ -647,14 +725,13 @@ You can use this :download:`this template
       .. list-table::
         :widths: auto
         :header-rows: 1
-        :stub-columns: 1
 
         * - Products from
           - Option ``creation_options.?``
           - Default value
 
             .. _Processing.creation_options.tiled:
-        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM) Concatenation
+        * - Orthorectification, :ref:`(β°/σ°/γ°/NORMLIM/γ°RTC) Concatenation
             <full-S2-tiles>`...
           - ``.tiled``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
@@ -672,7 +749,7 @@ You can use this :download:`this template
             .. _Processing.creation_options.ia_deg:
         * - :ref:`IA (in degrees * 100) <ia-files>`
           - ``.ia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal``
+          - ``uint16 COMPRESS=DEFLATE``
 
             .. _Procescosg.creation_options.ia_cos:
         * - :ref:`cos(IA) <ia-files>`
@@ -692,12 +769,138 @@ You can use this :download:`this template
             .. _Processing.creation_options.lia_deg:
         * - :ref:`LIA (in degrees * 100) <lia-files>`
           - ``.lia_deg``
-          - ``uint16 COMPRESS=DEFLATE&gdal``
+          - ``uint16 COMPRESS=DEFLATE``
 
             .. _Processing.creation_options.lia_sin:
         * - :ref:`sin(LIA) <lia-files>`
           - ``.lia_sin``
           - ``COMPRESS=DEFLATE&gdal:co:PREDICTOR=3``
+
+            .. _Processing.creation_options.s1_on_dem:
+        * - :ref:`S1 image information projected on DEM <S1_on_dem-files>`
+          - ``.s1_on_dem``
+          - ``float32 COMPRESS=DEFLATE, BIGTIFF=YES, PREDICTOR=3, TILED=YES, BLOCKXSIZE=1024, BLOCKYSIZE=1024``
+
+            .. warning::
+
+              This default ``float32`` setting is insufficient for a good
+              precision (ECEF coordinates < 1 meter). Yet it has been chosen
+              for people working on machines that don't have more than 60 GB of
+              memory. See the note in :ref:`γ area map procuction scenario
+              <scenario.S1GammaAreaMap.ram-greedy>`.
+
+            .. _Processing.creation_options.gamma_area:
+        * - :ref:`GAMMA_AREA in meters square <gamma_area_s2-files>`
+          - ``.gamma_area``
+          - ``float32 COMPRESS=DEFLATE``
+
+      .. _Processing.disable_streaming:
+  * - ``disable_streaming.*``
+    - Disables `OTB streaming in some applications
+      <https://www.orfeo-toolbox.org/CookBook/C++/StreamingAndThreading.html>`_.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Option
+          - Step
+          - Default value
+          - Remarks
+
+            .. _Processing.disable_streaming.normals_on_s2:
+        * - ``.normals_on_s2``
+          - :class:`ComputeNormalsOnS2
+            <s1tiling.libs.otbwrappers.ComputeNormalsOnS2>`
+          - ``True``
+          - Work around `OTB issue #2442
+            <https://gitlab.orfeo-toolbox.org/orfeotoolbox/otb/-/issues/2442>`_.
+
+            .. _Processing.disable_streaming.gamma_area:
+        * - ``.gamma_area``
+          - :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - ``False``
+          - Eliminates artefacts in between streaming tile when ``True``, which
+            requires a lot of memory see :ref:`γ area production scenario
+            <scenario.S1GammaAreaMap.ram-greedy>`.
+
+            .. _Processing.disable_streaming.apply_gamma_area:
+        * - ``.apply_gamma_area``
+          - :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - ``False``
+          -
+
+      .. _Processing.rtc:
+  * - :math:`γ^0_{T}` RTC specific options
+    - The following options are exclusively used for the :ref:`preparation
+      <scenario.S1GammaAreaMap>` and the :ref:`application of γ area maps
+      <scenario.S1ProcessorRTC>`.
+
+      .. list-table::
+        :widths: auto
+        :header-rows: 1
+        :stub-columns: 1
+
+        * - Option
+          - Purpose
+          - Default value
+
+            .. _Processing.use_resampled_dem:
+        * - ``use_resampled_dem``
+          - Tell to work on resampled DEM before computing γ area maps. The
+            resampling factors are specified in :ref:`resample_dem_factor_x
+            <processing.resample_dem_factor_x>` and :ref:`resample_dem_factor_y
+            <processing.resample_dem_factor_y>`
+          - ``True``
+
+            .. _Processing.resample_dem_factor_x:
+        * - ``resample_dem_factor_x``
+          - Resampling factor on X axis used on DEM when
+            :ref:`use_resampled_dem <processing.use_resampled_dem>` is set.
+          - 2.0
+
+            .. _Processing.resample_dem_factor_y:
+        * - ``resample_dem_factor_y``
+          - Resampling factor on Y axis used on DEM when
+            :ref:`use_resampled_dem <processing.use_resampled_dem>` is set.
+          - 2.0
+
+            .. _Processing.distribute_area:
+        * - ``distribute_area``
+          - Distribute area on pixel's neighbours (corners) in output geometry.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - ``False``
+
+            .. _Processing.inner_margin_ratio:
+        * - ``inner_margin_ratio``
+          - Ratio of largest direction for DEM 's tile margin for inner tiles.
+            Set to 0 to ignore.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - 0.01
+
+            .. _Processing.outer_margin_ratio:
+        * - ``outer_margin_ratio``
+          - Ratio of largest direction for DEM 's tile margin for outer tiles.
+            Set to 0 to ignore.
+            |br|
+            Used in :class:`SARGammaAreaImageEstimation <s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation>`
+          - 0.04
+
+            .. _Processing.min_gamma_area:
+        * - ``min_gamma_area``
+          - Minimum area before entering shadow. |br|
+            Used in :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - 1.0
+
+            .. _Processing.calibration_factor:
+        * - ``calibration_factor``
+          - Scalar calibration factor value. |br|
+            Used in :class:`ApplyGammaNaughtRTCCalibration <s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration>`
+          - 1.0
+
 
 .. _Filtering:
 
@@ -717,10 +920,10 @@ You can use this :download:`this template
 
       .. _Filtering.filter:
   * - ``filter``
-    - The following spatial speckling filter methods from :external:doc:`OTB
-      Despeckle application <Applications/app_Despeckle>` are supported:
-      ``Lee``, ``Frost``, ``Gammamap``, ``Kuan``. If ``none`` or empty, then
-      no filtering is done.
+    - The following spatial speckling filter methods from
+      :external+OTB:doc:`OTB Despeckle application
+      <Applications/app_Despeckle>` are supported: ``Lee``, ``Frost``,
+      ``Gammamap``, ``Kuan``. If ``none`` or empty, then no filtering is done.
 
       .. _Filtering.window_radius:
   * - ``window_radius``
@@ -731,10 +934,10 @@ You can use this :download:`this template
       .. _Filtering.deramp:
   * - ``deramp``
     - Deramp factor -- for Frost filter only. |br|
-      Factor use to control the exponential function used to weight effect of
-      the distance between the central pixel and its neighborhood. Increasing
-      the deramp parameter will lead to take more into account pixels farther
-      from the center and therefore increase the smoothing effects.
+      Factor used to control the exponential function used to weight effect of
+      the distance between the central pixel and its neighbourhood. Increasing
+      the deramp parameter will lead to take into account more pixels farther
+      from the centre and therefore increase the smoothing effects.
 
       .. _Filtering.nblooks:
   * - ``nblooks``
@@ -763,6 +966,15 @@ You can use this :download:`this template
 
 You can place in this section any extra ``key : value`` information that you
 want written in the GeoTIFF metadata of S1Tiling products.
+
+Example:
+
+.. code:: ini
+
+    [Metadata]
+    # Extra geotiff metadata to write in products
+    Contact : My Self <some.one@somewhe.re>
+    Something Important: you need to known this!
 
 
 .. commented-out-to-be-implemented:
@@ -824,4 +1036,3 @@ Working on clusters
     on TREX, should be enough
   - storing :ref:`input files <paths.s1_images>`, like for instance
     :file:`$TMPDIR/data_raw/` on TREX for instance.
-

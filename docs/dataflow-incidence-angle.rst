@@ -51,12 +51,12 @@ Incidence Angle specific processings
          edge [fontname="Sans", fontsize="9"];
 
          # =====[ Inputs nodes
-         eof_dx      [label="EOF (110)", href="files.html#eof", shape="doublecircle", fillcolor=cyan]
+         eof_dx      [label="EOF (110)", href="configuration.html#paths-eof-dir", shape="doublecircle", fillcolor=cyan]
 
          # =====[ IA workflow
-         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 31TCH obt 110", fillcolor=palegoldenrod];
-         normals_on_S2 [label="ellipsoid normals on 31TCH obt 110",       fillcolor=palegoldenrod];
-         tch_ia        [label="sin(IA) on 31TCH obt 110",                 fillcolor="gold" ]
+         xyz_d1_t1     [label="ellipsoid+satellite XYZ on 31TCH obt 110", href="files.html#wgs84-surface-and-sat-s2-files", fillcolor=palegoldenrod];
+         normals_on_S2 [label="ellipsoid normals on 31TCH obt 110",                                   fillcolor=palegoldenrod];
+         tch_ia        [label="sin(IA) on 31TCH obt 110",                 href="files.html#ia-files", fillcolor="gold" ]
 
          eof_dx        -> xyz_d1_t1;
          normals_on_S2 -> tch_ia;
@@ -74,8 +74,15 @@ Compute ECEF Ellipsoid surface and satellite positions on S2
 :Inputs:         A :ref:`matching EOF file <downloading_eof>`
 :Output:         :ref:`ECEF WGS84 ellipsoid surface and satellite positions
                  <wgs84_surface_and_sat_s2-files>` on the S2 tile.
-:OTBApplication: :external:std:doc:`SARComputeGroundAndSatPositionsOnEllipsoid
-                 <Applications/app_SARComputeGroundAndSatPositionsOnEllipsoid>`
+:OTBApplication: `SARComputeGroundAndSatPositionsOnEllipsoid
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 (developed for the purpose of this project)
+
+                 .. note::
+                     Beware, this OTB application isn't distributed with OTB
+                     yet. It has to be installed specifically on your machine.
+                     It will be already installed in the :ref:`docker images
+                     <docker>` though.
 :StepFactory:    :class:`s1tiling.libs.otbwrappers.ComputeGroundAndSatPositionsOnEllipsoid`
 
 This step computes the WGS84 ellipsoid surface positions of the pixels in the
@@ -83,7 +90,7 @@ S2 geometry, and searches their associated zero doppler to also issue the
 coordinates of the SAR sensor.
 
 All coordinates are stored in `ECEF
-<https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`_.
+<https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system>`__.
 
 .. _compute_normals_on_ellipsoid-proc:
 .. index:: Normals computation on Earth Ellipsoid
@@ -94,7 +101,7 @@ Normals computation on Earth Ellipsoid
 :Input:          None
 :Output:         None: chained in memory with :ref:`IA maps computation <compute_eia-proc>`
 :OTBApplication: `ExtractNormalVectorToEllipsoid OTB application
-                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`__
                  (developed for the purpose of this project)
 
                  .. note::
@@ -114,7 +121,7 @@ Details about Ellipsoid normal vector computation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Ellipsoid quadratic surface is defined in Cartesian coordinates as
-(`wikipedia <https://en.wikipedia.org/wiki/Ellipsoid#Standard_equation>`_):
+(`wikipedia <https://en.wikipedia.org/wiki/Ellipsoid#Standard_equation>`__):
 
 .. math:: \frac{x^2}{a^2} + \frac{y^2}{b^2} + \frac{z^2}{c^2} = 1
    :label: Ellipsoid Standard Equation
@@ -128,15 +135,15 @@ At point :math:`P \left( \begin{smallmatrix}X \\ Y \\ Z
    :label: Ellipsoid Normal
 
 The WGS84 datum surface is an `oblate spheroid
-<https://en.wikipedia.org/wiki/Spheroid#Oblate_spheroids>`_ -- `wikipedia
-<https://en.wikipedia.org/wiki/World_Geodetic_System#Definition>`_
+<https://en.wikipedia.org/wiki/Spheroid#Oblate_spheroids>`__ -- `wikipedia
+<https://en.wikipedia.org/wiki/World_Geodetic_System#Definition>`__
 
 This implies that in :eq:`Ellipsoid Standard Equation` that :math:`a = b`. Also,
 :math:`c = a(1-f)` where :math:`f` is the flattening.
 Both :math:`a` and :math:`1/f` are precisely defined for WGS84.
 
 We also `know
-<https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_geodetic_to_ECEF_coordinates>`_
+<https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_geodetic_to_ECEF_coordinates>`__
 that given latitude :math:`\phi` and longitude :math:`\lambda`, we can compute
 the ECEF coordinates in the following way:
 
@@ -189,7 +196,7 @@ As :math:`(\cos{\phi} \cos{\lambda})^2 + (\cos{\phi} \sin{\lambda})^2 +
    \right)
 
 Which matches `Converting latitude/longitude to n-vector (wikipedia)
-<https://en.wikipedia.org/wiki/N-vector#Converting_latitude/longitude_to_n-vector>`_
+<https://en.wikipedia.org/wiki/N-vector#Converting_latitude/longitude_to_n-vector>`__
 
 .. _compute_eia-proc:
 .. index:: Compute Ellipsoid IA maps
@@ -206,7 +213,7 @@ Ellipsoid IA maps computation
 :Output:         :ref:`Incidence Angle map, and/or cosine, sine and tangent IA
                  maps <ia-files>`
 :OTBApplication: `SARComputeIncidenceAngle OTB application
-                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`_
+                 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0>`__
                  (developed for the purpose of this project)
 
                  .. note::

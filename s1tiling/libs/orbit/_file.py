@@ -70,6 +70,7 @@ class SentinelOrbitFile(SentinelOrbit):
         self.__orbit_converter = ORBIT_CONVERTERS[self.mission]
         self.first_rel_orbit = self.__orbit_converter.to_relative(self.first_abs_orbit)
         self.last_rel_orbit  = self.__orbit_converter.to_relative(self.last_abs_orbit)
+        # logger.debug("ABS[%s, %s] -> REL[%s, %s] for %s", self.first_abs_orbit, self.last_abs_orbit, self.first_rel_orbit, self.last_rel_orbit, filename)
         assert 1 <= self.first_rel_orbit <= 175
         assert 1 <= self.last_rel_orbit <= 175
 

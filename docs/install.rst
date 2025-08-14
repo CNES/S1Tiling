@@ -84,13 +84,21 @@ clusters. It may be a good starting point. See
 :ref:`CNES installation script <install_cnes>` below.
 
    .. note::
-      On CNES cluster where OTB has been compiled from sources, you can simply
-      load the associated module:
+      On CNES cluster where OTB has been compiled from sources, you can start
+      S1Tiling installation from the associated OTB module:
 
       .. code-block:: bash
 
         # Example, on TREX:
-        module load otb/9.0.0-python3.8
+        module load otb/9.1.1-python3.12
+
+      Then, follow the previous procedure.
+
+      But better yet, loading s1tiling shall be enough:
+
+      .. code-block:: bash
+
+        module load s1tiling
 
 
 Installation scripts
@@ -168,6 +176,13 @@ care of installing S1Tiling on Linux machines
             order to :ref:`produce LIA maps <scenario.s1liamap>`, or to apply
             :ref:`σ° NORMLIM calibration <scenario.s1processorlia>`.
 
+         .. note::
+            You will still need to install `γ area extra applications
+            <https://gitlab.orfeo-toolbox.org/s1-tiling/RTC_gamma0>`_ in
+            order to :ref:`produce γ area maps <scenario.S1GammaAreaMap>`, or
+            to apply :ref:`γ° RTC calibration
+            <scenario.S1ProcessorRTC>`.
+
 Extra packages
 ++++++++++++++
 
@@ -242,10 +257,10 @@ Using S1LIAMap or S1IAMap with a docker
 
 It's also possible to run :ref:`S1LIAMap` or :ref:`S1IAMap` in the docker --
 see :ref:`LIA Map production scenario <scenario.S1LIAMap>` and :ref:`Ellipsoid
-IA Map production scenario <scenario.S1IAMap>`. In order to do that, pass
+IA Map production scenario <scenario.S1IAMap>`. In order to do so, pass
 ``--lia``, or ``--ia`` as the first parameter to the docker *entry point*.
 
-In other word, run the docker with something like the following
+In other words, run the docker with something like the following
 
 .. code-block:: bash
 
@@ -258,4 +273,29 @@ In other word, run the docker with something like the following
         /data/MyS1ToS2.cfg
 
 The only difference with the *normal case* example: there is a ``--lia``
+parameter in the penultimate line.
+
+.. _docker.S1GammaAreaMap:
+
+Using S1GammaAreaMap with a docker
+++++++++++++++++++++++++++++++++++
+
+It's also possible to run :ref:`S1GammaAreaMap` in the docker -- see
+:ref:`GAMMA_AREA Map production scenario <scenario.S1GammaAreaMap>`. In order
+to do so, pass ``--gamma_area`` as the first parameter to the docker *entry
+point*.
+
+In other words, run the docker with something like the following
+
+.. code-block:: bash
+
+    docker run                            \
+        -v /localpath/to/MNT:/MNT         \
+        -v "$(pwd)":/data                 \
+        -v $HOME/.config/eodag:/eo_config \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --gamma_area                      \
+        /data/MyS1ToS2.cfg
+
+The only difference with the *normal case* example: there is a ``--gamma_area``
 parameter in the penultimate line.

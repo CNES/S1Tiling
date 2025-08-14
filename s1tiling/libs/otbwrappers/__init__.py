@@ -25,6 +25,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#          Fabien CONTIVAL (CS Group)
 # =========================================================================
 
 """
@@ -60,7 +61,6 @@ from .lia import (
     ComputeLIAOnS2,
     ApplyLIACalibration,
 
-    AgglomerateDEMOnS1,
     SARDEMProjection,
     SARCartesianMeanEstimation,
     OrthoRectifyLIA,
@@ -68,6 +68,20 @@ from .lia import (
     ComputeLIAOnS1,
     ConcatenateLIA,
     SelectBestCoverage,
+)
+
+from .gamma_area import (
+    ApplyGammaNaughtRTCCalibration,
+
+    AgglomerateDEMOnS1,
+    NaNifyNoData,
+    ResampleDEM,
+    ProjectGeoidToDEM,
+    SARDEMProjectionImageEstimation,
+    SARGammaAreaImageEstimation,
+    OrthoRectifyGAMMA_AREA,
+    ConcatenateGAMMA_AREA,
+    SelectGammaNaughtAreaBestCoverage,
 )
 from .ia import (
     ComputeEllipsoidNormalsOnS2,
@@ -99,7 +113,6 @@ __all__ = [
     "ComputeLIAOnS2",
     "ApplyLIACalibration",
 
-    "AgglomerateDEMOnS1",
     "SARDEMProjection",
     "SARCartesianMeanEstimation",
     "OrthoRectifyLIA",
@@ -111,4 +124,16 @@ __all__ = [
     "ComputeGroundAndSatPositionsOnEllipsoid",
     "ComputeEllipsoidNormalsOnS2",
     "ComputeIAOnS2",
+
+    "ApplyGammaNaughtRTCCalibration",
+
+    "AgglomerateDEMOnS1",
+    "NaNifyNoData",
+    "ResampleDEM",
+    "ProjectGeoidToDEM",
+    "SARDEMProjectionImageEstimation",
+    "SARGammaAreaImageEstimation",
+    "OrthoRectifyGAMMA_AREA",
+    "ConcatenateGAMMA_AREA",
+    "SelectGammaNaughtAreaBestCoverage",
 ]

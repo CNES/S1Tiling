@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#
 # =========================================================================
 
 """
@@ -91,8 +92,10 @@ from ..configuration   import (
     Configuration,
     dname_fmt_lia_product,
     dname_fmt_tiled,
+    extended_filename_hidden,
     extended_filename_lia_degree,
     extended_filename_lia_sin,
+    extended_filename_s1_on_dem,
     extended_filename_tiled,
     nodata_DEM,
     nodata_LIA,
@@ -267,7 +270,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     described in :ref:`Project Geoid to S2 tile <project_geoid_to_s2-proc>`.
 
     This particular implementation uses another file in the expected geometry and
-    :external:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
+    :external+OTB:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike
     :external:std:doc:`gdalwarp <programs/gdalwarp>`, OTB application supports non-raster geoid
     formats.
 
@@ -276,7 +279,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
     - `ram_per_process`
     - `tmp_dir`    -- useless in the in-memory nomical case
     - `fname_fmt`  -- optional key: `geoid_on_s2`, useless in the in-memory nominal case
-    - `interpolation_method` -- for use by :external:std:doc:`super impose
+    - `interpolation_method` -- for use by :external+OTB:std:doc:`super impose
       <Applications/app_Superimpose>`
     - `out_spatial_res` -- as a workaround...
     - `nodatas.DEM`
@@ -297,9 +300,11 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'geoid_on_s2'),
             image_description="Geoid superimposed on S2 tile",
         )
         self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
         self.__interpolation_method = cfg.interpolation_method
         self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
         self.__nodata               = nodata_DEM(cfg)
@@ -318,7 +323,7 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:std:doc:`super impose
+        Returns the parameters to use with :external+OTB:std:doc:`super impose
         <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
         """
         in_s2_dem = in_filename(meta)
@@ -332,38 +337,57 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         }
 
 
-class SumAllHeights(OTBStepFactory):
+class _SumAllHeights(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that adds DEM + Geoid that cover a same footprint, as
-    described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`.
+    described in :ref:`Sum DEM + Geoid <sum_dem_geoid_on_s2-proc>`, and :ref:`Sum DEM + Geoid
+    <sum_dem_geoid_on_s1-proc>`.
 
     It requires the following information from the configuration object:
 
     - `ram_per_process`
     - `tmp_dir`    -- useless in the in-memory nomical case
-    - `fname_fmt`  -- optional key: `height_on_s2`, useless in the in-memory nominal case
+    - `fname_fmt`  -- optional key: `{product_key}`, useless in the in-memory nominal case
     - `nodata.DEM` -- optional
 
     It requires the following information from the metadata dictionary:
     """
+    # Useless definition used to trick pylint in believing self._key_map is set.
+    # Indeed, it's expected to be set in child classes. But pylint has now way of knowing that.
+    _key_map           : Optional[Dict[str, str]] = None
+    _fname_fmt_default : Optional[str]            = None
+    _dname_fmt_default : Optional[str]            = None
+    _product_key       : Optional[str]            = None
+    _image_description : Optional[str]            = None
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
-        fname_fmt = 'DEM+GEOID_projected_on_{tile_name}.tiff'
-        fname_fmt = cfg.fname_fmt.get('height_on_s2', fname_fmt)
+        # Preconditions
+        assert self._fname_fmt_default, "This class shall be specialized through SumAllHeights() function"
+        assert self._dname_fmt_default, "This class shall be specialized through SumAllHeights() function"
+        assert self._key_map,           "This class shall be specialized through SumAllHeights() function"
+        assert self._product_key,       "This class shall be specialized through SumAllHeights() function"
+        assert self._image_description, "This class shall be specialized through SumAllHeights() function"
+
+        fname_fmt = cfg.fname_fmt.get(self._product_key, self._fname_fmt_default)
+        dname_fmt = os.path.join(cfg.tmpdir, self._dname_fmt_default)
         super().__init__(
             cfg,
             appname='BandMath',
             name='SumAllHeights',
             param_in='il',
             param_out='out',
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_tmp_dir=dname_fmt,
             gen_output_dir=None,  # Use gen_tmp_dir,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            image_description='DEM + GEOID height info projected on S2 tile',
+            extended_filename=extended_filename_hidden(cfg, self._product_key),
+            image_description=self._image_description,
         )
         self.__nodata = nodata_DEM(cfg)
+        self.__indem   = self._key_map['indem']
+        self.__ingeoid = self._key_map['ingeoid']
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -371,9 +395,9 @@ class SumAllHeights(OTBStepFactory):
         removal.
         """
         meta = super().complete_meta(meta, all_inputs)
-        dem_on_s2 = fetch_input_data('in_s2_dem', all_inputs).out_filename
-        meta['files_to_remove'] = [dem_on_s2]  # DEM on S2
-        logger.debug('Register files to remove after height_on_S2 computation: %s', meta['files_to_remove'])
+        indem = fetch_input_data(self.__indem, all_inputs).out_filename
+        meta['files_to_remove'] = [indem]  # input DEM on S1 or S2 footprint
+        logger.debug('Register files to remove after %s computation: %s', self._product_key, meta['files_to_remove'])
         # Make sure to set nodata metadata in output image
         meta['out_extended_filename_complement'] = f'?&nodata={self.__nodata}'
         return meta
@@ -383,17 +407,17 @@ class SumAllHeights(OTBStepFactory):
         Extract the last inputs to use at the current level from all previous products seens in the
         pipeline.
 
-        This method is overridden in order to fetch N-1 "in_s2_dem" input.
+        This method is overridden in order to fetch N-1 "indem" input.
         It has been specialized for S1Tiling exact pipelines.
         """
         assert len(previous_steps) > 1
 
-        # "in_s2_geoid" is expected at level -1, likelly named '__last'
-        s2_geoid = fetch_input_data('__last', previous_steps[-1])
-        # "in_s2_dem"     is expected at level -2, likelly named 'in_s2_dem'
-        s2_dem   = fetch_input_data('in_s2_dem', previous_steps[-2])
+        # "in_geoid" is expected at level -1, likelly named '__last'
+        in_geoid = fetch_input_data('__last', previous_steps[-1])
+        # "in_dem"     is expected at level -2, likelly named self.__indem
+        in_dem   = fetch_input_data(self.__indem, previous_steps[-2])
 
-        inputs = [{'in_s2_geoid': s2_geoid, 'in_s2_dem': s2_dem}]
+        inputs = [{self.__ingeoid: in_geoid, self.__indem: in_dem}]
         _check_input_step_type(inputs)
         logging.debug("%s inputs: %s", self.__class__.__name__, inputs)
         return inputs
@@ -402,21 +426,21 @@ class SumAllHeights(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "in_s2_geoid" step instanciated in
+        In current case, the canonical input comes from the "ingeoid" step instanciated in
         :func:`s1tiling.s1_process_lia` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
         assert len(keys) == 2, f'Expecting 2 inputs. {len(inputs)} is/are found: {keys}'
-        assert 'in_s2_geoid' in keys
-        return [input['in_s2_geoid'] for input in inputs if 'in_s2_geoid' in input.keys()][0]
+        assert self.__ingeoid in keys
+        return [input[self.__ingeoid] for input in inputs if self.__ingeoid in input.keys()][0]
 
     def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
         logger.debug("Fetch DEM_RESAMPLING_METHOD from '%s'", inputpath)
         if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
             if not dst:
-                raise RuntimeError(f"Cannot open DEM/S2 file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
+                raise RuntimeError(f"Cannot open DEM/{self._dname_fmt_default} file '{inputpath}' to collect DEM_RESAMPLING_METHOD metadata.")
             res = dst.GetMetadataItem('DEM_RESAMPLING_METHOD')
             del dst
             return res
@@ -428,28 +452,66 @@ class SumAllHeights(OTBStepFactory):
         """
         super().update_image_metadata(meta, all_inputs)
 
-        in_s2_dem   = fetch_input_data('in_s2_dem',   all_inputs).out_filename
+        in_dem   = fetch_input_data(self.__indem,   all_inputs).out_filename
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['DEM_RESAMPLING_METHOD'] = self.fetch_upstream_dem_resampling_method(in_s2_dem, meta)
+        imd['TIFFTAG_GDAL_NODATA'] = str(self.__nodata)
+        dem_resampling_method = self.fetch_upstream_dem_resampling_method(in_dem, meta)
+        if dem_resampling_method:
+            imd['DEM_RESAMPLING_METHOD'] = dem_resampling_method
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
-        <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S2.
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
+        <Applications/app_BandMath>` for additionning DEM and Geoid data projected on S1/S2
+        footprint.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
-        in_s2_dem   = fetch_input_data('in_s2_dem',   inputs).out_filename
-        in_s2_geoid = fetch_input_data('in_s2_geoid', inputs).out_filename
-        dem_nodata = Utils.fetch_nodata_value(in_s2_dem, is_running_dry(meta), self.__nodata)  # usually -32768
+        in_dem    = fetch_input_data(self.__indem,   inputs).out_filename
+        in_geoid  = fetch_input_data(self.__ingeoid, inputs).out_filename
+        dem_nodata   = Utils.fetch_nodata_value(in_dem,   is_running_dry(meta), self.__nodata)  # usually -32768
+        # geoid_nodata = Utils.fetch_nodata_value(in_geoid, is_running_dry(meta), self.__nodata)  # usually -32768/-88.8888
         params : OTBParameters = {
             'ram'         : ram(self.ram_per_process),
-            self.param_in : [in_s2_geoid, in_s2_dem],
+            self.param_in : [in_geoid, in_dem],
+            # 'exp'         : f'({Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} || {Utils.test_nodata_for_bandmath(geoid_nodata,"im1b1")}) ? {self.__nodata} : im1b1+im2b1'
             'exp'         : f'{Utils.test_nodata_for_bandmath(dem_nodata,"im2b1")} ? {self.__nodata} : im1b1+im2b1'
         }
         return params
 
+
+def SumAllHeights(
+    product_key      : str,
+    key_map          : Dict[str, str],
+    fname_fmt_default: str,
+    dname_fmt_default: str,
+    image_description: str,
+) -> type:
+    """
+    Factory function that returns a :class:`_SumAllHeights` child class created on the fly.
+
+    The new class name will be :samp:`SumAllHeights_{{product_key}}`.
+
+    :param str product_key:       Key used to fetch information from :class:`Configuration` object.
+    :param dict key_map:          Maps formal input names (``indem`` and ``ingeoid``) to actual
+                                  input names
+    :param str fname_fmt_default: Default filename format string.
+    :param str dname_fmt_default: Default dirname format string.
+    :param str image_description: Image description tag
+    """
+    # We return a new class
+    return type(
+        f"SumAllHeights_{product_key}",  # Class name
+        (_SumAllHeights,),         # Parent
+        {
+            '_key_map'          : key_map,
+            '_fname_fmt_default': fname_fmt_default,
+            '_dname_fmt_default': dname_fmt_default,
+            '_product_key'      : product_key,
+            '_image_description': image_description,
+        }
+    )
 
 class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
     """
@@ -493,6 +555,7 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_hidden(cfg, 'ground_and_sat_s2'),
             image_description="XYZ ground and satellite positions on S2 tile",
         )
         self.__cfg = cfg  # Will be used to access cached DEM intersecting S2 tile
@@ -642,7 +705,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
     - `output filename`
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
-    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
+    already registered in dask worker (through :external+OTB:doc:`Applications/app_OrthoRectification`
     for instance) and only use the Geoid.
     """
     def __init__(self, cfg: Configuration) -> None:
@@ -851,6 +914,7 @@ class _ComputeNormals(OTBStepFactory):
         gen_tmp_dir       : str,
         output_fname_fmt  : str,
         image_description : str,
+        extended_filename : Optional[str],
     ) -> None:
         super().__init__(
             cfg,
@@ -861,6 +925,7 @@ class _ComputeNormals(OTBStepFactory):
             gen_tmp_dir=gen_tmp_dir,
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(output_fname_fmt),
+            extended_filename=extended_filename,
             image_description=image_description,
         )
         self.__nodata = nodata_XYZ(cfg)
@@ -934,18 +999,19 @@ class ComputeNormalsOnS2(_ComputeNormals):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             output_fname_fmt=fname_fmt,
+            extended_filename=extended_filename_hidden(cfg, 'normals_on_s2'),
             image_description='Image normals on S2 grid',
         )
 
 
 class _ComputeIncidenceAngle(OTBStepFactory):
     """
-    Abstract factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` as described in :ref:`IA map
-    <compute_eia-proc>` and :ref:`LIA map <compute_lia-proc>` computations documentation.
+    Abstract factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` as described in :ref:`IA map <compute_eia-proc>`
+    and :ref:`LIA map <compute_lia-proc>` computations documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -986,6 +1052,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         image_description  : List[str] = []
         def register_output(fname_fmt, ia_map: IA_map):
             if fname_fmt:
+                default_disable_streaming = otb_version() < '9.1.1'
                 params_out        .append(f'out.{ia_map.name}')
                 fname_fmts        .append(TemplateOutputFilenameGenerator(fname_fmt))
                 extended_filenames.append(extended_filename_ia(cfg, ia_map))
@@ -1003,7 +1070,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         super().__init__(
             cfg,
             appname='SARComputeIncidenceAngle',
-            name='ComputeLIA',
+            name='ComputeXIA',
             param_in='in.normals',  # In-memory connected to in.normals
             param_out=params_out,
             gen_tmp_dir=gen_tmp_dir,
@@ -1047,8 +1114,8 @@ class _ComputeIncidenceAngle(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`SARComputeLocalIncidenceAngle OTB
-        application <Applications/app_SARComputeLocalIncidenceAngle>`.
+        Returns the parameters to use with :external:doc:`SARComputeIncidenceAngle OTB application
+        <Applications/app_SARComputeIncidenceAngle>`.
         """
         assert 'inputs' in meta, f'Looking for "inputs" in {meta.keys()}'
         inputs = meta['inputs']
@@ -1073,12 +1140,12 @@ class _ComputeIncidenceAngle(OTBStepFactory):
 
 class ComputeLIAOnS2(_ComputeIncidenceAngle):
     """
-    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S2 geometry as described in
+    Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` on images in S2 geometry as described in
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1293,7 +1360,7 @@ class ApplyLIACalibration(OTBStepFactory):
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
-        Returns the parameters to use with :external:doc:`BandMath OTB application
+        Returns the parameters to use with :external+OTB:doc:`BandMath OTB application
         <Applications/app_BandMath>` for applying sin(LIA) to β0 calibrated image orthorectified to
         S2 tile.
         """
@@ -1329,87 +1396,6 @@ class ApplyLIACalibration(OTBStepFactory):
 # until the production of the LIA map that was eventuall orthorectified and
 # concatenated.
 
-class AgglomerateDEMOnS1(AnyProducerStepFactory):
-    """
-    Factory that produces a :class:`Step` that builds a VRT from a list of DEM files.
-
-    The choice has been made to name the VRT file after the basename of the root S1 product and not
-    the names of the DEM tiles.
-
-    .. deprecated:: 1.1
-    """
-
-    def __init__(self, cfg: Configuration, *args, **kwargs) -> None:
-        """
-        constructor
-        """
-        fname_fmt = 'DEM_{polarless_rootname}.vrt'
-        fname_fmt = cfg.fname_fmt.get('dem_s1_agglomeration', fname_fmt)
-        super().__init__(  # type: ignore # mypy issue 4335
-            cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,  # Use gen_tmp_dir,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            name="AgglomerateDEMOnS1",
-            action=AgglomerateDEMOnS1.agglomerate,
-            *args,
-            **kwargs,
-        )
-        self.__dem_db_filepath     = cfg.dem_db_filepath
-        self.__dem_dir             = cfg.dem
-        self.__dem_filename_format = cfg.dem_filename_format
-        self.__dem_field_ids       = cfg.dem_field_ids
-        self.__dem_main_field_id   = cfg.dem_main_field_id
-
-    @staticmethod
-    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:
-        """
-        The function that calls :func:`gdal.BuildVRT()`.
-        """
-        logger.info("gdal.BuildVRT(%s, %s)", parameters[0], parameters[1:])
-        assert len(parameters) > 0
-        if not dryrun:
-            gdal.BuildVRT(parameters[0], parameters[1:])
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
-        polar related information.
-        """
-        # Ignore polarization in filenames
-        assert 'polarless_basename' not in meta
-        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        rootname = os.path.splitext(meta['polarless_basename'])[0]
-        meta['polarless_rootname'] = rootname
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
-        return meta
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Factory that takes care of extracting meta data from S1 input files.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        # find DEMs that intersect the input image
-        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
-            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
-        meta['dems'] = sorted(meta['dem_infos'].keys())
-        logger.debug("DEM found for %s: %s", in_filename(meta), meta['dems'])
-        dem_files = map(
-            lambda s: os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s])),
-            meta['dem_infos'])
-        missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
-        if len(missing_dems) > 0:
-            raise RuntimeError(
-                f"Cannot create DEM vrt for {meta['polarless_rootname']}: the following DEM files are missing: {', '.join(missing_dems)}")
-        return meta
-
-    def parameters(self, meta: Meta) -> ExeParameters:
-        # While it won't make much a difference here, we are still using tmp_filename.
-        return [tmp_filename(meta)] + [
-            os.path.join(self.__dem_dir, self.__dem_filename_format.format_map(meta['dem_infos'][s]))
-            for s in meta['dem_infos']
-        ]
-
 
 class SARDEMProjection(OTBStepFactory):
     """
@@ -1438,8 +1424,8 @@ class SARDEMProjection(OTBStepFactory):
     - `nodata` -- optional
 
     It also requires :envvar:`$OTB_GEOID_FILE` to be set in order to ignore any DEM information
-    already registered in dask worker (through :external:doc:`Applications/app_OrthoRectification`
-    for instance) and only use the Geoid.
+    already registered in dask worker (through
+    :external+OTB:doc:`Applications/app_OrthoRectification` for instance) and only use the Geoid.
 
     .. deprecated:: 1.1
     """
@@ -1455,6 +1441,7 @@ class SARDEMProjection(OTBStepFactory):
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            extended_filename=extended_filename_s1_on_dem(cfg),
             image_description="SARDEM projection onto DEM list",
         )
         self.__dem_db_filepath     = cfg.dem_db_filepath
@@ -1660,11 +1647,11 @@ class SARCartesianMeanEstimation(OTBStepFactory):
         if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
             if not dst:
-                raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
+                raise RuntimeError(f"Cannot open SARDEMProjected file {inputpath!r} to collect scan direction metadata.")
             meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
             meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
             if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
-                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
+                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file {inputpath!r}")
             del dst
         else:
             meta['directiontoscandeml'] = 42
@@ -1728,18 +1715,19 @@ class ComputeNormalsOnS1(_ComputeNormals):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             output_fname_fmt=fname_fmt,
+            extended_filename=extended_filename_hidden(cfg, 'normals_on_s1'),
             image_description='Image normals on Sentinel-{flying_unit_code_short} IW GRD',
         )
 
 
 class ComputeLIAOnS1(_ComputeIncidenceAngle):
     """
-    Factory that prepares steps that run :external:doc:`SARComputeLocalIncidenceAngle
-    <Applications/app_SARComputeLocalIncidenceAngle>` on images in S1 geometry as described in
+    Factory that prepares steps that run :external:doc:`SARComputeIncidenceAngle
+    <Applications/app_SARComputeIncidenceAngle>` on images in S1 geometry as described in
     :ref:`LIA maps computation <compute_lia-proc>` documentation.
 
-    :external:doc:`SARComputeLocalIncidenceAngle <Applications/app_SARComputeLocalIncidenceAngle>`
-    computes Local Incidence Angle Map.
+    :external:doc:`SARComputeIncidenceAngle <Applications/app_SARComputeIncidenceAngle>` computes
+    Local Incidence Angle Map.
 
     Requires the following information from the configuration object:
 
@@ -1775,8 +1763,8 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
 
 class OrthoRectifyLIA(_OrthoRectifierFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_OrthoRectification` on LIA
-    maps.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_OrthoRectification` on
+    LIA maps.
 
     Requires the following information from the configuration object:
 
@@ -1857,7 +1845,8 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
 
 class ConcatenateLIA(_ConcatenatorFactory):
     """
-    Factory that prepares steps that run :external:doc:`Applications/app_Synthetize` on LIA images.
+    Factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` on LIA
+    images.
 
     Requires the following information from the configuration object:
 

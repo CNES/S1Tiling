@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -40,9 +40,11 @@ import shutil
 import tempfile
 from typing import Dict, List, Optional, Protocol, Tuple, Union
 
+from s1tiling.libs.Utils import fetch_nodata_value, set_nodata_value
+
 from . import exceptions
 from .configuration import (
-    Configuration, dname_fmt_filtered, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
+    Configuration, dname_fmt_filtered, dname_fmt_gamma_area_product, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
 )
 from .utils.layer import check_dem_coverage
 
@@ -206,9 +208,15 @@ class DEMWorkspace:
             if not geoid_filelink.exists():
                 geoid_filelink.parent.mkdir(parents=True, exist_ok=True)
                 do_localize(geoid_file, geoid_filelink)
-                # in case there is an associated file like (egm96.grd.hdr), copy/symlink it as well
-                if os.path.isfile(with_hdr := f"{geoid_file}.hdr"):
-                    do_localize(with_hdr, geoid_filelink.with_suffix(geoid_filelink.suffix+'.hdr'))
+                # in case there is an associated file like `egm96.grd.hdr` or `egm96.gtx.aux.xml`, copy/symlink it as well
+                for suffix in ('hdr', 'aux.xml'):
+                    if os.path.isfile(with_extra := f"{geoid_file}.{suffix}"):
+                        do_localize(with_extra, geoid_filelink.with_suffix(f'{geoid_filelink.suffix}.{suffix}'))
+            # Make sure Geoid nodata value is not something like -88.88
+            geoid_nodata = float(fetch_nodata_value(geoid_filelink, is_running_dry=False, default_value=0))
+            logger.debug("'%s' nodata is %s", geoid_filelink, geoid_nodata)
+            if -200 < geoid_nodata < 200 :
+                set_nodata_value(geoid_filelink, is_running_dry=False, value=-32768)
 
         return self.__tmpdemdir.name
 
@@ -221,30 +229,34 @@ class WorkspaceKinds(Enum):
     :todo: Use a more flexible and OCP (Open-Close Principle) compliant solution.
         Indeed At this moment, only two kinds of workspaces are supported.
     """
-    TILE   = 1
-    LIA    = 2
-    FILTER = 3
-    MASK   = 4
-    IA     = 6
+    TILE       = 1
+    LIA        = 2
+    FILTER     = 3
+    MASK       = 4
+    GAMMA_AREA = 5
+    IA         = 6
 
 
 def ensure_tiled_workspaces_exist(
-        cfg: Configuration,
-        tile_name: str,
-        required_workspaces: List[WorkspaceKinds]
+    cfg: Configuration,
+    tile_name: str,
+    required_workspaces: List[WorkspaceKinds]
 ) -> None:
     """
     Makes sure the directories used for :
     - output data/{tile},
     - temporary data/S2/{tile}
-    - and LIA data (if required)
+    - LIA data (if required)
+    - IA data (if required)
+    - γ° RTC data (if required)
     all exist
     """
     directories = {
-            'out_dir': cfg.output_preprocess,
-            'tmp_dir': cfg.tmpdir,
-            'lia_dir': cfg.lia_directory,
-            'ia_dir' : cfg.ia_directory,
+        'out_dir'        : cfg.output_preprocess,
+        'tmp_dir'        : cfg.tmpdir,
+        'lia_dir'        : cfg.lia_directory,
+        'ia_dir'         : cfg.ia_directory,
+        'gamma_area_dir' : cfg.gamma_area_directory,
     }
 
     working_directory = os.path.join(cfg.tmpdir, 'S2', tile_name)
@@ -269,4 +281,8 @@ def ensure_tiled_workspaces_exist(
 
     if WorkspaceKinds.IA in required_workspaces:
         wdir = dname_fmt_ia_product(cfg).format(**directories, tile_name=tile_name)
+        os.makedirs(wdir, exist_ok=True)
+
+    if WorkspaceKinds.GAMMA_AREA in required_workspaces:
+        wdir = dname_fmt_gamma_area_product(cfg).format(**directories, tile_name=tile_name)
         os.makedirs(wdir, exist_ok=True)

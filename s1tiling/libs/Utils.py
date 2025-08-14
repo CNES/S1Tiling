@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -163,15 +163,48 @@ def fetch_nodata_value(
         return default_value
 
 
+def set_nodata_value(
+        inputpath: Union[str, Path],
+        is_running_dry: bool,
+        value: Union[int,float,str],
+        band_nr: int = 1
+) -> None:
+    """
+    Set no data value
+    """
+    logger.debug("Set No-data value to %s in '%s'", value, inputpath)
+    if is_running_dry:
+        return
+    with gdal_open(inputpath, gdal.GA_Update) as ds:
+        if not ds:
+            raise RuntimeError(f"Cannot open file {inputpath!r} to set no-data value.")
+        band = ds.GetRasterBand(band_nr)
+        if not band:
+            raise RuntimeError(f"Cannot open access band {band_nr} in file {inputpath!r} to set no-data value.")
+        band.SetNoDataValue(value)
+
+
 def test_nodata_for_bandmath(nodata, bandname):
     """
-    Helper function that works around :external:doc:`BandMath OTB application <Applications/app_BandMath>`
-    that cannot test ``isnodata(im1b42)``. Also, testing NaN values need a dedicated workaround.
+    Helper function that works around :external+OTB:doc:`BandMath OTB application
+    <Applications/app_BandMath>` that cannot test ``isnodata(im1b42)``. Also, testing NaN values
+    need a dedicated workaround.
     """
     if nodata == 'nan' or math.isnan(nodata):
         return f'{bandname} != {bandname}'
     else:
         return f'{bandname} == {nodata}'
+
+
+def get_spacing(image_path: Union[str, Path]):
+    """
+    Parse the image spacing.
+    :param image_path: The image path
+    :return: The spacing: (line_spacing, pixel_spacing)
+    """
+    info = gdal.Info(image_path, format='json')
+    # TODO: handle possible errors
+    return info['metadata']['']['LineSpacing'], info['metadata']['']['PixelSpacing']
 
 
 # ======================================================================

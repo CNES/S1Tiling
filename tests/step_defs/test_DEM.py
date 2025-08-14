@@ -53,14 +53,15 @@ scenarios(
 # ======================================================================
 # Test Data
 
-TMPDIR = 'TMP'
-INPUT  = 'INPUT'
-OUTPUT = 'OUTPUT'
-EOFDIR = 'EOFDIR'
-LIADIR = 'LIADIR'
-TILE   = '33NWB'
+TMPDIR     = 'TMP'
+INPUT      = 'INPUT'
+OUTPUT     = 'OUTPUT'
+EOFDIR     = 'EOFDIR'
+LIADIR     = 'LIADIR'
+GAMMA_AREA = 'GAMMA_AREADIR'
+TILE       = '33NWB'
 
-file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, TILE, 'unused', 'unused')
+file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, GAMMA_AREA, TILE, 'unused', 'unused')
 
 # ======================================================================
 # Fixtures

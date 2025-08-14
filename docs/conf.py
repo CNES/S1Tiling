@@ -116,7 +116,7 @@ def ultimateReplace(app, docname, source):
         result = result.replace(key, app.config.ultimate_replacements[key])
     source[0] = result
 
-reference_otb_version = '9.0.0'
+reference_otb_version = '9.1.1'
 
 print(f'Reference OTB Version: {reference_otb_version} -- used in documentation')
 ultimate_replacements = {
@@ -142,6 +142,10 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# Authorize duplicated label automatically generated from section titles
+# https://stackoverflow.com/a/77577337/15934
+suppress_warnings = ['autosectionlabel.*']
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -255,14 +259,15 @@ intersphinx_mapping = {
     "Python": ("https://docs.python.org/3/", None),
     "Distributed": ("https://distributed.dask.org/en/latest/", None),
     "Dask": ("https://docs.dask.org/en/latest/", None),
-    "Gdal": ("https://gdal.org/", None),
+    "Gdal": ("https://gdal.org/en/stable/", None),
     # "numpy": ("http://docs.scipy.org/doc/numpy", None),
     "eodag": ("https://eodag.readthedocs.io/en/stable/", None),
 
 
     # 'https://www.orfeo-toolbox.org/CookBook/': None,
     # Using CookBook from OTB 7.4 as it still distributes DiapOTB.
-    "OTB": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
+    "OTB": ('https://www.orfeo-toolbox.org/CookBook/', None),
+    "OTB7": ('https://www.orfeo-toolbox.org/CookBook-7.4/', None),
 }
 
 # Search w/
@@ -298,3 +303,5 @@ def autodoc_process_docstring(app, what, name, obj, options, lines):
 
 # Configuration for inheritance_diagram
 inheritance_graph_attrs = dict(rankdir="TB")
+
+graphviz_output_format = 'svg'
