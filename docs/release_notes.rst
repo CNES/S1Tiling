@@ -53,6 +53,7 @@ v1.2.0 Improvements
 - Undocumented creations options are available on :ref:`intermediary files
   <temporary-files>` investigated with to :option:`--debug-caches
   <S1Processor --debug-caches>` option.
+- Files removal is now tested ([d3934aa]).
 
 Version 1.1.0
 -------------
