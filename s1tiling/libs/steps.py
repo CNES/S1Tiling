@@ -291,7 +291,7 @@ class _ProducerStep(AbstractStep):
         expected final name.
         """
         dryrun = is_running_dry(execution_parameters)
-        logger.debug("_ProducerStep: %s (%s)", self, self.meta)
+        logger.debug("_ProducerStep: %s (%s)", self.__class__.__name__, self.meta)
         do_measure = True  # TODO
         pipeline_name = self.pipeline_name
         if files_exist(self.out_filename):
@@ -350,7 +350,7 @@ class _ProducerStep(AbstractStep):
             if debug_caches:
                 logger.debug('NOT cleaning intermediary files: %s (cache debugging mode!)', files)
             else:
-                logger.debug('Cleaning intermediary files: %s used for  %s', files, self.out_filename)
+                logger.debug('%sCleaning intermediary files: %s used for  %s', "(FAKE) " if dryrun else "", files, self.out_filename)
                 if not dryrun:
                     Utils.remove_files(files)
             self.meta.pop('files_to_remove', None)

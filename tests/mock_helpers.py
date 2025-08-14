@@ -98,7 +98,7 @@ def declare_know_files(
     def mock_write_image_metadata(slf: _ProducerStep, dryrun: bool):
         img_meta = slf.meta.get('image_metadata', {})
         fullpath = out_filename(slf.meta)
-        application_mocker.assert_these_metadata_are_expected(img_meta, slf.pipeline_name, fullpath)
+        application_mocker.register_any_unexpected_image_metadata(img_meta, slf.pipeline_name, fullpath)
 
         logging.debug('Set metadata in %s', fullpath)
         for (kw, val) in img_meta.items():

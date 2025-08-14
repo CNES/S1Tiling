@@ -32,6 +32,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 import fnmatch
 import logging
 import os
@@ -54,15 +55,9 @@ k_input_keys  = [
     'xyz',
     'inr',
     'inm',
-    # 'transform.type',
-    # 'transform.type.id.scalex',
-    # 'transform.type.id.scaley',
+
     'ingammaarea',
     'insigmanaught',
-    # 'mingammaarea',
-    # 'calibfactor',
-    # 'nostreaming',
-    # 'outputnodata',
 ]
 k_output_keys = ['io.out', 'out', 'out.deg', 'out.cos', 'out.sin', 'out.tan', 'out.gamma_area']
 
@@ -366,14 +361,24 @@ class OTBApplicationsMockContext:
         self.__configuration                                     = cfg
         self.__known_files                                       = dem_files[:] + [os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))]
         self.__tmp_to_out_map                                    = tmp_to_out_map
+
+        # Cached data to help detect mismatching between actual and expected image_metadata,
+        # files_removed, etc.
+        self.__current_step                                      = ""
         self.__last_expected_metadata                            = {}
         self.__mismatching_metadata                              = []
+        self.__last_expected_files_to_remove                     = set()
+        self.__mismatching_removed_files                         = []
 
+        # Register a few known_files & dirs
         self.__known_files.append(cfg.dem_db_filepath)
         self.__known_files.append(cfg.output_grid)
+
+        # Mock various functions, that do stuff, from otbpipeline/steps...
         mocker.patch('s1tiling.libs.steps.otb.Registry.CreateApplication', lambda a : self.create_application(a))
         mocker.patch('s1tiling.libs.steps.ExecutableStep._do_execute',     lambda slf, params, dryrun : self.execute_process(slf, params, dryrun))
         mocker.patch('s1tiling.libs.steps.AnyProducerStep._do_execute',    lambda slf, params, dryrun : self.execute_function(slf._action, params, dryrun))
+        mocker.patch('s1tiling.libs.Utils.remove_files',                   lambda files: self.mock_remove_files(files))
 
     @property
     def known_files(self):
@@ -417,22 +422,29 @@ class OTBApplicationsMockContext:
     def clear(self) -> None:
         self.__applications = []
 
-    def set_expectations(self, appname: Union[Callable, str], cmdline: Union[List,Dict], pixel_types, metadata) -> None:
+    def set_expectations(
+        self,
+        appname: Union[Callable, str],
+        cmdline: Union[List,Dict],
+        pixel_types,
+        metadata,
+        files_to_remove : Iterable[str]=(),
+    ) -> None:
         expectation = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
         logging.debug("Register expectation: %s", expectation)
         if pixel_types:
             expectation['pixel_types'] = pixel_types
         if metadata:
             expectation['metadata'] = metadata
+        if files_to_remove:
+            expectation['files_to_remove'] = set(files_to_remove)
         self.__expectations.append(expectation)
 
     def _remaining_expectations_as_str(self, appname = None) -> str:
         if appname:
             msgs = [ f"\n * {exp['appname']} {exp['cmdline']}" for  exp in self.__expectations if appname == exp['appname']]
-            # msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations if appname == exp['appname']]
         else:
             msgs = [ f"\n * {exp['appname']} {exp['cmdline']}" for  exp in self.__expectations]
-            # msgs = ['\n * ' + exp['appname'] + ' ' + _as_cmdline_call(exp['cmdline']) for exp in self.__expectations]
         msg = ('(%s)' % len(msgs,)) + ''.join(msgs)
         return msg
 
@@ -478,27 +490,57 @@ class OTBApplicationsMockContext:
         # Some upstream OTB applications upstream in a pipeline have no input images
         return 'Ø'
 
-    def assert_these_metadata_are_expected(self, new_metadata: Dict, name: str, filename: str) -> None:
+    def register_any_unexpected_image_metadata(self, new_metadata: Dict, name: str, filename: str) -> None:
         # Clean some useless/instable metadata
+        # Assertions failures are cached for later as the AssertionError exception would be cached
+        # in otbpipeline while running the pipeline
         new_metadata.pop('TIFFTAG_SOFTWARE', None)
         new_metadata.pop('TIFFTAG_DATETIME', None)
         if new_metadata != self.__last_expected_metadata:
             self.__mismatching_metadata.append({
                 "expected": self.__last_expected_metadata,
                 "actual": new_metadata,
-                "context": f"\nMismatching metadata for {name}",
+                "context": f"\nMismatching metadata for {name}.",
             })
-        self.__last_expected_metadata = {}  # Make sure to clear before existing
+        self.__last_expected_metadata        = {}  # Make sure to clear before existing
 
     def assert_all_metadata_match(self) -> None:
         tc = TestCase()
         tc.maxDiff = None
         for metadata_mismatch in self.__mismatching_metadata:
             tc.assertDictEqual(
-                    metadata_mismatch["actual"],
-                    metadata_mismatch["expected"],
-                    metadata_mismatch.get("context", ""),
+                metadata_mismatch["actual"],
+                metadata_mismatch["expected"],
+                metadata_mismatch.get("context", "")+" (ACTUAL <-> EXPECTED)",
             )
+        for removed_files_mismatch in self.__mismatching_removed_files:
+            tc.assertSetEqual(
+                removed_files_mismatch["actual"],
+                removed_files_mismatch["expected"],
+                removed_files_mismatch.get("context", "")+" (ACTUAL <-> EXPECTED)",
+            )
+        self.__last_expected_files_to_remove = {}  # Make sure to clear before existing
+
+    def mock_remove_files(self, files: list) -> None:
+        """
+        Mock-replacement for :func:`Utils.remove_files`
+        It does assert on-the-fly that expectations match actual files removed.
+
+        Assertions failures are cached for later as the AssertionError exception would be cached in
+        otbpipeline while running the pipeline
+        """
+        logging.debug('mock.remove_files(%r) ---> %s', files, self.known_files)
+        for f in files:
+            self.__known_files.remove(f)
+        expected_files_to_remove = self.__last_expected_files_to_remove
+        actual_files_removed     = set(files)
+        logging.debug("Checking files_to_remove.\nEXPECTED %s\nACTUAL   %s", expected_files_to_remove, actual_files_removed)
+        if expected_files_to_remove != actual_files_removed:
+            self.__mismatching_removed_files.append({
+                "expected": expected_files_to_remove,
+                "actual":   actual_files_removed,
+                "context":  f"\nMismatching files to remove for {self.__current_step}.",
+            })
 
     def assert_app_is_expected(self, appname, params, pixel_types) -> None:
         # Find out what the root input filename is (as we may not have any
@@ -522,8 +564,11 @@ class OTBApplicationsMockContext:
                 assert pixel_types == exp_pixel_type, f'Pixel type set to "{pixel_types}" for {appname}. "{exp_pixel_type}" was expected.'
                 logging.debug('Expectation found for %s', params)
                 logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
-                if exp.get('metadata', None):
-                    self.__last_expected_metadata.update(exp['metadata'])
+                if img_metadata := exp.get('metadata', None):
+                    self.__last_expected_metadata.update(img_metadata)
+                if files_to_remove := exp.get('files_to_remove', ()):
+                    self.__last_expected_files_to_remove = files_to_remove
+                self.__current_step = f"{appname} {params}"
                 self.__expectations.remove(exp)
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
@@ -545,6 +590,9 @@ class OTBApplicationsMockContext:
                 logging.info('FOUND and removing %s among %s', exp, self._remaining_expectations_as_str())
                 if exp.get('metadata', None):
                     self.__last_expected_metadata.update(exp['metadata'])
+                if files_to_remove := exp.get('files_to_remove', ()):
+                    self.__last_expected_files_to_remove = files_to_remove
+                self.__current_step = appname
                 self.__expectations.remove(exp)
                 logging.info('REMAINING: %s', self._remaining_expectations_as_str())
                 return  # Found! => return "true"
