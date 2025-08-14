@@ -952,11 +952,7 @@ S1 coordinates projected on DEM geometry
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`SARDEM projection onto DEM list`
 
-:Clean-up:
-
-    .. warning::
-       These files still **need** to be removed manually. This should change
-       eventually, or it may be conditioned to an option.
+:Clean-up:         These files are removed automatically
 
 .. _gamma_area_s1-files:
 
@@ -1056,11 +1052,7 @@ Half γ area map files -- pre-concatenation
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`Orthorectified GAMMA_AREA Sentinel-1A IW GRD`
 
-:Cleanup:
-
-    .. warning::
-       These files still **need** to be removed manually. This should change
-       eventually, or it may be conditioned to an option.
+:Clean-up:         These files are removed automatically
 
 
 Deprecated temporary files
