@@ -129,6 +129,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         self.__calibfactor  = cfg.calibration_factor
         self.__streaming    = not cfg.disable_streaming.get('apply_gamma_area', False)
         self.__nodata       = nodata_RTC(cfg)
+        self.__tmpdir       = cfg.tmpdir
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -139,7 +140,9 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         meta['calibration_type'] = 'GammaNaughtRTC'  # Update meta from now on
 
         in_concat_S2 = fetch_input_data('concat_S2', all_inputs).out_filename
-        meta['files_to_remove'] = [in_concat_S2]
+        # When the σ° file is not in the temporary zone, it shall not be removed
+        if self.__tmpdir not in in_concat_S2:
+            meta['files_to_remove'] = [in_concat_S2]
         return meta
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
