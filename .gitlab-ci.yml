@@ -192,6 +192,11 @@ pages:  # Job name need to be pages, in deploy stage!
     # Check cache
     - ls public
     - docs/install_and_deploy_doc.sh public
+    # Make sure to replace everything in the S3 destination
+    - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
+    - rclone ls s3_otb:s1-tiling/www/${CI_COMMIT_REF_NAME}/ && rclone rmdirs s3_otb:s1-tiling/www/${CI_COMMIT_REF_NAME}/
+    - rclone rmdirs s3_otb:s1-tiling/www/latest/
+    # And now commit the updated versions
     - rclone copy public s3_otb:s1-tiling/www
   artifacts:
     paths:

@@ -97,6 +97,7 @@ echo "Is this a non-release-candidate tag? ${is_full_tag}"
 
 # Generate doc in _build
 echo "Build documentation"
+rm -rf _build/doctrees _build/html
 _execute sphinx-build -b html -d _build/doctrees docs _build/html -v
 
 # Make sure public exists
@@ -116,7 +117,7 @@ if [ ${is_full_tag} -eq 1 ] ; then
 fi
 
 # Prepare latest/ as a copy of the latest version
-# (using a copy instead of a symlonk because gitlab-ci or gitlab-pages don't
+# (using a copy instead of a symlink because gitlab-ci or gitlab-pages don't
 # seem to support symlink)
 # Automatically symlink 'latest' to latest version, or develop
 latest=$(((find "${public}"  -maxdepth 1 -mindepth 1 -type d -name "*.*" -printf "%P\n" | grep  .) 2> /dev/null || echo develop) | sort -V | tail -1)
