@@ -89,7 +89,11 @@ __extended_filenames = {
 }
 
 
-def extended_filename_ia(cfg: CreationOptionConfiguration, ia_map: IA_map) -> str:
+def extended_filename_ia(
+    cfg              : CreationOptionConfiguration,
+    ia_map           : IA_map,
+    disable_streaming: bool,
+) -> str:
     """
     Returns the (OTB) extended filename complement for the given Incidence Angle map.
 
@@ -100,7 +104,13 @@ def extended_filename_ia(cfg: CreationOptionConfiguration, ia_map: IA_map) -> st
     product: str
     default: List[str]
     product, default = __extended_filenames[ia_map]
-    return _extended_filename(cfg, product, default)
+
+    if disable_streaming:
+        extra_ef = ['streaming:type=stripped', 'streaming:sizemode=nbsplits', 'streaming:sizevalue=1']
+    else:
+        extra_ef = []
+
+    return _extended_filename(cfg, product, default, extra_ef)
 
 
 # ----------------------------------------[ pixel_type

@@ -54,6 +54,9 @@ v1.2.0 Improvements
   <temporary-files>` investigated with to :option:`--debug-caches
   <S1Processor --debug-caches>` option.
 - Files removal is now tested ([d3934aa]).
+- Streaming is disabled with OTB 9.1.0 (and prior) when producing ground
+  normals
+  (`#181 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/181>`_).
 
 Version 1.1.0
 -------------
