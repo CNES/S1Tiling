@@ -1499,6 +1499,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
     configuration.lia_directory    = liadir.absolute()
     configuration.produce_lia_map  = True
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
+    configuration.relative_orbit_list = [7]
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
@@ -1589,6 +1590,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
     configuration.calibration_type = 'normlim'
     configuration.lia_directory = liadir.absolute()
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
+    configuration.relative_orbit_list = [7]
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(
