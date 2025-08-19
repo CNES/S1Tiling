@@ -236,8 +236,8 @@ You can use this :download:`this template
         :ref:`relative_orbit_list <DataSource.relative_orbit_list>` shall be
         considered as exclusive.
       .. warning::
-        One and exactly one single value is expected in :ref:`NORMLIM and
-        Ellipsoid Incidence Angle scenarios <scenarios>`.
+        At least one value is expected in :ref:`NORMLIM and Ellipsoid Incidence
+        Angle scenarios <scenarios>`.
 
       .. _DataSource.first_date:
   * - ``first_date``

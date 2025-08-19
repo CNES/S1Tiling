@@ -57,6 +57,10 @@ v1.2.0 Improvements
 - Streaming is disabled with OTB 9.1.0 (and prior) when producing ground
   normals
   (`#181 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/181>`_).
+- On construction, :class:`Configuration
+  <s1tiling.libs.configuration.Configuration>` object can be injected domain
+  specific checks. Introduced for
+  (`#191 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/191>`_).
 
 Version 1.1.0
 -------------

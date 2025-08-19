@@ -58,7 +58,10 @@ from .S1FileManager import (
 from . import exits
 from . import exceptions
 from . import Utils
-from .configuration import Configuration
+from .configuration import (
+    Configuration,
+    LIAConfiguration,
+)
 from .otbpipeline import (
     FirstStep,
     PipelineDescription,
@@ -299,14 +302,20 @@ def process_one_tile(  # pylint: disable=too-many-arguments
                 required_products, client, pipelines, do_watch_ram, debug_tasks)
 
 
-def read_config(config_opt: Union[str, Configuration]) -> Configuration:
+def read_config(
+    config_opt          : Union[str, Configuration],
+    extra_config_checks : Sequence[Tuple[Callable[[Configuration], bool], str]] = (),
+) -> Configuration:
     """
     The config_opt can be either the configuration filename or an already initialized configuration
     object
     """
     if isinstance(config_opt, str):
-        return Configuration(config_opt)
+        return Configuration(config_opt, extra_config_checks=extra_config_checks)
     else:
+        for check, msg in extra_config_checks:
+            if not check(config_opt):
+                raise exceptions.ConfigurationError(msg, "")
         return config_opt
 
 
@@ -327,6 +336,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     pipeline_builder,
     *,
     ctx_managers           : Sequence[Type] = (),
+    extra_config_checks    : Sequence[Tuple[Callable[[Configuration], bool], str]] = (),
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
@@ -341,7 +351,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     Internal function for executing pipelines.
     # TODO: parametrize tile loop, product download...
     """
-    config: Configuration  = read_config(config_opt)
+    config: Configuration  = read_config(config_opt, extra_config_checks)
     extra_opts = {
             "dl_wait"                : dl_wait,
             "dl_timeout"             : dl_timeout,
@@ -723,7 +733,7 @@ def eof_first_inputs_factory(
     :precondition: one and only one relative orbit number must have been requested in the configuration.
     :precondition: one and only one mission must have been requested in the configuration.
     """
-    # assert len(configuration.relative_orbit_list) == 1
+    assert len(configuration.relative_orbit_list) >= 1
     relative_orbits = configuration.relative_orbit_list
     logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbits)
     eof_manager = EOFFileManager(configuration, dag)
@@ -1021,8 +1031,16 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
         return pipelines, required_workspaces
 
+    def _check_requested_number_of_orbits(config: LIAConfiguration) -> bool:
+        # The check is positive: failing to comply => there is an issue in the options
+        return config.calibration_type != 'normlim' or len(config.relative_orbit_list) > 0
+
     return do_process_with_pipeline(
             config_opt, builder,
+            extra_config_checks=[(
+                _check_requested_number_of_orbits,
+                "At least one relative orbit is required for LIA map generation"
+            )],
             ctx_managers=[DEMWorkspace],
             dl_wait=dl_wait, dl_timeout=dl_timeout,
             searched_items_per_page=searched_items_per_page,
@@ -1249,6 +1267,10 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            extra_config_checks=[(
+                lambda config: len(config.relative_orbit_list) > 0,
+                "At least one relative orbit is required for LIA map generation"
+            )],
             ctx_managers=[DEMWorkspace],
             dryrun=dryrun,
             debug_caches=debug_caches,
@@ -1311,6 +1333,10 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
 
     return do_process_with_pipeline(
             config_opt, builder,
+            extra_config_checks=[(
+                lambda config: len(config.relative_orbit_list) > 0,
+                "At least one relative orbit is required for Ellipsoid IA map generation"
+            )],
             dryrun=dryrun,
             debug_caches=debug_caches,
             debug_otb=debug_otb,
