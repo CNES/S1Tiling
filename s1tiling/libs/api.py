@@ -757,7 +757,7 @@ def eof_first_inputs_factory(
             assert product, f"Here, we should have a non null instance for {product=}"
             step = FirstStep(
                     orbit=f"{relorb:0>3d}",
-                    basename=product.filename,
+                    basename=str(product.filename),
                     flying_unit_code=product.mission.lower(),
                     tile_name=tile_name,
             )
