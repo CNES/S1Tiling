@@ -290,7 +290,11 @@ class _ConfigAccessor:
 class Configuration:  # pylint: disable=too-many-instance-attributes
     """This class handles the parameters from the cfg file"""
     def __init__(
-            self, config_file : Union[str, Path], do_show_configuration=True
+        self,
+        config_file        : Union[str, Path],
+        *,
+        extra_config_checks : Sequence[Tuple[Callable[["Configuration"], bool], str]] = (),
+        do_show_configuration=True,
     ) -> None:
         #: Cache of DEM information covering S2 tiles
         self.__dems_by_s2_tiles : Dict[str, Dict] = {}
@@ -323,6 +327,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         if all_requested and self.download and "ALL" in self.roi_by_tiles:
             accessor.throw("Can not request to download 'ROI_by_tiles : ALL' if 'Tiles : ALL'."
                     + " Change either value or deactivate download instead")
+        for check, msg in extra_config_checks:
+            if not check(self):
+                accessor.throw(msg)
 
         if do_show_configuration:
             self.show_configuration()
@@ -845,12 +852,36 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
 
 # ================================================================================
+# Extra validation checks
+
+class OrbitConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to relative orbit list configuration
+    data.
+
+    Can be seen an a ISP compliant concept for :class`Configuration` object regarding processes
+    depending on :ref:`EOF files <downloading_eof>`.
+    """
+    relative_orbit_list : List[int]
+
+class LIAConfiguration(Protocol):
+    """
+    Specialized protocol for configuration information related to LIA configuration data.
+
+    Can be seen an a ISP compliant concept for :class`Configuration` object regarding
+    ref:`scenario.S1ProcessorLIA`.
+    """
+    relative_orbit_list : List[int]
+    calibration_type    : str
+
+# ================================================================================
 # Name formats
 class NameFormattingConfiguration(Protocol):
     """
     Specialized protocol for configuration information related to name generation configuration data.
 
-    Can be seen an a ISP compliant concept for Configuration object regarding name generation.
+    Can be seen an a ISP compliant concept for :class`Configuration` object regarding :ref:`name
+    generation <filename-generation>`.
     """
     calibration_type: str
     fname_fmt: Dict

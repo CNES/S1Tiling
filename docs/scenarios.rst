@@ -87,9 +87,9 @@ Regarding options, the only difference with previous scenario are:
   downloaded to.
 - the :ref:`directory <Paths.lia>` where LIA maps will be searched for, or
   produced in.
-- a single pair of :ref:`platform <DataSource.platform_list>` + :ref:`relative
-  orbit <datasource.relative_orbit_list>` to which the Local Incidence Angles
-  will be calculated,
+- at least one :ref:`platform <DataSource.platform_list>` and one
+  :ref:`relative orbit <datasource.relative_orbit_list>` are required, to which
+  the Local Incidence Angles will be calculated,
 
 S1Tiling will then automatically take care of:
 
@@ -176,8 +176,7 @@ masking… But the following (non-obvious) options are mandatory:
 
 - :ref:`[DataSource].platform_list <datasource.platform_list>` -- however only
   a single value will be used
-- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>` --
-  however only a single value will be used
+- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>`
 - :ref:`[DataSource].first_date <datasource.first_date>` and
   :ref:`[DataSource].last_date <datasource.last_date>` if
   :ref:`[DataSource].download <datasource.download>` is ``True`` and EOF files
@@ -243,8 +242,7 @@ account:
 - :ref:`[Processing].tiles <processing.tiles>`
 - :ref:`[DataSource].platform_list <datasource.platform_list>` -- but only a
   single value shall be used
-- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>` --
-  but only a single value shall be used
+- :ref:`[DataSource].relative_orbit_list <datasource.relative_orbit_list>`
 - :ref:`[DataSource].first_date <datasource.first_date>` and
   :ref:`[DataSource].last_date <datasource.last_date>` if
   :ref:`[DataSource].download <datasource.download>` is ``True`` and EOF files
