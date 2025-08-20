@@ -42,6 +42,7 @@ from typing import Dict, List, Optional, Type
 from osgeo import gdal
 import otbApplication as otb
 
+
 from ..file_naming     import (
     OutputFilenameGenerator,
     OutputFilenameGeneratorList,
@@ -87,8 +88,9 @@ from .s1_to_s2         import (
     _ConcatenatorFactory,
     _OrthoRectifierFactory,
 )
-from ..                import Utils
-from ..configuration   import (
+from ..                 import Utils
+from ..utils.formatters import partial_format
+from ..configuration    import (
     Configuration,
     dname_fmt_lia_product,
     dname_fmt_tiled,
@@ -1173,8 +1175,8 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
-        fname_fmt_deg = Utils.partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None
-        fname_fmt_sin = Utils.partial_format(fname_fmt0, LIA_kind="sin_LIA")
+        fname_fmt_deg = partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None
+        fname_fmt_sin = partial_format(fname_fmt0, LIA_kind="sin_LIA")
         dname_fmt = dname_fmt_lia_product(cfg)
         super().__init__(
             cfg,

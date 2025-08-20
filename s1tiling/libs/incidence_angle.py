@@ -38,7 +38,7 @@ Centralizes domain aspects related to Local Incidence Angle and (Ellipsoid) Inci
 from enum   import Enum
 from typing import List, Optional
 
-from .              import Utils
+from .utils         import partial_format
 from .configuration import CreationOptionConfiguration, _extended_filename, pixel_type
 
 # logger = logging.getLogger('s1tiling.incidence_angle')
@@ -77,7 +77,7 @@ def eia_map_fname_fmt(fname_fmt: str, ia_map: IA_map):
     This will replace the key `{IA_kind}` from the format string with the prefix for the actual
     (Ellipsoid) Incidence Angle map.
     """
-    return Utils.partial_format(fname_fmt, IA_kind=__eia_fname_fmt_prefixes[ia_map])
+    return partial_format(fname_fmt, IA_kind=__eia_fname_fmt_prefixes[ia_map])
 
 
 # ----------------------------------------[ extended_filename

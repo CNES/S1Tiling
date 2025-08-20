@@ -605,27 +605,6 @@ def get_platform_from_s1_raster(path_to_raster: str) -> str:
 # ======================================================================
 ## Technical helpers
 
-class _PartialFormatHelper(dict):
-    """
-    Helper class that return missing ``{key}`` as themselves
-    """
-    def __missing__(self, key: str) -> str:
-        return "{" + key + "}"
-
-
-def partial_format(format_str: str, **kwargs) -> str:
-    """
-    Permits to apply partial formatting to format string.
-
-    Example:
-    --------
-    >>> s = "{ab}_bla_{cd}"
-    >>> partial_format(s, ab="tot")
-    'tot_bla_{cd}'
-    """
-    return format_str.format_map(_PartialFormatHelper(**kwargs))
-
-
 def flatten_stringlist(itr) -> Generator[str, None, None]:
     """
     Flatten a list of lists.

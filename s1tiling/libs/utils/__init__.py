@@ -32,5 +32,12 @@
 """ Public interface of s1tiling.libs.utils """
 
 from .algorithm import partition
+from .formatters import ResilientFormater, glob_format, partial_format
 
-__all__ = ['partition']
+__all__ = [
+    'partition',
+
+    'ResilientFormater',
+    'glob_format',
+    'partial_format',
+]
