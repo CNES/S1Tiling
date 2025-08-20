@@ -77,3 +77,47 @@ def glob_format(format_str: str, **kwargs) -> str:
     'tot_bla_*'
     """
     return format_str.format_map(_FormatOrGlobHelper(**kwargs))
+
+
+class ResilientFormater:
+    """
+    Very similar to :class:`_PartialFormatHelper` or :class:`_FormatOrGlobHelper`, except we can
+    choose the replacement text.
+
+    >>> s = "{ab}_bla_{cd}"
+    >>> ResilientFormater().format(s, ab="tot")
+    'tot_bla_{cd}'
+
+    >>> ResilientFormater("*").format(s, ab="tot")
+    'tot_bla_*'
+
+    >>> ResilientFormater(".*").format(s, ab="tot")
+    'tot_bla_.*'
+    """
+    def __init__(self, default: Optional[str] = None):
+        """
+        constructor
+        """
+        self.__default = default
+
+    @property
+    def default(self):
+        """
+        Getter to default replacement
+        """
+        return self.__default
+
+    def format(self, format_str: str, **kwargs) -> str:
+        """
+        Overrides the format() function
+        """
+        outer = self
+        class _Formatter(dict):
+            def __missing__(self, key: str) -> str:
+                if outer.default is None:
+                    return "{" + key + "}"
+                return outer.default
+
+        return format_str.format_map(_Formatter(**kwargs))
+
+
