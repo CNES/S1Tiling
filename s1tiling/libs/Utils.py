@@ -654,7 +654,7 @@ def flatten_stringlist(itr) -> Generator[str, None, None]:
                 yield x
 
 
-def list_files(directory: str, pattern=None) -> List[os.DirEntry]:
+def list_files(directory: str, pattern: Union[None,str,re.Pattern] = None) -> List[os.DirEntry]:
     """
     Efficient listing of files in requested directory.
 
@@ -663,10 +663,12 @@ def list_files(directory: str, pattern=None) -> List[os.DirEntry]:
 
     Requires Python 3.5
     """
-    if pattern:
-        filt = lambda path: path.is_file() and fnmatch.fnmatch(path.name, pattern)
-    else:
+    if not pattern:
         filt = lambda path: path.is_file()
+    elif isinstance(pattern, re.Pattern):
+        filt = lambda path: path.is_file() and re.match(pattern, path.name)
+    else:
+        filt = lambda path: path.is_file() and fnmatch.fnmatch(path.name, pattern)
 
     with os.scandir(directory) as nodes:
         res = list(filter(filt, nodes))
@@ -674,7 +676,7 @@ def list_files(directory: str, pattern=None) -> List[os.DirEntry]:
     return res
 
 
-def list_dirs(directory: str, pattern=None) -> List[os.DirEntry]:
+def list_dirs(directory: str, pattern: Union[None,str,re.Pattern] = None) -> List[os.DirEntry]:
     """
     Efficient listing of sub-directories in requested directory.
 
@@ -683,13 +685,16 @@ def list_dirs(directory: str, pattern=None) -> List[os.DirEntry]:
 
     Requires Python 3.5
     """
-    if pattern:
-        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path.name, pattern)
-    else:
+    if not pattern:
         filt = lambda path: path.is_dir()
+    elif isinstance(pattern, re.Pattern):
+        filt = lambda path: path.is_dir() and re.match(pattern, path.name)
+    else:
+        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path.name, pattern)
 
     with os.scandir(directory) as nodes:
         res = list(filter(filt, nodes))
+        logger.debug("RES(%r)= %s", directory, res)
         # res = [entry for entry in nodes if filt(entry)]
     return res
 
