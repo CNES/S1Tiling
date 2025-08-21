@@ -11,5 +11,6 @@ eodag
 graphviz
 numpy<2
 objgraph
+portion
 pympler
 pyyaml
