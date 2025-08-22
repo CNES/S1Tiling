@@ -32,7 +32,7 @@
 
 """ This module contains the S1FileManager class"""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 import fnmatch
 from functools import partial
 import glob
@@ -42,6 +42,7 @@ import multiprocessing
 import os
 import re
 import shutil
+import sys
 from typing import Dict, List, Optional, Protocol, Tuple, Union
 
 from osgeo import ogr
@@ -60,19 +61,34 @@ except ImportError:
 
 import numpy as np
 
-from s1tiling.libs      import exceptions
-from .Utils             import (
+from s1tiling.libs       import exceptions
+from .Utils              import (
     Layer,
     extract_product_start_time,
-    get_orbit_direction, get_relative_orbit, get_shape, list_dirs,
+    get_orbit_direction,
+    get_relative_orbit,
+    get_shape,
+    list_dirs,
+    list_files,
+    regex_escape_dot,
+    regex_join,
 )
-from .S1DateAcquisition import S1DateAcquisition
-from .configuration     import (
+from .S1DateAcquisition  import S1DateAcquisition
+from .configuration      import (
     dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered,
 )
-from .otbpipeline       import mp_worker_config
-from .outcome           import S1DownloadOutcome
-from .utils.timer       import timethis
+# from .orbit._conversions import ORBIT_CONVERTERS
+from .otbpipeline        import mp_worker_config
+from .outcome            import S1DownloadOutcome
+from .s1.filters         import (
+    discard_small_redundant,
+    filter_image_groups_providing_enough_cover_by_pair,
+    filter_images_providing_enough_cover_by_pair,
+    find_paired_products,
+)
+from .s1.product         import EOProductInformation
+from .utils.timer        import timethis
+from .utils.formatters   import ResilientFormater
 
 setup_logging(verbose=1)
 
@@ -99,6 +115,7 @@ class S1FileManagerConfiguration(Protocol):
     raw_directory                : str
     tmpdir                       : str
     output_preprocess            : str
+    gamma_area_directory         : str
     nb_download_processes        : int
     tile_list                    : List[str]
     output_grid                  : str
@@ -144,8 +161,8 @@ def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
         intersection = search_geom.intersection(product_geometry)
     else:
         logger.debug(
-                "Trying our best to deal with invalid geometry on product: %r",
-                product,
+            "Trying our best to deal with invalid geometry on product: %r",
+            product,
         )
         product_geometry = product.geometry.buffer(0)
         try:
@@ -173,60 +190,155 @@ def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
 #             pass
 
 
-def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-locals
-    product:       EOProduct,
-    tile_name:     str,
-    polarizations: List[str],
-    cfg:           S1FileManagerConfiguration,
-    s2images:      List[str]
+# def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-locals
+#     product:       EOProduct,
+#     tile_name:     str,
+#     polarizations: List[str],
+#     cfg:           S1FileManagerConfiguration,
+#     s2images:      List[str]
+# ) -> bool:
+#     """
+#     Tells whether finals products associated to a tile needs to be generated.
+# 
+#     :param product:       S1 images that are available for download through EODAG
+#     :param tile_name:     Name of the S2 tile
+#     :param polarizations: Requested polarizations as per configuration.
+#     :param s2images:      List of already globbed S2 images files
+# 
+#     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
+#     and the requested polarizations exists.
+#     """
+#     logger.debug('>  Searching whether %s final products have already been generated (in polarizations: %s)',
+#                  product, polarizations)
+#     if len(s2images) == 0:
+#         return True
+#     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
+#     prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
+#     pid = product.as_dict()['id']
+#     match = prod_re.match(pid)
+#     if not match:
+#         raise AssertionError(f"Unexpected name for S1 Product: {pid} doesn't match expected pattern")
+#     sat, start = match.groups()
+#     keys = {
+#         'flying_unit_code'  : sat.lower(),
+#         'tile_name'         : tile_name,
+#         'acquisition_stamp' : f'{start}t??????',
+#         'orbit_direction'   : '*',
+#         'orbit'             : '*',
+#         'calibration_type'  : cfg.calibration_type,
+#     }
+#     fname_fmt_4concatenation = fname_fmt_concatenation(cfg)
+#     fname_fmt_4filtered      = fname_fmt_filtered(cfg)
+#     for polarisation in polarizations:
+#         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
+#         # We should use the `Processing.fname_fmt.concatenation` option
+#         pat          = fname_fmt_4concatenation.format(**keys, polarisation=polarisation)
+#         pat_filtered = fname_fmt_4filtered.format(**keys, polarisation=polarisation)
+#         found_s2 = fnmatch.filter(s2images, pat)
+#         found_filt = fnmatch.filter(s2images, pat_filtered)
+#         found = found_s2 or found_filt
+#         logger.debug('   searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
+#         if not found:
+#             return True
+#         # FIXME:
+#         # - if found_s2 and not found_filt => we have everything that is needed
+#         # - if found_filt and not found_s2 => we have prevent the required S1 products from being downloaded
+#         #                                     if the S2 product is required
+#     return False
+
+
+def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
+    input_product:            EOProductInformation,
+    tile_name:                str,
+    polarizations:            List[str],
+    calibration_type:         str,
+    fname_formats:            Sequence[str],
+    existing_output_products: List[str],
 ) -> bool:
     """
-    Tells whether finals products associated to a tile needs to be generated.
+    Tells whether any of the theorical output products could depend on a specific input proudct.
 
-    :param product:       S1 images that are available for download through EODAG
-    :param tile_name:     Name of the S2 tile
-    :param polarizations: Requested polarizations as per configuration.
-    :param s2images:      List of already globbed S2 images files
-
-    Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
-    and the requested polarizations exists.
+    :param str       input_product:            The speficic input product considered
+    :param str       tile_name:                Target tile name considered
+    :param list[str] polarizations:            Target polarizations considered
+    :param str       calibration_type:         Target calibration type considered
+    :param list[str] fname_formats:            Filename formats of all possible output products
+    :param list[str] existing_output_products: List of all the pre-existing output products already
+                                               detected on disk.
     """
-    logger.debug('>  Searching whether %s final products have already been generated (in polarizations: %s)',
-                 product, polarizations)
-    if len(s2images) == 0:
+    # TODO: check it handles
+    # - [ ] the γ area file is here but not the σ°
+    # - [ ] the γ area file is not here but the σ° yes
+    # - [ ] the γ area file is not here and there are multiple S1 input compatible (different dates)
+    # - [X] the tyymmdd is here but not he txxxxxx
+    # - [X] 1 or 2 polarisations
+
+    # pid = input_product.as_dict()['id']
+    pid = input_product.identifier
+    logger.debug('>  Searching whether %r final products have already been generated (in polarizations: %s)',
+                 pid, polarizations)
+    if len(existing_output_products) == 0:
         return True
-    # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
-    prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
-    pid = product.as_dict()['id']
-    match = prod_re.match(pid)
-    if not match:
-        raise AssertionError(f"Unexpected name for S1 Product: {pid} doesn't match expected pattern")
-    sat, start = match.groups()
-    keys = {
-        'flying_unit_code'  : sat.lower(),
+    ## # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
+    ## prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}_(\d{6})_.*')
+    ## match = prod_re.match(pid)
+    ## if not match:
+    ##     raise AssertionError(f"Unexpected name for S1 Product: {pid!r} doesn't match expected pattern")
+    ## sat, start, absolute_orbit = match.groups()
+    ## if sat.upper() not in ORBIT_CONVERTERS.keys():
+    ##     logger.warning("Platform %r is not supported by S1Tiling. Only %s are supported. Relative orbit will be ignored",
+    ##                    sat, ORBIT_CONVERTERS.keys(), pid)
+    ##     relative_orbit = r'\d{3}'
+    ## else:
+    ##     relative_orbit = ORBIT_CONVERTERS[sat.upper()].to_relative(int(absolute_orbit))
+    sat            = input_product.platform
+    start          = input_product.start_date
+    # If the input remote product is known to be paired (according to the search result), we know to
+    # search a txxxxxx date. Any date is accepted otherwise.
+    time           = "xxxxxx" if input_product.is_appaired else '......'
+    absolute_orbit = input_product.absolute_orbit
+    relative_orbit = input_product.relative_orbit
+    fname_options = {
+        # --[ Keys coming from the request, to speed-up pattern matching
         'tile_name'         : tile_name,
-        'acquisition_stamp' : f'{start}t??????',
-        'orbit_direction'   : '*',
-        'orbit'             : '*',
-        'calibration_type'  : cfg.calibration_type,
+        # There are 2 orbit directions: the requested one (if any), and the one from the remote file.
+        # The one from the remote file matches the search criteria => we use it
+        'orbit_direction'   : input_product.orbit_dir,
+        'calibration_type'  : calibration_type,
+        # --[ Keys coming from the reference input product, to match the related output products
+        'flying_unit_code'  : sat.lower(),
+        'acquisition_stamp' : f'{start}t{time}',
+        'absolute_orbit'    : f"{absolute_orbit:06}",
+        'orbit'             : f"{relative_orbit:03}",
     }
-    fname_fmt_4concatenation = fname_fmt_concatenation(cfg)
-    fname_fmt_4filtered      = fname_fmt_filtered(cfg)
-    for polarisation in polarizations:
-        # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-        # We should use the `Processing.fname_fmt.concatenation` option
-        pat          = fname_fmt_4concatenation.format(**keys, polarisation=polarisation)
-        pat_filtered = fname_fmt_4filtered.format(**keys, polarisation=polarisation)
-        found_s2 = fnmatch.filter(s2images, pat)
-        found_filt = fnmatch.filter(s2images, pat_filtered)
-        found = found_s2 or found_filt
-        logger.debug('   searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
-        if not found:
+
+    def iterate_on_filename_formats() -> Iterable[str]:
+        """
+        Given filename options, yields a regex for all the possible output filename formats.
+
+        The filename options depend on output target (tile name, orbit direction...), and on
+        metadata extracted from the name of the input product.
+        """
+        for fname_fmt in fname_formats:
+            fname_fmt = regex_escape_dot(fname_fmt)
+            if "polarisation" in fname_fmt:
+                # Special case for polarisation: a same input may be used for several outputs
+                for polarisation in polarizations:
+                    yield ResilientFormater('.*').format(fname_fmt, polarisation=polarisation, **fname_options)
+            else:
+                yield ResilientFormater('.*').format(fname_fmt, **fname_options)
+
+    # TODO: handle case where filtered output only need non-filtered output
+    for fname_pattern in iterate_on_filename_formats():
+        logger.debug("   - check if there are actual outputs matching %r", fname_pattern)
+        output_re = re.compile(fname_pattern, re.IGNORECASE)
+        for op in existing_output_products:
+            logger.debug("      -> %r ? -> %s", op, re.match(output_re, op))
+        if not any((re.match(output_re, op) for op in existing_output_products)):  # <=> none
+            logger.debug("    => Can't find any related output => False")
             return True
-        # FIXME:
-        # - if found_s2 and not found_filt => we have everything that is needed
-        # - if found_filt and not found_s2 => we have prevent the required S1 products from being downloaded
-        #                                     if the S2 product is required
+
+    logger.debug("   => All possible outputs have been found for %r = True", pid)
     return False
 
 
@@ -257,6 +369,8 @@ def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-l
     get_orbit:    Callable[[Union[EOProduct, Dict]], int],
 ) -> Union[List[EOProduct], List[Dict]]:
     """
+    TODO: use version from s1tiling.libs.s1
+
     Associate products of the same date and orbit into pairs (at most),
     to compute the total coverage of the target zone.
     If the total coverage is inferior to the target coverage, the products
@@ -298,6 +412,91 @@ def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-l
         else:
             kept_products.extend(cov_prod.values())
     return kept_products
+
+
+def _filter_s1_images_required_for_expected_s2_product(
+    # s1_products:         List[EOProduct],
+    s1_products:         Sequence[EOProductInformation],
+    tile_out_dir:        str,
+    tile_name:           str,
+    gamma_area_dir:      str,
+    polarization:        str,
+    orbit_direction:     Optional[str],
+    relative_orbit_list: List[int],
+    calibration_type:    str,
+    name_formats:        List[Tuple[str, str]], # Zip list of dname_fmt + fname_fmt
+    cfg:                 S1FileManagerConfiguration,
+# ) -> List[EOProduct]:
+) -> Sequence[EOProductInformation]:
+    # 1. First: list local output products matching the production criteria
+
+    #   Beware: a matching VV while the VH doesn't exist and is present in the
+    #   remote product shall trigger the download of the product.
+    #   TODO: We should actually inject the expected filenames into the task graph
+    #   generator in order to download what is stricly necessary and nothing more
+
+    polarizations = polarization.lower().split(' ')
+    logger.debug('Filter %s products for %s on disk in %s', tile_name, polarizations, tile_out_dir)
+    def re_glob1(pat: str, *paths) -> List[str]:
+        logger.debug('  Search %r on disk in %r', pat, "/".join(paths))
+        re_glob = re.compile(f"^{pat}$", re.IGNORECASE)
+        pathname = os.path.join(*paths)
+        if os.path.isdir(pathname):
+            return [p.name for p in list_files(pathname, re_glob)]
+        else:
+            logger.debug("Note: directory %r doesn't exist", pathname)
+            return []
+
+    dname_options = { 'tile_name': tile_name, 'out_dir': tile_out_dir, 'gamma_area_dir': gamma_area_dir, }
+    fname_options = {
+        'flying_unit_code': 'S1.',  # TODO: inject filter here!
+        'tile_name'       : tile_name,
+        'orbit_direction' : orbit_direction or '.*',  # Optional[str]
+        'orbit'           : regex_join(relative_orbit_list, lambda o: f"{o:03}") if relative_orbit_list else '.*', # List[int]
+        'calibration_type': calibration_type,  # needs to be case incensitive b/c of NormLim/GammaNaughtRTC
+        'polarisation'    : f"({polarization.replace(' ', '|')})"
+    }
+
+    # First rough filter on possible products
+    # fname where we replace: tile_name, orbit, orbit dir
+    existing_output_products : List[str] = []
+    for dname_fmt, fname_fmt in name_formats:
+        # NB replace unknown keys with ".*"
+        output_product_pat = ResilientFormater('.*').format(
+            regex_escape_dot(fname_fmt),
+            **fname_options,
+        )
+        existing_output_products.extend(
+            re_glob1(output_product_pat, dname_fmt.format_map(dname_options))
+        )
+    logger.debug(' => related output products found on %s: %s', tile_name, existing_output_products)
+
+    # Second exact filter taking into account anything else that may matter: polarization, orbit
+    # number...
+    logger.debug('Analyse %s products for %s on disk in %s', tile_name, polarizations, tile_out_dir)
+
+    # 2. Then: filter out input products for which an output product has been found
+    # Beware of the case an input is required for several outputs!
+    s1_products = [
+        # The idea is this time to extract S1 info from the inputs, and generate a new pattern that
+        # will be used to filter inputs found
+        # it will be mostly about the input dates, whether they are found in the output name
+        # (some output have no dates (LIA, RTC...))
+        # It's about what we can find in the input name:
+        # - sat!
+        # - start_date!
+        # - absolute orbit?
+        p for p in s1_products
+        if is_there_a_final_product_that_needs_to_be_generated_for_this_input(
+            input_product=p,
+            tile_name=tile_name,
+            polarizations=polarizations,
+            calibration_type=calibration_type,
+            fname_formats=[fname_fmt for _, fname_fmt in name_formats],
+            existing_output_products=existing_output_products,
+        )
+    ]
+    return s1_products
 
 
 # @timethis("_keep_products_with_enough_coverage")  # This is fast enough
@@ -347,6 +546,8 @@ def _discard_small_redundant(
     ident:    Callable[[Union[EOProduct, os.DirEntry]], str],
 ) -> Union[List[EOProduct], List[os.DirEntry]]:
     """
+    TODO: use version from s1tiling.libs.s1
+
     Sometimes there are several S1 product with the same start date, but a different end-date.
     Let's discard the smallest products
     """
@@ -368,7 +569,7 @@ def _discard_small_redundant(
         if last == start:
             # We can suppose the new end date to be >
             # => let's replace
-            logger.warning('Discarding %s that is smallest than %s', res[-1], product)
+            logger.warning('Discarding %s that is smaller than %s', res[-1], product)
             res[-1] = product
         else:
             res.append(product)
@@ -484,7 +685,7 @@ def _download_and_extract_one_product(
                 e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
                 path = S1DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
-        logger.warning('%s', e)  # EODAG error message is good and precise enough, just use it!
+        logger.warning('%s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
         logger.debug('Exception type is: %s', e.__class__.__name__)
         ## ERROR - Product is OFFLINE
@@ -775,17 +976,23 @@ class S1FileManager:
 
         return products
 
-    def _filter_products(  # pylint: disable=too-many-arguments
+    def _filter_products_to_download(  # pylint: disable=too-many-arguments
         self,
-        products:     List[EOProduct],
-        extent:       Dict[str, float],
-        tile_out_dir: str,
-        tile_name:    str,
-        polarization: str,
-        cover:        float
-    ) -> List[EOProduct]:
+        products:            Sequence[EOProductInformation],
+        extent:              Dict[str, float],
+        tile_out_dir:        str,
+        gamma_area_dir:      str,
+        tile_name:           str,
+        polarization:        str,
+        cover:               float,
+        output_name_formats: List[Tuple[str, str]],
+    ) -> Sequence[EOProductInformation]:
         """
-        Filter products to download according to their polarization and coverage
+        Filter products to download according to their:
+        - polarization,
+        - coverage,
+        - presence in the cache (disk),
+        - and whether we do need them to generate the expected product.
         """
         if not products:  # no need to continue
             return []
@@ -794,36 +1001,58 @@ class S1FileManager:
         # - are overlapped by bigger ones
         #   Sometimes there are several S1 product with the same start date, but a different end-date.
         #   Let's discard the smallest products
-        def ident(p: EOProduct) -> str:
-            # assert isinstance(p, EOProduct), f"Expecting a EOProduct, got: {type(p)!r}"
-            return p.as_dict()['id']
+        products = discard_small_redundant(products)
+        logger.info ("%s remote S1 product(s) left after discarding smallest redundant products", len(products))
+        logger.debug(" => %s", [f"{p}" for p in products])
 
-        products = _discard_small_redundant(products, ident=ident)
-        logger.debug("%s remote S1 product(s) left after discarding smallest redundant ones: %s", len(products), products)
+        # Find pairs of S1 products
+        product_groups = find_paired_products(products)
+
         # Filter cover
         if cover:
-            products = _filter_images_providing_enough_cover_by_pair(
-                    products, cover,
-                    ident=ident,
-                    get_cover=lambda p: product_cover(p, extent),
-                    get_orbit=lambda p: product_property(p, 'relativeOrbitNumber')
-                    )
+            products = filter_image_groups_providing_enough_cover_by_pair(
+                product_groups,
+                cover,
+                get_cover=lambda p: p.get_relative_cover_of(extent)
+            )
             # products = products.filter_overlap(
             #         minimum_overlap=cover, geometry=extent)
-            logger.debug("%s remote S1 product(s) found and filtered (cover >= %s): %s", len(products), cover, products)
+            logger.info ("%s remote S1 product(s) found and filtered (cover >= %s)", len(products), cover)
+            logger.debug(" => %s", [f"{p}" for p in products])
+        else:
+            logger.debug("No coverage check is performed")
+        # TODO: do the apairing even without cover!!
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
         # self._refresh_s1_product_list()  # No need: as it has been done at startup, and after download
                                            # And let's suppose nobody deletd files
                                            # manually!
-        products = list(filter(lambda p: ident(p) not in self._product_list, products))
-        # products = [p for p in products if ident(p) not in self._product_list]
+        products = list(filter(lambda p: p.identifier not in self._product_list, products))
         # logger.debug('Products cache: %s', self._product_list.keys())
-        logger.debug("%s remote S1 product(s) are not yet in the cache: %s", len(products), products)
+        logger.info ("%s remote S1 product(s) are not yet in the (local disk) cache", len(products))
+        logger.debug(" => %s", [f"{p}" for p in products])
         if not products:  # no need to continue
             return []
         # - or for which we found matching dates
+
+        products = _filter_s1_images_required_for_expected_s2_product(
+            s1_products=products,
+            tile_out_dir=tile_out_dir,
+            tile_name=tile_name,
+            gamma_area_dir=gamma_area_dir,
+            polarization=polarization,
+            orbit_direction=self.cfg.orbit_direction,
+            relative_orbit_list=self.cfg.relative_orbit_list,
+            calibration_type=self.cfg.calibration_type,
+            name_formats=output_name_formats,
+            cfg=self.cfg,
+        )
+        logger.info ("%s remote S1 product(s) for which some output products are missing", len(products))
+        # logger.debug(" => %s", [ident(p) for p in products])
+        logger.debug(" => %s", [f"{p}" for p in products])
+        return products
+
         #   Beware: a matching VV while the VH doesn't exist and is present in the
         #   remote product shall trigger the download of the product.
         #   TODO: We should actually inject the expected filenames into the task graph
@@ -837,15 +1066,15 @@ class S1FileManager:
             return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
         dname_options = { 'tile_name': tile_name, 'out_dir': tile_out_dir, }
         s2images = glob1(
-                s2images_pat, dname_fmt_tiled(self.cfg).format_map(dname_options)
+            s2images_pat, dname_fmt_tiled(self.cfg).format_map(dname_options)
         ) + glob1(
-                s2images_pat, dname_fmt_filtered(self.cfg).format_map(dname_options)
+            s2images_pat, dname_fmt_filtered(self.cfg).format_map(dname_options)
         )
         logger.debug(' => S2 products found on %s: %s', tile_name, s2images)
         products = [p for p in products
-                if does_final_product_need_to_be_generated_for(
-                    p, tile_name, polarizations, self.cfg, s2images)
-                ]
+                    if does_final_product_need_to_be_generated_for(
+                        p, tile_name, polarizations, self.cfg, s2images)
+                    ]
         return products
 
     def _download(  # pylint: disable=too-many-arguments, too-many-locals
@@ -858,12 +1087,14 @@ class S1FileManager:
         first_date:              str,
         last_date:               str,
         tile_out_dir:            str,
+        gamma_area_dir:          str,
         tile_name:               str,
         platform_list:           List[str],
         orbit_direction:         Optional[str],
         relative_orbit_list:     List[int],
         polarization:            str,
         cover:                   float,
+        output_name_formats:     List[Tuple[str, str]],
         dryrun:                  bool,
     ) -> List[S1DownloadOutcome]:
         """
@@ -873,41 +1104,55 @@ class S1FileManager:
         :raises RuntimeError: If the search fails
         """
         extent = {
-                'lonmin': lonmin,
-                'lonmax': lonmax,
-                'latmin': latmin,
-                'latmax': latmax
-                }
+            'lonmin': lonmin,
+            'lonmax': lonmax,
+            'latmin': latmin,
+            'latmax': latmax
+        }
         try:
             sproducts = self._search_products(
-                    dag, extent,
-                    first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
-                    polarization, dryrun)
+                dag, extent,
+                first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
+                polarization, dryrun)
         except Exception as e:
             self.__search_failures += 1
             raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
 
-        products = self._filter_products(list(sproducts), extent, tile_out_dir, tile_name, polarization, cover)
+        products = self._filter_products_to_download(
+            [EOProductInformation(p) for p in sproducts],
+            extent,
+            tile_out_dir,
+            gamma_area_dir,
+            tile_name,
+            polarization,
+            cover,
+            output_name_formats,
+        )
 
         # And finally download all!
         # TODO: register downloading into Dask
         logger.info("%s remote S1 product(s) will be downloaded", len(products))
         for p in products:
-            logger.info('- %s: %s %s, [%s]', p,
-                    product_property(p, "orbitDirection", ""),
-                    product_property(p, "relativeOrbitNumber", ""),
-                    product_property(p, "startTimeFromAscendingNode", ""),
-                    )
+            logger.info('- %s: %s %03d, [%s]', p,
+                        p.orbit_direction,
+                        p.relative_orbit,
+                        p.start_time,
+                    # product_property(p, "orbitDirection", ""),
+                    # product_property(p, "relativeOrbitNumber", ""),
+                    # product_property(p, "startTimeFromAscendingNode", ""),
+            )
         if not products:  # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
             return []
         if dryrun:
-            paths = [p.as_dict()['id'] for p in products]  # TODO: return real name
+            # paths = [p.as_dict()['id'] for p in products]  # TODO: return real name
+            paths = [p.identifier for p in products]  # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
+        eo_products = [p.product for p in products]
         paths = _parallel_download_and_extraction_of_products(
-                dag, self.cfg.raw_directory, products, self.cfg.nb_download_processes,
+                dag, self.cfg.raw_directory, eo_products, self.cfg.nb_download_processes,
                 tile_name,
                 self.__dl_wait, self.__dl_timeout)
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
@@ -916,6 +1161,7 @@ class S1FileManager:
     @timethis("Downloading images related to {tiles}", logging.INFO)
     def download_images(
         self,
+        output_name_formats: List[Tuple[str, str]],
         dryrun: bool                = False,
         tiles:  Optional[List[str]] = None
     ) -> None:
@@ -925,7 +1171,7 @@ class S1FileManager:
             return
         assert self._dag  # Silence pyright warning
 
-        # TODO: Fix the logic behind these tests and the fonction interface/calls
+        # TODO: Fix the logic behind these tests and the function interface/calls
         # -> i.e. download_images is always called with tiles=[one_tile_name]
         if tiles:
             tile_list = tiles
@@ -949,17 +1195,20 @@ class S1FileManager:
                 latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
                 lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
                 lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
-                downloaded_products += self._download(self._dag,
-                        lonmin, lonmax, latmin, latmax,
-                        self.first_date, self.last_date,
-                        tile_out_dir=self.cfg.output_preprocess,
-                        tile_name=tile_name,
-                        platform_list=self.cfg.platform_list,
-                        orbit_direction=self.cfg.orbit_direction,
-                        relative_orbit_list=self.cfg.relative_orbit_list,
-                        polarization=self.cfg.polarisation,
-                        cover=self.cfg.tile_to_product_overlap_ratio,
-                        dryrun=dryrun)
+                downloaded_products += self._download(
+                    self._dag,
+                    lonmin, lonmax, latmin, latmax,
+                    self.first_date, self.last_date,
+                    tile_out_dir=self.cfg.output_preprocess,
+                    gamma_area_dir=self.cfg.gamma_area_directory,
+                    tile_name=tile_name,
+                    platform_list=self.cfg.platform_list,
+                    orbit_direction=self.cfg.orbit_direction,
+                    relative_orbit_list=self.cfg.relative_orbit_list,
+                    polarization=self.cfg.polarisation,
+                    cover=self.cfg.tile_to_product_overlap_ratio,
+                    output_name_formats=output_name_formats,
+                    dryrun=dryrun)
         if downloaded_products:
             failed_products: List[S1DownloadOutcome] = list(filter(lambda p: not p, downloaded_products))
             if failed_products:
