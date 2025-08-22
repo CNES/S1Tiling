@@ -36,6 +36,7 @@ import os
 from typing import Dict, List, Set
 from eodag.api.search_result import SearchResult
 
+from eof.products import re
 from shapely import geometry
 
 import pytest
@@ -44,8 +45,9 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from tests.mock_otb  import isdir, isfile, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
-from s1tiling.libs.S1FileManager     import S1FileManager
-from s1tiling.libs.outcome           import S1DownloadOutcome
+from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.configuration import dname_fmt_filtered, dname_fmt_tiled, fname_fmt_concatenation, fname_fmt_filtered
+from s1tiling.libs.outcome       import S1DownloadOutcome
 
 from eodag.utils.exceptions import (
     # AuthenticationError,
@@ -113,9 +115,10 @@ class Configuration():
                 'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
                 'filtered' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
         }
-        self.dname_fmt               = {}
-        self.creation_options        = {}
-        self.disable_streaming       = {}
+        self.dname_fmt               : Dict[str, str] = {}
+        self.creation_options        : Dict[str, str] = {}
+        self.disable_streaming       : Dict[str, bool] = {}
+        self.filter                  = ''
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:
@@ -124,7 +127,7 @@ class MockDirEntry:
         """
         self.path = pathname
         # `name`: relative to scandir...
-        self.name = os.path.relpath(pathname, INPUT)
+        self.name = os.path.basename(pathname)
         self.parent = os.path.dirname(pathname)
 
     def __repr__(self):
@@ -132,18 +135,32 @@ class MockDirEntry:
 
 
 def list_dirs(dir, pat, known_dirs) -> List[MockDirEntry]:
-    logging.debug('mock.list_dirs(%s, %s) ---> %s', dir, pat, known_dirs)
+    logging.debug('mock.list_dirs(%r, %r) ---> %s', dir, pat, known_dirs)
     return [MockDirEntry(kd) for kd in sorted(set(known_dirs))]
+
+
+def list_files(dir, pattern, known_files) -> List[MockDirEntry]:
+    logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
+    if not pattern:
+        filt = lambda _   : True
+    elif isinstance(pattern, re.Pattern):
+        filt = lambda path:  re.match(pattern, path.name)
+    else:
+        filt = lambda path:  fnmatch.fnmatch(path.name, pattern)
+    dir_entries = [MockDirEntry(kd) for kd in known_files]
+    res = [de for de in dir_entries if filt(de)]
+    logging.debug('res --> %s', res)
+    return res
 
 
 @pytest.fixture
 def known_files() -> List[str]:
-    kf = []
+    kf : List[str] = []
     return kf
 
 @pytest.fixture
 def known_dirs() -> Set[str]:
-    kd = set()
+    kd : Set[str] = set()
     return kd
 
 @pytest.fixture
@@ -176,6 +193,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     # It's used to filter the product paths => don't register every possible known directory
     known_dirs_4_list_dir = sorted(set([dirname(fn, 3) for fn in known_files]))
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
+    mocker.patch('s1tiling.libs.S1FileManager.list_files', lambda dir, pat : list_files(dir, pat, known_files))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
     mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
     mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : 7)
@@ -252,22 +270,28 @@ class MockEOProduct:
         product_geometry = extent2box(polygon2extent(product_poly))
         self.geometry            = geometry.shape(product_geometry)
         self.search_intersection = geometry.shape(product_geometry)
+        k_obt_dir = {'ASC': 'ascending', 'DES': 'descending'}
         self.properties = {
-                'id'                 : self._id,
-                'orbitDirection'     : file_db.get_orbit_direction(product_id),
-                'relativeOrbitNumber': file_db.get_relative_orbit(product_id),
-                }
+            'id'                              : self._id,
+            'orbitDirection'                  : k_obt_dir[file_db.get_orbit_direction(product_id)],
+            'relativeOrbitNumber'             : file_db.get_relative_orbit(product_id),
+            'orbitNumber'                     : file_db.get_absolute_orbit(product_id),
+            'platformSerialIdentifier'        : 'S1A',
+            'startTimeFromAscendingNode'      : file_db.get_start_time(product_id),
+            'completionTimeFromAscendingNode' : file_db.get_stop_time(product_id),
+            'polarizationMode'                : 'VV-VH',
+        }
         logging.debug('EOProduct(#%s) -> %s %s#%s %s', product_id, self._id,
-                self.properties['orbitDirection'],
-                self.properties['relativeOrbitNumber'],
-                self.geometry)
+            self.properties['orbitDirection'],
+            self.properties['relativeOrbitNumber'],
+            self.geometry)
         self._expected_path = MockDirEntry(f'{INPUT}/{self._id}/{self._id}.SAFE')
 
     def __repr__(self) -> str:
         return "EOProduct(%s) -> %s#%s" % (self._id,
-                self.properties['orbitDirection'],
-                self.properties['relativeOrbitNumber'],
-                )
+            self.properties['orbitDirection'],
+            self.properties['relativeOrbitNumber'],
+        )
     def as_dict(self) -> Dict:
         return self.properties
 
@@ -327,7 +351,7 @@ def given_all_products_are_available_for_download(mocker, configuration) -> None
 
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_S2_files(known_files, patterns) -> None:
+def _declare_known_S2_files(known_files, patterns, known_dirs) -> None:
     nb_products = file_db.nb_S2_products
     all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
     files = []
@@ -337,25 +361,27 @@ def _declare_known_S2_files(known_files, patterns) -> None:
     for k in files:
         logging.debug(' - %s', k)
     known_files.extend(files)
+    known_dirs.add(file_db.s2_product_dir())
 
 @given('All S2 files are known')
-def given_all_S2_files_are_known(known_files) -> None:
-    _declare_known_S2_files(known_files, ['vv', 'vh'])
+def given_all_S2_files_are_known(known_files, known_dirs) -> None:
+    _declare_known_S2_files(known_files, ['vv', 'vh'], known_dirs)
 
 @given('All S2 VV files are known')
-def given_all_S2_VV_files_are_known(known_files) -> None:
-    _declare_known_S2_files(known_files, ['vv'])
+def given_all_S2_VV_files_are_known(known_files, known_dirs) -> None:
+    _declare_known_S2_files(known_files, ['vv'], known_dirs)
 
 @given('All S2 VH files are known')
-def given_all_S2_VH_files_are_known(known_files) -> None:
-    _declare_known_S2_files(known_files, ['vh'])
+def given_all_S2_VH_files_are_known(known_files, known_dirs) -> None:
+    _declare_known_S2_files(known_files, ['vh'], known_dirs)
 
 @given('No S2 files are known')
-def given_no_S2_files_are_known() -> None:
+def given_no_S2_files_are_known(known_dirs) -> None:
+    known_dirs.add(file_db.s2_product_dir())
     pass
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_filtered_S2_files(known_files, patterns, /, extra=None, outdir=None) -> None:
+def _declare_known_filtered_S2_files(known_files, patterns, known_dirs, /, extra=None, outdir=None) -> None:
     nb_products = file_db.nb_S2_products
     params = {
             'tmp'        : '',
@@ -375,36 +401,39 @@ def _declare_known_filtered_S2_files(known_files, patterns, /, extra=None, outdi
     for k in files:
         logging.debug(' - %s', k)
     known_files.extend(files)
+    known_dirs.add(params['dir'])
 
 @given('No filtered S2 files are known')
 def given_no_filtered_S2_files_are_known() -> None:
     pass
 
 @given('All filtered S2 files are known under the default fname_fmt')
-def given_all_filteredS2_files_are_known_default_fname_fmt(known_files) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+def given_all_filteredS2_files_are_known_default_fname_fmt(known_files, known_dirs) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs)
 
 @given('All filtered S2 files are known with a different fname_fmt')
-def given_all_filteredS2_files_are_known_different_fname_fmt(known_files) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], extra='.FILTERED')
+def given_all_filteredS2_files_are_known_different_fname_fmt(known_files, known_dirs) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, extra='.FILTERED')
 
 @given("fname_fmt.filtered has the default value")
-def given_a_fname_fmt_filtered_has_the_default_value() -> None:
+def given_a_fname_fmt_filtered_has_the_default_value(configuration) -> None:
+    configuration.filter = 'something'
     pass
 
 @given("fname_fmt.filtered has a different value")
 def given_a_fname_fmt_filtered_has_a_different_value(configuration) -> None:
     fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.FILTERED.tif'
     configuration.fname_fmt['filtered'] = fname_fmt
+    configuration.filter = 'something'
 
 
 @given('All filtered S2 files are known in the default dname_fmt')
-def given_all_filteredS2_files_are_known_default_dname_fmt(known_files) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'])
+def given_all_filteredS2_files_are_known_default_dname_fmt(known_files, known_dirs) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs)
 
 @given('All filtered S2 files are known in a different dname_fmt')
-def given_all_filteredS2_files_are_known_different_dname_fmt(known_files) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], outdir=f'{file_db.outputdir}/33NWB/filters')
+def given_all_filteredS2_files_are_known_different_dname_fmt(known_files, known_dirs) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, outdir=f'{file_db.outputdir}/33NWB/filters')
 
 @given("dname_fmt.filtered has the default value")
 def given_a_dname_fmt_filtered_has_the_default_value() -> None:
@@ -467,15 +496,25 @@ def when_searching_which_S1_to_download(configuration, mocker, downloads) -> Non
     origin_33NWB = file_db.tile_origins('33NWB')
     extent_33NWB = polygon2extent(origin_33NWB)
     manager._update_s1_img_list_for('33NWB')
+    output_name_formats=[(dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration))]
+    if configuration.filter:
+        output_name_formats=[(dname_fmt_filtered(configuration), fname_fmt_filtered(configuration))]
+
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
-    paths = manager._download(None,
-            lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
-            latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
-            first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
-            tile_out_dir=OUTPUT, tile_name='33NWB',
-            platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
-            polarization=configuration.polarisation,
-            cover=10, dryrun=False)
+    paths = manager._download(
+        None,
+        lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
+        latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
+        first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
+        tile_out_dir=OUTPUT,
+        gamma_area_dir="UNUSED",
+        tile_name='33NWB',
+        platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
+        polarization=configuration.polarisation,
+        cover=10,
+        output_name_formats=output_name_formats,
+        dryrun=False,
+    )
     downloads.extend(paths)
 
 

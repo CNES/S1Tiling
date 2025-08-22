@@ -555,6 +555,27 @@ class FileDB:
         dir = self.FILES[idx]['orbit_direction']
         return dir
 
+    def get_start_time(self, id) -> str:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        dir = self.FILES[idx]['start_time']
+        return dir
+
+    def get_stop_time(self, id) -> str:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        dir = self.FILES[idx]['stop_time']
+        return dir
+
+    def get_absolute_orbit(self, id) -> int:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        rel = self.FILES[idx]['absolute_orbit']
+        return rel
+
     def get_relative_orbit(self, id) -> int:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)

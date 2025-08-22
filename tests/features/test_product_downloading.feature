@@ -175,6 +175,7 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in the default dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has the default value
         And   All products are available for download
         When  Searching which S1 files to download
@@ -186,6 +187,7 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in a different dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has a different value
         And   All products are available for download
         When  Searching which S1 files to download
@@ -197,6 +199,7 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in a different dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has the default value
         And   All products are available for download
         When  Searching which S1 files to download
@@ -207,6 +210,7 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in the default dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has a different value
         And   All products are available for download
         When  Searching which S1 files to download
