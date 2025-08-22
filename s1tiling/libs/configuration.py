@@ -924,6 +924,15 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     return fname_fmt
 
 
+def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname.s2_lia_corrected`` actual value, or its
+    default value.
+    """
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
+    return cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
+
+
 def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fname.gamma_area_product`` actual value,
@@ -931,6 +940,15 @@ def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
     fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
     return cfg.fname_fmt.get('gamma_area', fname_fmt)
+
+
+def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname.s2_gamma_area_corrected`` actual value,
+    or its default value.
+    """
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_GammaNaughtRTC.tif'
+    return cfg.fname_fmt.get('s2_gamma_area_corrected', fname_fmt)
 
 
 def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:

@@ -99,6 +99,7 @@ from ..configuration    import (
     extended_filename_lia_sin,
     extended_filename_s1_on_dem,
     extended_filename_tiled,
+    fname_fmt_lia_corrected,
     nodata_DEM,
     nodata_LIA,
     nodata_SAR,
@@ -1294,8 +1295,7 @@ class ApplyLIACalibration(OTBStepFactory):
         """
         Constructor.
         """
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
-        fname_fmt = cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
+        fname_fmt = fname_fmt_lia_corrected(cfg)
         dname_fmt = dname_fmt_tiled(cfg)
         super().__init__(
             cfg,
