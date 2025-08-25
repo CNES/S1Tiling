@@ -113,9 +113,8 @@ setup(
             "flake8",
             "mypy",
             "pre-commit",
-            "pytest < 8.1",    # b/c pytest-bdd is old -> https://github.com/pytest-dev/pytest-bdd/issues/673
-            "pytest-bdd < 6",  # Using "example table" feature, removed from v6
-            #                    https://pytest-bdd.readthedocs.io/en/latest/#migration-from-5-x-x
+            "pytest",
+            "pytest-bdd",
             "pytest-check",
             "pytest-icdiff",
             "pytest-mock",

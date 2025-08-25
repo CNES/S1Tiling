@@ -30,11 +30,6 @@ Feature: Dependencies and Tasks
     Existing products shall be analysed
     to deduce tasks to execute
 
-    Examples:
-        |builds        | a  |
-        |doesn't build | no |
-        |builds        | a  |
-
     Background:
         Given A pipeline that sigma calibrates and orthorectifies
         And   that concatenates
@@ -52,6 +47,12 @@ Feature: Dependencies and Tasks
         And   a concatenation task is registered and produces txxxxxxx S2 file and <a> mask
         And   two orthorectification tasks are registered
 
+        Examples:
+            |builds        | a  |
+            |doesn't build | no |
+            |builds        | a  |
+
+
     Scenario Outline: Orthorectify and concatenate a single S1 image
         Given that <builds> masks
         And   a single S1 image
@@ -64,6 +65,11 @@ Feature: Dependencies and Tasks
         And   a concatenation task is registered and produces t-chrono S2 file, and <a> mask
         And   a single orthorectification task is registered
         But   dont orthorectify the second product
+
+        Examples:
+            |builds        | a  |
+            |doesn't build | no |
+            |builds        | a  |
 
     Scenario Outline: Orthorectify a single S1 image and concatenate it to a tmp FullOrtho
         Given that <builds> masks
@@ -79,6 +85,11 @@ Feature: Dependencies and Tasks
         And   a single orthorectification task is registered
         And   it depends on the existing FullOrtho tmp product
 
+        Examples:
+            |builds        | a  |
+            |doesn't build | no |
+            |builds        | a  |
+
     Scenario Outline: concatenate two tmp FullOrtho
         Given that <builds> masks
         And   two FullOrtho tmp images
@@ -92,6 +103,11 @@ Feature: Dependencies and Tasks
         And   no orthorectification tasks is registered
         And   it depends on two existing FullOrtho tmp products
 
+        Examples:
+            |builds        | a  |
+            |doesn't build | no |
+            |builds        | a  |
+
     Scenario Outline: concatenate a single tmp FullOrtho
         Given that <builds> masks
         And    a FullOrtho tmp image
@@ -104,6 +120,11 @@ Feature: Dependencies and Tasks
         And   a concatenation task is registered and produces t-chrono S2 file, and <a> mask
         And   no orthorectification tasks is registered
         And   it depends on the existing FullOrtho tmp product
+
+        Examples:
+            |builds        | a  |
+            |doesn't build | no |
+            |builds        | a  |
 
     # Other alternate scenarios:
     # x2 for masks
