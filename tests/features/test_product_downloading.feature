@@ -28,11 +28,6 @@
 Feature: Test download requests
     Test download requests given requirements and detected files
 
-        Examples:
-            | dates     |
-            | 8th jan   |
-            | all dates |
-
     Scenario Outline: Everything was downloaded and generated
         Given Request on <dates>
         And   All S1 files are known
@@ -40,6 +35,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     Scenario Outline: Everything was downloaded and nothing was generated
         Given Request on <dates>
@@ -49,6 +49,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  None are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     Scenario Outline: Nothing was downloaded and everything was generated
         Given Request on <dates>
         And   No S1 files are known
@@ -56,6 +61,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     Scenario Outline: Nothing was downloaded and nothing was generated
         Given Request on <dates>
@@ -65,6 +75,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     # + scenarios with VV / VH mismatchs
     Scenario Outline: Everything was downloaded and all VV were generated and requested
@@ -76,6 +91,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  None are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     Scenario Outline: Everything was downloaded and all VV were generated but VH requested
         Given Request on <dates>
         And   Request on VH
@@ -84,6 +104,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     Scenario Outline: Nothing was downloaded and all VV was generated and requested
         Given Request on <dates>
@@ -94,6 +119,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  None are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     Scenario Outline: Nothing was downloaded and all VV was generated but VH requested
         Given Request on <dates>
         And   Request on VH
@@ -102,6 +132,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
 
     # + scenarios with fname_fmt mismatch
@@ -114,6 +149,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  All are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     Scenario Outline: Nothing was downloaded and everything was generated but for another fname_fmt
         Given Request on <dates>
         And   Request with default fname_fmt_concatenation
@@ -122,6 +162,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
 
     # + scenarios with existing filtered products
@@ -136,6 +181,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  None are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     # > with different but consistent fname_fmt
     Scenario Outline: Nothing was downloaded, and all filtered products are generated and expected with a different but consistent name
         Given Request on <dates>
@@ -146,6 +196,11 @@ Feature: Test download requests
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     # > with mismatching fname_fmt
     Scenario Outline: Nothing was downloaded, and all filtered products are generated with a non standard name, but expected with their standard name
@@ -158,6 +213,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  All are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
     Scenario Outline: Nothing was downloaded, and all filtered products are generated with their standard name, but expected with a different name
         Given Request on <dates>
         And   No S1 files are known
@@ -168,6 +228,11 @@ Feature: Test download requests
         When  Searching which S1 files to download
         Then  All are requested for download
 
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
+
 
     # > with standard dname_fmt
     Scenario Outline: Nothing was downloaded, and all filtered products are generated and expected in their standard directory
@@ -175,10 +240,16 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in the default dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has the default value
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     # > with different but consistent dname_fmt
     Scenario Outline: Nothing was downloaded, and all filtered products are generated and expected int a different but consistent directory
@@ -186,10 +257,16 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in a different dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has a different value
         And   All products are available for download
         When  Searching which S1 files to download
         Then  None are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     # > with mismatching dname_fmt
     Scenario Outline: Nothing was downloaded, and all filtered products are generated in a non standard dir, but expected in their standard dir
@@ -197,18 +274,30 @@ Feature: Test download requests
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in a different dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has the default value
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 
     Scenario Outline: Nothing was downloaded, and all filtered products are generated in their standard dir, but expected in a different di
         Given Request on <dates>
         And   No S1 files are known
         And   No S2 files are known
         And   All filtered S2 files are known in the default dname_fmt
+        And   fname_fmt.filtered has the default value
         And   dname_fmt.filtered has a different value
         And   All products are available for download
         When  Searching which S1 files to download
         Then  All are requested for download
+
+        Examples:
+            | dates     |
+            | 8th jan   |
+            | all dates |
 

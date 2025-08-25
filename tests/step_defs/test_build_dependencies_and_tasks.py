@@ -383,8 +383,8 @@ def tasks() -> Dict:
 # ======================================================================
 # Given steps
 
-@given(parsers.parse('A pipeline that {calibration} calibrates and orthorectifies'))
-def given_pipeline_ortho(pipelines, pipeline_ids, calibration) -> None:
+@given(parsers.parse('A pipeline that {calibration_id} calibrates and orthorectifies'), target_fixture="calibration")
+def given_pipeline_ortho(pipelines, pipeline_ids, calibration_id) -> str:
     pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
     pipeline = pipelines.register_pipeline(
             [ExtractSentinel1Metadata, AnalyseBorders, Calibrate, CutBorders, OrthoRectify],
@@ -393,6 +393,7 @@ def given_pipeline_ortho(pipelines, pipeline_ids, calibration) -> None:
     )
     pipeline_ids['FullOrtho'] = pipeline
     pipeline_ids['last'] = pipeline
+    return calibration_id
 
 @given('that concatenates')
 def given_pipeline_concat(pipelines, pipeline_ids, calibration) -> None:
