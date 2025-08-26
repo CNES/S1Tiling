@@ -34,7 +34,7 @@ import fnmatch
 import logging
 import os
 # from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Sequence, Set
 from eodag.api.search_result import SearchResult
 
 from eof.products import re
@@ -139,7 +139,7 @@ class MockDirEntry:
 
 
 def list_dirs(dir, pat, known_dirs) -> List[MockDirEntry]:
-    logging.debug('mock.list_dirs(%r, %r) ---> %s', dir, pat, known_dirs)
+    logging.debug('mock.list_dirs(%r, %r) ---> %r', dir, pat, known_dirs)
     return [MockDirEntry(kd) for kd in sorted(set(known_dirs))]
 
 
@@ -173,7 +173,7 @@ def image_list():
     return rl
 
 @pytest.fixture
-def downloads():
+def downloads() -> list[S1DownloadOutcome]:
     dn = []
     return dn
 
@@ -189,13 +189,13 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     # for k in known_files:
         # logging.debug(' - %s', k)
     known_dirs.update([INPUT, TMPDIR, OUTPUT])
-    known_dirs.update([dirname(fn, 2) for fn in known_files])
+    known_dirs.update([d for fn in known_files if (d := dirname(fn, 2))])
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     mocker.patch('os.path.isdir',  lambda f: isdir(f, known_dirs))
     mocker.patch('glob.glob',     lambda pat : glob(pat, sorted(set(known_files))))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
-    known_dirs_4_list_dir = sorted(set([dirname(fn, 3) for fn in known_files]))
+    known_dirs_4_list_dir = sorted(set([d for fn in known_files if (d := dirname(fn, 3))]))
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
     mocker.patch('s1tiling.libs.S1FileManager.list_files', lambda dir, pat : list_files(dir, pat, known_files))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
@@ -204,7 +204,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, tile, pi: slf._products_info)
 
 
-def _declare_known_S1_files(known_files, patterns) -> None:
+def _declare_known_S1_files(known_files, patterns: list[str]) -> None:
     # logging.debug('_declare_known_files(%s)', patterns)
     # all_files = [input_file(idx) for idx in range(len(FILES))]
     all_files = file_db.all_vvvh_files()
@@ -215,12 +215,14 @@ def _declare_known_S1_files(known_files, patterns) -> None:
     assert all_files[0] != all_files[1]
     files = []
     for pattern in patterns:
-        files += [fn for fn in all_files if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+        files.extend([fn for fn in all_files if fnmatch.fnmatch(fn, f'*{pattern}*')])
+    if all_manifests:
+        # all_manifests = True is likelly to be used with vv/vh patterns
     files.extend(file_db.all_manifests())
     known_files.extend(files)
-    logging.debug('Mocking w/ S1: %s', patterns)
+    logging.debug('Mocking w/ S1 local files: %r', patterns)
     for file in files:
-        logging.debug('--> %s', file)
+        logging.debug('--> %r', file)
 
 
 @given('No S1 files are known')
@@ -298,6 +300,10 @@ class MockEOProduct:
         )
     def as_dict(self) -> Dict:
         return self.properties
+    def __eq__(self, other) -> bool:
+        return self._id == other._id
+    def __hash__(self):
+        return hash(self._id)
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @given('Request on 8th jan')
@@ -337,7 +343,7 @@ def given_requets_for_beta_with_default_fname_fmt_concatenation(configuration) -
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_products_for_download(mocker, product_ids) -> None:
+def _declare_known_products_for_download_from_ids(mocker, product_ids: Sequence[int]) -> None:
     def mock_search_products(slf, dag,
             extent, first_date, last_date, platform_list, orbit_direction,
             relative_orbit_list, polarization, dryrun) -> SearchResult:
@@ -353,7 +359,7 @@ def _declare_known_products_for_download(mocker, product_ids) -> None:
 
 @given('All products are available for download')
 def given_all_products_are_available_for_download(mocker, configuration) -> None:
-    _declare_known_products_for_download(mocker, range(configuration.nb_products_to_download))
+    _declare_known_products_for_download_from_ids(mocker, range(configuration.nb_products_to_download))
 
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -364,9 +370,11 @@ def _declare_known_S2_files(known_files, patterns, known_dirs) -> None:
     for pattern in patterns:
         files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
     logging.debug('Mocking w/ S2: %s --> %s', patterns, files)
+    # logging.debug('all S2: %r', all_S2)
     for k in files:
         logging.debug(' - %s', k)
     known_files.extend(files)
+    assert file_db.s2_product_dir()
     known_dirs.add(file_db.s2_product_dir())
 
 @given('All S2 files are known')
@@ -383,6 +391,7 @@ def given_all_S2_VH_files_are_known(known_files, known_dirs) -> None:
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known(known_dirs) -> None:
+    assert file_db.s2_product_dir()
     known_dirs.add(file_db.s2_product_dir())
     pass
 
@@ -407,6 +416,7 @@ def _declare_known_filtered_S2_files(known_files, patterns, known_dirs, /, extra
     for k in files:
         logging.debug(' - %s', k)
     known_files.extend(files)
+    assert params['dir']
     known_dirs.add(params['dir'])
 
 @given('No filtered S2 files are known')
@@ -484,8 +494,8 @@ def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) 
     logging.debug('mock: download1 -> %s', product)
     return S1DownloadOutcome(product, product)
 
-@when('Searching which S1 files to download')
-def when_searching_which_S1_to_download(configuration, mocker, downloads) -> None:
+@when('Searching which S1 files to download', target_fixture='downloads')
+def when_searching_which_S1_to_download(configuration, mocker) -> list:
     # mocker.patch('s1tiling.libs.S1FileManager._search_products',
     #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
     #         orbit_direction, relative_orbit_list, polarization,
@@ -521,7 +531,7 @@ def when_searching_which_S1_to_download(configuration, mocker, downloads) -> Non
         output_name_formats=output_name_formats,
         dryrun=False,
     )
-    downloads.extend(paths)
+    return paths
 
 
 # ======================================================================
