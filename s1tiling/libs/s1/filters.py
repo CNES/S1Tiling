@@ -108,7 +108,7 @@ def find_paired_products(
             p2.associate_with(p1)
         else:
             assert len(group) > 0
-            logger.warning("No S1 product found to be concatenated with %r", group[0])
+            logger.info("No S1 product found to be concatenated with %r", group[0])
 
     return date_grouped_products
 
