@@ -30,6 +30,7 @@
 #
 # =========================================================================
 
+from datetime import datetime, timedelta
 import logging
 import os
 import pathlib
@@ -58,6 +59,10 @@ from s1tiling.libs.api         import (
 )
 from s1tiling.libs.steps       import ram as param_ram
 from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
+
+
+def to_datetime(s: str) -> datetime:
+    return datetime.strptime(s, '%Y:%m:%d %H:%M:%S')
 
 
 # ======================================================================
@@ -1604,8 +1609,8 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
         demdir=demdir,
         geoid_file=configuration.GeoidFile,
     )
-    configuration.first_date       = file_db.CONCATS[0]['first_date']
-    configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.first_date       = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
+    configuration.last_date        = (to_datetime(file_db.CONCATS[number_dates-1]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
     configuration.produce_lia_map  = True
     configuration.show_configuration()
 
@@ -1845,8 +1850,8 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, output
         demdir=demdir,
         geoid_file=configuration.GeoidFile,
     )
-    configuration.first_date       = file_db.CONCATS[0]['first_date']
-    configuration.last_date        = file_db.CONCATS[number_dates-1]['last_date']
+    configuration.first_date       = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
+    configuration.last_date        = (to_datetime(file_db.CONCATS[number_dates-1]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
     configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
 

@@ -29,6 +29,7 @@
 #
 # =========================================================================
 
+from datetime import date, datetime, timedelta
 import fnmatch
 import logging
 import os
@@ -53,6 +54,9 @@ from eodag.utils.exceptions import (
     # AuthenticationError,
     NotAvailableError,
 )
+
+def to_datetime(s: str) -> datetime:
+    return datetime.strptime(s, '%Y:%m:%d %H:%M:%S')
 
 # ======================================================================
 # Scenarios
@@ -299,15 +303,17 @@ class MockEOProduct:
 @given('Request on 8th jan')
 def given_requets_on_8th_jan(configuration) -> None:
     logging.debug('Request on 8th jan')
-    configuration.first_date              = file_db.CONCATS[0]['first_date']
-    configuration.last_date               = file_db.CONCATS[0]['last_date']
+    configuration.first_date              = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
+    configuration.last_date               = (to_datetime(file_db.CONCATS[0]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
+    logging.debug("searching in %s .. %s", configuration.first_date, configuration.last_date)
     configuration.nb_products_to_download = 2
 
 @given('Request on all dates')
 def given_requets_on_all_dates(configuration) -> None:
     logging.debug('Request on all dates')
-    configuration.first_date              = file_db.CONCATS[0]['first_date']
-    configuration.last_date               = file_db.CONCATS[-1]['last_date']
+    configuration.first_date              = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
+    configuration.last_date               = (to_datetime(file_db.CONCATS[-1]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
+    logging.debug("searching in %s .. %s", configuration.first_date, configuration.last_date)
     configuration.nb_products_to_download = len(file_db.FILES)
 
 @given('Request on VV')

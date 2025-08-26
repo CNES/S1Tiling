@@ -48,6 +48,14 @@ def tmp_suffix(tmp: Union[bool,str]) -> str:
     return '.tmp' if tmp else ''
 
 
+def to_datetime(s :str) -> np.datetime64:
+    k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
+    match = k_date_re.match(s)
+    assert match, f"Cann decode {s!r} as a date"
+    YYYY, MM, DD, hh, mm, ss = match.groups()
+    return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
+
+
 class FileDB:
     FILE_FMTS = {
         's1file'              : '{s1_basename}.tiff',
@@ -205,15 +213,13 @@ class FileDB:
             'absolute_orbit'  : 31054,
             'orbit'           : '007',
         },
-        ]
+    ]
     CONCATS = [
         # 08 jan 2020
         {
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
             'start_time'  : '2020:01:08 04:41:50',
-            'first_date'  : '2020-01-01',
-            'last_date'   : '2020-01-10',
             'orbit'       : '007',
         },
         # 20 jan 2020
@@ -221,8 +227,6 @@ class FileDB:
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
             'start_time'  : '2020:01:20 04:41:49',
-            'first_date'  : '2020-01-10',
-            'last_date'   : '2020-01-21',
             'orbit'       : '007',
         },
         # 02 feb 2020
@@ -230,11 +234,10 @@ class FileDB:
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
             'start_time'  : '2020:02:01 04:41:49',
-            'first_date'  : '2020-02-01',
-            'last_date'   : '2020-02-05',
             'orbit'       : '007',
         },
     ]
+
     # TILE = '33NWB'
     TILE_DATA = {
         '33NWB': {
@@ -462,13 +465,6 @@ class FileDB:
     def orbit_time_range(self, id)-> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
         idx = id if isinstance(id, int) else self._find_annotation(id)
         file = self.FILES[idx]
-        def to_datetime(s :str) -> np.datetime64:
-            k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
-            match = k_date_re.match(s)
-            assert match, f"Cann decode {s!r} as a date"
-            YYYY, MM, DD, hh, mm, ss = match.groups()
-            return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
-
         return (
                 to_datetime(file['start_time']),
                 to_datetime(file['stop_time' ]),
