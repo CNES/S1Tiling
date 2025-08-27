@@ -50,10 +50,12 @@ from s1tiling.libs.S1FileManager import S1FileManager
 from s1tiling.libs.configuration import (
     _split_option,
     dname_fmt_filtered,
+    dname_fmt_gamma_area_product,
     dname_fmt_tiled,
     fname_fmt_concatenation,
     fname_fmt_filtered,
     fname_fmt_gamma_area_corrected,
+    fname_fmt_gamma_area_product,
     fname_fmt_lia_corrected,
 )
 from s1tiling.libs.outcome       import S1DownloadOutcome
@@ -78,13 +80,13 @@ scenarios(
 # ======================================================================
 # Test Data
 
-TMPDIR = 'TMP'
-INPUT  = 'INPUT'
-OUTPUT = 'OUTPUT'
-EOFDIR = 'EOFDIR'
-LIADIR = 'LIADIR'
+TMPDIR        = 'TMP'
+INPUT         = 'INPUT'
+OUTPUT        = 'OUTPUT'
+EOFDIR        = 'EOFDIR'
+LIADIR        = 'LIADIR'
 GAMMA_AREADIR = 'GAMMA_AREADIR'
-TILE   = '33NWB'
+TILE          = '33NWB'
 
 file_db = FileDB(INPUT, EOFDIR, TMPDIR, OUTPUT, LIADIR, GAMMA_AREADIR, TILE, 'unused', 'unused')
 
@@ -782,11 +784,18 @@ def known_local_s2() -> list[str]:
 )
 def given_local_s2_product_list(
     s2_products        : dict[str,list[str]],
+    gamma_area_products: dict[str, str],
     local_s2           : list[str],
 ) -> list[str]:
     res = []
     for product_id in local_s2:
-        res.extend(s2_products[product_id])
+        if product_id in s2_products:
+            res.extend(s2_products[product_id])
+        elif product_id in gamma_area_products:
+            res.append(gamma_area_products[product_id])
+        else:
+            raise AssertionError(f"Invalid S2 local product {product_id!r}. It's not a valid S2 product name, nor a valid γ area map name")
+
     logging.debug("known local S2: %r", res)
     return res
 
@@ -807,7 +816,8 @@ def given_calibration_scenario(calibration, configuration):
     parsers.re("We compute gamma area"),
 )
 def given_gamma_area_scenario(configuration):
-    # TODO
+    # Hijacked parameter to indicate which scenario is used: here the production of γ area maps
+    configuration.calibration_type = "gamma_area"
     pass
 
 
@@ -822,6 +832,8 @@ def _declare_known_S2_files_from_ids(known_files, patterns, known_dirs) -> None:
         file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']
     ] + [
         file_db.concatfile_from_one(idx, '', pol) for idx in range(nb_products*2) for pol in ['vh', 'vv']
+    ] + [
+        file_db.selectedGAMMA_AREAfile()
     ]
     for pattern in patterns:
         files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, f'*{pattern}*')]
@@ -832,6 +844,7 @@ def _declare_known_S2_files_from_ids(known_files, patterns, known_dirs) -> None:
     known_files.extend(files)
     assert file_db.s2_product_dir()
     known_dirs.add(file_db.s2_product_dir())
+    known_dirs.add(file_db.gamma_area_dir())
 
 
 @when('Searching which S1 files to download II', target_fixture='downloads')
@@ -873,10 +886,13 @@ def when_searching_which_S1_to_download2(
     manager._update_s1_img_list_for('33NWB')
 
     output_name_formats = []
-    if configuration.calibration_type == 'normlim':
+    if configuration.calibration_type == 'gamma_area':
+        output_name_formats.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
+    elif configuration.calibration_type == 'normlim':
         output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
     elif configuration.calibration_type == 'gamma_naught_rtc':
         output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
+        output_name_formats.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
     else:
         output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
     if configuration.filter:
@@ -889,9 +905,11 @@ def when_searching_which_S1_to_download2(
         latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
         first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
         tile_out_dir=OUTPUT,
-        gamma_area_dir="UNUSED",
-        tile_name='33NWB',
-        platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
+        gamma_area_dir=GAMMA_AREADIR,
+        tile_name=TILE,
+        platform_list=configuration.platform_list,
+        orbit_direction=None,
+        relative_orbit_list=[],
         polarization=configuration.polarisation,
         cover=10,
         output_name_formats=output_name_formats,

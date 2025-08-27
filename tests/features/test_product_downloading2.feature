@@ -62,6 +62,7 @@ Feature: Test download request v2
         Then  The following S1 products will be downloaded: <dl_s1>
 
         ### Usual cases: 2 inputs => expect txxxxxx
+        #   Cases where tile is intersected by TWO S1 products
         @complex_sigma_two_s1
         Examples:
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
