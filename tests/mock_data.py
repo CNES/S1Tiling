@@ -760,7 +760,7 @@ class FileDB:
         return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
-        return f'{self.__gamma_area_dir}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
+        return f'{self.gamma_area_dir()}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
@@ -826,7 +826,7 @@ class FileDB:
             dir = f'{self.__tmp_dir}/S2'
             ext = self.extended_compress
         else:
-            dir = f'{self.__gamma_area_dir}'
+            dir = f'{self.gamma_area_dir()}'
             ext = ''
         return f'{dir}/{self.FILE_FMTS["gamma_area_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
@@ -879,6 +879,9 @@ class FileDB:
 
     def s2_product_dir(self):
         return f'{self.__output_dir}/{self.__tile}'
+
+    def gamma_area_dir(self):
+        return f'{self.__gamma_area_dir}'
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'
