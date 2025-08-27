@@ -41,17 +41,15 @@ Feature: Test download request v2
         Given the S2 products:
             | id         | products                                            |
             | d1tx_sigma | s1a_33NWB_vh_DES_007_20200108txxxxxx_sigma          , s1a_33NWB_vv_DES_007_20200108txxxxxx_sigma |
-            | d1tx_gamma | s1a_33NWB_vh_DES_007_20200108txxxxxx_GammaNaughtRTC |
+            | d1tx_gamma | s1a_33NWB_vh_DES_007_20200108txxxxxx_GammaNaughtRTC , s1a_33NWB_vv_DES_007_20200108txxxxxx_GammaNaughtRTC |
             | d1t1_sigma | s1a_33NWB_vh_DES_007_20200108t044150_sigma          , s1a_33NWB_vv_DES_007_20200108t044150_sigma |
-            | d1t1_gamma | s1a_33NWB_vh_DES_007_20200108t044150_GammaNaughtRTC |
+            | d1t1_gamma | s1a_33NWB_vh_DES_007_20200108t044150_GammaNaughtRTC , s1a_33NWB_vv_DES_007_20200108t044150_GammaNaughtRTC |
             | d1t2_sigma | s1a_33NWB_vh_DES_007_20200108t044215_sigma          , s1a_33NWB_vv_DES_007_20200108t044215_sigma |
             | d1t2_gamma | s1a_33NWB_vh_DES_007_20200108t044215_GammaNaughtRTC |
 
         Given the gamma areas:
-            | id                   | product                     |
-            | 20200108txxxxxx_area | GAMMA_AREA_33NWB_vh_DES_007 |
-            | 20200108t044150_area | GAMMA_AREA_33NWB_vh_DES_007 |
-            | 20200108t044215_area | GAMMA_AREA_33NWB_vh_DES_007 |
+            | id        | product                      |
+            | d1_g_area | GAMMA_AREA_s1a_33NWB_DES_007 |
 
     Scenario Outline: gamma rtc calibration
         Given The following S1 products are available for download: <remote_s1>
@@ -85,25 +83,86 @@ Feature: Test download request v2
             | d1t1, d1t2 |            |            | d1t1, d1t2 | sigma calibrate |
             | d1t1, d1t2 |            |            | d1t1, d1t2 | sigma calibrate |
 
-        @complex_gamma
+        ## Request γ area files only
+        #  Note: there is no way to know whether a γ area map has been made
+        #  from one or two input S1
+        @complex_gamma_area_two_s1
+        Examples:
+            # Target is here => DL nothing
+            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario           |
+            | d1t1, d1t2 |            | d1_g_area  |            | compute gamma area |
+            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area  |            | compute gamma area |
+            | d1t1, d1t2 | d1t1       | d1_g_area  |            | compute gamma area |
+            | d1t1, d1t2 |       d1t2 | d1_g_area  |            | compute gamma area |
+            # Target is not here => DL what is missing
+            | d1t1, d1t2 |            |            | d1t1, d1t2 | compute gamma area |
+            | d1t1, d1t2 | d1t1, d1t2 |            |            | compute gamma area |
+            | d1t1, d1t2 | d1t1       |            |       d1t2 | compute gamma area |
+            | d1t1, d1t2 |       d1t2 |            | d1t1       | compute gamma area |
+
+        ## Calibration is γ°RTC
+        @complex_gamma_calibrated_two_s1
         Examples:
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
-            ## Calibration is γ°RTC
-            ## Request γ area files only
+            ## Calibration is γ° RTC
+            #  Note: γ-area maps are always "required-product"
+            #  TODO: remove "produce_gamma_area_map" parameter
+            # Both targets are here => we don't care
+            | d1t1, d1t2 |            | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+
+            # Only γ°RTC calibrated target is here => need to produce γ-area maps
+            | d1t1, d1t2 |            |            d1tx_gamma | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 |            d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       |            d1tx_gamma |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 |            d1tx_gamma | d1t1       | gamma_naught_rtc calibrate |
+
+            # Only γ-area maps target is here => need to produce γ°RTC calibrated
+            | d1t1, d1t2 |            | d1_g_area             | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area             |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       | d1_g_area             |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 | d1_g_area             | d1t1       | gamma_naught_rtc calibrate |
+
+            # No target is here => need to produce both
+            | d1t1, d1t2 |            |                       | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 |                       |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       |                       |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 |                       | d1t1       | gamma_naught_rtc calibrate |
+
             ##### TODO: doc faire requête sur γ avec dates restrintes (car
             ##### sinon, DL bcp trop de choses)
 
         ### Cases w/ only one input => expect tdddddd
+        #   Cases where tile is intersected by only ONE S1 product
         @complex_sigma_one_s1
         Examples:
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
-            # Situation "IMPOSSIBLE", and not tested: Target is not here
+            # Situations "IMPOSSIBLE", and not tested:
+            # -> The correct half-target is not here, but others with similar
+            #    names are.
+            # => At this point, these situations have undefined behaviours
             # | d1t1       |            | d1tx_sigma | d1t1       | sigma calibrate |
             # | d1t1       | d1t1       | d1tx_sigma |            | sigma calibrate |
+            # | d1t1       |            | d1t2_sigma | d1t1       | sigma calibrate |
+            # | d1t1       | d1t1       | d1t2_sigma |            | sigma calibrate |
             # Target is here => we don't care
-            | d1t1       |            | d1t1_sigma |           | sigma calibrate |
-            | d1t1       | d1t1       | d1t1_sigma |           | sigma calibrate |
-            | d1t1       |            | d1t2_sigma |           | sigma calibrate |
-            | d1t1       | d1t1       | d1t2_sigma |           | sigma calibrate |
+            | d1t1       |            | d1t1_sigma |            | sigma calibrate |
+            | d1t1       | d1t1       | d1t1_sigma |            | sigma calibrate |
 
+        ## Request γ area files only
+        #  Note: there is no way to know whether a γ area map has been made
+        @complex_gamma_area_one_s1
+        Examples:
+            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
+            # Target is here => DL nothing
+            | d1t1       |            | d1_g_area  |            | compute gamma area |
+            | d1t1       | d1t1       | d1_g_area  |            | compute gamma area |
+            # Target is not here => DL what is missing
+            | d1t1       |            |            | d1t1       | compute gamma area |
+            | d1t1       | d1t1       |            |            | compute gamma area |
+
+
+        ### Cases of mismatching with other dates
 

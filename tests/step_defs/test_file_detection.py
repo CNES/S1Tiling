@@ -155,7 +155,6 @@ def list_dirs(dir, pat, known_dirs) -> List[MockDirEntry]:
 
 
 def list_files(dir, pattern, known_files) -> List[MockDirEntry]:
-    logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
     if not pattern:
         filt = lambda _   : True
     elif isinstance(pattern, re.Pattern):
@@ -164,7 +163,7 @@ def list_files(dir, pattern, known_files) -> List[MockDirEntry]:
         filt = lambda path:  fnmatch.fnmatch(path.name, pattern)
     dir_entries = [MockDirEntry(kd) for kd in known_files]
     res = [de for de in dir_entries if filt(de)]
-    logging.debug('res --> %s', res)
+    logging.debug('mock.list_files(%r, %r) ---> %s\n\t--> %s', dir, pattern, known_files, res)
     return res
 
 
@@ -824,14 +823,27 @@ def given_gamma_area_scenario(configuration):
 # ======================================================================
 # @when's
 
-def _declare_known_S2_files_from_ids(known_files, patterns, known_dirs) -> None:
+K_CALIBRATIO_TO_SUFFIX = {
+    'sigma'           : '_sigma',
+    'gamma_naught_rtc': '_GammaNaughtRTC',
+    'gamma_area'      : '_GammaNaughtRTC',  # not a real calibration...
+}
+
+
+def _declare_known_S2_files_from_ids(
+    known_files,
+    patterns,
+    known_dirs,
+    configuration
+) -> None:
     files = []
+    calib = K_CALIBRATIO_TO_SUFFIX[configuration.calibration_type]
 
     nb_products = file_db.nb_S2_products
     all_S2 = [
-        file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']
+        file_db.concatfile_from_two(idx, '', pol, calib) for idx in range(nb_products) for pol in ['vh', 'vv']
     ] + [
-        file_db.concatfile_from_one(idx, '', pol) for idx in range(nb_products*2) for pol in ['vh', 'vv']
+        file_db.concatfile_from_one(idx, '', pol, calib) for idx in range(nb_products*2) for pol in ['vh', 'vv']
     ] + [
         file_db.selectedGAMMA_AREAfile()
     ]
@@ -856,6 +868,9 @@ def when_searching_which_S1_to_download2(
     known_files,
     known_dirs,
 ) -> list:
+    default_polarisation = 'VV VH'
+    configuration.polarisation = configuration.polarisation or default_polarisation
+
     def list_mocked_nodes(node_list: list, what: str):
         logging.debug("* %s:", what)
         for node in node_list:
@@ -866,7 +881,7 @@ def when_searching_which_S1_to_download2(
     #         searched_items_per_page
     #         : downloads)
     _declare_known_S1_files(known_files, [file for file in known_local_s1], all_manifests=False)
-    _declare_known_S2_files_from_ids(known_files, [file for file in known_local_s2], known_dirs)
+    _declare_known_S2_files_from_ids(known_files, [file for file in known_local_s2], known_dirs, configuration)
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
     list_mocked_nodes(known_dirs, "known dirs")
     list_mocked_nodes(known_files, "known files")
@@ -876,8 +891,6 @@ def when_searching_which_S1_to_download2(
         's1tiling.libs.S1FileManager._download_and_extract_one_product',
         mock_download_one_product)
 
-    default_polarisation = 'VV VH'
-    configuration.polarisation = configuration.polarisation or default_polarisation
     manager = S1FileManager(configuration, None)
     manager._refresh_s1_product_list()
 
