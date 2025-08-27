@@ -663,6 +663,7 @@ def list_files(directory: str, pattern: Union[None,str,re.Pattern] = None) -> Li
 
     Requires Python 3.5
     """
+    assert not isinstance(directory, re.Pattern)
     if not pattern:
         filt = lambda path: path.is_file()
     elif isinstance(pattern, re.Pattern):

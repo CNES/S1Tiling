@@ -333,7 +333,7 @@ def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
         logger.debug("   - check if there are actual outputs matching %r", fname_pattern)
         output_re = re.compile(fname_pattern, re.IGNORECASE)
         for op in existing_output_products:
-            logger.debug("      -> %r ? -> %s", op, re.match(output_re, op))
+            logger.debug("      -> %r ? -> %s  || w/ %r", op, re.match(output_re, op), output_re)
         if not any((re.match(output_re, op) for op in existing_output_products)):  # <=> none
             logger.debug("    => Can't find any related output => False")
             return True
@@ -1145,7 +1145,6 @@ class S1FileManager:
             # Actually, in that special case we could almost detect there is nothing to do
             return []
         if dryrun:
-            # paths = [p.as_dict()['id'] for p in products]  # TODO: return real name
             paths = [p.identifier for p in products]  # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
@@ -1277,7 +1276,11 @@ class S1FileManager:
             self._products_info = []
 
         # Filter by date specification
+        # logger.debug('  Checking product in time range: %s .. %s', self.first_date, self.last_date)
+        # for d in content:
+        #     logger.debug('  - %r -> %s', d.name, self.is_product_in_time_range(d.name))
         content = [d for d in content if self.is_product_in_time_range(d.name)]
+            
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
 

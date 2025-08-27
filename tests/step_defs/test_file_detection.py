@@ -47,7 +47,15 @@ from tests.mock_otb  import isdir, isfile, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager import S1FileManager
-from s1tiling.libs.configuration import dname_fmt_filtered, dname_fmt_tiled, fname_fmt_concatenation, fname_fmt_filtered
+from s1tiling.libs.configuration import (
+    _split_option,
+    dname_fmt_filtered,
+    dname_fmt_tiled,
+    fname_fmt_concatenation,
+    fname_fmt_filtered,
+    fname_fmt_gamma_area_corrected,
+    fname_fmt_lia_corrected,
+)
 from s1tiling.libs.outcome       import S1DownloadOutcome
 
 from eodag.utils.exceptions import (
@@ -63,6 +71,7 @@ def to_datetime(s: str) -> datetime:
 scenarios(
         '../features/test_file_detection.feature',
         '../features/test_product_downloading.feature',
+        '../features/test_product_downloading2.feature',
         '../features/test_offline_products.feature',
         )
 
@@ -192,7 +201,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     known_dirs.update([d for fn in known_files if (d := dirname(fn, 2))])
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
     mocker.patch('os.path.isdir',  lambda f: isdir(f, known_dirs))
-    mocker.patch('glob.glob',     lambda pat : glob(pat, sorted(set(known_files))))
+    mocker.patch('glob.glob',      lambda pat : glob(pat, sorted(set(known_files))))
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
     # It's used to filter the product paths => don't register every possible known directory
     known_dirs_4_list_dir = sorted(set([d for fn in known_files if (d := dirname(fn, 3))]))
@@ -204,7 +213,7 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, tile, pi: slf._products_info)
 
 
-def _declare_known_S1_files(known_files, patterns: list[str]) -> None:
+def _declare_known_S1_files(known_files, patterns: list[str], all_manifests: bool = True) -> None:
     # logging.debug('_declare_known_files(%s)', patterns)
     # all_files = [input_file(idx) for idx in range(len(FILES))]
     all_files = file_db.all_vvvh_files()
@@ -218,7 +227,12 @@ def _declare_known_S1_files(known_files, patterns: list[str]) -> None:
         files.extend([fn for fn in all_files if fnmatch.fnmatch(fn, f'*{pattern}*')])
     if all_manifests:
         # all_manifests = True is likelly to be used with vv/vh patterns
-    files.extend(file_db.all_manifests())
+        files.extend(file_db.all_manifests())
+    else:
+        # all_manifests = False is likelly to be used with product id patterns
+        for pattern in patterns:
+            files.extend([fn for fn in file_db.all_manifests() if fnmatch.fnmatch(fn, f'*{pattern}*')])
+
     known_files.extend(files)
     logging.debug('Mocking w/ S1 local files: %r', patterns)
     for file in files:
@@ -348,6 +362,20 @@ def _declare_known_products_for_download_from_ids(mocker, product_ids: Sequence[
             extent, first_date, last_date, platform_list, orbit_direction,
             relative_orbit_list, polarization, dryrun) -> SearchResult:
         return SearchResult([MockEOProduct(p) for p in product_ids])
+
+    mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
+            lambda slf, dag, extent_33NWB, first_date, last_date,
+            platform_list, orbit_direction, relative_orbit_list, polarization,
+            dryrun
+            : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
+                platform_list, orbit_direction, relative_orbit_list, polarization,
+                dryrun))
+
+def _declare_known_products_for_download_from_names(mocker, product_ids: Sequence[str]) -> None:
+    def mock_search_products(slf, dag,
+            extent, first_date, last_date, platform_list, orbit_direction,
+            relative_orbit_list, polarization, dryrun) -> SearchResult:
+        return SearchResult([MockEOProduct(file_db._find_image(p)) for p in product_ids])
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
             lambda slf, dag, extent_33NWB, first_date, last_date,
@@ -643,3 +671,237 @@ def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, i
         logging.debug('...checking #%s: %s', i, prod)
         assert prod in kept_product_names
 
+# ######################################################################
+# Test download for γ°RTC
+
+# ======================================================================
+# @given's
+
+def value_to_list(value : str) -> list[str]:
+    value = value.strip()
+    return _split_option(value)
+
+
+# ----------------------------------------------------------------------
+# Product IDs:
+
+# -----[ Input: S1 product IDs
+@pytest.fixture
+def s1_products() -> dict[str,str]:
+    return {}
+
+
+@given("the S1 products:", target_fixture="s1_products")
+def given_s1_product_ids(datatable):
+    products = {}
+    for ident, product in datatable[1:]:
+        products[ident] = product
+    return products
+
+
+# -----[ Output: S2 product IDs
+@pytest.fixture
+def s2_products() -> dict[str,str]:
+    return {}
+
+
+@given("the S2 products:", target_fixture="s2_products")
+def given_s2_product_ids(datatable):
+    products = {}
+    for ident, product in datatable[1:]:
+        products[ident] = _split_option(product)
+    return products
+
+
+# -----[ Output: S2 γ area map product IDs
+@pytest.fixture
+def gamma_area_products() -> dict[str,str]:
+    return {}
+
+
+@given("the gamma areas:", target_fixture="gamma_area_products")
+def given_gamma_area_product_ids(datatable):
+    products = {}
+    for ident, product in datatable[1:]:
+        products[ident] = product
+    return products
+
+
+# ----------------------------------------------------------------------
+# Known products:
+
+# -----[ S1 input remote products
+@given(
+    parsers.re("The following S1 products are available for download: (?P<remote_s1>.*?)"),
+    converters={'remote_s1': value_to_list},
+)
+def given_remote_s1_product_list(mocker, s1_products, remote_s1: list[str]):
+    known_remote_s1 = []
+    for product_id in remote_s1:
+        known_remote_s1.append(s1_products[product_id])
+    logging.debug("known remote S1: %r", known_remote_s1)
+    _declare_known_products_for_download_from_names(mocker, known_remote_s1)
+
+
+# -----[ S1 input products on local disk
+@pytest.fixture
+def known_local_s1() -> list[str]:
+    return []
+
+
+@given(
+    parsers.re("The following S1 products are on disk: (?P<local_s1>.*?)"),
+    target_fixture="known_local_s1",
+    converters={'local_s1': value_to_list},
+)
+def given_local_s1_product_list(s1_products, local_s1: list[str]):
+    res = []
+    for product_id in local_s1:
+        res.append(s1_products[product_id])
+    logging.debug("known local S1: %r", res)
+    return res
+
+
+# -----[ S2 output products on local disk
+@pytest.fixture
+def known_local_s2() -> list[str]:
+    return []
+
+
+@given(
+    parsers.re("The following S2 products are on disk: (?P<local_s2>.*?)"),
+    target_fixture="known_local_s2",
+    converters={'local_s2': value_to_list},
+)
+def given_local_s2_product_list(s2_products, local_s2: list[str]):
+    res = []
+    for product_id in local_s2:
+        res.extend(s2_products[product_id])
+    logging.debug("known local S2: %r", res)
+    return res
+
+
+# -----[ S2 γ area map ouput products on local disk
+
+# ----------------------------------------------------------------------
+# Scenarios:
+
+@given(
+    parsers.re("We (?P<calibration>.*?) calibrate"),
+)
+def given_calibration_scenario(calibration, configuration):
+    configuration.calibration_type = calibration
+
+
+@given(
+    parsers.re("We compute gamma area"),
+)
+def given_gamma_area_scenario(configuration):
+    # TODO
+    pass
+
+
+# ======================================================================
+# @when's
+
+def _declare_known_S2_files_from_ids(known_files, patterns, known_dirs) -> None:
+    files = []
+
+    nb_products = file_db.nb_S2_products
+    all_S2 = [
+        file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']
+    ] + [
+        file_db.concatfile_from_one(idx, '', pol) for idx in range(nb_products*2) for pol in ['vh', 'vv']
+    ]
+    for pattern in patterns:
+        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+    logging.debug('Mocking w/ S2: %s --> %s', patterns, files)
+    logging.debug('all S2: %r', all_S2)
+    for k in files:
+        logging.debug(' - %s', k)
+    known_files.extend(files)
+    assert file_db.s2_product_dir()
+    known_dirs.add(file_db.s2_product_dir())
+
+
+@when('Searching which S1 files to download II', target_fixture='downloads')
+def when_searching_which_S1_to_download2(
+    configuration,
+    known_local_s1,
+    known_local_s2,
+    mocker,
+    known_files,
+    known_dirs,
+) -> list:
+    def list_mocked_nodes(node_list: list, what: str):
+        logging.debug("* %s:", what)
+        for node in node_list:
+            logging.debug("  - %r", node)
+    # mocker.patch('s1tiling.libs.S1FileManager._search_products',
+    #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
+    #         orbit_direction, relative_orbit_list, polarization,
+    #         searched_items_per_page
+    #         : downloads)
+    _declare_known_S1_files(known_files, [file for file in known_local_s1], all_manifests=False)
+    _declare_known_S2_files_from_ids(known_files, [file for file in known_local_s2], known_dirs)
+    _mock_S1Tiling_functions(mocker, known_files, known_dirs)
+    list_mocked_nodes(known_dirs, "known dirs")
+    list_mocked_nodes(known_files, "known files")
+
+
+    mocker.patch(
+        's1tiling.libs.S1FileManager._download_and_extract_one_product',
+        mock_download_one_product)
+
+    default_polarisation = 'VV VH'
+    configuration.polarisation = configuration.polarisation or default_polarisation
+    manager = S1FileManager(configuration, None)
+    manager._refresh_s1_product_list()
+
+    origin_33NWB = file_db.tile_origins('33NWB')
+    extent_33NWB = polygon2extent(origin_33NWB)
+    manager._update_s1_img_list_for('33NWB')
+
+    output_name_formats = []
+    if configuration.calibration_type == 'normlim':
+        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
+    elif configuration.calibration_type == 'gamma_naught_rtc':
+        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
+    else:
+        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
+    if configuration.filter:
+        output_name_formats.append((dname_fmt_filtered(configuration), fname_fmt_filtered(configuration)))
+
+    # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
+    paths = manager._download(
+        None,
+        lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
+        latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
+        first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
+        tile_out_dir=OUTPUT,
+        gamma_area_dir="UNUSED",
+        tile_name='33NWB',
+        platform_list=configuration.platform_list, orbit_direction=None, relative_orbit_list=[],
+        polarization=configuration.polarisation,
+        cover=10,
+        output_name_formats=output_name_formats,
+        dryrun=False,
+    )
+    return paths
+
+
+# ======================================================================
+# @then's
+
+@then(
+    parsers.re("The following S1 products will be downloaded: (?P<dl_s1>.*?)"),
+    converters={'dl_s1': value_to_list},
+)
+def then_download_these_s1_products(dl_s1, downloads: list[S1DownloadOutcome], s1_products: list[str]):
+    logging.debug("Expecting to DL: %r", dl_s1)
+    new_s1 = []
+    for outcome in downloads:
+        assert outcome
+        new_s1.append(outcome.value())
+    dl_expected = {MockEOProduct(file_db._find_image(s1_products[exp_id])) for exp_id in dl_s1}
+    assert dl_expected == set(new_s1)
