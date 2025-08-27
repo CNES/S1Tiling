@@ -691,22 +691,25 @@ def s1_products() -> dict[str,str]:
     return {}
 
 
-@given("the S1 products:", target_fixture="s1_products")
-def given_s1_product_ids(datatable):
+def _decode_product_ids(datatable):
     products = {}
     for ident, product in datatable[1:]:
         products[ident] = product
     return products
 
+@given("the S1 products:", target_fixture="s1_products")
+def given_s1_product_ids(datatable) -> dict[str,str]:
+    return _decode_product_ids(datatable)
+
 
 # -----[ Output: S2 product IDs
 @pytest.fixture
-def s2_products() -> dict[str,str]:
+def s2_products() -> dict[str,list[str]]:
     return {}
 
 
 @given("the S2 products:", target_fixture="s2_products")
-def given_s2_product_ids(datatable):
+def given_s2_product_ids(datatable) -> dict[str,list[str]]:
     products = {}
     for ident, product in datatable[1:]:
         products[ident] = _split_option(product)
@@ -720,11 +723,8 @@ def gamma_area_products() -> dict[str,str]:
 
 
 @given("the gamma areas:", target_fixture="gamma_area_products")
-def given_gamma_area_product_ids(datatable):
-    products = {}
-    for ident, product in datatable[1:]:
-        products[ident] = product
-    return products
+def given_gamma_area_product_ids(datatable) -> dict[str,str]:
+    return _decode_product_ids(datatable)
 
 
 # ----------------------------------------------------------------------
@@ -735,7 +735,11 @@ def given_gamma_area_product_ids(datatable):
     parsers.re("The following S1 products are available for download: (?P<remote_s1>.*?)"),
     converters={'remote_s1': value_to_list},
 )
-def given_remote_s1_product_list(mocker, s1_products, remote_s1: list[str]):
+def given_remote_s1_product_list(
+    mocker,
+    s1_products: dict[str,str],
+    remote_s1  : list[str],
+) -> None:
     known_remote_s1 = []
     for product_id in remote_s1:
         known_remote_s1.append(s1_products[product_id])
@@ -754,7 +758,10 @@ def known_local_s1() -> list[str]:
     target_fixture="known_local_s1",
     converters={'local_s1': value_to_list},
 )
-def given_local_s1_product_list(s1_products, local_s1: list[str]):
+def given_local_s1_product_list(
+    s1_products: dict[str,str],
+    local_s1   : list[str],
+) -> list[str]:
     res = []
     for product_id in local_s1:
         res.append(s1_products[product_id])
@@ -773,7 +780,10 @@ def known_local_s2() -> list[str]:
     target_fixture="known_local_s2",
     converters={'local_s2': value_to_list},
 )
-def given_local_s2_product_list(s2_products, local_s2: list[str]):
+def given_local_s2_product_list(
+    s2_products        : dict[str,list[str]],
+    local_s2           : list[str],
+) -> list[str]:
     res = []
     for product_id in local_s2:
         res.extend(s2_products[product_id])
@@ -814,7 +824,7 @@ def _declare_known_S2_files_from_ids(known_files, patterns, known_dirs) -> None:
         file_db.concatfile_from_one(idx, '', pol) for idx in range(nb_products*2) for pol in ['vh', 'vv']
     ]
     for pattern in patterns:
-        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
+        files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, f'*{pattern}*')]
     logging.debug('Mocking w/ S2: %s --> %s', patterns, files)
     logging.debug('all S2: %r', all_S2)
     for k in files:
