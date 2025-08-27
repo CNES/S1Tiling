@@ -408,6 +408,12 @@ Notes
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
 
+.. note::
+   This scenario permits processing wide time ranges. Only one pair of input S1
+   files will be used to generate the :ref:`gamma_area_s2-files` (for a given
+   MGRS S2 tile + orbit), but all compatible pairs will be downloaded anyway as
+   they will be orthorectified and calibrated.
+
 
 .. _scenario.S1GammaAreaMap:
 
@@ -473,6 +479,11 @@ masking… But the following (non-obvious) options are mandatory:
        disable_streaming.gamma_area = True
        creation_options.s1_on_dem   = float64 COMPRESS=DEFLATE, BIGTIFF=YES, PREDICTOR=3, TILED=YES, BLOCKXSIZE=1024, BLOCKYSIZE=1024
 
+
+.. warning::
+   Do not use a wide time range in this scenario. Indeed, all compatible pairs
+   of S1 inputs will be downloaded, even if in the end only one pair will be
+   used to produce the :ref:`gamma_area_s2-files`.
 
 .. _scenario.masks:
 

@@ -131,9 +131,6 @@ Feature: Test download request v2
             | d1t1, d1t2 | d1t1       |                       |       d1t2 | gamma_naught_rtc calibrate |
             | d1t1, d1t2 |       d1t2 |                       | d1t1       | gamma_naught_rtc calibrate |
 
-            ##### TODO: doc faire requête sur γ avec dates restrintes (car
-            ##### sinon, DL bcp trop de choses)
-
         ### Cases w/ only one input => expect tdddddd
         #   Cases where tile is intersected by only ONE S1 product
         @complex_sigma_one_s1
