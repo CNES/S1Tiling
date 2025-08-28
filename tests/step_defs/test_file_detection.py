@@ -149,9 +149,15 @@ class MockDirEntry:
         return self.path
 
 
-def list_dirs(dir, pat, known_dirs) -> List[MockDirEntry]:
-    logging.debug('mock.list_dirs(%r, %r) ---> %r', dir, pat, known_dirs)
-    return [MockDirEntry(kd) for kd in sorted(set(known_dirs))]
+def list_dirs(dir, pattern, known_dirs) -> List[MockDirEntry]:
+    logging.debug('mock.list_dirs(%r, %r) ---> %r', dir, pattern, known_dirs)
+    if not pattern:
+        filt = lambda _   : True
+    elif isinstance(pattern, re.Pattern):
+        filt = lambda path: re.match(f"{dir}/{pattern}", path)
+    else:
+        filt = lambda path: fnmatch.fnmatch(path, f"{dir}/{pattern}")
+    return [MockDirEntry(kd) for kd in sorted(set(known_dirs)) if filt(kd)]
 
 
 def list_files(dir, pattern, known_files) -> List[MockDirEntry]:
