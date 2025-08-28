@@ -245,3 +245,52 @@ Feature: Test download request v2
             | d1t1, d1t2, d2t1, d2t2 | d1t1, d2t2 |            |       d1t2, d2t1       | compute gamma area |
             | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t2 |            | d1t1,       d2t1       | compute gamma area |
 
+        ## γ-area map production
+        @complex_mismatch_dates_gamma_calibration
+        Examples:
+            | remote_s1              | local_s1   | local_s2   | dl_s1                  | scenario                   |
+            # γ-area map exist, but not the γ°RTC calibrated products
+            # => always request to download missing inputs
+            | d1t1, d1t2, d2t1, d2t2 |            | gamma_area | d1t1, d1t2, d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | gamma_area |             d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | gamma_area |       d1t2, d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | gamma_area | d1t1,       d2t1, d2t2 | gamma_naught_rtc calibrate |
+
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | gamma_area | d1t1, d1t2,            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       | gamma_area | d1t1, d1t2,       d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | gamma_area | d1t1, d1t2, d2t1,      | gamma_naught_rtc calibrate |
+
+        Examples:
+            | remote_s1              | local_s1   | local_s2               | dl_s1                  | scenario                   |
+            # γ°RTC calibrated products exist, but not the γ-area maps
+            # => always request to download missing inputs as producing γ-area
+            #    isn't smart and require every possible input pair
+            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_gamma, d2tx_gamma             | d1t1, d1t2, d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d1tx_gamma, d2tx_gamma             |             d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d1tx_gamma, d2tx_gamma             |       d1t2, d2t1, d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d1tx_gamma, d2tx_gamma             | d1t1,       d2t1, d2t2 | gamma_naught_rtc calibrate |
+
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d1tx_gamma, d2tx_gamma             | d1t1, d1t2,            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d1tx_gamma, d2tx_gamma             | d1t1, d1t2,       d2t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d1tx_gamma, d2tx_gamma             | d1t1, d1t2, d2t1,      | gamma_naught_rtc calibrate |
+
+            # All three outputs are found => no download required
+            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d1tx_gamma, d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+
+            # One of the γ°RTC calibrated output is missing
+            # => download was is related to that missing output, if need be
+            | d1t1, d1t2, d2t1, d2t2 |            |             d2tx_gamma, gamma_area | d1t1, d1t2             | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 |             d2tx_gamma, gamma_area |                        | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       |             d2tx_gamma, gamma_area |       d1t2             | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 |             d2tx_gamma, gamma_area | d1t1                   | gamma_naught_rtc calibrate |
+
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 |             d2tx_gamma, gamma_area | d1t1, d1t2             | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       |             d2tx_gamma, gamma_area | d1t1, d1t2             | gamma_naught_rtc calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 |             d2tx_gamma, gamma_area | d1t1, d1t2             | gamma_naught_rtc calibrate |
