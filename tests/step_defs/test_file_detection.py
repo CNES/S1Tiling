@@ -737,6 +737,13 @@ def given_gamma_area_product_ids(datatable) -> dict[str,str]:
 # ----------------------------------------------------------------------
 # Known products:
 
+def _get_products(ids: list[str], reference_products: dict[str, str]) -> list[str]:
+    products = []
+    for product_id in ids:
+        products.append(reference_products[product_id])
+    return products
+
+
 # -----[ S1 input remote products
 @given(
     parsers.re("The following S1 products are available for download: (?P<remote_s1>.*?)"),
@@ -747,9 +754,7 @@ def given_remote_s1_product_list(
     s1_products: dict[str,str],
     remote_s1  : list[str],
 ) -> None:
-    known_remote_s1 = []
-    for product_id in remote_s1:
-        known_remote_s1.append(s1_products[product_id])
+    known_remote_s1 = _get_products(remote_s1, s1_products)
     logging.debug("known remote S1: %r", known_remote_s1)
     _declare_known_products_for_download_from_names(mocker, known_remote_s1)
 
@@ -769,9 +774,10 @@ def given_local_s1_product_list(
     s1_products: dict[str,str],
     local_s1   : list[str],
 ) -> list[str]:
-    res = []
-    for product_id in local_s1:
-        res.append(s1_products[product_id])
+    # res = []
+    # for product_id in local_s1:
+    #     res.append(s1_products[product_id])
+    res = _get_products(local_s1, s1_products)
     logging.debug("known local S1: %r", res)
     return res
 
