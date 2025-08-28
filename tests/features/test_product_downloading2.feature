@@ -56,8 +56,8 @@ Feature: Test download request v2
             # TODO: use d1t1_gamma and d1t2_gamma
 
         Given the gamma areas:
-            | id        | product                      |
-            | d1_g_area | GAMMA_AREA_s1a_33NWB_DES_007 |
+            | id         | product                      |
+            | gamma_area | GAMMA_AREA_s1a_33NWB_DES_007 |
 
     Scenario Outline: gamma rtc calibration
         Given The following S1 products are available for download: <remote_s1>
@@ -100,11 +100,11 @@ Feature: Test download request v2
         @complex_gamma_area_two_s1
         Examples:
             # Target is here => DL nothing
-            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario           |
-            | d1t1, d1t2 |            | d1_g_area  |            | compute gamma area |
-            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area  |            | compute gamma area |
-            | d1t1, d1t2 | d1t1       | d1_g_area  |            | compute gamma area |
-            | d1t1, d1t2 |       d1t2 | d1_g_area  |            | compute gamma area |
+            | remote_s1  | local_s1   | local_s2    | dl_s1      | scenario           |
+            | d1t1, d1t2 |            | gamma_area  |            | compute gamma area |
+            | d1t1, d1t2 | d1t1, d1t2 | gamma_area  |            | compute gamma area |
+            | d1t1, d1t2 | d1t1       | gamma_area  |            | compute gamma area |
+            | d1t1, d1t2 |       d1t2 | gamma_area  |            | compute gamma area |
             # Target is not here => DL what is missing
             | d1t1, d1t2 |            |            | d1t1, d1t2 | compute gamma area |
             | d1t1, d1t2 | d1t1, d1t2 |            |            | compute gamma area |
@@ -114,32 +114,32 @@ Feature: Test download request v2
         ## Calibration is γ°RTC
         @complex_gamma_calibrated_two_s1
         Examples:
-            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
+            | remote_s1  | local_s1   | local_s2               | dl_s1      | scenario                  |
             ## Calibration is γ° RTC
             #  Note: γ-area maps are always "required-product"
             # Both targets are here => we don't care
-            | d1t1, d1t2 |            | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1       | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 |       d1t2 | d1_g_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |            | gamma_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 | gamma_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       | gamma_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 | gamma_area, d1tx_gamma |            | gamma_naught_rtc calibrate |
 
             # Only γ°RTC calibrated target is here => need to produce γ-area maps
-            | d1t1, d1t2 |            |            d1tx_gamma | d1t1, d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1, d1t2 |            d1tx_gamma |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1       |            d1tx_gamma |       d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 |       d1t2 |            d1tx_gamma | d1t1       | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |            |            d1tx_gamma  | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 |            d1tx_gamma  |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       |            d1tx_gamma  |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 |            d1tx_gamma  | d1t1       | gamma_naught_rtc calibrate |
 
             # Only γ-area maps target is here => need to produce γ°RTC calibrated
-            | d1t1, d1t2 |            | d1_g_area             | d1t1, d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1, d1t2 | d1_g_area             |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1       | d1_g_area             |       d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 |       d1t2 | d1_g_area             | d1t1       | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |            | gamma_area             | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 | gamma_area             |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       | gamma_area             |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 | gamma_area             | d1t1       | gamma_naught_rtc calibrate |
 
             # No target is here => need to produce both
-            | d1t1, d1t2 |            |                       | d1t1, d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1, d1t2 |                       |            | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 | d1t1       |                       |       d1t2 | gamma_naught_rtc calibrate |
-            | d1t1, d1t2 |       d1t2 |                       | d1t1       | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |            |                        | d1t1, d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1, d1t2 |                        |            | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 | d1t1       |                        |       d1t2 | gamma_naught_rtc calibrate |
+            | d1t1, d1t2 |       d1t2 |                        | d1t1       | gamma_naught_rtc calibrate |
 
         ### Cases w/ only one input => expect tdddddd
         #   Cases where tile is intersected by only ONE S1 product
@@ -162,40 +162,41 @@ Feature: Test download request v2
         #  Note: there is no way to know whether a γ area map has been made
         @complex_gamma_area_one_s1
         Examples:
-            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
+            | remote_s1  | local_s1   | local_s2    | dl_s1      | scenario        |
             # Target is here => DL nothing
-            | d1t1       |            | d1_g_area  |            | compute gamma area |
-            | d1t1       | d1t1       | d1_g_area  |            | compute gamma area |
+            | d1t1       |            | gamma_area  |            | compute gamma area |
+            | d1t1       | d1t1       | gamma_area  |            | compute gamma area |
             # Target is not here => DL what is missing
-            | d1t1       |            |            | d1t1       | compute gamma area |
-            | d1t1       | d1t1       |            |            | compute gamma area |
+            | d1t1       |            |             | d1t1       | compute gamma area |
+            | d1t1       | d1t1       |             |            | compute gamma area |
 
 
         ### Cases of mismatching with other dates
+        ## σ° calibration
         @complex_mismatch_dates_sigma
         Examples:
-            | remote_s1              | local_s1   | local_s2   | dl_s1      | scenario        |
+            | remote_s1              | local_s1   | local_s2               | dl_s1      | scenario        |
             # d1 in local
-            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_sigma | d2t1, d2t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d1tx_sigma | d2t1, d2t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d1tx_sigma | d2t1, d2t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d1tx_sigma | d2t1, d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_sigma             | d2t1, d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d1tx_sigma             | d2t1, d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d1tx_sigma             | d2t1, d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d1tx_sigma             | d2t1, d2t2 | sigma calibrate |
 
-            | d1t1, d1t2, d2t1, d2t2 |            | d2tx_sigma | d1t1, d1t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d2tx_sigma |            | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d2tx_sigma |       d1t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d2tx_sigma | d1t1       | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |            | d2tx_sigma             | d1t1, d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | d2tx_sigma             |            | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | d2tx_sigma             |       d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | d2tx_sigma             | d1t1       | sigma calibrate |
 
             # d2 in local
-            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_sigma | d2t1, d2t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d1tx_sigma |            | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d1tx_sigma |       d2t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d1tx_sigma | d2t1,      | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |            | d1tx_sigma             | d2t1, d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d1tx_sigma             |            | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d1tx_sigma             |       d2t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d1tx_sigma             | d2t1,      | sigma calibrate |
 
-            | d1t1, d1t2, d2t1, d2t2 |            | d2tx_sigma | d1t1, d1t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d2tx_sigma | d1t1, d1t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d2tx_sigma | d1t1, d1t2 | sigma calibrate |
-            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d2tx_sigma | d1t1, d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |            | d2tx_sigma             | d1t1, d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 | d2tx_sigma             | d1t1, d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       | d2tx_sigma             | d1t1, d1t2 | sigma calibrate |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 | d2tx_sigma             | d1t1, d1t2 | sigma calibrate |
 
             # Some improbable mix
             | d1t1, d1t2, d2t1, d2t2 |            | d1tx_sigma, d2tx_sigma |            | sigma calibrate |
@@ -212,4 +213,35 @@ Feature: Test download request v2
             | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t2 |                        | d1t1, d2t1 | sigma calibrate |
             | d1t1, d1t2, d2t1, d2t2 | d1t1, d2t1 |                        | d1t2, d2t2 | sigma calibrate |
             | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t1 |                        | d1t1, d2t2 | sigma calibrate |
+
+        ## γ-area map production
+        @complex_mismatch_dates_gamma_area
+        Examples:
+            | remote_s1              | local_s1   | local_s2   | dl_s1                  | scenario           |
+            # γ-area map exist => never request a download
+            | d1t1, d1t2, d2t1, d2t2 |            | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | gamma_area |                        | compute gamma area |
+
+            | d1t1, d1t2, d2t1, d2t2 |            | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       | gamma_area |                        | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 | gamma_area |                        | compute gamma area |
+
+            # γ-area map exist => make sure everything is downloaded,
+            # ... even if we only need one pair, we download all pairs :(
+            | d1t1, d1t2, d2t1, d2t2 |            |            | d1t1, d1t2, d2t1, d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d1t2 |            |             d2t1, d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1       |            |       d1t2, d2t1, d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 |       d1t2 |            | d1t1,       d2t1, d2t2 | compute gamma area |
+
+            | d1t1, d1t2, d2t1, d2t2 | d2t1, d2t2 |            | d1t1, d1t2             | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d2t1       |            | d1t1, d1t2,       d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 |       d2t2 |            | d1t1, d1t2, d2t1       | compute gamma area |
+
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d2t1 |            |       d1t2,       d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t1 |            | d1t1,             d2t2 | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t1, d2t2 |            |       d1t2, d2t1       | compute gamma area |
+            | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t2 |            | d1t1,       d2t1       | compute gamma area |
 
