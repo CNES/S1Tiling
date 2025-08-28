@@ -29,7 +29,7 @@
 #
 # =========================================================================
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import fnmatch
 import logging
 import os
@@ -164,9 +164,9 @@ def list_files(dir, pattern, known_files) -> List[MockDirEntry]:
     if not pattern:
         filt = lambda _   : True
     elif isinstance(pattern, re.Pattern):
-        filt = lambda path:  re.match(pattern, path.name)
+        filt = lambda path: re.match(pattern, path.name)
     else:
-        filt = lambda path:  fnmatch.fnmatch(path.name, pattern)
+        filt = lambda path: fnmatch.fnmatch(path.name, pattern)
     dir_entries = [MockDirEntry(kd) for kd in known_files]
     res = [de for de in dir_entries if filt(de)]
     logging.debug('mock.list_files(%r, %r) ---> %s\n\t--> %s', dir, pattern, known_files, res)
@@ -745,18 +745,25 @@ def _get_products(ids: list[str], reference_products: dict[str, str]) -> list[st
 
 
 # -----[ S1 input remote products
+@pytest.fixture
+def known_remote_s1() -> list[str]:
+    return []
+
+
 @given(
     parsers.re("The following S1 products are available for download: (?P<remote_s1>.*?)"),
+    target_fixture="known_remote_s1",
     converters={'remote_s1': value_to_list},
 )
 def given_remote_s1_product_list(
     mocker,
     s1_products: dict[str,str],
     remote_s1  : list[str],
-) -> None:
+) -> list[str]:
     known_remote_s1 = _get_products(remote_s1, s1_products)
     logging.debug("known remote S1: %r", known_remote_s1)
     _declare_known_products_for_download_from_names(mocker, known_remote_s1)
+    return known_remote_s1
 
 
 # -----[ S1 input products on local disk
@@ -811,7 +818,21 @@ def given_local_s2_product_list(
     return res
 
 
-# -----[ S2 γ area map ouput products on local disk
+# -----[ Requested Time range 
+@given("Requested time range is deduced from known remote S1 products")
+def given_retroactive_set_time_range_from_inputs(
+    configuration,
+    known_remote_s1,
+) -> None:
+    actual_products = [
+        file_db._find_image(product) for product in known_remote_s1
+    ]
+    first_start_time = min([to_datetime(file_db.FILES[idx]['start_time']) for idx in actual_products])
+    last_stop_time   = max([to_datetime(file_db.FILES[idx]['stop_time'])  for idx in actual_products])
+    configuration.first_date = (first_start_time - timedelta(1)).strftime('%Y-%m-%d')
+    configuration.last_date  = (last_stop_time   + timedelta(1)).strftime('%Y-%m-%d')
+    logging.debug("Request time range forged to %s .. %s (from known remote S1 products)", configuration.first_date, configuration.last_date)
+
 
 # ----------------------------------------------------------------------
 # Scenarios:
