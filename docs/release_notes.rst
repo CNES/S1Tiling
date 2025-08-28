@@ -1,9 +1,16 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _release_notes:
 
 Release notes
 =============
 
 Version 1.2.0
+
+.. todo:: summary of the main improvments
 
 v1.2.0 Breaking changes
 +++++++++++++++++++++++
@@ -61,6 +68,17 @@ v1.2.0 Improvements
   <s1tiling.libs.configuration.Configuration>` object can be injected domain
   specific checks. Introduced for
   (`#191 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/191>`_).
+
+v1.2.0 Bugs fixed
++++++++++++++++++
+
+- Improved analysis of the input Sentinel-1 files to download, depending on the
+  ones already in the cache. It's meant to handle :math:`γ^0_{T}` related
+  scenarios
+  (`#113 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/113>`_).
+  |br|
+  Yet it's still impossible to not download every possible Sentinel-1 input in
+  the :ref:`γ-area map production scneario <scenario.S1GammaAreaMap>`
 
 Version 1.1.0
 -------------
