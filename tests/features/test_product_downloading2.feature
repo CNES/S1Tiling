@@ -42,17 +42,19 @@ Feature: Test download request v2
             | d3t2 | S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58 |
 
         Given the S2 products:
-            | id         | products                                            |
-            | d1tx_sigma | s1a_33NWB_vh_DES_007_20200108txxxxxx_sigma         , s1a_33NWB_vv_DES_007_20200108txxxxxx_sigma |
-            | d1t1_sigma | s1a_33NWB_vh_DES_007_20200108t044150_sigma         , s1a_33NWB_vv_DES_007_20200108t044150_sigma |
-            | d1t2_sigma | s1a_33NWB_vh_DES_007_20200108t044215_sigma         , s1a_33NWB_vv_DES_007_20200108t044215_sigma |
+            | id         | products                                                                                                 |
+            | d1tx_sigma | s1a_33NWB_vh_DES_007_20200108txxxxxx_sigma         , s1a_33NWB_vv_DES_007_20200108txxxxxx_sigma          |
+            | d1t1_sigma | s1a_33NWB_vh_DES_007_20200108t044150_sigma         , s1a_33NWB_vv_DES_007_20200108t044150_sigma          |
+            | d1t2_sigma | s1a_33NWB_vh_DES_007_20200108t044215_sigma         , s1a_33NWB_vv_DES_007_20200108t044215_sigma          |
             | d1tx_gamma | s1a_33NWB_vh_DES_007_20200108txxxxxx_GammaNaughtRTC, s1a_33NWB_vv_DES_007_20200108txxxxxx_GammaNaughtRTC |
             | d1t1_gamma | s1a_33NWB_vh_DES_007_20200108t044150_GammaNaughtRTC, s1a_33NWB_vv_DES_007_20200108t044150_GammaNaughtRTC |
             | d1t2_gamma | s1a_33NWB_vh_DES_007_20200108t044215_GammaNaughtRTC, s1a_33NWB_vv_DES_007_20200108t044215_GammaNaughtRTC |
 
-            | d2tx_sigma | s1a_33NWB_vh_DES_007_20200120txxxxxx_sigma         , s1a_33NWB_vv_DES_007_20200120txxxxxx_sigma |
-            | d2t1_sigma | s1a_33NWB_vh_DES_007_20200120t044149_sigma         , s1a_33NWB_vv_DES_007_20200120t044149_sigma |
-            | d2t2_sigma | s1a_33NWB_vh_DES_007_20200120t044214_sigma         , s1a_33NWB_vv_DES_007_20200120t044214_sigma |
+            | d2tx_sigma | s1a_33NWB_vh_DES_007_20200120txxxxxx_sigma         , s1a_33NWB_vv_DES_007_20200120txxxxxx_sigma          |
+            | d2t1_sigma | s1a_33NWB_vh_DES_007_20200120t044149_sigma         , s1a_33NWB_vv_DES_007_20200120t044149_sigma          |
+            | d2t2_sigma | s1a_33NWB_vh_DES_007_20200120t044214_sigma         , s1a_33NWB_vv_DES_007_20200120t044214_sigma          |
+
+            | d2tx_gamma | s1a_33NWB_vh_DES_007_20200120txxxxxx_GammaNaughtRTC, s1a_33NWB_vv_DES_007_20200120txxxxxx_GammaNaughtRTC |
             # TODO: use d1t1_gamma and d1t2_gamma
 
         Given the gamma areas:
@@ -100,11 +102,11 @@ Feature: Test download request v2
         @complex_gamma_area_two_s1
         Examples:
             # Target is here => DL nothing
-            | remote_s1  | local_s1   | local_s2    | dl_s1      | scenario           |
-            | d1t1, d1t2 |            | gamma_area  |            | compute gamma area |
-            | d1t1, d1t2 | d1t1, d1t2 | gamma_area  |            | compute gamma area |
-            | d1t1, d1t2 | d1t1       | gamma_area  |            | compute gamma area |
-            | d1t1, d1t2 |       d1t2 | gamma_area  |            | compute gamma area |
+            | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario           |
+            | d1t1, d1t2 |            | gamma_area |            | compute gamma area |
+            | d1t1, d1t2 | d1t1, d1t2 | gamma_area |            | compute gamma area |
+            | d1t1, d1t2 | d1t1       | gamma_area |            | compute gamma area |
+            | d1t1, d1t2 |       d1t2 | gamma_area |            | compute gamma area |
             # Target is not here => DL what is missing
             | d1t1, d1t2 |            |            | d1t1, d1t2 | compute gamma area |
             | d1t1, d1t2 | d1t1, d1t2 |            |            | compute gamma area |
@@ -114,7 +116,7 @@ Feature: Test download request v2
         ## Calibration is γ°RTC
         @complex_gamma_calibrated_two_s1
         Examples:
-            | remote_s1  | local_s1   | local_s2               | dl_s1      | scenario                  |
+            | remote_s1  | local_s1   | local_s2               | dl_s1      | scenario                   |
             ## Calibration is γ° RTC
             #  Note: γ-area maps are always "required-product"
             # Both targets are here => we don't care
@@ -261,7 +263,7 @@ Feature: Test download request v2
             | d1t1, d1t2, d2t1, d2t2 |       d2t2 | gamma_area | d1t1, d1t2, d2t1,      | gamma_naught_rtc calibrate |
 
         Examples:
-            | remote_s1              | local_s1   | local_s2               | dl_s1                  | scenario                   |
+            | remote_s1              | local_s1   | local_s2                           | dl_s1                  | scenario                   |
             # γ°RTC calibrated products exist, but not the γ-area maps
             # => always request to download missing inputs as producing γ-area
             #    isn't smart and require every possible input pair
