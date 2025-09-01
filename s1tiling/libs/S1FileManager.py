@@ -42,7 +42,6 @@ import multiprocessing
 import os
 import re
 import shutil
-import sys
 from typing import Dict, List, Optional, Protocol, Tuple, Union
 
 from osgeo import ogr
@@ -75,7 +74,7 @@ from .Utils              import (
 )
 from .S1DateAcquisition  import S1DateAcquisition
 from .configuration      import (
-    dname_fmt_tiled, dname_fmt_filtered, fname_fmt_concatenation, fname_fmt_filtered,
+    fname_fmt_concatenation,
 )
 # from .orbit._conversions import ORBIT_CONVERTERS
 from .otbpipeline        import mp_worker_config
@@ -83,7 +82,6 @@ from .outcome            import S1DownloadOutcome
 from .s1.filters         import (
     discard_small_redundant,
     filter_image_groups_providing_enough_cover_by_pair,
-    filter_images_providing_enough_cover_by_pair,
     find_paired_products,
 )
 from .s1.product         import EOProductInformation
@@ -188,63 +186,6 @@ def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
 #             os.remove(file_it.path)
 #         except OSError:
 #             pass
-
-
-# def does_final_product_need_to_be_generated_for(  # pylint: disable=too-many-locals
-#     product:       EOProduct,
-#     tile_name:     str,
-#     polarizations: List[str],
-#     cfg:           S1FileManagerConfiguration,
-#     s2images:      List[str]
-# ) -> bool:
-#     """
-#     Tells whether finals products associated to a tile needs to be generated.
-# 
-#     :param product:       S1 images that are available for download through EODAG
-#     :param tile_name:     Name of the S2 tile
-#     :param polarizations: Requested polarizations as per configuration.
-#     :param s2images:      List of already globbed S2 images files
-# 
-#     Searchs in `s2images` whether all the expected product filenames for the given S2 tile name
-#     and the requested polarizations exists.
-#     """
-#     logger.debug('>  Searching whether %s final products have already been generated (in polarizations: %s)',
-#                  product, polarizations)
-#     if len(s2images) == 0:
-#         return True
-#     # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
-#     prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}.*')
-#     pid = product.as_dict()['id']
-#     match = prod_re.match(pid)
-#     if not match:
-#         raise AssertionError(f"Unexpected name for S1 Product: {pid} doesn't match expected pattern")
-#     sat, start = match.groups()
-#     keys = {
-#         'flying_unit_code'  : sat.lower(),
-#         'tile_name'         : tile_name,
-#         'acquisition_stamp' : f'{start}t??????',
-#         'orbit_direction'   : '*',
-#         'orbit'             : '*',
-#         'calibration_type'  : cfg.calibration_type,
-#     }
-#     fname_fmt_4concatenation = fname_fmt_concatenation(cfg)
-#     fname_fmt_4filtered      = fname_fmt_filtered(cfg)
-#     for polarisation in polarizations:
-#         # e.g. s1a_{tilename}_{polarization}_DES_007_20200108txxxxxx.tif
-#         # We should use the `Processing.fname_fmt.concatenation` option
-#         pat          = fname_fmt_4concatenation.format(**keys, polarisation=polarisation)
-#         pat_filtered = fname_fmt_4filtered.format(**keys, polarisation=polarisation)
-#         found_s2 = fnmatch.filter(s2images, pat)
-#         found_filt = fnmatch.filter(s2images, pat_filtered)
-#         found = found_s2 or found_filt
-#         logger.debug('   searching w/ %s and %s ==> Found: %s', pat, pat_filtered, found)
-#         if not found:
-#             return True
-#         # FIXME:
-#         # - if found_s2 and not found_filt => we have everything that is needed
-#         # - if found_filt and not found_s2 => we have prevent the required S1 products from being downloaded
-#         #                                     if the S2 product is required
-#     return False
 
 
 def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
@@ -1053,30 +994,6 @@ class S1FileManager:
         logger.debug(" => %s", [f"{p}" for p in products])
         return products
 
-        #   Beware: a matching VV while the VH doesn't exist and is present in the
-        #   remote product shall trigger the download of the product.
-        #   TODO: We should actually inject the expected filenames into the task graph
-        #   generator in order to download what is stricly necessary and nothing more
-        polarizations = polarization.lower().split(' ')
-        s2images_pat = f's1?_{tile_name}_*.tif'
-        logger.debug('Search %s for %s on disk in %s(/filtered)/%s', s2images_pat, polarizations, tile_out_dir, tile_name)
-
-        def glob1(pat, *paths) -> List[str]:
-            pathname = glob.escape(os.path.join(*paths))
-            return [os.path.basename(p) for p in glob.glob(os.path.join(pathname, pat))]
-        dname_options = { 'tile_name': tile_name, 'out_dir': tile_out_dir, }
-        s2images = glob1(
-            s2images_pat, dname_fmt_tiled(self.cfg).format_map(dname_options)
-        ) + glob1(
-            s2images_pat, dname_fmt_filtered(self.cfg).format_map(dname_options)
-        )
-        logger.debug(' => S2 products found on %s: %s', tile_name, s2images)
-        products = [p for p in products
-                    if does_final_product_need_to_be_generated_for(
-                        p, tile_name, polarizations, self.cfg, s2images)
-                    ]
-        return products
-
     def _download(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dag:                     EODataAccessGateway,
@@ -1137,9 +1054,6 @@ class S1FileManager:
                         p.orbit_direction,
                         p.relative_orbit,
                         p.start_time,
-                    # product_property(p, "orbitDirection", ""),
-                    # product_property(p, "relativeOrbitNumber", ""),
-                    # product_property(p, "startTimeFromAscendingNode", ""),
             )
         if not products:  # no need to continue
             # Actually, in that special case we could almost detect there is nothing to do
@@ -1280,7 +1194,7 @@ class S1FileManager:
         # for d in content:
         #     logger.debug('  - %r -> %s', d.name, self.is_product_in_time_range(d.name))
         content = [d for d in content if self.is_product_in_time_range(d.name)]
-            
+
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
 
