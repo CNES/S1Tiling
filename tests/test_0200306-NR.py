@@ -1298,12 +1298,17 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
     )
 
 
-def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, eofdir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
 
     In this flavour, we emulate old IPF 002.50 where image borders needed to be cut.
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/UNUSED')
+    gamma_areadir = pathlib.Path('/UNUSED')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1362,10 +1367,15 @@ def test_33NWB_202001_NR_core_mocked_with_concat(baselinedir, eofdir, outputdir,
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_NR_core_mocked_no_concat(baselinedir, eofdir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/UNUSED')
+    gamma_areadir = pathlib.Path('/UNUSED')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1424,14 +1434,15 @@ class MockedSentinelOrbitFile:
                              (mock_LIA_v1_1, s1_process_lia_v1_1),
                              (mock_LIA_v1_2, s1_process_lia_v1_2),
                          ])
-def test_33NWB_202001_lia_mocked(
-        baselinedir, outputdir, liadir, eofdir, tmpdir, demdir, ram,
-        mocker,
-        register_expectations, processor
-):
+def test_33NWB_202001_lia_mocked(tmpdir, demdir, ram, mocker, register_expectations, processor):
     """
     Mocked test of production of LIA and sin LIA files
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/_EOF')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/_LIA')
+    gamma_areadir = pathlib.Path('/UNUSED')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1484,10 +1495,15 @@ def test_33NWB_202001_lia_mocked(
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdir, liadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/_LIA')
+    gamma_areadir = pathlib.Path('/UNUSED')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1574,12 +1590,17 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(baselinedir, eofdir, outputdi
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputdir, liadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
     number_dates = 3
 
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/_LIA')
+    gamma_areadir = pathlib.Path('/UNUSED')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1676,13 +1697,18 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(baselinedir, eofdir, outputd
                              (mock_GAMMA_AREA_v1_2, s1_process_gamma_area),
                          ])
 def test_33NWB_202001_gamma_area_mocked(
-        baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram,
+        tmpdir, demdir, ram,
         mocker,
         register_expectations, processor
 ):
     """
     Mocked test of production of GAMMA_AREA file
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/UNUSED')
+    gamma_areadir = pathlib.Path('/GAMMA_AREA')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1730,10 +1756,15 @@ def test_33NWB_202001_gamma_area_mocked(
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/UNUSED')
+    gamma_areadir = pathlib.Path('/GAMMA_AREA')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
@@ -1816,12 +1847,17 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(baselinedir, outputd
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(baselinedir, outputdir, gamma_areadir, tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
     number_dates = 3
 
+    baselinedir   = pathlib.Path('/BASELINE')
+    eofdir        = pathlib.Path('/UNUSED')
+    outputdir     = pathlib.Path('/OUTPUT')
+    liadir        = pathlib.Path('/UNUSED')
+    gamma_areadir = pathlib.Path('/GAMMA_AREA')
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
 
