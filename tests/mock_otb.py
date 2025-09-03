@@ -118,7 +118,7 @@ def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
         filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
     else:
         filt = lambda path: '/' not in path.name
-    dir_entries = [MockDirEntry(kd, inputdir) for kd in known_dirs]
+    dir_entries = [MockDirEntry(kd, inputdir) for kd in sorted(known_dirs)]
     res = [de for de in dir_entries if filt(de)]
     logging.debug('res --> %s', res)
     return res
