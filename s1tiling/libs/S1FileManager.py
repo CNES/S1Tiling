@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,21 +42,15 @@ import multiprocessing
 import os
 import re
 import shutil
-from typing import Dict, List, Optional, Protocol, Tuple, Union
+from typing import Dict, List, Optional, Protocol, Tuple
 
 from osgeo import ogr
 from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
 from eodag.api.search_result import SearchResult
-from eodag.utils             import get_geometry_from_various
 from eodag.utils.exceptions  import NotAvailableError
 from eodag.utils.logging     import setup_logging
-
-try:
-    from shapely.errors import TopologicalError
-except ImportError:
-    from shapely.geos   import TopologicalError
 
 import numpy as np
 
@@ -64,8 +58,6 @@ from s1tiling.libs       import exceptions
 from .Utils              import (
     Layer,
     extract_product_start_time,
-    get_orbit_direction,
-    get_relative_orbit,
     get_shape,
     list_dirs,
     list_files,
@@ -82,9 +74,12 @@ from .outcome            import S1DownloadOutcome
 from .s1.filters         import (
     discard_small_redundant,
     filter_image_groups_providing_enough_cover_by_pair,
+    filter_images_providing_enough_cover_by_pair,
     find_paired_products,
+    keep_requested_orbits,
+    keep_requested_platforms,
 )
-from .s1.product         import EOProductInformation
+from .s1.product         import EOProductInformation, FileProductInformation, ProductInformation, product_property
 from .utils.timer        import timethis
 from .utils.formatters   import ResilientFormater
 
@@ -127,52 +122,6 @@ class S1FileManagerConfiguration(Protocol):
     dname_fmt                    : Dict
 
 
-def product_property(prod: EOProduct, key: str, default=None):
-    """
-    Returns the required (EODAG) product property, or default in the property isn't found.
-    """
-    res = prod.properties.get(key, default)
-    return res
-
-
-def product_cover(product: EOProduct, geometry: Dict[str, float]) -> float:
-    """
-    Compute the coverage of the intersection of the product and the target geometry
-    relativelly to the target geometry.
-    Return a percentage in the range [0..100].
-
-    This function has been extracted and adapted from
-    :func:`eodag.plugins.crunch.filter_overlap.FilterOverlap.proceed`, which is
-    under the Apache Licence 2.0.
-
-    Unlike the original function, the actual filtering is done differenty and we
-    only need the computed coverage. Also, we are not interrested in the
-    coverage of the intersection relativelly to the input product.
-    """
-    search_geom = get_geometry_from_various(geometry=geometry)
-    assert search_geom, "Let's suppose eodag returns a geometry"
-    if product.search_intersection:
-        intersection = product.search_intersection
-        product_geometry = product.geometry
-    elif product.geometry.is_valid:
-        product_geometry = product.geometry
-        intersection = search_geom.intersection(product_geometry)
-    else:
-        logger.debug(
-            "Trying our best to deal with invalid geometry on product: %r",
-            product,
-        )
-        product_geometry = product.geometry.buffer(0)
-        try:
-            intersection = search_geom.intersection(product_geometry)
-        except TopologicalError:
-            logger.debug("Product geometry still invalid. Force its acceptance")
-        return 100
-
-    ipos = (intersection.area / search_geom.area) * 100
-    return ipos
-
-
 # def unzip_images(raw_directory):
 #     """This method handles unzipping of product archives"""
 #     for file_it in list_files(raw_directory, '*.zip'):
@@ -207,14 +156,6 @@ def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
     :param list[str] existing_output_products: List of all the pre-existing output products already
                                                detected on disk.
     """
-    # TODO: check it handles
-    # - [ ] the γ area file is here but not the σ°
-    # - [ ] the γ area file is not here but the σ° yes
-    # - [ ] the γ area file is not here and there are multiple S1 input compatible (different dates)
-    # - [X] the tyymmdd is here but not he txxxxxx
-    # - [X] 1 or 2 polarisations
-
-    # pid = input_product.as_dict()['id']
     pid = input_product.identifier
     logger.debug('>  Searching whether %r final products have already been generated (in polarizations: %s)',
                  pid, polarizations)
@@ -244,7 +185,7 @@ def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
         'tile_name'         : tile_name,
         # There are 2 orbit directions: the requested one (if any), and the one from the remote file.
         # The one from the remote file matches the search criteria => we use it
-        'orbit_direction'   : input_product.orbit_dir,
+        'orbit_direction'   : input_product.orbit_direction.short,
         'calibration_type'  : calibration_type,
         # --[ Keys coming from the reference input product, to match the related output products
         'flying_unit_code'  : sat.lower(),
@@ -302,59 +243,6 @@ def filter_images_or_ortho(kind, all_images: List[str]) -> List[str]:
     return images
 
 
-def _filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-locals
-    products:     Union[List[EOProduct], List[Dict]],  # EOProduct or content_info
-    target_cover: float,
-    ident:        Callable[[Union[EOProduct, Dict]], str],
-    get_cover:    Callable[[Union[EOProduct, Dict]], float],
-    get_orbit:    Callable[[Union[EOProduct, Dict]], int],
-) -> Union[List[EOProduct], List[Dict]]:
-    """
-    TODO: use version from s1tiling.libs.s1
-
-    Associate products of the same date and orbit into pairs (at most),
-    to compute the total coverage of the target zone.
-    If the total coverage is inferior to the target coverage, the products
-    are filtered out.
-
-    This function can be used on product information returned by EODAG as well
-    as product information extracted from existing files. It's acheived thanks
-    to the `ident`, `get_cover` and `get_orbit` variation points.
-    """
-    if not products or not target_cover:
-        return products
-    prod_re = re.compile(r'S1._IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
-    kept_products : Union[List[EOProduct], List[Dict]] = []
-    date_grouped_products : Dict[str, Dict[float, EOProduct]] = {}
-    logger.debug('Checking coverage for each product')
-    for p in products:
-        pid   = ident(p)
-        match = prod_re.match(pid)
-        assert match
-        date  = match.groups()[0]
-        cover = get_cover(p)
-        ron   = get_orbit(p)
-        dron  = f'{date}#{ron:03}'
-        logger.debug('* @ %s, %s%% coverage for %s', dron, round(cover, 2), pid)
-        if dron not in date_grouped_products:
-            date_grouped_products[dron] = {}
-        date_grouped_products[dron].update({cover : p})
-
-    logger.debug('Checking coverage for each date (and # relative orbit number)')
-    for dron, cov_prod in date_grouped_products.items():
-        covers         = cov_prod.keys()
-        cov_sum        = round(sum(covers), 2)
-        str_cov_to_sum = '+'.join((str(round(c, 2)) for c in covers))
-        logger.debug('* @ %s -> %s%% = %s', dron, cov_sum, str_cov_to_sum)
-        if cov_sum < target_cover:
-            logger.warning('Reject products @ %s for insufficient coverage: %s=%s%% < %s%% %s',
-                    dron, str_cov_to_sum, cov_sum, target_cover,
-                    [ident(p) for p in cov_prod.values()])
-        else:
-            kept_products.extend(cov_prod.values())
-    return kept_products
-
-
 def _filter_s1_images_required_for_expected_s2_product(
     # s1_products:         List[EOProduct],
     s1_products:         Sequence[EOProductInformation],
@@ -365,8 +253,7 @@ def _filter_s1_images_required_for_expected_s2_product(
     orbit_direction:     Optional[str],
     relative_orbit_list: List[int],
     calibration_type:    str,
-    name_formats:        List[Tuple[str, str]], # Zip list of dname_fmt + fname_fmt
-    cfg:                 S1FileManagerConfiguration,
+    name_formats:        List[Tuple[str, str]],  # Zip list of dname_fmt + fname_fmt
 # ) -> List[EOProduct]:
 ) -> Sequence[EOProductInformation]:
     # 1. First: list local output products matching the production criteria
@@ -442,10 +329,10 @@ def _filter_s1_images_required_for_expected_s2_product(
 
 # @timethis("_keep_products_with_enough_coverage")  # This is fast enough
 def _keep_products_with_enough_coverage(
-    content_info: List[Dict],
+    content_info: Sequence[FileProductInformation],
     target_cover: float,
     current_tile: ogr.Feature,
-) -> List[Dict]:
+) -> Sequence[FileProductInformation]:
     """
     Helper function that filters the products (/pairs of products) that provide
     enough coverage.
@@ -455,128 +342,20 @@ def _keep_products_with_enough_coverage(
     area_polygon = tile_footprint.GetGeometryRef(0)
     points = area_polygon.GetPoints()
     origin = [(point[0], point[1]) for point in points[:-1]]
+    logger.debug("Analyse coverage in %s\n\t\torigin -> %s", content_info, origin)
     content_info_with_intersection = []
     for ci in content_info:
-        # p        = ci['product']
-        # safe_dir = ci['safe_dir']
-        if 'product_shape' not in ci:
-            manifest = ci['manifest']
-            poly = get_shape(manifest)
-            ci['product_shape'] = poly
-        else:
-            poly = ci['product_shape']
-        intersection = poly.Intersection(tile_footprint)
-        ci['coverage']    = intersection.GetArea() / tile_footprint.GetArea() * 100
-        ci['tile_origin'] = origin
-        logger.debug('%s -> %s %% (inter %s / tile %s)',
-                     ci['product'].name, ci['coverage'], intersection.GetArea(), tile_footprint.GetArea())
-        if ci['coverage']:
+        ci.set_tile_origin(origin)
+        cover = ci.compute_relative_cover_of(tile_footprint)
+        if cover:
             # If no intersection at all => we ignore!
             content_info_with_intersection.append(ci)
 
-    return _filter_images_providing_enough_cover_by_pair(
-            content_info_with_intersection, target_cover,
-            ident=lambda ci: ci['product'].name,
-            get_cover=lambda ci: ci['coverage'],
-            get_orbit=lambda ci: ci['relative_orbit'],
+    return filter_images_providing_enough_cover_by_pair(
+            content_info_with_intersection,
+            target_cover,
+            get_cover=lambda ci: ci.get_current_tile_coverage()
     )
-
-
-def _discard_small_redundant(
-    products: Union[List[EOProduct], List[os.DirEntry]],
-    ident:    Callable[[Union[EOProduct, os.DirEntry]], str],
-) -> Union[List[EOProduct], List[os.DirEntry]]:
-    """
-    TODO: use version from s1tiling.libs.s1
-
-    Sometimes there are several S1 product with the same start date, but a different end-date.
-    Let's discard the smallest products
-    """
-    if not products:
-        return products
-    assert ident is not None, "Please call with a ident parameter!"
-    prod_re = re.compile(r'S1._IW_...._...._(\d{8}T\d{6})_(\d{8}T\d{6}).*')
-
-    ordered_products = sorted(products, key=ident)
-    # logger.debug("all products before clean: %s", ordered_products)
-    res = [ordered_products[0]]
-    match = prod_re.match(ident(res[0]))
-    assert match
-    last, _ = match.groups()
-    for product in ordered_products[1:]:
-        match = prod_re.match(ident(product))
-        assert match
-        start, _ = match.groups()
-        if last == start:
-            # We can suppose the new end date to be >
-            # => let's replace
-            logger.warning('Discarding %s that is smaller than %s', res[-1], product)
-            res[-1] = product
-        else:
-            res.append(product)
-            last = start
-    return res
-
-
-def _keep_requested_orbits(
-    content_info:           List[Dict],
-    rq_orbit_direction:     Optional[str],
-    rq_relative_orbit_list: List[int],
-) -> List[Dict]:
-    """
-    Takes care of discarding products that don't match the requested orbit
-    specification.
-
-    Note: Beware that specifications could be contradictory and end up
-    discarding everything.
-    """
-    if not rq_orbit_direction and not rq_relative_orbit_list:
-        return content_info
-    kept_products = []
-    for ci in content_info:
-        p         = ci['product']
-        direction = ci['orbit_direction']
-        orbit     = ci['relative_orbit']
-        # logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
-
-        if rq_orbit_direction:
-            if direction != rq_orbit_direction:
-                logger.debug('Discard %s as its direction (%s) differs from the requested %s',
-                        p.name, direction, rq_orbit_direction)
-                continue
-        if rq_relative_orbit_list:
-            if orbit not in rq_relative_orbit_list:
-                logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
-                        p.name, orbit, rq_relative_orbit_list)
-                continue
-        kept_products.append(ci)
-    return kept_products
-
-
-def _keep_requested_platforms(
-    content_info: List[Dict],
-    rq_platform_list: List[str]
-) -> List[Dict]:
-    """
-    Takes care of discarding products that don't match the requested platform specification.
-
-    Note: Beware that specifications could be contradictory and end up discarding everything.
-    """
-    if not rq_platform_list:
-        return content_info
-    kept_products = []
-    for ci in content_info:
-        p        = ci['product']
-        platform = ci['platform']
-        logger.debug('CHECK platform: %s / %s', p, platform)
-
-        if rq_platform_list:
-            if platform not in rq_platform_list:
-                logger.debug('Discard %s as its platform (%s) differs from the requested ones %s',
-                        p.name, platform, rq_platform_list)
-                continue
-        kept_products.append(ci)
-    return kept_products
 
 
 def _download_and_extract_one_product(
@@ -954,21 +733,17 @@ class S1FileManager:
             products = filter_image_groups_providing_enough_cover_by_pair(
                 product_groups,
                 cover,
-                get_cover=lambda p: p.get_relative_cover_of(extent)
+                get_cover=lambda p: p.compute_relative_cover_of(extent)
             )
-            # products = products.filter_overlap(
-            #         minimum_overlap=cover, geometry=extent)
             logger.info ("%s remote S1 product(s) found and filtered (cover >= %s)", len(products), cover)
             logger.debug(" => %s", [f"{p}" for p in products])
         else:
             logger.debug("No coverage check is performed")
-        # TODO: do the apairing even without cover!!
 
         # - already exist in the "cache"
         # logger.debug('Check products against the cache: %s', self.product_list)
         # self._refresh_s1_product_list()  # No need: as it has been done at startup, and after download
-                                           # And let's suppose nobody deletd files
-                                           # manually!
+                                           # And let's suppose nobody has deleted files manually!
         products = list(filter(lambda p: p.identifier not in self._product_list, products))
         # logger.debug('Products cache: %s', self._product_list.keys())
         logger.info ("%s remote S1 product(s) are not yet in the (local disk) cache", len(products))
@@ -987,7 +762,6 @@ class S1FileManager:
             relative_orbit_list=self.cfg.relative_orbit_list,
             calibration_type=self.cfg.calibration_type,
             name_formats=output_name_formats,
-            cfg=self.cfg,
         )
         logger.info ("%s remote S1 product(s) for which some output products are missing", len(products))
         # logger.debug(" => %s", [ident(p) for p in products])
@@ -1051,7 +825,7 @@ class S1FileManager:
         logger.info("%s remote S1 product(s) will be downloaded", len(products))
         for p in products:
             logger.info('- %s: %s %03d, [%s]', p,
-                        p.orbit_direction,
+                        p.orbit_direction.name,
                         p.relative_orbit,
                         p.start_time,
             )
@@ -1059,7 +833,7 @@ class S1FileManager:
             # Actually, in that special case we could almost detect there is nothing to do
             return []
         if dryrun:
-            paths = [p.identifier for p in products]  # TODO: return real name
+            paths = [S1DownloadOutcome(p.identifier, p) for p in products]  # TODO: return real name
             logger.info("Remote S1 products would have been saved into %s", paths)
             return paths
 
@@ -1187,7 +961,7 @@ class S1FileManager:
                 logger.warning(f'Not all new products are found in {self.cfg.raw_directory}: {new_products}. Some products downloaded may be corrupted.')
         else:
             self._product_list = {}
-            self._products_info = []
+            self._products_info : List[FileProductInformation] = []
 
         # Filter by date specification
         # logger.debug('  Checking product in time range: %s .. %s', self.first_date, self.last_date)
@@ -1198,47 +972,22 @@ class S1FileManager:
         logger.debug('%s local products remaining in the specified time range', len(content))
         # Discard incomplete products (when the complete products are there)
 
-        def ident(d: os.DirEntry) -> str:
-            # assert isinstance(d, os.DirEntry), f"Expecting a DirEntry, got: {type(d)!r}"
-            return d.name
-        content = _discard_small_redundant(content, ident=ident)
-        logger.debug('%s local products remaining after discarding incomplete and redundant products', len(content))
+        products_info = FileProductInformation.filter_valid_products(content)
 
-        # Build tuples of {product_dir, safe_dir, manifest_path, orbit_direction, relative_orbit}
-        products_info_eodag2 = [ {
-            'product':  p,
-            # EODAG v2 saves SAFEs into {rawdir}/{prod}/{prod}.SAFE
-            'safe_dir': os.path.join(p.path, p.name + '.SAFE'),
-        } for p in content]
-        products_info_eodag3 = [ {
-            'product':  p,
-            # EODAG v3 saves SAFEs into {rawdir}/{prod}
-            'safe_dir': p.path,
-        } for p in content]
-        products_info = products_info_eodag2 + products_info_eodag3
-        for ci in products_info:
-            manifest = os.path.join(ci['safe_dir'], self.manifest_pattern)
-            ci['manifest']        = manifest
-
-        products_info = list(filter(lambda ci: os.path.isfile(ci['manifest']), products_info))
         logger.debug('%s local products remaining after filtering valid manifests', len(products_info))
         # TODO: filter corrupted products (e.g. .zip files that couldn't be correctly unzipped (because of a previous disk saturation for instance)
 
-        for ci in products_info:
-            manifest              = ci['manifest']
-            ci['orbit_direction'] = get_orbit_direction(manifest)
-            ci['relative_orbit']  = get_relative_orbit(manifest)
-            ci['platform']        = ci['product'].name[:3]
-
         # Filter by orbit specification
         if self.cfg.orbit_direction or self.cfg.relative_orbit_list:
-            products_info = _keep_requested_orbits(products_info,
-                    self.cfg.orbit_direction, self.cfg.relative_orbit_list)
+            products_info = keep_requested_orbits(
+                products_info,
+                self.cfg.orbit_direction,
+                self.cfg.relative_orbit_list)
             logger.debug('%s local products remaining after filtering requested orbits', len(products_info))
 
         # Filter by platform specification
         if self.cfg.platform_list:
-            products_info = _keep_requested_platforms(products_info, self.cfg.platform_list)
+            products_info = keep_requested_platforms(products_info, self.cfg.platform_list)
             logger.debug('%s local products remaining after filtering requested platforms (%s)',
                          len(products_info), ", ".join(self.cfg.platform_list))
 
@@ -1246,7 +995,7 @@ class S1FileManager:
         if products_info:
             logger.debug('%s time, platform and orbit compatible products found on disk:', len(products_info))
             for ci in products_info:
-                current_content = ci['product']
+                current_content = ci.product
                 logger.debug('* %s', current_content.name)
                 self._product_list[current_content.name] = current_content
             self._products_info.extend(products_info)
@@ -1254,17 +1003,17 @@ class S1FileManager:
             logger.warning('No time and orbit compatible products found on disk!')
 
     def _filter_complete_dowloads_by_pair(  # pylint: disable=too-many-locals
-            self, tile_name: str, s1_products_info: List[Dict]
-    ) -> List[Dict]:
+        self,
+        tile_name: str,
+        s1_products_info: Sequence[FileProductInformation],
+    ) -> Sequence[FileProductInformation]:
         keys = {
             'tile_name'         : tile_name,
             'calibration_type'  : self.cfg.calibration_type,
         }
         fname_fmt_4concatenation = fname_fmt_concatenation(self.cfg)
         k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
-        ident     : Callable[[Dict], str] = lambda ci: ci['product'].name
-        get_orbit : Callable[[Dict], int] = lambda ci: ci['relative_orbit']
-        get_direc : Callable[[Dict], str] = lambda ci: k_dir_assoc.get(ci['orbit_direction'], ci['orbit_direction'])
+        get_direc : Callable[[ProductInformation], str] = lambda ci: k_dir_assoc.get(ci.orbit_direction, ci.orbit_direction)
         prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
 
         # We need to report every S2 product that could not be generated,
@@ -1277,7 +1026,7 @@ class S1FileManager:
             ref_missing_S1_product = missing[0].related_product()
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
             assert eo_ron, f"Product information misses 'relativeOrbitNumber', only {ref_missing_S1_product.properties.keys()} are available, and {ref_missing_S1_product.properties['orbitNumber']=}"
-            eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection')
+            eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection', '')
             eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)
             eo_id   = ref_missing_S1_product.as_dict()['id']
             match   = prod_re.match(eo_id)
@@ -1292,15 +1041,15 @@ class S1FileManager:
             s2_product_name = fname_fmt_4concatenation.format_map(keys)
             keeps   = []  # Workaround to filter out the current list.
             for ci in s1_products_info:
-                pid   = ident(ci)
+                pid   = ci.identifier
                 match = prod_re.match(pid)
                 date  = match.groups()[1] if match else "????????"
-                ron   = get_orbit(ci)
+                ron   = ci.relative_orbit
                 logger.debug('Check if the ignore-key %s matches the key (%s) of the paired S1 product %s', f'{date}#{ron}', failure, pid)
                 if f'{date}#{ron}' == failure:
                     assert eo_date == date
                     assert eo_ron  == ron
-                    assert eo_dir  == get_direc(ci), f"EO product: {eo_id} doesn't match product on disk: {pid}"
+                    assert eo_dir  == ci.orbit_direction.short, f"EO product: {eo_id} doesn't match product on disk: {pid}"
                     logger.debug('%s will be ignored to produce %s because: %s', ci, s2_product_name, missing)
                     # At most this could happen once as s1 products go by pairs,
                     # and thus a DL failure may be associated to zero or one DL success.
@@ -1315,7 +1064,11 @@ class S1FileManager:
         return s1_products_info
 
     @timethis("_filter_products_with_enough_coverage({tile_name})")
-    def _filter_products_with_enough_coverage(self, tile_name: str, products_info: List[Dict]) -> List[Dict]:
+    def _filter_products_with_enough_coverage(
+        self,
+        tile_name: str,
+        products_info: Sequence[FileProductInformation],
+    ) -> Sequence[FileProductInformation]:
         """
         Filter products (/pairs of products) that provide enough coverage for
         the requested tile.
@@ -1327,6 +1080,7 @@ class S1FileManager:
         if not current_tile:
             logger.info("Tile %s does not exist", tile_name)
             return []
+        logger.debug('calling _keep_products_with_enough_coverage(tgt=%s)', self.cfg.tile_to_product_overlap_ratio)
         products_info = _keep_products_with_enough_coverage(
                 products_info, self.cfg.tile_to_product_overlap_ratio, current_tile)
         return products_info
@@ -1355,9 +1109,9 @@ class S1FileManager:
 
         # Finally, search for the files with the requested polarities only
         for ci in products_info:
-            current_content = ci['product']
-            safe_dir        = ci['safe_dir']
-            manifest        = ci['manifest']
+            current_content = ci.product
+            safe_dir        = ci.safe_dir
+            manifest        = ci.manifest
             logger.debug('current_content: %s', current_content)
 
             # self._product_list[current_content.name] = current_content
@@ -1471,12 +1225,11 @@ class S1FileManager:
             logger.debug('- Manifest: %s', image.get_manifest())
             logger.debug('  Image list: %s', image.get_images_list())
             assert len(image.get_images_list()) > 0
+            assert image.product_info.get_current_tile_coverage() is not None
             intersect_raster.append( {
                 'raster'         : image,
-                'tile_origin'    : image.product_info['tile_origin'],
-                'tile_coverage'  : image.product_info['coverage'],
-                # 'orbit_direction': get_orbit_direction(manifest),
-                # 'orbit'          : '{:0>3d}'.format(get_relative_orbit(manifest)),
+                'tile_origin'    : image.product_info.get_tile_origin(),
+                'tile_coverage'  : image.product_info.get_current_tile_coverage(),
             })
 
         return intersect_raster

@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,8 +34,9 @@
 
 
 import logging
-from typing import Callable, Dict, List, Sequence, TypeVar
+from typing import Callable, Dict, List, Optional, Sequence, TypeVar
 
+from ..orbit._direction import Direction
 from .product import ProductInformation
 
 
@@ -113,7 +114,7 @@ def find_paired_products(
     return date_grouped_products
 
 
-def filter_image_groups_providing_enough_cover_by_pair(  # pylint: disable=too-many-locals
+def filter_image_groups_providing_enough_cover_by_pair(
     date_grouped_products: Dict[str, List[TProductInformation]],
     target_cover         : float,
     get_cover            : Callable[[TProductInformation], float],
@@ -194,4 +195,69 @@ def filter_images_providing_enough_cover_by_pair(  # pylint: disable=too-many-lo
                 first.associate_with(second)
                 second.associate_with(first)
             kept_products.extend(cov_prod.values())
+    return kept_products
+
+
+def keep_requested_orbits(
+    content_info:           Sequence[TProductInformation],
+    rq_orbit_direction:     Optional[str],
+    rq_relative_orbit_list: List[int],
+) -> Sequence[TProductInformation]:
+    """
+    Takes care of discarding products that don't match the requested orbit specification.
+
+    Note: Beware that specifications could be contradictory and end up discarding everything.
+    """
+    if not rq_orbit_direction and not rq_relative_orbit_list:
+        return content_info
+    kept_products = []
+    requested_orbit_direction = Direction.create(rq_orbit_direction) if rq_orbit_direction else None
+    for ci in content_info:
+        name      = ci.identifier
+        direction = ci.orbit_direction
+        orbit     = ci.relative_orbit
+        # logger.debug('CHECK orbit: %s / %s / %s', p, safe_dir, manifest)
+
+        # if rq_orbit_direction:
+        #     if direction != rq_orbit_direction:
+        #         logger.debug('Discard %s as its direction (%s) differs from the requested %s',
+        #                 name, direction, rq_orbit_direction)
+        #         continue
+        if requested_orbit_direction:
+            if direction != requested_orbit_direction:
+                logger.debug('Discard %s as its direction (%s) differs from the requested %s',
+                        name, direction, requested_orbit_direction)
+                continue
+        if rq_relative_orbit_list:
+            if orbit not in rq_relative_orbit_list:
+                logger.debug('Discard %s as its orbit (%s) differs from the requested ones %s',
+                        name, orbit, rq_relative_orbit_list)
+                continue
+        kept_products.append(ci)
+    return kept_products
+
+
+def keep_requested_platforms(
+    content_info:     Sequence[TProductInformation],
+    rq_platform_list: List[str]
+) ->  Sequence[TProductInformation]:
+    """
+    Takes care of discarding products that don't match the requested platform specification.
+
+    Note: Beware that specifications could be contradictory and end up discarding everything.
+    """
+    if not rq_platform_list:
+        return content_info
+    kept_products = []
+    for ci in content_info:
+        name     = ci.identifier
+        platform = ci.platform
+        logger.debug('CHECK platform: %s / %s', name, platform)
+
+        if rq_platform_list:
+            if platform not in rq_platform_list:
+                logger.debug('Discard %s as its platform (%s) differs from the requested ones %s',
+                             name, platform, rq_platform_list)
+                continue
+        kept_products.append(ci)
     return kept_products

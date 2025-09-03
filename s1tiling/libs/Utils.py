@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,10 +48,7 @@ import osgeo  # To test __version__
 import numpy as np
 
 from .utils.timer import timethis
-
 from .utils.xml import find, find_text, parse
-
-from .S1DateAcquisition import S1DateAcquisition
 
 
 Polygon = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]
@@ -367,7 +364,7 @@ def get_s1image_orbit_time_range(
     return start_time, stop_time, azimuth_times[0], azimuth_times[-1]
 
 
-def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
+def get_tile_origin_intersect_by_s1(grid_path: str, image: "S1DateAcquisition") -> List:
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
 

@@ -107,14 +107,14 @@ def declare_know_files(
             assert isinstance(val, (str, list)), f'GDAL metadata shall be strings or lists of strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.steps.commit_execution',    lambda tmp, out : True)
-    mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_orbit_information',  lambda manifest : file_db.get_orbit_information(manifest))
+    mocker.patch('s1tiling.libs.steps.commit_execution',             lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.Utils.get_origin',                   lambda manifest : file_db.get_origin(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_direction',          lambda manifest : file_db.get_orbit_direction(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_information',        lambda manifest : file_db.get_orbit_information(manifest))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
-    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_direction',          lambda manifest : file_db.get_orbit_direction(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
 
     def mock_commit_execution_for_SelectLIA(inp, out):

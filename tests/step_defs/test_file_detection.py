@@ -218,9 +218,10 @@ def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs_4_list_dir))
     mocker.patch('s1tiling.libs.S1FileManager.list_files', lambda dir, pat : list_files(dir, pat, known_files))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : 'DES')
-    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : 7)
+    mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : 'DES')
+    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : 7)
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._filter_products_with_enough_coverage', lambda slf, tile, pi: slf._products_info)
+    mocker.patch('s1tiling.libs.Utils.get_orbit_information',  lambda manifest : file_db.get_orbit_information(manifest))
 
 
 def _declare_known_S1_files(known_files, patterns: list[str], all_manifests: bool = True) -> None:
@@ -674,7 +675,7 @@ def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, n
 @then(parsers.parse('S2 product n° {idx} will be generated'))
 def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, idx) -> None:
     idx = int(idx)
-    kept_product_names = [str(p['product']) for p in dl_kepts]
+    kept_product_names = [str(p.product) for p in dl_kepts]
     logging.debug('Keeping: %s', kept_product_names)
     for i in range(2*idx, 2*idx+2):
         prod = '%s/%s' % (INPUT, file_db.product_name(i))
