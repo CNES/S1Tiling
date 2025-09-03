@@ -31,9 +31,12 @@
 
 """This public API of the orbit sub-module"""
 
-from ._manager import EOFFileManager, EOFConfiguration
+from ._manager   import EOFFileManager, EOFConfiguration
+from ._direction import Direction
 
 __all__ = [
     "EOFFileManager",
     "EOFConfiguration",
+
+    "Direction",
 ]
