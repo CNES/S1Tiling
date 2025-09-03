@@ -63,7 +63,7 @@ def declare_know_files(
         application_mocker: OTBApplicationsMockContext
 ) -> None:
     # logging.debug('declare_know_files(%s)', patterns)
-    all_files = file_db.all_files() + file_db.all_annotations()
+    all_files = sorted(file_db.all_files()) + sorted(file_db.all_annotations())
     # logging.debug('- all_files: %s', all_files)
     files = []
     for pattern in patterns:
@@ -80,11 +80,13 @@ def declare_know_files(
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     mocker.patch('s1tiling.libs.workspace.DEMWorkspace.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
+    original_isfile = os.path.isfile  # needs to be extracted before any mocking
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
-    mocker.patch('glob.glob',        lambda pat  : glob(pat, known_files))
-    mocker.patch('os.path.isfile',   lambda file : isfile(file, known_files))
-    mocker.patch('os.path.isdir',    lambda dir  : isdir(dir, known_dirs))
-    mocker.patch('os.makedirs',      lambda dir, **kw  : makedirs(dir, known_dirs))
+    mocker.patch('glob.glob',           lambda pat  : glob(pat, known_files))
+    mocker.patch('pathlib.Path.exists', lambda file : isfile(file, known_files, original_isfile))
+    mocker.patch('os.path.isfile',      lambda file : isfile(file, known_files, original_isfile))
+    mocker.patch('os.path.isdir',       lambda dir  : isdir(dir, known_dirs))
+    mocker.patch('os.makedirs',         lambda dir, **kw  : makedirs(dir, known_dirs))
     def mock_rename(fr, to):
         logging.debug('Renaming: %s --> %s', fr, to)
         known_files.append(to)

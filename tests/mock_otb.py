@@ -62,11 +62,17 @@ k_input_keys  = [
 k_output_keys = ['io.out', 'out', 'out.deg', 'out.cos', 'out.sin', 'out.tan', 'out.gamma_area']
 
 
-def isfile(filename, existing_files) -> bool:
+def isfile(filename, existing_files, original = None) -> bool:
     """
-    Mock-replacement for :func:`os.path.isfile`
+    Mock-replacement for :func:`os.path.isfile`.
+
+    In some situations, a fallback to the real files is required -- as Python will check which
+    Python files exists. Hence the `original` parameter, meant to receive a reference to the
+    original :method:`os.path.isfile`.
     """
-    res = filename in existing_files
+    if original and original(filename):
+        return True
+    res = str(filename) in existing_files
     logging.debug("mock.isfile(%s) = %s ∈ %s", filename, res, existing_files)
     return res
 
@@ -104,6 +110,9 @@ class MockDirEntry:
 
     def __str__(self) -> str:
         return self.name
+
+    def is_dir(self) -> bool:
+        return os.path.isdir(self.path)
 
     def __repr__(self) -> str:
         return f'MockDirEntry("{self.path}", "{self.inputdir}") --> {self.name}'
