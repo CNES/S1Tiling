@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -147,6 +147,9 @@ class MockDirEntry:
 
     def __repr__(self):
         return self.path
+
+    def is_dir(self) -> bool:
+        return os.path.isdir(self.path)
 
 
 def list_dirs(dir, pattern, known_dirs) -> List[MockDirEntry]:
@@ -818,7 +821,7 @@ def given_local_s2_product_list(
     return res
 
 
-# -----[ Requested Time range 
+# -----[ Requested Time range
 @given("Requested time range is deduced from known remote S1 products")
 def given_retroactive_set_time_range_from_inputs(
     configuration,
