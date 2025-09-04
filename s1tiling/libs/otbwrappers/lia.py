@@ -439,6 +439,9 @@ class _SumAllHeights(OTBStepFactory):
         return [input[self.__ingeoid] for input in inputs if self.__ingeoid in input.keys()][0]
 
     def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
+        """
+        Extracts DEM_RESAMPLING_METHOD from from input image metadata.
+        """
         logger.debug("Fetch DEM_RESAMPLING_METHOD from '%s'", inputpath)
         if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
             dst = gdal.Open(inputpath, gdal.GA_ReadOnly)

@@ -32,6 +32,7 @@
 
 """Defines the strong type :class:`Direction`"""
 
+from __future__ import annotations
 from enum import Enum
 from typing import Dict, Literal
 
@@ -47,13 +48,15 @@ class Direction(Enum):
     DES = _k_descending
 
     @staticmethod
-    def __from_string(s: Literal['ascending', 'descending', 'ASC', 'DES']) -> "Direction":
-        __map : Dict[Literal['ascending', 'descending', 'ASC', 'DES'], Direction] = {
-            _k_ascending      :  Direction.ASC,
+    def __from_string(s: str) -> Direction:
+        __map : Dict[str, Direction] = {
+            _k_ascending      : Direction.ASC,
             _k_descending     : Direction.DES,
             Direction.ASC.name: Direction.ASC,
             Direction.DES.name: Direction.DES,
         }
+        if s not in __map:
+            raise ValueError(f"{s} is not a valid Direction")
         return __map[s]
 
     @property
@@ -66,7 +69,7 @@ class Direction(Enum):
         >>> Direction.DES.short
         'DES'
         """
-        return self.name
+        return self.name  # type: ignore[return-value]
 
     @property
     def long(self) -> Literal['ascending']|Literal['descending']:
@@ -83,8 +86,8 @@ class Direction(Enum):
     @classmethod
     def create(
         cls,
-        value: "Direction"|Literal['ascending', 'descending', 'ASC', 'DES']
-    ) -> "Direction":
+        value: Direction|str,
+    ) -> Direction:
         """
         Factory method
 

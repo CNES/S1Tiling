@@ -1447,7 +1447,7 @@ def test_33NWB_202001_lia_mocked(tmpdir, demdir, ram, mocker, register_expectati
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1509,7 +1509,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1606,7 +1606,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker)
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, liadir, pathlib.Path(), demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1705,7 +1705,7 @@ def test_33NWB_202001_gamma_area_mocked(
     Mocked test of production of GAMMA_AREA file
     """
     baselinedir   = pathlib.Path('/BASELINE')
-    eofdir        = pathlib.Path('/UNUSED')
+    # eofdir        = pathlib.Path('/UNUSED')
     outputdir     = pathlib.Path('/OUTPUT')
     liadir        = pathlib.Path('/UNUSED')
     gamma_areadir = pathlib.Path('/GAMMA_AREA')
@@ -1713,7 +1713,7 @@ def test_33NWB_202001_gamma_area_mocked(
     logging.info("Baseline expected in '%s'", baselinedir)
 
     inputdir = str((baselinedir/'inputs').absolute())
-    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1761,7 +1761,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
     Mocked test of production of S2 normlim calibrated images.
     """
     baselinedir   = pathlib.Path('/BASELINE')
-    eofdir        = pathlib.Path('/UNUSED')
+    # eofdir        = pathlib.Path('/UNUSED')
     outputdir     = pathlib.Path('/OUTPUT')
     liadir        = pathlib.Path('/UNUSED')
     gamma_areadir = pathlib.Path('/GAMMA_AREA')
@@ -1770,7 +1770,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 
@@ -1854,7 +1854,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
     number_dates = 3
 
     baselinedir   = pathlib.Path('/BASELINE')
-    eofdir        = pathlib.Path('/UNUSED')
+    # eofdir        = pathlib.Path('/UNUSED')
     outputdir     = pathlib.Path('/OUTPUT')
     liadir        = pathlib.Path('/UNUSED')
     gamma_areadir = pathlib.Path('/GAMMA_AREA')
@@ -1863,7 +1863,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
 
     inputdir = str((baselinedir/'inputs').absolute())
 
-    set_environ_mocked(inputdir, outputdir, pathlib.Path(), gamma_areadir, demdir, tmpdir, ram)
+    set_environ_mocked(inputdir, outputdir, liadir, gamma_areadir, demdir, tmpdir, ram)
 
     tile = '33NWB'
 

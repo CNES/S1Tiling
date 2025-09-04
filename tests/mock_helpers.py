@@ -136,7 +136,7 @@ def declare_know_files(
         fullpath = mt.get('out_filename')
         logging.debug('Mock Set metadata in %s', fullpath)
         assert 'inputs' in mt, f'Looking for "inputs" in {mt.keys()}'
-        inputs = mt['inputs']
+        # inputs = mt['inputs']
         # indem = fetch_input_data('indem', inputs)
         assert 'dems' in mt, f"Metadata don't contain 'dems', only: {mt.keys()}"
         return mt

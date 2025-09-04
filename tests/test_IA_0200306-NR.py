@@ -33,28 +33,22 @@
 """Functional / non regression tests for (Ellipsoid) Incidence Angle Computations"""
 
 
-import fnmatch
 import logging
 import os
 import pathlib
 import shutil
 import subprocess
-from typing import List
 
 import otbApplication as otb
 
 import pytest
-from s1tiling.libs import Utils
 
-from s1tiling.libs.otbtools import otb_version
 from s1tiling.libs.outcome import DownloadOutcome
-# from unittest.mock import patch
 
 # import pytest_check
 from .mock_otb     import OTBApplicationsMockContext
 from .mock_data    import FileDB
 from .mock_helpers import declare_know_files
-# import s1tiling.S1Processor
 import s1tiling.libs.configuration
 from s1tiling.libs.api         import s1_process_ia
 from s1tiling.libs.steps       import ram as param_ram
@@ -124,7 +118,6 @@ class MockedSentinelOrbitFile:
 
 # ======================================================================
 def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
-    exp_out_xyz_s2      = file_db.xyz_ellipsoid_on_s2(False)
     spacing=10.0
 
     # ComputeGroundAndSatPositionsOnEllipsoid

@@ -654,7 +654,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             # - internal γ° RTC related files
             'height_4rtc', 's1_on_dem', 'gamma_area', 'resampled_dem',
         ]
-        self.creation_options = {}
+        self.creation_options : Dict = {}
         for key in creation_options_keys:
             s_cos = accessor.get('Processing', f'creation_options.{key}', fallback=None)
             # logging.debug(" creation_options.%s = %s", key, s_cos)
@@ -1029,7 +1029,7 @@ def _analyse_creation_option(
     # logging.debug(" creation_options.%s = %s", key, s_cos)
     # Default value is defined in associated StepFactories
     l_cos = _split_option(s_cos)
-    cos = {}
+    cos : Dict = {}
     if l_cos[0] in PIXEL_TYPES:
         cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
         cos['gdal_options'] = l_cos[1:]
@@ -1069,7 +1069,7 @@ def _extended_filename(
     cos = cfg.creation_options.get(product, {})
     gdal_options = cos.get('gdal_options', default)
     # logging.debug("gdal_options[%s] = %r  | default=%r", product, gdal_options, default)
-    assert gdal_options is not None, f"Invalid value stored in gdal_options"
+    assert gdal_options is not None, "Invalid value stored in gdal_options"
     assert isinstance(gdal_options, Sequence) and not isinstance(gdal_options, str), f"{gdal_options=!r} is not a list"
     res = ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
     return f'?{res}' if res else ''

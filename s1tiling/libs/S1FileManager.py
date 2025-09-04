@@ -32,7 +32,7 @@
 
 """ This module contains the S1FileManager class"""
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 import fnmatch
 from functools import partial
 import glob
@@ -79,7 +79,7 @@ from .s1.filters         import (
     keep_requested_orbits,
     keep_requested_platforms,
 )
-from .s1.product         import EOProductInformation, FileProductInformation, ProductInformation, product_property
+from .s1.product         import EOProductInformation, FileProductInformation, product_property
 from .utils.timer        import timethis
 from .utils.formatters   import ResilientFormater
 
@@ -137,8 +137,9 @@ class S1FileManagerConfiguration(Protocol):
 #             pass
 
 
-def is_there_a_final_product_that_needs_to_be_generated_for_this_input(
+def is_there_a_final_product_that_needs_to_be_generated_for_this_input(  # pylint: disable=too-many-arguments, too-many-locals
     input_product:            EOProductInformation,
+    *,
     tile_name:                str,
     polarizations:            List[str],
     calibration_type:         str,
@@ -243,8 +244,8 @@ def filter_images_or_ortho(kind, all_images: List[str]) -> List[str]:
     return images
 
 
-def _filter_s1_images_required_for_expected_s2_product(
-    # s1_products:         List[EOProduct],
+def _filter_s1_images_required_for_expected_s2_product(  # pylint: disable=too-many-arguments, too-many-locals
+    *,
     s1_products:         Sequence[EOProductInformation],
     tile_out_dir:        str,
     tile_name:           str,
@@ -254,7 +255,6 @@ def _filter_s1_images_required_for_expected_s2_product(
     relative_orbit_list: List[int],
     calibration_type:    str,
     name_formats:        List[Tuple[str, str]],  # Zip list of dname_fmt + fname_fmt
-# ) -> List[EOProduct]:
 ) -> Sequence[EOProductInformation]:
     # 1. First: list local output products matching the production criteria
 
@@ -285,8 +285,7 @@ def _filter_s1_images_required_for_expected_s2_product(
         'polarisation'    : f"({polarization.replace(' ', '|')})"
     }
 
-    # First rough filter on possible products
-    # fname where we replace: tile_name, orbit, orbit dir
+    # First rough filter on possible products fname where we replace: tile_name, orbit, orbit dir
     existing_output_products : List[str] = []
     for dname_fmt, fname_fmt in name_formats:
         # NB replace unknown keys with ".*"
@@ -354,7 +353,7 @@ def _keep_products_with_enough_coverage(
     return filter_images_providing_enough_cover_by_pair(
             content_info_with_intersection,
             target_cover,
-            get_cover=lambda ci: ci.get_current_tile_coverage()
+            get_cover=lambda ci: ci.get_current_tile_coverage() or 0
     )
 
 
@@ -504,7 +503,6 @@ class S1FileManager:
     """
 
     tiff_pattern     = "measurement/*.tiff"
-    manifest_pattern = "manifest.safe"
 
     def __init__(self, cfg: S1FileManagerConfiguration, dag: Optional[EODataAccessGateway]) -> None:
         # Configuration
@@ -1013,7 +1011,6 @@ class S1FileManager:
         }
         fname_fmt_4concatenation = fname_fmt_concatenation(self.cfg)
         k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
-        get_direc : Callable[[ProductInformation], str] = lambda ci: k_dir_assoc.get(ci.orbit_direction, ci.orbit_direction)
         prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
 
         # We need to report every S2 product that could not be generated,

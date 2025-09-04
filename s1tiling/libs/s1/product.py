@@ -56,7 +56,7 @@ logger = logging.getLogger('s1tiling.s1.product')
 
 
 # =====[ Abstract class ================================================
-class ProductInformation(ABC):
+class ProductInformation(ABC):  # pylint: disable=too-many-instance-attributes
     """
     Abstract class for all S1 product information
     """
@@ -96,15 +96,6 @@ class ProductInformation(ABC):
 
         #:> Associated product to which it'll be concatenated
         self.__associated_product : Optional[ProductInformation] = None
-
-        assert self.__identifier
-        assert self.__absolute_orbit
-        assert self.__relative_orbit
-        assert self.__orbit_direction
-        assert self.__platform
-        assert self.__polarization
-        assert self.__start_time
-        assert self.__completion_time
 
     @property
     def identifier(self) -> str:

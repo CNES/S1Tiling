@@ -32,6 +32,8 @@
 
 """ This module contains various utility functions"""
 
+from __future__ import annotations
+
 from collections.abc import Callable, Generator, Iterator, KeysView, Set
 import fnmatch
 import logging
@@ -39,7 +41,7 @@ import os
 from pathlib import Path
 import re
 import sys
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 # from numpy.lib import math
 import math
@@ -49,6 +51,9 @@ import numpy as np
 
 from .utils.timer import timethis
 from .utils.xml import find, find_text, parse
+
+if TYPE_CHECKING:
+    from .S1DateAcquisition import S1DateAcquisition
 
 
 Polygon = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]
@@ -364,7 +369,7 @@ def get_s1image_orbit_time_range(
     return start_time, stop_time, azimuth_times[0], azimuth_times[-1]
 
 
-def get_tile_origin_intersect_by_s1(grid_path: str, image: "S1DateAcquisition") -> List:
+def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
 

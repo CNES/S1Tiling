@@ -119,5 +119,3 @@ class ResilientFormater:
                 return outer.default
 
         return format_str.format_map(_Formatter(**kwargs))
-
-
