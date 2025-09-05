@@ -120,7 +120,7 @@ class MockDirEntry:
 
 def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
     """
-    Mock-replacement for :func:`Utils.list_dirs`
+    Mock-replacement for :func:`utils.path.list_dirs`
     """
     logging.debug('mock.list_dirs(%r, %r) ---> %s', dir, pattern, known_dirs)
     if pattern:
@@ -135,7 +135,7 @@ def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
 
 def list_files(dir, pattern, known_files, inputdir) -> List[MockDirEntry]:
     """
-    Mock-replacement for :func:`Utils.list_files`
+    Mock-replacement for :func:`utils.path.list_files`
     """
     logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
     if not pattern:

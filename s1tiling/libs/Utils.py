@@ -35,10 +35,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Iterator, KeysView, Set
-import fnmatch
 import logging
 import os
-from pathlib import Path
 import re
 import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -50,14 +48,14 @@ import osgeo  # To test __version__
 import numpy as np
 
 from .utils.timer import timethis
-from .utils.xml import find, find_text, parse
+from .utils.path  import AnyPath, as_path
+from .utils.xml   import find, find_text, parse
 
 if TYPE_CHECKING:
     from .S1DateAcquisition import S1DateAcquisition
 
 
 Polygon = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-
 
 EXTENSION_TO_DRIVER_MAP = {
     '.gpkg': 'GPKG',
@@ -114,7 +112,7 @@ class Layer:
         return self.__layer.GetSpatialRef()
 
 
-def gdal_open(path: Union[str,Path], access):
+def gdal_open(path: AnyPath, access):
     """
     Helper function that returns a context manager open GDAL Dataset objects.
 
@@ -142,22 +140,22 @@ class DatasetManager:
 
 
 def fetch_nodata_value(
-        inputpath: Union[str, Path],
-        is_running_dry: bool,
-        default_value: Union[int,float,str],
-        band_nr: int = 1
+    inputpath: AnyPath,
+    is_running_dry: bool,
+    default_value: Union[int,float,str],
+    band_nr: int = 1
 ) -> Union[int,float,str]:
     """
     Extract no-data value set in input image.
     """
     logger.debug("Fetch No-data value from '%s'", inputpath)
     if not is_running_dry:
-        with gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+        with gdal_open(as_path(inputpath), gdal.GA_ReadOnly) as ds:
             if not ds:
-                raise RuntimeError(f"Cannot open file '{inputpath}' to collect no-data value.")
+                raise RuntimeError(f"Cannot open file '{inputpath!s}' to collect no-data value.")
             band = ds.GetRasterBand(band_nr)
             if not band:
-                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath}' to collect no-data value.")
+                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath!s}' to collect no-data value.")
             nodata = band.GetNoDataValue()
             assert nodata is None or isinstance(nodata, (int, float, str))
             return nodata if nodata is not None else default_value
@@ -166,10 +164,10 @@ def fetch_nodata_value(
 
 
 def set_nodata_value(
-        inputpath: Union[str, Path],
-        is_running_dry: bool,
-        value: Union[int,float,str],
-        band_nr: int = 1
+    inputpath: AnyPath,
+    is_running_dry: bool,
+    value: Union[int,float,str],
+    band_nr: int = 1
 ) -> None:
     """
     Set no data value
@@ -177,7 +175,7 @@ def set_nodata_value(
     logger.debug("Set No-data value to %s in '%s'", value, inputpath)
     if is_running_dry:
         return
-    with gdal_open(inputpath, gdal.GA_Update) as ds:
+    with gdal_open(as_path(inputpath), gdal.GA_Update) as ds:
         if not ds:
             raise RuntimeError(f"Cannot open file {inputpath!r} to set no-data value.")
         band = ds.GetRasterBand(band_nr)
@@ -198,7 +196,7 @@ def test_nodata_for_bandmath(nodata, bandname):
         return f'{bandname} == {nodata}'
 
 
-def get_spacing(image_path: Union[str, Path]):
+def get_spacing(image_path: AnyPath):
     """
     Parse the image spacing.
     :param image_path: The image path
@@ -216,7 +214,7 @@ SAFE = "http://www.esa.int/safe/sentinel-1.0"
 S1   = "http://www.esa.int/safe/sentinel-1.0/sentinel-1"
 
 
-def get_relative_orbit(manifest: Union[str, Path]) -> int:
+def get_relative_orbit(manifest: AnyPath) -> int:
     """
     Returns the relative orbit number of the product.
     """
@@ -226,7 +224,7 @@ def get_relative_orbit(manifest: Union[str, Path]) -> int:
     return int(find_text(root, key, manifest, "relativeOrbitNumber"))
 
 
-def get_orbit_information(manifest: Union[str, Path]) -> Dict:
+def get_orbit_information(manifest: AnyPath) -> Dict:
     """
     :return: Orbit information:
         - absolute orbit number
@@ -237,11 +235,11 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
     prefix_map = {"safe": SAFE, "s1": S1}
     root = parse(manifest)
     node_orbit = find(
-            root,
-            "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
-            ctx_manifest,
-            "orbit reference",
-            namespaces=prefix_map)
+        root,
+        "metadataSection/metadataObject/metadataWrap/xmlData/safe:orbitReference",
+        ctx_manifest,
+        "orbit reference",
+        namespaces=prefix_map)
     absolute_orbit  = int(find_text(node_orbit, 'safe:orbitNumber',                      ctx_manifest, namespaces=prefix_map))
     relative_orbit  = int(find_text(node_orbit, 'safe:relativeOrbitNumber',              ctx_manifest, namespaces=prefix_map))
     orbit_direction = find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
@@ -249,14 +247,14 @@ def get_orbit_information(manifest: Union[str, Path]) -> Dict:
     if orbit_direction not in k_direction_map:
         raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
     return {
-            'absolute_orbit' : absolute_orbit,
-            'relative_orbit' : relative_orbit,
-            'orbit_direction': k_direction_map.get(orbit_direction, "???"),
+        'absolute_orbit' : absolute_orbit,
+        'relative_orbit' : relative_orbit,
+        'orbit_direction': k_direction_map.get(orbit_direction, "???"),
     }
 
 
 def get_origin(
-        manifest: Union[str, Path]
+    manifest: AnyPath
 ) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float], str]:
     """Parse the coordinate of the origin in the manifest file to return its footprint.
 
@@ -269,11 +267,11 @@ def get_origin(
     prefix_map = {"safe": SAFE}
     root = parse(manifest)
     node_footprint = find(
-            root,
-            "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
-            f"manifest {manifest!r}",
-            "coordinates",
-            namespaces=prefix_map)
+        root,
+        "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
+        f"manifest {manifest!r}",
+        "coordinates",
+        namespaces=prefix_map)
     srsName = node_footprint.attrib['srsName']
     srsName = re.sub(r"http://www.opengis.net/gml/srs/(epsg).xml#(\d+)", r"\1:\2", srsName)
 
@@ -321,7 +319,7 @@ def get_shape_from_polygon(
     return poly
 
 
-def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
+def get_shape(manifest: AnyPath) -> ogr.Geometry:
     """
     Returns the shape of the footprint of the S1 product.
     """
@@ -335,14 +333,11 @@ def get_shape(manifest: Union[str, Path]) -> ogr.Geometry:
     return shape
 
 
-def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
+def get_s1image_poly(s1image: AnyPath) -> ogr.Geometry:
     """
     Return shape of the ``s1image`` as a polygon
     """
-    if isinstance(s1image, str):
-        manifest = Path(s1image).parents[1] / 'manifest.safe'
-    else:
-        manifest = s1image.get_manifest()
+    manifest = as_path(s1image).parents[1] / 'manifest.safe'
 
     logger.debug("Manifest: %s", manifest)
     assert manifest.exists(), f"Manifest {manifest!r} doesn't exist!"
@@ -351,7 +346,7 @@ def get_s1image_poly(s1image: Union[str, S1DateAcquisition]) -> ogr.Geometry:
 
 
 def get_s1image_orbit_time_range(
-        annotation_file: Union[Path, str]
+    annotation_file: AnyPath,
 ) -> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
     """
     Returns the start and stop time of the orbit information contained in the S1 product.
@@ -481,7 +476,7 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
     raise ValueError("MGRS tile does not exist", mgrs_tile_name)
 
 
-def get_orbit_direction(manifest: Union[str, Path]) -> Literal['DES', 'ASC']:
+def get_orbit_direction(manifest: AnyPath) -> Literal['DES', 'ASC']:
     """This function returns the orbit direction from a S1 manifest file.
 
     Args:
@@ -654,52 +649,6 @@ def flatten_stringlist(itr) -> Generator[str, None, None]:
                 yield from flatten_stringlist(x)
             except TypeError:
                 yield x
-
-
-def list_files(directory: str, pattern: Union[None,str,re.Pattern] = None) -> List[os.DirEntry]:
-    """
-    Efficient listing of files in requested directory.
-
-    This version shall be faster than glob to isolate files only as it keeps in "memory"
-    the kind of the entry without needing to stat() the entry again.
-
-    Requires Python 3.5
-    """
-    assert not isinstance(directory, re.Pattern)
-    if not pattern:
-        filt = lambda path: path.is_file()
-    elif isinstance(pattern, re.Pattern):
-        filt = lambda path: path.is_file() and re.match(pattern, path.name)
-    else:
-        filt = lambda path: path.is_file() and fnmatch.fnmatch(path.name, pattern)
-
-    with os.scandir(directory) as nodes:
-        res = list(filter(filt, nodes))
-        # res = [entry for entry in nodes if filt(entry)]
-    return res
-
-
-def list_dirs(directory: str, pattern: Union[None,str,re.Pattern] = None) -> List[os.DirEntry]:
-    """
-    Efficient listing of sub-directories in requested directory.
-
-    This version shall be faster than glob to isolate directories only as it keeps in
-    "memory" the kind of the entry without needing to stat() the entry again.
-
-    Requires Python 3.5
-    """
-    if not pattern:
-        filt = lambda path: path.is_dir()
-    elif isinstance(pattern, re.Pattern):
-        filt = lambda path: path.is_dir() and re.match(pattern, path.name)
-    else:
-        filt = lambda path: path.is_dir() and fnmatch.fnmatch(path.name, pattern)
-
-    with os.scandir(directory) as nodes:
-        res = list(filter(filt, nodes))
-        logger.debug("RES(%r)= %s", directory, res)
-        # res = [entry for entry in nodes if filt(entry)]
-    return res
 
 
 class RedirectStdToLogger:

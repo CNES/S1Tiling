@@ -59,8 +59,6 @@ from .Utils              import (
     Layer,
     extract_product_start_time,
     get_shape,
-    list_dirs,
-    list_files,
     regex_escape_dot,
     regex_join,
 )
@@ -82,6 +80,7 @@ from .s1.filters         import (
 from .s1.product         import EOProductInformation, FileProductInformation, product_property
 from .utils.timer        import timethis
 from .utils.formatters   import ResilientFormater
+from .utils.path         import list_dirs, list_files
 
 setup_logging(verbose=1)
 
