@@ -135,12 +135,39 @@ class S1FileManagerConfiguration(Protocol):
 #         except OSError:
 #             pass
 
+def iterate_on_filename_formats(
+    fname_formats: Sequence[str],
+    polarizations: Sequence[str],
+    fname_options: Dict[str, str],
+    *,
+    build_a_regex: bool,
+) -> Iterable[str]:
+    """
+    Given filename options, yields a regex for all the possible output filename formats.
+
+    The filename options depend on output target (tile name, orbit direction...), and on
+    metadata extracted from the name of the input product.
+    """
+    assert len(fname_formats) > 0, "No output filename formats have been registered!"
+    any_char = '.*' if build_a_regex else '*'
+    for fname_fmt in fname_formats:
+        if build_a_regex:
+            fname_fmt = regex_escape_dot(fname_fmt)
+        if "polarisation" in fname_fmt:
+            # Special case for polarisation: a same input may be used for several outputs
+            for polarisation in polarizations:
+                # logger.debug('yielding format from %s <-- %s', fname_fmt, fname_options)
+                yield ResilientFormater(any_char).format(fname_fmt, polarisation=polarisation, **fname_options)
+        else:
+            # logger.debug('yielding format from %s <-- %s', fname_fmt, fname_options)
+            yield ResilientFormater(any_char).format(fname_fmt, **fname_options)
+
 
 def is_there_a_final_product_that_needs_to_be_generated_for_this_input(  # pylint: disable=too-many-arguments, too-many-locals
     input_product:            EOProductInformation,
     *,
     tile_name:                str,
-    polarizations:            List[str],
+    polarizations:            Sequence[str],
     calibration_type:         str,
     fname_formats:            Sequence[str],
     existing_output_products: List[str],
@@ -160,6 +187,7 @@ def is_there_a_final_product_that_needs_to_be_generated_for_this_input(  # pylin
     logger.debug('>  Searching whether %r final products have already been generated (in polarizations: %s)',
                  pid, polarizations)
     if len(existing_output_products) == 0:
+        logger.debug('  -> No known output => keep every possible input')
         return True
     ## # e.g. id=S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5,
     ## prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}_(\d{6})_.*')
@@ -194,24 +222,8 @@ def is_there_a_final_product_that_needs_to_be_generated_for_this_input(  # pylin
         'orbit'             : f"{relative_orbit:03}",
     }
 
-    def iterate_on_filename_formats() -> Iterable[str]:
-        """
-        Given filename options, yields a regex for all the possible output filename formats.
-
-        The filename options depend on output target (tile name, orbit direction...), and on
-        metadata extracted from the name of the input product.
-        """
-        for fname_fmt in fname_formats:
-            fname_fmt = regex_escape_dot(fname_fmt)
-            if "polarisation" in fname_fmt:
-                # Special case for polarisation: a same input may be used for several outputs
-                for polarisation in polarizations:
-                    yield ResilientFormater('.*').format(fname_fmt, polarisation=polarisation, **fname_options)
-            else:
-                yield ResilientFormater('.*').format(fname_fmt, **fname_options)
-
     # TODO: handle case where filtered output only need non-filtered output
-    for fname_pattern in iterate_on_filename_formats():
+    for fname_pattern in iterate_on_filename_formats(fname_formats, polarizations, fname_options, build_a_regex=True):
         logger.debug("   - check if there are actual outputs matching %r", fname_pattern)
         output_re = re.compile(fname_pattern, re.IGNORECASE)
         for op in existing_output_products:
