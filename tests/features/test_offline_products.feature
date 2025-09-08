@@ -58,6 +58,8 @@ Feature: Test behaviour on non-available products
         When  Filtering products to use
         Then  1 S2 product(s) will be generated
         And   S2 product n° 0 will be generated
+        And   S2 product n° 1 will be discarded
+        And   S2 product n° 2 will be discarded
 
     Scenario: Some are available, some are not... 2/3
         Given Request on all dates
@@ -70,6 +72,8 @@ Feature: Test behaviour on non-available products
         When  Filtering products to use
         Then  1 S2 product(s) will be generated
         And   S2 product n° 1 will be generated
+        And   S2 product n° 0 will be discarded
+        And   S2 product n° 2 will be discarded
 
     Scenario: Some are available, some are not... 3/3
         Given Request on all dates
@@ -82,5 +86,24 @@ Feature: Test behaviour on non-available products
         When  Filtering products to use
         Then  1 S2 product(s) will be generated
         And   S2 product n° 2 will be generated
+        And   S2 product n° 0 will be discarded
+        And   S2 product n° 1 will be discarded
+
+    Scenario: Some are available, some are not... 1/3 (gamma)
+        Given Request on all dates
+        And   S1 product 0 has been downloaded
+        And   S1 product 1 has been downloaded
+        And   S1 product 2 has been downloaded
+        And   S1 product 3 download has timed-out
+        And   S1 product 4 download has timed-out
+        And   S1 product 5 download has timed-out
+        And   We gamma_naught_rtc calibrate
+        When  Filtering products to use
+        Then  1 S2 product(s) will be generated
+        And   S2 product n° 0 will be generated
+        And   S2 product n° 1 will be discarded
+        And   S2 product n° 2 will be discarded
+        And   Gamma Area S2 product n° 1 will be discarded
+        And   Gamma Area S2 product n° 2 will be discarded
 
 

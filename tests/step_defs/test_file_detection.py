@@ -34,7 +34,7 @@ import fnmatch
 import logging
 import os
 # from pathlib import Path
-from typing import Dict, List, Sequence, Set
+from typing import Callable, Dict, List, Sequence, Set, Tuple
 from eodag.api.search_result import SearchResult
 
 from eof.products import re
@@ -59,6 +59,7 @@ from s1tiling.libs.configuration import (
     fname_fmt_lia_corrected,
 )
 from s1tiling.libs.outcome       import S1DownloadOutcome
+from s1tiling.libs.s1.product    import FileProductInformation
 
 from eodag.utils.exceptions import (
     # AuthenticationError,
@@ -633,17 +634,22 @@ def dl_successes():
     return l
 
 @pytest.fixture
-def dl_failures():
+def dl_failures() -> List[S1DownloadOutcome]:
     l = []
     return l
 
 @pytest.fixture
-def dl_kepts():
+def dl_kepts() -> Sequence[FileProductInformation]:
+    l = []
+    return l
+
+@pytest.fixture
+def dl_skip() -> List[str]:
     l = []
     return l
 
 @given(parsers.parse('S1 product {idx} has been downloaded'))
-def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, mocker, idx) -> None:
+def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, idx) -> None:
     product = MockEOProduct(int(idx))
     dl_successes.append(product)
     _declare_known_S1_files(known_files, [product.as_dict()['id']])
@@ -678,6 +684,10 @@ def when_filtering_products_to_use(
     logging.debug('Keeping: %s/%s', len(dl_kepts), len(manager._products_info))
     for k in dl_kepts:
         logging.debug(' -> %s', k)
+    dl_skip.extend(manager.get_skipped_S2_products())
+    logging.debug('Skipping: %s outputs', len(dl_skip))
+    for k in dl_skip:
+        logging.debug(' -> %s', k)
 
 @then('All S2 products will be generated')
 def then_all_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts) -> None:
@@ -685,23 +695,63 @@ def then_all_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts) 
     assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
 
 @then('No S2 product will be generated')
-def then_no_S2_product_will_be_generated(dl_successes, dl_failures, dl_kepts) -> None:
+def then_no_S2_product_will_be_generated(dl_kepts: Sequence[FileProductInformation]) -> None:
     assert len(dl_kepts) == 0, f'Keeping {dl_kepts} instead of nothing'
 
 @then(parsers.parse('{nb} S2 product(s) will be generated'))
-def then_nb_S2_products_will_be_generated(dl_successes, dl_failures, dl_kepts, nb) -> None:
-    assert len(dl_kepts) == 2*int(nb), f'Keeping {[p["product"] for p in dl_kepts]} instead of {nb}'
+def then_nb_S2_products_will_be_generated(dl_kepts: Sequence[FileProductInformation], nb) -> None:
+    assert len(dl_kepts) == 2*int(nb), f'Keeping {[p.product for p in dl_kepts]} instead of {nb}'
     # assert len(dl_failures) == 0, f'There should be no failures. Found: {dl_failures}'
 
 @then(parsers.parse('S2 product n° {idx} will be generated'))
-def then_S2_product_idx_will_be_generated(dl_successes, dl_failures, dl_kepts, idx) -> None:
+def then_S2_product_idx_will_be_generated(dl_kepts: Sequence[FileProductInformation], idx: int) -> None:
     idx = int(idx)
     kept_product_names = [str(p.product) for p in dl_kepts]
     logging.debug('Keeping: %s', kept_product_names)
     for i in range(2*idx, 2*idx+2):
-        prod = '%s/%s' % (INPUT, file_db.product_name(i))
-        logging.debug('...checking #%s: %s', i, prod)
-        assert prod in kept_product_names
+        s1_input = '%s/%s' % (INPUT, file_db.product_name(i))
+        logging.debug('...checking kept #%s: %s', i, s1_input)
+        assert s1_input in kept_product_names
+
+def _then_xx_product_idx_will_be_discarded(
+    product_name_generator: Callable,
+    dl_skip: List[str],
+    idx: int,
+) -> None:
+    idx = int(idx)
+    logging.debug('Failures:')
+    for skip in dl_skip:
+        logging.debug("-> %s", skip)
+    skipped_product_names = [p for p in dl_skip]
+    logging.debug('Discarding:')
+    for skipped in skipped_product_names:
+        logging.debug('-> %s', skipped)
+
+    s1_inputs = [file_db.product_name(i) for i in range(2*idx, 2*idx+2)]
+    prod = product_name_generator(idx)
+    logging.debug('...checking discarded #%s: %s && %s', idx, prod, ' | '.join(s1_inputs))
+    for skipped in skipped_product_names:
+        if os.path.basename(prod) in skipped and (
+            s1_inputs[0] in skipped or s1_inputs[1] in skipped
+        ):
+            break
+    else:
+        assert False, f"{os.path.basename(prod)} not in {skipped_product_names}"
+
+@then(parsers.parse('S2 product n° {idx} will be discarded'))
+def then_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int, configuration) -> None:
+    calib = K_CALIBRATION_TO_SUFFIX[configuration.calibration_type]
+    product_name_generator = lambda idx : file_db.concatfile_from_two(idx, tmp=False, polarity='*', calibration=calib)
+    _then_xx_product_idx_will_be_discarded(product_name_generator, dl_skip, idx)
+
+@then(parsers.parse('Gamma Area S2 product n° {idx} will be discarded'))
+def then_gamma_area_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int) -> None:
+    # Note: the error tested and reported is partly incorrect.
+    # Yes, the γ area preduct cannot be generated from the pair of S1 input
+    # but... it may be generated from a different pair
+    product_name_generator = lambda idx : file_db.gamma_area_on_s2(tmp=False)
+    _then_xx_product_idx_will_be_discarded(product_name_generator, dl_skip, idx)
+
 
 # ######################################################################
 # Test download for γ°RTC
