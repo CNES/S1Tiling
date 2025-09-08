@@ -593,7 +593,11 @@ class S1FileManager:
             if not os.path.isdir(path):
                 os.makedirs(path, exist_ok=True)
 
-    def keep_X_latest_S1_files(self, threshold: int, tile_name: str) -> None:
+    def keep_X_latest_S1_files(
+        self, threshold:     int,
+        tile_name:           str,
+        output_name_formats: List[Tuple[str, str]],
+    ) -> None:
         """
         Makes sure there is no more than `threshold`  S1 SAFEs in the raw directory.
         Oldest ones will be removed.
@@ -606,7 +610,7 @@ class S1FileManager:
                 logger.debug("Remove old SAFE: %s", os.path.basename(safe))
                 shutil.rmtree(safe, ignore_errors=True)
             self._refresh_s1_product_list()  # TODO: decremental update
-            self._update_s1_img_list_for(tile_name)
+            self._update_s1_img_list_for(tile_name, output_name_formats)
 
     def _search_products(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -830,7 +834,6 @@ class S1FileManager:
         )
 
         # And finally download all!
-        # TODO: register downloading into Dask
         logger.info("%s remote S1 product(s) will be downloaded", len(products))
         for p in products:
             logger.info('- %s: %s %03d, [%s]', p,
@@ -928,7 +931,7 @@ class S1FileManager:
                 self.__failed_S1_downloads_by_S2_uid[key].append(fp)
             else:
                 self.__failed_S1_downloads_by_S2_uid[key] = [fp]
-            logger.debug('Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
+            logger.debug('  -> Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
         self.__download_failures.extend(failed_products)
 
     def _refresh_s1_product_list(self, new_products: Optional[List[EOProduct]] = None) -> None:
@@ -1013,14 +1016,16 @@ class S1FileManager:
 
     def _filter_complete_dowloads_by_pair(  # pylint: disable=too-many-locals
         self,
-        tile_name: str,
-        s1_products_info: Sequence[FileProductInformation],
+        tile_name:           str,
+        s1_products_info:    Sequence[FileProductInformation],
+        output_name_formats: List[Tuple[str, str]],
     ) -> Sequence[FileProductInformation]:
+        fname_formats=[fname_fmt for _, fname_fmt in output_name_formats]
         keys = {
             'tile_name'         : tile_name,
             'calibration_type'  : self.cfg.calibration_type,
         }
-        fname_fmt_4concatenation = fname_fmt_concatenation(self.cfg)
+        assert output_name_formats, "Empty output filename formats"
         k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
         prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
 
@@ -1045,20 +1050,21 @@ class S1FileManager:
             match                     = prod_re.match(eo_id)
             keys['flying_unit_code']  = match.groups()[0].lower() if match else "S1?"
             keys['acquisition_stamp'] = f'{eo_date}txxxxxx'
-            keys['polarisation']      = '*'
-            s2_product_name = fname_fmt_4concatenation.format_map(keys)
+            # TODO: Find a way to not report error when we have enough S1 products for γ-areas
+            #       In those cases, any valid pair is enough. Missing pairs can be disregarded
             keeps   = []  # Workaround to filter out the current list.
+            s2_product_names = list (iterate_on_filename_formats(fname_formats, ('*'), keys, build_a_regex=False))
             for ci in s1_products_info:
                 pid   = ci.identifier
                 match = prod_re.match(pid)
                 date  = match.groups()[1] if match else "????????"
                 ron   = ci.relative_orbit
-                logger.debug('Check if the ignore-key %s matches the key (%s) of the paired S1 product %s', f'{date}#{ron}', failure, pid)
+                logger.debug('* Check if the ignore-key %s matches the key (%s) of the paired S1 product %s', f'{date}#{ron}', failure, pid)
                 if f'{date}#{ron}' == failure:
                     assert eo_date == date
                     assert eo_ron  == ron
                     assert eo_dir  == ci.orbit_direction.short, f"EO product: {eo_id} doesn't match product on disk: {pid}"
-                    logger.debug('%s will be ignored to produce %s because: %s', ci, s2_product_name, missing)
+                    logger.debug('  -> %s will be ignored to produce %s because: %s', ci, ' and '.join(s2_product_names), missing)
                     # At most this could happen once as s1 products go by pairs,
                     # and thus a DL failure may be associated to zero or one DL success.
                     # assert len(self.__download_failures[failure]) == 1
@@ -1066,9 +1072,10 @@ class S1FileManager:
                 else:
                     keeps.append(ci)
             s1_products_info = keeps
-            logger.warning("Don't generate %s, because %s", s2_product_name, missing)
-            self.__skipped_S2_products.append(
-                    f'Download failure: {s2_product_name} cannot be produced because of the following issues with the inputs: {missing}')
+            for s2_product_name in s2_product_names:
+                logger.warning("Don't generate %s, because %s", s2_product_name, missing)
+                self.__skipped_S2_products.append(
+                        f'Download failure: {s2_product_name!r} cannot be produced because of the following issues with the inputs: {missing}')
         return s1_products_info
 
     @timethis("_filter_products_with_enough_coverage({tile_name})")
@@ -1094,7 +1101,9 @@ class S1FileManager:
         return products_info
 
     def _update_s1_img_list_for(  # pylint: disable=too-many-locals
-            self, tile_name: str
+            self,
+            tile_name:           str,
+            output_name_formats: List[Tuple[str, str]],
     ) -> None:
         """
         This method updates the list of S1 images available
@@ -1109,7 +1118,7 @@ class S1FileManager:
 
         # Filter products not associated to offline/timeout-ed products
         # [p.properties["storageStatus"] for p in search_results]
-        products_info = self._filter_complete_dowloads_by_pair(tile_name, self._products_info)
+        products_info = self._filter_complete_dowloads_by_pair(tile_name, self._products_info, output_name_formats)
         logger.debug('%s products remaining after clearing out download failures: %s', len(products_info), products_info)
 
         # Filter products with enough coverage of the tile
@@ -1208,7 +1217,11 @@ class S1FileManager:
         return is_in_range
 
     @timethis("Intersecting raster list w/ {tile_name_field}", logging.INFO)
-    def get_s1_intersect_by_tile(self, tile_name_field: str) -> List[Dict]:
+    def get_s1_intersect_by_tile(
+        self,
+        tile_name_field:     str,
+        output_name_formats: List[Tuple[str, str]],
+    ) -> List[Dict]:
         """
         This method returns the list of S1 product intersecting a given MGRS tile
 
@@ -1227,7 +1240,7 @@ class S1FileManager:
 
         # Get all the images that cover enough of the requested tile (the
         # coverage may be obtained with 2 concatenated images)
-        self._update_s1_img_list_for(tile_name_field)
+        self._update_s1_img_list_for(tile_name_field, output_name_formats)
 
         for image in self.get_raster_list():
             logger.debug('- Manifest: %s', image.get_manifest())

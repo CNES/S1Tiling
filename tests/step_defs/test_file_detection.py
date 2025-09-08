@@ -204,6 +204,22 @@ def configuration() -> Configuration:
 # ======================================================================
 # Given steps
 
+def _output_name_formats(configuration) -> List[Tuple[str,str]]:
+    res = []
+    if configuration.calibration_type == 'gamma_area':
+        res.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
+    elif configuration.calibration_type == 'normlim':
+        res.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
+    elif configuration.calibration_type == 'gamma_naught_rtc':
+        res.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
+        res.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
+    else:
+        res.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
+    if configuration.filter:
+        res.append((dname_fmt_filtered(configuration), fname_fmt_filtered(configuration)))
+    return res
+
+
 def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
     # for k in known_files:
         # logging.debug(' - %s', k)
@@ -332,7 +348,7 @@ class MockEOProduct:
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @given('Request on 8th jan')
-def given_requets_on_8th_jan(configuration) -> None:
+def given_requests_on_8th_jan(configuration) -> None:
     logging.debug('Request on 8th jan')
     configuration.first_date              = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
     configuration.last_date               = (to_datetime(file_db.CONCATS[0]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
@@ -340,7 +356,7 @@ def given_requets_on_8th_jan(configuration) -> None:
     configuration.nb_products_to_download = 2
 
 @given('Request on all dates')
-def given_requets_on_all_dates(configuration) -> None:
+def given_requests_on_all_dates(configuration) -> None:
     logging.debug('Request on all dates')
     configuration.first_date              = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
     configuration.last_date               = (to_datetime(file_db.CONCATS[-1]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
@@ -348,22 +364,22 @@ def given_requets_on_all_dates(configuration) -> None:
     configuration.nb_products_to_download = len(file_db.FILES)
 
 @given('Request on VV')
-def given_requets_on_VV(configuration) -> None:
+def given_requests_on_VV(configuration) -> None:
     logging.debug('Request on VV')
     configuration.polarisation = 'VV'
 
 @given('Request on VH')
-def given_requets_on_VH(configuration) -> None:
+def given_requests_on_VH(configuration) -> None:
     logging.debug('Request on VH')
     configuration.polarisation = 'VH'
 
 @given('Request for _beta')
-def given_requets_for_beta(configuration) -> None:
+def given_requests_for_beta(configuration) -> None:
     logging.debug('Request for _beta')
     configuration.calibration_type = 'beta'
 
 @given('Request with default fname_fmt_concatenation')
-def given_requets_for_beta_with_default_fname_fmt_concatenation(configuration) -> None:
+def given_requests_for_beta_with_default_fname_fmt_concatenation(configuration) -> None:
     logging.debug('Request with default fname_fmt_concatenation')
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
 
@@ -505,8 +521,9 @@ def given_a_dname_fmt_filtered_has_a_different_value(configuration) -> None:
 def _search(configuration, image_list, polarisation) -> None:
     configuration.polarisation = polarisation
     manager = S1FileManager(configuration, None)
+    output_name_formats = _output_name_formats(configuration)
     manager._refresh_s1_product_list()
-    manager._update_s1_img_list_for('33NWB')
+    manager._update_s1_img_list_for('33NWB', output_name_formats)
     logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     for p in manager.get_raster_list():
         # logging.debug(" * %s", p.get_manifest())
@@ -550,10 +567,11 @@ def when_searching_which_S1_to_download(configuration, mocker) -> list:
 
     origin_33NWB = file_db.tile_origins('33NWB')
     extent_33NWB = polygon2extent(origin_33NWB)
-    manager._update_s1_img_list_for('33NWB')
     output_name_formats=[(dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration))]
     if configuration.filter:
         output_name_formats=[(dname_fmt_filtered(configuration), fname_fmt_filtered(configuration))]
+    # output_name_formats = _output_name_formats(configuration)
+    manager._update_s1_img_list_for('33NWB', output_name_formats)
 
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     paths = manager._download(
@@ -641,18 +659,21 @@ def given_S1_product_idx_has_timed_out(dl_failures, mocker, idx) -> None:
 
 
 @when('Filtering products to use')
-def when_filtering_products_to_use(configuration, dl_successes, dl_failures, dl_kepts, mocker, known_files, known_dirs) -> None:
+def when_filtering_products_to_use(
+    configuration, dl_successes, dl_failures, dl_kepts, dl_skip, mocker, known_files, known_dirs
+) -> None:
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
+    output_name_formats = _output_name_formats(configuration)
     manager = S1FileManager(configuration, None)
     # `manager._products_info` is filled-up during manager construction
     # from the scanned (mocked) directories
-    assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p["product"] for p in manager._products_info]},\nDownloading: {dl_successes}'
+    assert len(manager._products_info) == len(dl_successes), f'\nFound on disk: {[p.product for p in manager._products_info]},\nDownloading: {dl_successes}'
     if dl_failures:
         manager._analyse_download_failures(dl_failures)
     assert len(dl_kepts) == 0
     dl_kepts.extend(
-            manager._filter_complete_dowloads_by_pair(TILE, manager._products_info)
-            )
+        manager._filter_complete_dowloads_by_pair(TILE, manager._products_info, output_name_formats)
+    )
     assert dl_kepts is not manager._products_info
     logging.debug('Keeping: %s/%s', len(dl_kepts), len(manager._products_info))
     for k in dl_kepts:
@@ -860,7 +881,7 @@ def given_gamma_area_scenario(configuration):
 # ======================================================================
 # @when's
 
-K_CALIBRATIO_TO_SUFFIX = {
+K_CALIBRATION_TO_SUFFIX = {
     'sigma'           : '_sigma',
     'gamma_naught_rtc': '_GammaNaughtRTC',
     'gamma_area'      : '_GammaNaughtRTC',  # not a real calibration...
@@ -874,7 +895,7 @@ def _declare_known_S2_files_from_ids(
     configuration
 ) -> None:
     files = []
-    calib = K_CALIBRATIO_TO_SUFFIX[configuration.calibration_type]
+    calib = K_CALIBRATION_TO_SUFFIX[configuration.calibration_type]
 
     nb_products = file_db.nb_S2_products
     all_S2 = [
@@ -933,21 +954,10 @@ def when_searching_which_S1_to_download2(
 
     origin_33NWB = file_db.tile_origins('33NWB')
     extent_33NWB = polygon2extent(origin_33NWB)
-    manager._update_s1_img_list_for('33NWB')
 
-    output_name_formats = []
-    if configuration.calibration_type == 'gamma_area':
-        output_name_formats.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
-    elif configuration.calibration_type == 'normlim':
-        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
-    elif configuration.calibration_type == 'gamma_naught_rtc':
-        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
-        output_name_formats.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
-    else:
-        output_name_formats.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
-    if configuration.filter:
-        output_name_formats.append((dname_fmt_filtered(configuration), fname_fmt_filtered(configuration)))
+    output_name_formats = _output_name_formats(configuration)
 
+    manager._update_s1_img_list_for('33NWB', output_name_formats)
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     paths = manager._download(
         None,

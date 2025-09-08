@@ -253,7 +253,7 @@ def get_s1_files_for_tile(
     :return: An :class:`Outcome` of list of S1 image information, or the :class:`RuntimeError` that has happened.
     :raise DownloadS1FileError: if a critical error occurs
     """
-    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
+    s1_file_manager.keep_X_latest_S1_files(1000, tile_name, output_name_formats)
 
     try:
         s1_file_manager.download_images(tiles=[tile_name], output_name_formats=output_name_formats, dryrun=dryrun)
@@ -267,7 +267,7 @@ def get_s1_files_for_tile(
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name) from e
 
-    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name, output_name_formats)
     logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
     return IntersectingS1FilesOutcome(intersect_raster_list)
 
