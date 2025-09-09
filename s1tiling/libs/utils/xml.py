@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,14 +33,15 @@
 """ This module contains various utility functions related to xml library"""
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import Optional, TypeVar, Union
 import xml.etree.ElementTree as ET
+
+from .path import AnyPath
 
 T = TypeVar('T')
 
 
-def parse(filename: Union[str, Path]) -> ET.ElementTree:
+def parse(filename: AnyPath) -> ET.ElementTree:
     """
     Returns root of XML document.
     """
@@ -48,11 +49,11 @@ def parse(filename: Union[str, Path]) -> ET.ElementTree:
 
 
 def find(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
+    element: Union[ET.Element, ET.ElementTree],
+    key    : str,
+    context: AnyPath,
+    keytext: Optional[str] = None,
+    **kwargs
 ) -> ET.Element:
     """
     Helper function that finds an XML tag within a node.
@@ -68,16 +69,16 @@ def find(
     node = element.find(key, **kwargs)
     if node is None:
         kt = keytext or f"{key} node"
-        raise RuntimeError(f"Cannot find {kt!r} in {context}")
+        raise RuntimeError(f"Cannot find {kt!r} in {context!s}")
     return node
 
 
 def find_text(
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs
+    element: Union[ET.Element, ET.ElementTree],
+    key    : str,
+    context: AnyPath,
+    keytext: Optional[str] = None,
+    **kwargs
 ) -> str:
     """
     Helper function that finds and returns the text contained in an XML tag
@@ -95,17 +96,17 @@ def find_text(
     node = find(element, key, context, keytext, **kwargs)
     if not node.text:
         kt = keytext or f"{key} node"
-        raise RuntimeError(f"Empty {kt!r} in {context}")
+        raise RuntimeError(f"Empty {kt!r} in {str(context)}")
     return node.text
 
 
 def find_as(
-        to     : Callable[[str], T],
-        element: Union[ET.Element, ET.ElementTree],
-        key    : str,
-        context: Union[str, Path],
-        keytext: Optional[str] = None,
-        **kwargs,
+    to     : Callable[[str], T],
+    element: Union[ET.Element, ET.ElementTree],
+    key    : str,
+    context: AnyPath,
+    keytext: Optional[str] = None,
+    **kwargs,
 ) -> T:
     """
     Helper function that finds and returns the text contained in an XML tag

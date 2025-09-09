@@ -72,6 +72,7 @@ from ..configuration import (
     extended_filename_gamma_area,
     extended_filename_hidden,
     extended_filename_s1_on_dem,
+    fname_fmt_gamma_area_corrected,
     fname_fmt_gamma_area_product,
     nodata_DEM,
     nodata_RTC,
@@ -112,8 +113,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         """
         Constructor.
         """
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_GammaNaughtRTC.tif'
-        fname_fmt = cfg.fname_fmt.get('s2_gamma_area_corrected', fname_fmt)
+        fname_fmt = fname_fmt_gamma_area_corrected(cfg)
         dname_fmt = dname_fmt_tiled(cfg)
 
         super().__init__(
@@ -479,7 +479,7 @@ class ResampleDEM(OTBStepFactory):
 class ProjectGeoidToDEM(OTBStepFactory):
     """
     Factory that produces a :class:`Step` that projects any kind of Geoid onto target DEM footprint as
-    described in :ref:`Project Geoid to DEM footprint <project_geoid_to_dem-proc>`.
+    described in :ref:`Project Geoid to DEM footprint <project_geoid_4rtc-proc>`.
 
     This particular implementation uses another file in the expected geometry and
     :external+OTB:std:doc:`super impose <Applications/app_Superimpose>` the Geoid onto it. Unlike

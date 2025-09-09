@@ -62,11 +62,17 @@ k_input_keys  = [
 k_output_keys = ['io.out', 'out', 'out.deg', 'out.cos', 'out.sin', 'out.tan', 'out.gamma_area']
 
 
-def isfile(filename, existing_files) -> bool:
+def isfile(filename, existing_files, original = None) -> bool:
     """
-    Mock-replacement for :func:`os.path.isfile`
+    Mock-replacement for :func:`os.path.isfile`.
+
+    In some situations, a fallback to the real files is required -- as Python will check which
+    Python files exists. Hence the `original` parameter, meant to receive a reference to the
+    original :method:`os.path.isfile`.
     """
-    res = filename in existing_files
+    if original and original(filename):
+        return True
+    res = str(filename) in existing_files
     logging.debug("mock.isfile(%s) = %s ∈ %s", filename, res, existing_files)
     return res
 
@@ -105,20 +111,23 @@ class MockDirEntry:
     def __str__(self) -> str:
         return self.name
 
+    def is_dir(self) -> bool:
+        return os.path.isdir(self.path)
+
     def __repr__(self) -> str:
         return f'MockDirEntry("{self.path}", "{self.inputdir}") --> {self.name}'
 
 
 def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
     """
-    Mock-replacement for :func:`Utils.list_dirs`
+    Mock-replacement for :func:`utils.path.list_dirs`
     """
     logging.debug('mock.list_dirs(%r, %r) ---> %s', dir, pattern, known_dirs)
     if pattern:
         filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
     else:
         filt = lambda path: '/' not in path.name
-    dir_entries = [MockDirEntry(kd, inputdir) for kd in known_dirs]
+    dir_entries = [MockDirEntry(kd, inputdir) for kd in sorted(known_dirs)]
     res = [de for de in dir_entries if filt(de)]
     logging.debug('res --> %s', res)
     return res
@@ -126,7 +135,7 @@ def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
 
 def list_files(dir, pattern, known_files, inputdir) -> List[MockDirEntry]:
     """
-    Mock-replacement for :func:`Utils.list_files`
+    Mock-replacement for :func:`utils.path.list_files`
     """
     logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
     if not pattern:

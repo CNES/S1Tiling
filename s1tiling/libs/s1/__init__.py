@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 # =========================================================================
 #   Program:   S1Processor
 #
@@ -29,14 +30,27 @@
 #
 # =========================================================================
 
-"""This public API of the orbit sub-module"""
+"""«module-docstring»"""
 
-from ._manager   import EOFFileManager, EOFConfiguration
-from ._direction import Direction
+from .product import (
+    EOProductInformation,
+    FileProductInformation,
+    ProductInformation,
+)
+from .filters import (
+    discard_small_redundant,
+    filter_image_groups_providing_enough_cover_by_pair,
+    filter_images_providing_enough_cover_by_pair,
+    find_paired_products,
+)
 
 __all__ = [
-    "EOFFileManager",
-    "EOFConfiguration",
+    'EOProductInformation',
+    'FileProductInformation',
+    'ProductInformation',
 
-    "Direction",
+    'discard_small_redundant',
+    'filter_image_groups_providing_enough_cover_by_pair',
+    'filter_images_providing_enough_cover_by_pair',
+    'find_paired_products',
 ]

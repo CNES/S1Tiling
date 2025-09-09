@@ -63,7 +63,7 @@ def declare_know_files(
         application_mocker: OTBApplicationsMockContext
 ) -> None:
     # logging.debug('declare_know_files(%s)', patterns)
-    all_files = file_db.all_files() + file_db.all_annotations()
+    all_files = sorted(file_db.all_files()) + sorted(file_db.all_annotations())
     # logging.debug('- all_files: %s', all_files)
     files = []
     for pattern in patterns:
@@ -80,11 +80,13 @@ def declare_know_files(
     logging.debug('Mocking w/ %s --> %s', patterns, files)
     mocker.patch('s1tiling.libs.workspace.DEMWorkspace.tmpdemdir', lambda slf, dem_tile_info, dem_filename, geoid_file: demtmpdir)
     # Utils.list_dirs has been imported in S1FileManager. This is the one that needs patching!
+    original_isfile = os.path.isfile  # needs to be extracted before any mocking
     mocker.patch('s1tiling.libs.S1FileManager.list_dirs', lambda dir, pat : list_dirs(dir, pat, known_dirs, file_db.inputdir))
-    mocker.patch('glob.glob',        lambda pat  : glob(pat, known_files))
-    mocker.patch('os.path.isfile',   lambda file : isfile(file, known_files))
-    mocker.patch('os.path.isdir',    lambda dir  : isdir(dir, known_dirs))
-    mocker.patch('os.makedirs',      lambda dir, **kw  : makedirs(dir, known_dirs))
+    mocker.patch('glob.glob',           lambda pat  : glob(pat, known_files))
+    mocker.patch('pathlib.Path.exists', lambda file : isfile(file, known_files, original_isfile))
+    mocker.patch('os.path.isfile',      lambda file : isfile(file, known_files, original_isfile))
+    mocker.patch('os.path.isdir',       lambda dir  : isdir(dir, known_dirs))
+    mocker.patch('os.makedirs',         lambda dir, **kw  : makedirs(dir, known_dirs))
     def mock_rename(fr, to):
         logging.debug('Renaming: %s --> %s', fr, to)
         known_files.append(to)
@@ -105,14 +107,15 @@ def declare_know_files(
             assert isinstance(val, (str, list)), f'GDAL metadata shall be strings or lists of strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.steps.commit_execution',    lambda tmp, out : True)
-    mocker.patch('s1tiling.libs.Utils.get_origin',          lambda manifest : file_db.get_origin(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
-    mocker.patch('s1tiling.libs.Utils.get_orbit_information',  lambda manifest : file_db.get_orbit_information(manifest))
+    mocker.patch('s1tiling.libs.steps.commit_execution',             lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.Utils.get_origin',                   lambda manifest : file_db.get_origin(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_direction',          lambda manifest : file_db.get_orbit_direction(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_information',        lambda manifest : file_db.get_orbit_information(manifest))
     # Utils.get_orbit_direction has been imported in S1FileManager. This is the one that needs patching!
-    mocker.patch('s1tiling.libs.S1FileManager.get_orbit_direction', lambda manifest : file_db.get_orbit_direction(manifest))
-    mocker.patch('s1tiling.libs.S1FileManager.get_relative_orbit',  lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_orbit_direction',          lambda manifest : file_db.get_orbit_direction(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))
+    mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
 
     def mock_commit_execution_for_SelectLIA(inp, out):
         logging.debug('mock.mv %s %s', inp, out)
@@ -133,7 +136,7 @@ def declare_know_files(
         fullpath = mt.get('out_filename')
         logging.debug('Mock Set metadata in %s', fullpath)
         assert 'inputs' in mt, f'Looking for "inputs" in {mt.keys()}'
-        inputs = mt['inputs']
+        # inputs = mt['inputs']
         # indem = fetch_input_data('indem', inputs)
         assert 'dems' in mt, f"Metadata don't contain 'dems', only: {mt.keys()}"
         return mt

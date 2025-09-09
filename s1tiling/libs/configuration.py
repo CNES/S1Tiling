@@ -654,7 +654,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             # - internal γ° RTC related files
             'height_4rtc', 's1_on_dem', 'gamma_area', 'resampled_dem',
         ]
-        self.creation_options = {}
+        self.creation_options : Dict = {}
         for key in creation_options_keys:
             s_cos = accessor.get('Processing', f'creation_options.{key}', fallback=None)
             # logging.debug(" creation_options.%s = %s", key, s_cos)
@@ -924,6 +924,15 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     return fname_fmt
 
 
+def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname.s2_lia_corrected`` actual value, or its
+    default value.
+    """
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
+    return cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
+
+
 def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
     Helper function that returns the ``Processing.fname.gamma_area_product`` actual value,
@@ -931,6 +940,15 @@ def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
     fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
     return cfg.fname_fmt.get('gamma_area', fname_fmt)
+
+
+def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname.s2_gamma_area_corrected`` actual value,
+    or its default value.
+    """
+    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_GammaNaughtRTC.tif'
+    return cfg.fname_fmt.get('s2_gamma_area_corrected', fname_fmt)
 
 
 def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
@@ -1011,7 +1029,7 @@ def _analyse_creation_option(
     # logging.debug(" creation_options.%s = %s", key, s_cos)
     # Default value is defined in associated StepFactories
     l_cos = _split_option(s_cos)
-    cos = {}
+    cos : Dict = {}
     if l_cos[0] in PIXEL_TYPES:
         cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
         cos['gdal_options'] = l_cos[1:]
@@ -1051,7 +1069,7 @@ def _extended_filename(
     cos = cfg.creation_options.get(product, {})
     gdal_options = cos.get('gdal_options', default)
     # logging.debug("gdal_options[%s] = %r  | default=%r", product, gdal_options, default)
-    assert gdal_options is not None, f"Invalid value stored in gdal_options"
+    assert gdal_options is not None, "Invalid value stored in gdal_options"
     assert isinstance(gdal_options, Sequence) and not isinstance(gdal_options, str), f"{gdal_options=!r} is not a list"
     res = ''.join([f"&gdal:co:{kv}" for kv in gdal_options] + [f"&{ef}" for ef in extra_ef])
     return f'?{res}' if res else ''

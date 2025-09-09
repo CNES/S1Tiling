@@ -1157,23 +1157,6 @@ def thens_a_txxxxxx_normlim_S2_file_is_required(dependencies) -> None:
     for fn in expected_fn:
         assert fn in required, f'Expected {fn} not found in computed requirements {required}'
 
-@then('no S2 LIA image is required (S2)')
-def then_no_S2_LIA_image_is_required_s2(dependencies) -> None:
-    required, previous, task2outfile_map = dependencies
-
-    expected_fn = [deg_LIA_file_s2(), sin_LIA_file_s2()]
-
-    logging.info("required (%s) = %s", type(required), required)
-    assert isinstance(required, set)
-    assert len(required) <= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
-    for fn in expected_fn:
-        assert fn not in required, f'Expected {fn} should not have been found in computed requirements {required}'
-        # Yet, they are known
-        # assert fn in previous.keys(), f'Expected {fn} is not found in computed dependencies {previous.keys()}'
-    # Yet sin(LIA), only, is know
-    assert sin_LIA_file_s2() in previous.keys(), f'{sin_LIA_file_s2()} is not found in computed dependencies {previous.keys()}'
-    assert deg_LIA_file_s2() not in previous.keys(), f'{deg_LIA_file_s2()} is found in computed dependencies {previous.keys()}'
-
 @then('a single S2 GAMMA_AREA image is required')
 def then_S2_GAMMA_AREA_image_is_required(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
@@ -1213,23 +1196,6 @@ def then_no_S2_LIA_image_is_required_s2(dependencies) -> None:
     # Yet sin(LIA), only, is know
     assert sin_LIA_file_s2() in previous.keys(), f'{sin_LIA_file_s2()} is not found in computed dependencies {previous.keys()}'
     assert deg_LIA_file_s2() not in previous.keys(), f'{deg_LIA_file_s2()} is found in computed dependencies {previous.keys()}'
-
-@then('no S2 GAMMA_AREA image is required (S2)')
-def then_no_S2_GAMMA_AREA_image_is_required_s2(dependencies) -> None:
-    required, previous, task2outfile_map = dependencies
-
-    expected_fn = [deg_GAMMA_AREA_file_s2()]
-
-    logging.info("required (%s) = %s", type(required), required)
-    assert isinstance(required, set)
-    assert len(required) <= len(expected_fn), f'Expecting {expected_fn}, but requirements found are: {required}'
-    for fn in expected_fn:
-        assert fn not in required, f'Expected {fn} should not have been found in computed requirements {required}'
-        # Yet, they are known
-        # assert fn in previous.keys(), f'Expected {fn} is not found in computed dependencies {previous.keys()}'
-    # Yet sin(LIA), only, is know
-    assert GAMMA_AREA_file_s2() in previous.keys(), f'{GAMMA_AREA_s2()} is not found in computed dependencies {previous.keys()}'
-    assert GAMMA_AREA_file_s2() not in previous.keys(), f'{GAMMA_AREA_file_s2()} is found in computed dependencies {previous.keys()}'
 
 @then('no S2 LIA image is required')
 def then_no_S2_LIA_image_is_required(dependencies) -> None:

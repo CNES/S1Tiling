@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2023 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -12,7 +12,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,7 +77,7 @@ def test_tsort_all():
     assert elements.index(11) < elements.index(10)
     assert elements.index(8)  < elements.index(9)
 
-def test_tsort_dag_a_la_dsak():
+def test_tsort_dag_a_la_dask():
     ts = TopologicalSorter(dag_a_la_dask, lambda v : v[1])
     elements = list(ts.depth([3,5,7]))
     assert elements.index(7)  < elements.index(11)
@@ -93,4 +93,4 @@ def test_tsort_dag_a_la_dsak():
 def test_tsort_dcg():
     with pytest.raises(ValueError):
         ts = TopologicalSorter(dcg)
-        elements = list(ts.depth([3,5,7]))
+        ts.depth([3,5,7])

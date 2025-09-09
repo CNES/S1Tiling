@@ -61,6 +61,15 @@ from . import Utils
 from .configuration import (
     Configuration,
     LIAConfiguration,
+    dname_fmt_filtered,
+    dname_fmt_gamma_area_product,
+    dname_fmt_lia_product,
+    dname_fmt_tiled,
+    fname_fmt_concatenation,
+    fname_fmt_filtered,
+    fname_fmt_gamma_area_corrected,
+    fname_fmt_gamma_area_product,
+    fname_fmt_lia_corrected,
 )
 from .otbpipeline import (
     FirstStep,
@@ -233,9 +242,10 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
 
 
 def get_s1_files_for_tile(
-        s1_file_manager: S1FileManager,
-        tile_name:       str,
-        dryrun:          bool,
+        s1_file_manager:     S1FileManager,
+        tile_name:           str,
+        output_name_formats: List[Tuple[str, str]],
+        dryrun:              bool,
 ) -> IntersectingS1FilesOutcome:
     """
     Returns the list of all S1 files intersecting the given S2 MGRS tile name.
@@ -243,10 +253,10 @@ def get_s1_files_for_tile(
     :return: An :class:`Outcome` of list of S1 image information, or the :class:`RuntimeError` that has happened.
     :raise DownloadS1FileError: if a critical error occurs
     """
-    s1_file_manager.keep_X_latest_S1_files(1000, tile_name)
+    s1_file_manager.keep_X_latest_S1_files(1000, tile_name, output_name_formats)
 
     try:
-        s1_file_manager.download_images(tiles=[tile_name], dryrun=dryrun)
+        s1_file_manager.download_images(tiles=[tile_name], output_name_formats=output_name_formats, dryrun=dryrun)
         # download_images will have updated the list of know products
     except RuntimeError as e:
         logger.warning('Cannot download S1 images associated to %s: %s', tile_name, e)
@@ -257,7 +267,7 @@ def get_s1_files_for_tile(
         logger.debug('Download error intercepted: %s', e)
         raise exceptions.DownloadS1FileError(tile_name) from e
 
-    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name)
+    intersect_raster_list = s1_file_manager.get_s1_intersect_by_tile(tile_name, output_name_formats)
     logger.debug('%s products found to intersect %s: %s', len(intersect_raster_list), tile_name, intersect_raster_list)
     return IntersectingS1FilesOutcome(intersect_raster_list)
 
@@ -641,16 +651,17 @@ def register_GAMMA_AREA_pipelines(
 
 
 def s1_raster_first_inputs_factory(
-        tile_name      : str,
-        configuration  : Configuration,
-        s1_file_manager: S1FileManager,
-        dryrun         : bool,
+        tile_name          : str,
+        configuration      : Configuration,
+        s1_file_manager    : S1FileManager,
+        output_name_formats: List[Tuple[str, str]],
+        dryrun             : bool,
         **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S1 images.
     """
-    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, dryrun)
+    matching_rasters = get_s1_files_for_tile(s1_file_manager, tile_name, output_name_formats, dryrun)
     if not matching_rasters:
         return [cast(Outcome[FirstStep], matching_rasters)]
     intersect_raster_list = matching_rasters.value()
@@ -929,12 +940,23 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
                 'Cannot purge non filtered products when mask are also produced!'
 
+        output_name_formats = []
+        if config.calibration_type == 'normlim':
+            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_lia_corrected(config)))
+        elif config.calibration_type == 'gamma_naught_rtc':
+            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_gamma_area_corrected(config)))
+        else:
+            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_concatenation(config)))
+        if config.filter:
+            output_name_formats.append((dname_fmt_filtered(config), fname_fmt_filtered(config)))
+
         chain_LIA_and_despeckle_inmemory        = config.filter and not config.keep_non_filtered_products
         chain_GAMMA_AREA_and_despeckle_inmemory = config.filter and not config.keep_non_filtered_products
-        chain_concat_and_despeckle_inmemory = False  # See issue #118
+        chain_concat_and_despeckle_inmemory     = False  # See issue #118
 
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+        pipelines.register_extra_parameters_for_input_factories(output_name_formats=output_name_formats)
 
         # Calibration ... OrthoRectification
         calib_seq = [ExtractSentinel1Metadata, AnalyseBorders, Calibrate]
@@ -989,13 +1011,18 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                     inputs={'in': lias},
             )
             # TODO: Merge filter_LIA in apply_LIA_seq!
-            apply_LIA = pipelines.register_pipeline(apply_LIA_seq, product_required=True,
-                    inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2}, is_name_incremental=True)
+            apply_LIA = pipelines.register_pipeline(
+                    apply_LIA_seq, product_required=True,
+                    inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2},
+                    is_name_incremental=True,
+            )
             last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
 
         # GAMMA AREA Calibration (...+ Despeckle)
         if config.calibration_type == 'gamma_naught_rtc':
+            output_name_formats.append((dname_fmt_gamma_area_product(config), fname_fmt_gamma_area_product(config)))
+
             apply_GAMMA_AREA_seq: List[Type[StepFactory]] = [ApplyGammaNaughtRTCCalibration]
             if chain_GAMMA_AREA_and_despeckle_inmemory:
                 apply_GAMMA_AREA_seq.append(SpatialDespeckle)
@@ -1117,6 +1144,14 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+        output_name_formats = [
+            (dname_fmt_lia_product(config), 'sin_LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'),
+        ]
+        if config.produce_lia_map:
+            output_name_formats.append(
+                (dname_fmt_lia_product(config), 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif')
+            )
+        pipelines.register_extra_parameters_for_input_factories(output_name_formats=output_name_formats)
         register_LIA_pipelines_v0(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
@@ -1199,6 +1234,14 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+        output_name_formats = [
+            (dname_fmt_lia_product(config), 'sin_LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'),
+        ]
+        if config.produce_lia_map:
+            output_name_formats.append(
+                (dname_fmt_lia_product(config), 'LIA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif')
+            )
+        pipelines.register_extra_parameters_for_input_factories(output_name_formats=output_name_formats)
         register_LIA_pipelines_v1_1(pipelines, produce_angles=config.produce_lia_map)
         required_workspaces = [WorkspaceKinds.LIA]
         return pipelines, required_workspaces
@@ -1408,6 +1451,9 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
     def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         pipelines = PipelineDescriptionSequence(config, dryrun=dryrun, debug_caches=debug_caches)
         pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
+        output_name_formats = [(dname_fmt_gamma_area_product(config), fname_fmt_gamma_area_product(config))]
+        pipelines.register_extra_parameters_for_input_factories(output_name_formats=output_name_formats)
+
         register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map, config=config)
         required_workspaces = [WorkspaceKinds.GAMMA_AREA]
         return pipelines, required_workspaces

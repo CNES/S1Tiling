@@ -408,6 +408,29 @@ Notes
    Unless you use either S1Tiling docker images, or S1Tiling on CNES TREX
    cluster.
 
+.. note::
+   This scenario permits processing wide time ranges. Only one pair of input S1
+   files will be used to generate the :ref:`gamma_area_s2-files` (for a given
+   MGRS S2 tile + orbit), however all compatible pairs will be downloaded
+   anyway as they will be orthorectified and calibrated.
+
+   Also in this scenario, misleading warnings may be reported at the end of the
+   execution: :ref:`S1Processor` may fail to download some `redundants` S1
+   input files and yet the :ref:`gamma_area_s2-files` is properly generated.
+
+   .. code::
+
+       WARNING  - Execution report: 8 errors detected
+       INFO     -  - Success: OUTPUT/31TCH/s1a_31TCH_vv_DES_110_20250205t060110_GammaNaughtRTC.tif
+       INFO     -  - Success: OUTPUT/31TCH/s1a_31TCH_vv_DES_110_20250217t060109_GammaNaughtRTC.tif
+       INFO     -  - Download failure: 's1a_31TCH_*_DES_110_20250301txxxxxx_GammaNaughtRTC.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250301T060109_20250301T060134_058107_072D11_BB75, provider=peps): None: None]
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250301T060109_20250301T060134_058107_072D11_BB75, provider=peps): None: None]
+       INFO     -  - Download failure: 's1a_31TCH_*_DES_110_20250313txxxxxx_GammaNaughtRTC.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250313T060109_20250313T060134_058282_07342C_D156, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/86509853-0578-591f-984a-a2451a844a62/download?issuerId=peps (Caused by None)]
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250313T060109_20250313T060134_058282_07342C_D156, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/86509853-0578-591f-984a-a2451a844a62/download?issuerId=peps (Caused by None)]
+       INFO     -  - Download failure: 's1a_31TCH_*_DES_110_20250325txxxxxx_GammaNaughtRTC.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250325T060109_20250325T060134_058457_073B0C_F2AE, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/cc859ae9-aab1-5690-bc3a-856e592fb9a7/download?issuerId=peps (Caused by None)]
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250325T060109_20250325T060134_058457_073B0C_F2AE, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/cc859ae9-aab1-5690-bc3a-856e592fb9a7/download?issuerId=peps (Caused by None)]
+       INFO     - Situation: 0 computations errors. 0 search failures. 4 download failures. 0 download timeouts
+
 
 .. _scenario.S1GammaAreaMap:
 
@@ -472,6 +495,26 @@ masking… But the following (non-obvious) options are mandatory:
        ram_per_process              = 70000
        disable_streaming.gamma_area = True
        creation_options.s1_on_dem   = float64 COMPRESS=DEFLATE, BIGTIFF=YES, PREDICTOR=3, TILED=YES, BLOCKXSIZE=1024, BLOCKYSIZE=1024
+
+
+.. warning::
+   Do not use a wide time range in this scenario. Indeed, all compatible pairs
+   of S1 inputs will be downloaded, even if in the end only one pair will be
+   used to produce the :ref:`gamma_area_s2-files`.
+
+   Also in this scenario, misleading warnings may be reported at the end of the
+   execution: :ref:`S1GammaAreaMap` may fail to download some `redundants`
+   S1 input files and yet the :ref:`gamma_area_s2-files` is properly
+   generated.
+
+   .. code::
+
+       WARNING  - Execution report: 4 errors detected
+       INFO     -  - Success: OUTPUT/_GAMMA_AREA/GAMMA_AREA_s1a_31TCH_DES_110.tif
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250301T060109_20250301T060134_058107_072D11_BB75, provider=peps): None: None]
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250313T060109_20250313T060134_058282_07342C_D156, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/86509853-0578-591f-984a-a2451a844a62/download?issuerId=peps (Caused by None)]
+       INFO     -  - Download failure: 'GAMMA_AREA_s1a_31TCH_DES_110.tif' cannot be produced because of the following issues with the inputs: [Failed to download EOProduct(id=S1A_IW_GRDH_1SDV_20250325T060109_20250325T060134_058457_073B0C_F2AE, provider=peps): None: Max retries exceeded with url: /resto/collections/S1/cc859ae9-aab1-5690-bc3a-856e592fb9a7/download?issuerId=peps (Caused by None)]
+       INFO     - Situation: 0 computations errors. 0 search failures. 4 download failures. 0 download timeouts
 
 
 .. _scenario.masks:

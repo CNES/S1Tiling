@@ -48,6 +48,14 @@ def tmp_suffix(tmp: Union[bool,str]) -> str:
     return '.tmp' if tmp else ''
 
 
+def to_datetime(s :str) -> np.datetime64:
+    k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
+    match = k_date_re.match(s)
+    assert match, f"Cann decode {s!r} as a date"
+    YYYY, MM, DD, hh, mm, ss = match.groups()
+    return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
+
+
 class FileDB:
     FILE_FMTS = {
         's1file'              : '{s1_basename}.tiff',
@@ -205,15 +213,13 @@ class FileDB:
             'absolute_orbit'  : 31054,
             'orbit'           : '007',
         },
-        ]
+    ]
     CONCATS = [
         # 08 jan 2020
         {
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
             'start_time'  : '2020:01:08 04:41:50',
-            'first_date'  : '2020-01-01',
-            'last_date'   : '2020-01-10',
             'orbit'       : '007',
         },
         # 20 jan 2020
@@ -221,8 +227,6 @@ class FileDB:
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
             'start_time'  : '2020:01:20 04:41:49',
-            'first_date'  : '2020-01-10',
-            'last_date'   : '2020-01-21',
             'orbit'       : '007',
         },
         # 02 feb 2020
@@ -230,11 +234,10 @@ class FileDB:
             's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
             's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
             'start_time'  : '2020:02:01 04:41:49',
-            'first_date'  : '2020-02-01',
-            'last_date'   : '2020-02-05',
             'orbit'       : '007',
         },
     ]
+
     # TILE = '33NWB'
     TILE_DATA = {
         '33NWB': {
@@ -462,13 +465,6 @@ class FileDB:
     def orbit_time_range(self, id)-> Tuple[np.datetime64, np.datetime64, np.datetime64, np.datetime64]:
         idx = id if isinstance(id, int) else self._find_annotation(id)
         file = self.FILES[idx]
-        def to_datetime(s :str) -> np.datetime64:
-            k_date_re = re.compile(r'(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})')
-            match = k_date_re.match(s)
-            assert match, f"Cann decode {s!r} as a date"
-            YYYY, MM, DD, hh, mm, ss = match.groups()
-            return np.datetime64(f"{YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.000000")
-
         return (
                 to_datetime(file['start_time']),
                 to_datetime(file['stop_time' ]),
@@ -554,6 +550,27 @@ class FileDB:
         assert idx < len(self.FILES)
         dir = self.FILES[idx]['orbit_direction']
         return dir
+
+    def get_start_time(self, id) -> str:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        dir = self.FILES[idx]['start_time']
+        return dir
+
+    def get_stop_time(self, id) -> str:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        dir = self.FILES[idx]['stop_time']
+        return dir
+
+    def get_absolute_orbit(self, id) -> int:
+        # str => id == manifest_path
+        idx = id if isinstance(id, int) else self._find_image(id)
+        assert idx < len(self.FILES)
+        rel = self.FILES[idx]['absolute_orbit']
+        return rel
 
     def get_relative_orbit(self, id) -> int:
         # str => id == manifest_path
@@ -743,7 +760,7 @@ class FileDB:
         return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
-        return f'{self.__gamma_area_dir}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
+        return f'{self.gamma_area_dir()}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'
@@ -809,7 +826,7 @@ class FileDB:
             dir = f'{self.__tmp_dir}/S2'
             ext = self.extended_compress
         else:
-            dir = f'{self.__gamma_area_dir}'
+            dir = f'{self.gamma_area_dir()}'
             ext = ''
         return f'{dir}/{self.FILE_FMTS["gamma_area_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
@@ -862,6 +879,9 @@ class FileDB:
 
     def s2_product_dir(self):
         return f'{self.__output_dir}/{self.__tile}'
+
+    def gamma_area_dir(self):
+        return f'{self.__gamma_area_dir}'
 
     # def geoid_file(self):
     #     return f'resources/Geoid/egm96.grd'

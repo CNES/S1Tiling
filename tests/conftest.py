@@ -56,8 +56,6 @@ def dir_path(path) -> Path:
 
 def pytest_addoption(parser) -> None:
     crt_dir = pathlib.Path(__file__).parent.absolute()
-    src_dir = crt_dir.parent.absolute()
-    test_dir = (crt_dir.parent.parent / "tests").absolute()
 
     parser.addoption("--baselinedir", action="store",      default=crt_dir/'baseline',                 type=dir_path, help="Directory where the baseline is")
     parser.addoption("--outputdir",   action="store",      default=crt_dir/'output',                   type=dir_path, help="Directory where the S2 products will be generated. Don't forget to clean it eventually.")
