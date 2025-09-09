@@ -341,12 +341,15 @@ calibration.
 .. autosummary::
    :toctree: api
 
-   s1tiling.libs.otbwrappers.ResampleDEM
    s1tiling.libs.otbwrappers.AgglomerateDEMOnS1
+   s1tiling.libs.otbwrappers.ProjectGeoidToDEM
+   s1tiling.libs.otbwrappers.NaNifyNoData
+   s1tiling.libs.otbwrappers.ResampleDEM
    s1tiling.libs.otbwrappers.SARDEMProjectionImageEstimation
    s1tiling.libs.otbwrappers.SARGammaAreaImageEstimation
    s1tiling.libs.otbwrappers.OrthoRectifyGAMMA_AREA
    s1tiling.libs.otbwrappers.ConcatenateGAMMA_AREA
+   s1tiling.libs.otbwrappers.SelectGammaNaughtAreaBestCoverage
    s1tiling.libs.otbwrappers.ApplyGammaNaughtRTCCalibration
 
 
