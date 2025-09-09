@@ -137,7 +137,7 @@ exist, it's created on the fly.
 .. warning::
 
     In case a S1 product could not be downloaded in time (because it's OFFLINE,
-    or because there is a network error, or a provider error...) for an
+    or because there is a network error, or a provider error…) for an
     intersecting and requested S2 tile, the associated S2 product won't be
     generated -- even if the other S1 product that intersects the S2 tile is
     present (correctly downloaded or on disk).
@@ -145,7 +145,7 @@ exist, it's created on the fly.
     .. note::
 
         There is no way to know that a S1 product is missing when working only
-        from the disk (i.e. when :ref:`[DataSource].download
+        from the disk (i.e., when :ref:`[DataSource].download
         <DataSource.download>` option is set to ``False``). In that case
         incomplete products may be generated. Their time stamp won't contain
         :samp:`txxxxxx` but the actual time at which the S1 product starts.
