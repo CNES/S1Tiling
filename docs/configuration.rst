@@ -464,21 +464,6 @@ You can use this :download:`this template
       :``sin``: sine map
       :``tan``: tangent map
 
-      .. _Processing.produce_gamma_area_map:
-  * - ``produce_gamma_area_map``
-    - When :ref:`GAMMA_AREA map <gamma_area_s2-files>` is produced.
-
-      Possible values are:
-
-      :``True``:         Do generate the GAMMA_AREA map.
-      :``False``:        Don't generate the GAMMA_AREA map.
-
-      .. note::
-        This option will be ignored when no GAMMA_AREA map is required. The
-        GAMMA_AREA map is produced by :ref:`S1GammaAreaMap program
-        <scenario.S1GammaAreaMap>` , or when :ref:`calibration mode
-        <Processing.calibration>` is ``"gamma_naught_rtc"``.
-
       .. _Processing.dem_warp_resampling_method:
   * - ``dem_warp_resampling_method``
     - DEM files projected on S2 tiles are required to produce :ref:`LIA maps
