@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -298,7 +298,6 @@ class Configuration():
         self.dem_warp_resampling_method        = 'cubic'
         self.nb_procs                          = 1
         self.produce_lia_map                   = True
-        self.produce_gamma_area_map                   = True
         self.resample_dem_factor_x             = 2.0
         self.resample_dem_factor_y             = 2.0
         self.distribute_area                   = False
@@ -638,7 +637,7 @@ def given_pipeline_ortho_n_concat_GAMMA_AREA(pipelines, pipeline_ids, configurat
     best_concat_ortho_gamma_area = pipelines.register_pipeline(
             [SelectGammaNaughtAreaBestCoverage],
             'SelectGAMMA_AREA',
-            product_required=GAMMA_AREA_product_required and configuration.produce_gamma_area_map,
+            product_required=GAMMA_AREA_product_required,
             is_name_incremental=True,
             inputs={'in': concat_ortho_gamma_area}
     )

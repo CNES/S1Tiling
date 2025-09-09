@@ -569,7 +569,6 @@ def register_LIA_pipelines_v1_1(
 
 def register_GAMMA_AREA_pipelines(
         pipelines: PipelineDescriptionSequence,
-        produce_gamma_area: bool,
         config: Configuration
 ) -> PipelineDescription:
     """
@@ -1031,7 +1030,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 need_to_keep_non_filtered_products = True
 
             GammaNaughtArea_registration = gamma_area_process or register_GAMMA_AREA_pipelines
-            gammanaughtareas = GammaNaughtArea_registration(pipelines, config.produce_gamma_area_map, config)
+            gammanaughtareas = GammaNaughtArea_registration(pipelines, config)
 
             apply_GAMMA_AREA = pipelines.register_pipeline(
                     apply_GAMMA_AREA_seq, product_required=True,
@@ -1454,7 +1453,7 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
         output_name_formats = [(dname_fmt_gamma_area_product(config), fname_fmt_gamma_area_product(config))]
         pipelines.register_extra_parameters_for_input_factories(output_name_formats=output_name_formats)
 
-        register_GAMMA_AREA_pipelines(pipelines, produce_gamma_area=config.produce_gamma_area_map, config=config)
+        register_GAMMA_AREA_pipelines(pipelines, config=config)
         required_workspaces = [WorkspaceKinds.GAMMA_AREA]
         return pipelines, required_workspaces
 

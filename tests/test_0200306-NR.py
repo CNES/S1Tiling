@@ -1722,7 +1722,6 @@ def test_33NWB_202001_gamma_area_mocked(
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
     configuration.gamma_area_directory    = gamma_areadir.absolute()
-    configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
     print(configuration)
     logging.info("Sigma0 GAMMA_AREA mocked test")
@@ -1779,7 +1778,6 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     configuration.calibration_type = 'gamma_naught_rtc'
     configuration.gamma_area_directory    = gamma_areadir.absolute()
-    configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpsigma.tif'
     logging.info("Gamma0 RTC mocked test")
@@ -1888,7 +1886,6 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
     )
     configuration.first_date       = (to_datetime(file_db.CONCATS[0]['start_time']) - timedelta(1)).strftime('%Y-%m-%d')
     configuration.last_date        = (to_datetime(file_db.CONCATS[number_dates-1]['start_time']) + timedelta(1)).strftime('%Y-%m-%d')
-    configuration.produce_gamma_area_map  = True
     configuration.show_configuration()
 
     mocker.patch('s1tiling.libs.otbtools.otb_version', lambda : '7.4.0')

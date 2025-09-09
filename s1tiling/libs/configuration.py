@@ -560,10 +560,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.nodatas['RTC'] = accessor.get('Processing', 'nodata.RTC', fallback=None)  # None=>no nodata
         self.nodatas['XYZ'] = accessor.get('Processing', 'nodata.XYZ', fallback=None)  # None=>default
 
-        # - - - - - - - - - -[ GAMMA AREA
-        #: Tells whether GAMMA_AREA map shall be produced alongside the sine map: See :ref:`[Processing.produce_gamma_area_map] <Processing.produce_gamma_area_map>`
-        self.produce_gamma_area_map :bool = accessor.getboolean('Processing', 'produce_gamma_area_map', fallback=False)
-
     # ----------------------------------------------------------------------
     def __init_filtering(self, accessor: _ConfigAccessor) -> None:
         #: Despeckle filter to apply, if any: See :ref:`[Filtering.filter] <Filtering.filter>`
@@ -756,7 +752,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         logging.info("  - warping method for DEM on S2              : %s",   self.dem_warp_resampling_method)
         logging.info("  - superimpose interpol Geoid on S2          : %s",   self.interpolation_method)
         logging.info("- γ° RTC")
-        logging.info("  - produce GAMMA_AREA map                    : %s",   self.produce_gamma_area_map)
         logging.info("  - use_resampled_dem                         : %s",   self.use_resampled_dem)
         logging.info("  - resample_dem_factor_x                     : %s",   self.resample_dem_factor_x)
         logging.info("  - resample_dem_factor_y                     : %s",   self.resample_dem_factor_y)
