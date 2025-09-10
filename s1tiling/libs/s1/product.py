@@ -41,7 +41,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from eodag.api.product import EOProduct
 from eodag.utils       import get_geometry_from_various
-from osgeo.ogr import Geometry
+from osgeo.ogr         import Geometry
 
 try:
     from shapely.errors import TopologicalError

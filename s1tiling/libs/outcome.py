@@ -3,7 +3,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2024 (c) CNES. All rights reserved.
+#   Copyright 2017-2025 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -12,7 +12,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -126,7 +126,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
         """
         return self.__related_filenames
 
-    def add_related_filename(self, filename: File) -> "PipelineOutcome":
+    def add_related_filename(self, filename: Union[File, List[File]]) -> "PipelineOutcome[Value, File]":
         """
         Register a filename(s) related to the result.
         """
@@ -139,7 +139,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
             self.__related_filenames.append(filename)
         return self
 
-    def set_pipeline_name(self, pipeline_name: str) -> "PipelineOutcome":
+    def set_pipeline_name(self, pipeline_name: str) -> "PipelineOutcome[Value, File]":
         """
         Record the name of the pipeline in error
         """
@@ -212,13 +212,13 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
 
 # Let's workaround mypy/Pyright...
 def filter_outcome_list(
-        outcomes: List[Outcome[T]]
+    outcomes: List[Outcome[T]]
 ) -> Tuple[List[T], List[Outcome[T]]]:
     """
     Internal helper to filter list of :class:`Outcome`
     """
-    values : List = []
-    errors : List[Outcome] = []
+    values : List[T] = []
+    errors : List[Outcome[T]] = []
     for o in outcomes:
         if o:
             values.append(o.value())
@@ -227,13 +227,13 @@ def filter_outcome_list(
     return values, errors
 
 def filter_outcome_dict(
-        outcomes: Dict[str, List[Outcome[T]]]
+    outcomes: Dict[str, List[Outcome[T]]]
 ) -> Tuple[Dict[str, List[T]], List[Outcome[T]]]:
     """
     Internal helper to filter dictionary of lists of :class:`Outcome`
     """
-    values : Dict = {}
-    errors : List[Outcome] = []
+    values : Dict[str, List[T]] = {}
+    errors : List[Outcome[T]] = []
     for k in outcomes:
         values[k], e = filter_outcome_list(outcomes[k])
         errors.extend(e)
@@ -241,7 +241,7 @@ def filter_outcome_dict(
 
 
 def filter_outcomes(
-        outcomes: Union[List[Outcome[T]], Dict[str, List[Outcome[T]]]]
+    outcomes: Union[List[Outcome[T]], Dict[str, List[Outcome[T]]]]
 ) -> Tuple[Union[List[T], Dict[str, List[T]]], List[Outcome[T]]]:
     """
     Helper function that filters a collection of :class:`Outcome` to return a collection of the

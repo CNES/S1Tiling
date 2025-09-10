@@ -69,6 +69,9 @@ class DEMWorkspaceConfiguration(Protocol):
     tmp_dem_dir         : str
     GeoidFile           : str
     def register_dems_related_to_S2_tiles(self, dem: Dict[str, Dict]) -> None:
+        """
+        Workaround that helps caching DEM related information for later use.
+        """
         pass
 
 

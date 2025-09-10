@@ -36,6 +36,7 @@ import os
 
 import numpy as np
 
+from s1tiling.libs.Utils import Polygon
 from s1tiling.libs.otbtools import otb_version
 
 # from .mock_otb import compute_coverage
@@ -504,10 +505,10 @@ class FileDB:
         assert idx < 6
         return self.input_file(idx, polarity='vv')
 
-    def tile_origins(self, tile_name) -> List[Tuple[float, float]]:
+    def tile_origins(self, tile_name) -> Polygon:
         origins = {
-                '33NWB': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)],
-                }
+            '33NWB': ((14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)),
+        }
         return origins[tile_name]
 
     # def raster_vv(self, idx) -> dict:

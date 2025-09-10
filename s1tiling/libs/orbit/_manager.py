@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -54,7 +54,7 @@ from ._file      import (
     glob_eof_files,
 )
 from ..outcome   import DownloadOutcome
-from ..utils     import partition
+from ..utils     import AnyPath, partition
 
 
 EOFDownloadOutcome = DownloadOutcome[SentinelOrbitFile]
@@ -73,7 +73,7 @@ class EOFConfiguration(Protocol):
 
     first_date        : str
     last_date         : str
-    extra_directories : Dict[str, str]
+    extra_directories : Dict[str, AnyPath]
     platform_list     : List[str]
     download          : bool
 

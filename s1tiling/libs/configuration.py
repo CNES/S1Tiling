@@ -665,22 +665,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                 )
                 return
 
-                l_cos = _split_option(s_cos)
-                cos = {}
-                if l_cos[0] in PIXEL_TYPES:
-                    cos['pixel_type'] = l_cos[0]  # OTB_pixel_type
-                    cos['gdal_options'] = l_cos[1:]
-                else:
-                    cos['gdal_options'] = l_cos[0:]
-                for co in cos['gdal_options']:
-                    KEY_PATTERN = re.compile(r'[A-Z_0-9]+=')
-                    if not KEY_PATTERN.match(co):
-                        # The only validation used is UPPERCASE=value
-                        # We don't check against a list that may change over time. In that case the error will be caught later.
-                        accessor.throw(f"{co} is not a valid GDAL creation option for {key}. Expected syntax is `<OPTIONNAME>=<value>`")
-
-                self.creation_options[key] = cos
-
     # ----------------------------------------------------------------------
     def __init_disable_streaming(self, accessor: _ConfigAccessor) -> None:
         # Permit to disable streaming in some applications
@@ -859,7 +843,7 @@ class FileProducingConfiguration(Protocol):
     """
     tmpdir            : str
     output_preprocess : str
-    extra_directories : Dict[str, str]
+    extra_directories : Dict[str, AnyPath]
     extra_metadata    : Dict
     ram_per_process   : int
 
