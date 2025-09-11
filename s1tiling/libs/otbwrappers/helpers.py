@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,6 +48,17 @@ def remove_polarization_marks(name: str) -> str:
     """
     # (?=  marks a 0-length match to ignore the dot
     return re.sub(r'[hv][hv]-|[HV][HV]_|-00[12](?=\.)', '', name)
+
+
+def depolarize_4_filename_pre_hook(meta: Meta) -> None:
+    """
+    Provide names clear from polar related information.
+    """
+    # Ignore polarization in filenames
+    if 'polarless_basename' in meta:
+        assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
+    else:
+        meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
 
 
 def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) -> bool:

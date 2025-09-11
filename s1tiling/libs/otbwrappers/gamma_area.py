@@ -36,8 +36,7 @@ the pipeline for GAMMA AREA production needs.
 
 import logging
 import os
-import re
-from typing import Dict, List
+from typing import List
 # from packaging import version
 
 from osgeo import gdal
@@ -46,24 +45,23 @@ from s1tiling.libs.otbtools import otb_version
 
 from ..file_naming   import ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator
 from ..meta import (
-    Meta, append_to, in_filename, out_filename, tmp_filename, is_running_dry,
+    Meta, in_filename, tmp_filename, is_running_dry,
 )
 from ..steps import (
     InputList, OTBParameters, ExeParameters,
     _check_input_step_type,
     AbstractStep,
-    _FileProducingStepFactory, AnyProducerStepFactory, OTBStepFactory,
-    commit_execution,
+    AnyProducerStepFactory, OTBStepFactory,
     ram,
 )
 from ..otbpipeline   import (
-    fetch_input_data, TaskInputInfo, fetch_input_data_all_inputs,
+    fetch_input_data, fetch_input_data_all_inputs,
 )
 from .helpers        import (
-    does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
+    depolarize_4_filename_pre_hook, does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
 )
 from .s1_to_s2       import (
-    _ConcatenatorFactory, _OrthoRectifierFactory,
+    _OrthoRectifierFactory,
 )
 from ..              import Utils
 from ..configuration import (
@@ -76,7 +74,13 @@ from ..configuration import (
     fname_fmt_gamma_area_product,
     nodata_DEM,
     nodata_RTC,
-    nodata_XYZ,
+)
+from ._applications import (
+    _ConcatenatorFactoryForMaps,
+    _PostSARDEMProjectionFamily,
+    _ProjectGeoidTo,
+    _SARDEMProjectionFamily,
+    _SelectBestCoverage,
 )
 
 
@@ -174,8 +178,7 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         """
         Register ``accept_as_compatible_input`` hook for
         :func:`s1tiling.libs.meta.accept_as_compatible_input`.
-        It will tell whether a given gamma area input is compatible with the
-        current S2 tile.
+        It will tell whether a given gamma area input is compatible with the current S2 tile.
         """
         meta['accept_as_compatible_input'] = lambda input_meta : does_gamma_area_match_s2_tile_for_orbit(meta, input_meta)
         meta['basename']                   = self._get_nominal_output_basename(meta)
@@ -377,15 +380,10 @@ class ResampleDEM(OTBStepFactory):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
+        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
+        polar related information.
         """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
+        depolarize_4_filename_pre_hook(meta)
         meta['reduce_inputs_insar'] = lambda inputs: [inputs[0]]  # TODO!!!
         return meta
 
@@ -475,8 +473,7 @@ class ResampleDEM(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
 
 
-# TODO: factorize with ProjectGeoidToS2Tile
-class ProjectGeoidToDEM(OTBStepFactory):
+class ProjectGeoidToDEM(_ProjectGeoidTo):
     """
     Factory that produces a :class:`Step` that projects any kind of Geoid onto target DEM footprint as
     described in :ref:`Project Geoid to DEM footprint <project_geoid_4rtc-proc>`.
@@ -505,49 +502,15 @@ class ProjectGeoidToDEM(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('geoid_on_dem', fname_fmt)
         super().__init__(
             cfg,
-            param_in="inr",
-            param_out="out",
-            appname='Superimpose',
             name='ProjectGeoidToDEM',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,  # Use gen_tmp_dir,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            output_fname_fmt=fname_fmt,
             extended_filename=extended_filename_hidden(cfg, 'geoid_on_dem'),
             image_description="Geoid superimposed on DEM",
         )
-        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
-        self.__interpolation_method = cfg.interpolation_method
-        self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
-        self.__nodata               = nodata_DEM(cfg)
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set S2 related information, that'll be carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        imd['GEOID_ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
-        imd['SPATIAL_RESOLUTION']                    = str(self.__out_spatial_res)
-
-    def parameters(self, meta: Meta) -> OTBParameters:
-        """
-        Returns the parameters to use with :external+OTB:std:doc:`super impose
-        <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
-        """
-        in_s2_dem = in_filename(meta)
-        return {
-            'ram'                     : ram(self.ram_per_process),
-            'inr'                     : in_s2_dem,  # Reference input is the DEM projected on S2
-            'inm'                     : self.__GeoidFile,
-            'interpolator'            : self.__interpolation_method,  # TODO: add parameter
-            'interpolator.bco.radius' : 2,  # 2 is the default value for bco
-            'fv'                      : self.__nodata,  # Make sure meta data are correctly set
-        }
 
 
-class SARDEMProjectionImageEstimation(OTBStepFactory):
+class SARDEMProjectionImageEstimation(_SARDEMProjectionFamily):
     """
     Factory that prepares steps that run
     :external:doc:`Applications/app_SARDEMProjectionImageEstimation` as described in
@@ -588,90 +551,12 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('s1_on_dem', fname_fmt)
         super().__init__(
             cfg,
-            appname='SARDEMProjection2',
             name='SARDEMProjectionImageEstimation',
-            param_in=None, param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,  # Use gen_tmp_dir
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
-            extended_filename=extended_filename_s1_on_dem(cfg),
+            output_fname_fmt=fname_fmt,
             image_description="SARDEM projection onto DEM list",
+            extended_filename=extended_filename_s1_on_dem(cfg),
         )
-        self.__dem_db_filepath   = cfg.dem_db_filepath
-        self.__dem_field_ids     = cfg.dem_field_ids
-        self.__dem_main_field_id = cfg.dem_main_field_id
-        self.__nodata            = nodata_XYZ(cfg)
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
-        """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
-        return meta
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        - Complete meta information with hook for updating image metadata
-          w/ directiontoscandemc, directiontoscandeml and gain.
-        - Computes dem information and add them to the meta structure, to be used
-          later to fill-in the image metadata.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        append_to(meta, 'post', self.add_image_metadata)
-        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-
-        # TODO: The following has been duplicated from AgglomerateDEM.
-        # See to factorize this code
-        # find DEMs that intersect the input image
-        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
-            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id)
-        meta['dems'] = sorted(meta['dem_infos'].keys())
-
-        logger.debug("SARDEMProjectionImageEstimation: DEM found for %s: %s", in_filename(meta), meta['dems'])
-        _, inbasename = os.path.split(in_filename(meta))
-        meta['inbasename'] = inbasename
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set SARDEMProjection related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['DEM_LIST']     = ', '.join(meta['dems'])
-
-    def add_image_metadata(self, meta: Meta, app) -> None:
-        """
-        Post-application hook used to complete GDAL metadata.
-
-        As :func:`update_image_metadata` is not designed to access OTB
-        application information (``directiontoscandeml``...), we need this
-        extra hook to fetch and propagate the PRJ information.
-        """
-        fullpath = out_filename(meta)
-        logger.debug('Set metadata in %s', fullpath)
-        dst = gdal.Open(fullpath, gdal.GA_Update)
-        assert dst
-
-        # Pointless here! :(
-        assert app
-        meta['directiontoscandeml'] = app.GetParameterInt('directiontoscandeml')
-        meta['directiontoscandemc'] = app.GetParameterInt('directiontoscandemc')
-        meta['gain']                = app.GetParameterFloat('gain')
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', str(meta['directiontoscandeml']))
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', str(meta['directiontoscandemc']))
-        dst.SetMetadataItem('PRJ.GAIN',                str(meta['gain']))
-        dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
-        del dst
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -688,21 +573,14 @@ class SARDEMProjectionImageEstimation(OTBStepFactory):
             'insar'     : in_filename(meta),
             'indem'     : indem,
             'withxyz'   : True,
-            'nodata'    : str(self.__nodata),
+            'nodata'    : str(self.nodata),
             'elev.geoid': "@",
         }
 
         return params
 
-    def requirement_context(self) -> str:
-        """
-        Return the requirement context that permits to fix missing requirements.
-        SARDEMProjectionImageEstimation comes from gamma0-rtc.
-        """
-        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
 
-
-class SARGammaAreaImageEstimation(OTBStepFactory):
+class SARGammaAreaImageEstimation(_PostSARDEMProjectionFamily):
     """
     Factory that prepares steps that run
     :external:doc:`Applications/app_SARGammaAreaImageEstimation` as described in
@@ -740,80 +618,6 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         self.__streaming        = not cfg.disable_streaming.get('gamma_area', False)
         self.__innermarginratio = cfg.inner_margin_ratio
         self.__outermarginratio = cfg.outer_margin_ratio
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
-        """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs : [inputs[0]]  # TODO!!!
-        return meta
-
-    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
-        """
-        Helper function to retrieve the canonical input associated to a list of inputs.
-
-        In :class:`SARCartesianMeanEstimation` case, the canonical input comes
-        from the "indem" pipeline defined in :func:s1tiling.s1_process_gamma_area`
-        pipeline builder.
-        """
-        _check_input_step_type(inputs)
-        keys = set().union(*(input.keys() for input in inputs))
-        assert len(inputs) == 3, f'Expecting 3 inputs. {len(inputs)} are found: {keys}'
-        assert 'indemproj' in keys
-        return [input['indemproj'] for input in inputs if 'indemproj' in input.keys()][0]
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with hook for updating image metadata
-        w/ directiontoscandemc, directiontoscandeml and gain.
-        """
-        inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
-        meta = super().complete_meta(meta, all_inputs)
-        if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
-            self.fetch_direction(inputpath, meta)
-        indem     = fetch_input_data('indem',     all_inputs).out_filename
-        indemproj = fetch_input_data('indemproj', all_inputs).out_filename
-        meta['files_to_remove'] = [indem, indemproj]
-        logger.debug('Register files to remove after GAMMA_AREA computation: %s', meta['files_to_remove'])
-        _, inbasename = os.path.split(in_filename(meta))
-        meta['inbasename'] = inbasename
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set SARCartesianMeanEstimation related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        # Clear PRJ.* information: makes no sense anymore
-        imd['PRJ.DIRECTIONTOSCANDEML'] = ""
-        imd['PRJ.DIRECTIONTOSCANDEMC'] = ""
-        imd['PRJ.GAIN']                = ""
-
-    def fetch_direction(self, inputpath, meta: Meta) -> None:
-        """
-        Extract back direction to scan DEM from SARDEMProjected image metadata.
-        """
-        logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
-        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
-            dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
-            if not dst:
-                raise RuntimeError(f"Cannot open SARDEMProjected file '{inputpath}' to collect scan direction metadata.")
-            meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
-            meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
-            if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
-                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file '{inputpath}'")
-            del dst
-        else:
-            meta['directiontoscandeml'] = 42
-            meta['directiontoscandemc'] = 42
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -860,7 +664,7 @@ class SARGammaAreaImageEstimation(OTBStepFactory):
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/gamma0-rtc."
 
 
-class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
+class ConcatenateGAMMA_AREA(_ConcatenatorFactoryForMaps):
     """
     Factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` on γ area
     images, as described in :ref:`concat_gamma_area-proc`.
@@ -879,57 +683,10 @@ class ConcatenateGAMMA_AREA(_ConcatenatorFactory):
         fname_fmt = cfg.fname_fmt.get('gamma_area_concatenation', fname_fmt)
         super().__init__(
             cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-            gen_output_dir=None,  # Use gen_tmp_dir
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            fname_fmt=fname_fmt,
             image_description='Orthorectified GAMMA_AREA Sentinel-{flying_unit_code_short} IW GRD',
             extended_filename=extended_filename_gamma_area(cfg),
-            pixel_type=None,         # will be set later...
         )
-
-    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
-        """
-        Override "update_out_filename" hook to help select the input set with
-        the best coverage.
-        """
-        meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
-        # Remove acquisition_time that no longer makes sense
-        meta.pop('acquisition_time', None)
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Update concatenated GAMMA AREA related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        imd = meta['image_metadata']
-        imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
-
-    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
-        """
-        Unlike usual :class:`Concatenate`, the output filename will always ends
-        in "txxxxxx".
-
-        However we want to update the coverage of the current pair as a new
-        input file has been registered.
-
-        TODO: Find a better name for the hook as it handles two different
-        services.
-        """
-        inputs = with_task_info.inputs['in']
-        dates = {re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs}
-        assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
-        date = min(dates)
-        logger.debug('[ConcatenateGAMMA_AREA] at %s:', date)
-        coverage = 0.
-        for inp in inputs:
-            if re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) == date:
-                s1_cov = inp['tile_coverage']
-                coverage += s1_cov
-                logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
-        # Round coverage at 3 digits as tile footprint has a very limited precision
-        coverage = round(coverage, 3)
-        logger.debug('[ConcatenateGAMMA_AREA] => total coverage at %s: %s%%', date, coverage * 100)
-        meta['tile_coverage'] = coverage
 
 
 class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
@@ -993,7 +750,7 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         del imd['PixelSpacing']
 
 
-class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
+class SelectGammaNaughtAreaBestCoverage(_SelectBestCoverage):
     """
     StepFactory that helps select only one path after GAMMA AREA concatenation:
     the one that have the best coverage of the S2 tile target.
@@ -1025,46 +782,6 @@ class SelectGammaNaughtAreaBestCoverage(_FileProducingStepFactory):
             cfg,
             name='SelectGammaNaughtAreaBestCoverage',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-            gen_output_dir=dname_fmt,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt)
+            dname_fmt=dname_fmt,
+            fname_fmt=fname_fmt
         )
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Inject the :func:`reduce_GAMMA_AREAs` hook in step metadata.
-        """
-        def reduce_GAMMA_AREAs(inputs):
-            """
-            Select the concatenated pair of GAMMA AREA files that have the best coverage of the considered
-            S2 tile.
-            """
-            # TODO: quid if different dates have best different coverage on a set of tiles?
-            # How to avoid computing GAMMA_NAUGHT AREA again and again on a same S1 zone?
-            # dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
-            best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
-            logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
-            for inp in inputs:
-                logger.debug(' - %s: %s', inp['acquisition_day'], inp['tile_coverage'])
-            return [best_covered_input]
-
-        meta['reduce_inputs_in'] = reduce_GAMMA_AREAs
-        return meta
-
-    def create_step(
-        self,
-        execution_parameters: Dict,
-        previous_steps: List[InputList]
-    ) -> AbstractStep:
-        logger.debug("Directly execute %s step", self.name)
-        inputs = self._get_inputs(previous_steps)
-        inp = self._get_canonical_input(inputs)
-        meta = self.complete_meta(inp.meta, inputs)
-
-        # Let's reuse commit_execution as it does exactly what we need
-        if not is_running_dry(execution_parameters):
-            commit_execution(out_filename(inp.meta), out_filename(meta))
-
-        # Return a dummy Step
-        # logger.debug("%s step executed!", self.name)
-        res = AbstractStep('move', **meta)
-        return res

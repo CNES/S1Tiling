@@ -1028,6 +1028,7 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
                 # 'out': otb.ImagePixelType_float
             }, {
                 'ACQUISITION_DATETIME'     : file_db.start_time(idx),
+                'DEM_INFO'                 : 'SRTM_30_hgt',
                 'DEM_LIST'                 : ', '.join(exp_dem_names),
                 'FLYING_UNIT_CODE'         : 's1a',
                 'IMAGE_TYPE'               : 'GRD',
@@ -1138,6 +1139,7 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
             'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
             'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
             'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'DEM_INFO'                 : 'SRTM_30_hgt',
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
