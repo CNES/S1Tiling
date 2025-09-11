@@ -40,6 +40,7 @@ import os
 from typing import List, Optional, Protocol, Tuple
 
 from requests.exceptions    import ReadTimeout, Timeout
+from urllib3.exceptions     import ReadTimeoutError
 from eodag.api.core         import EODataAccessGateway
 from eodag.api.product      import EOProduct
 from eodag.utils.exceptions import TimeOutError
@@ -86,13 +87,36 @@ def create(cfg: EODAGConfiguration) -> Optional[EODataAccessGateway]:
     return dag
 
 
-def _is_a_timeout(exception: BaseException) -> bool:
+def _is_a_timeout(exception: BaseException) -> Optional[BaseException]:
     """
     Helper function that tries to detect the various kind of timeouts encountered with eodag
     """
-    if isinstance(exception, (ReadTimeout, Timeout, TimeOutError)):
-        return True
-    return False
+    crt : Optional[BaseException] = exception
+    prefix = '  '
+    logger.debug('%s Analyse exception type', prefix)
+    while crt:
+        logger.debug("%s+- %s -> %s", prefix, type(crt), str(crt))
+        if isinstance(crt,
+                      (
+                          ReadTimeout,       # requests.exceptions
+                          Timeout,           # requests.exceptions
+                          TimeOutError,      # eodag.utils.exceptions
+                          ReadTimeoutError,  # urllib3.exceptions.ReadTimeoutError
+                          TimeoutError,      # std python error
+                      )
+                      ):
+            logger.debug("%s   => time out!!", prefix)
+            return crt
+        crt = crt.__cause__ or crt.__context__
+        prefix += '  '
+    logger.debug("%s   => Other error kind", prefix)
+    return None
+
+
+def _as_timeout(exception: Exception) -> TimeOutError:
+    if isinstance(exception, TimeOutError):
+        return exception
+    return TimeOutError(exception)
 
 
 def _download_and_extract_one_product(
@@ -273,7 +297,8 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
             else:
                 logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                 # TODO: make it possible to detect missing products in the analysis
-                if _is_a_timeout(result.error()):
+                if (timeout := _is_a_timeout(result.error())):
+                    result.transform_error(timeout)
                     products_in_timeout.append(result)
                 else:
                     paths.append(result)
@@ -282,6 +307,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
             indexed_products = [r.related_product() for r in products_in_timeout]
             logger.info("Attempting to download again %d products on timeout...", len(indexed_products))
         elif len(products_in_timeout) > 0:
+            logger.warning("No successful download since the first timeout observed => abort download")
             paths.extend(products_in_timeout)
 
     # paths returns the list of .SAFE directories
