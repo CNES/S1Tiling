@@ -11,7 +11,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -60,18 +60,20 @@ py_ver_for_otb[8.1.2]="3.11"
 py_ver_for_otb[8.1.3]="3.11"
 py_ver_for_otb[8.2.0]="3.11"
 py_ver_for_otb[9.0.0]="3.12"
+py_ver_for_otb[9.1.1]="3.12"
 
-# s1tiling_version=1.0.0rc2
+# project_version=1.0.0rc2
 # git_node=develop
-# s1tiling_version=1.1.0beta
+# project_version=1.1.0beta
 # git_node=develop_worldcereal
 
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
 # if TREX:
-python_ml_dep=python3.8.4
+python_ml_dep=python3.12
 
 repo_url=https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git
+project_name=s1tiling
 
 # ==[ Other constants {{{2
 
@@ -82,7 +84,7 @@ repo_url=https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git
 # This will ease the update of the version installed if need be without
 # destabilising pre-existing versions.
 date="$(date "+%Y%m%d")"
-# public_prefix="${s1tiling_version}-otb${otb_version}"
+# public_prefix="${project_version}-otb${otb_version}"
 
 ## ======[ Helper functions {{{1
 # ==[ _ask_yes_no            {{{2
@@ -288,7 +290,7 @@ trap _restore_colors EXIT
 
 usage() {
     [ -z "$1" ] || echo
-    echo "USAGE: $0 [OPTIONS] PACKAGES... <s1tiling source directory>"
+    echo "USAGE: $0 [OPTIONS] PACKAGES... <${project_name} source directory>"
     echo
     echo "  PACKAGES:              <OTB-X.X.X-Linux64.run>      for OTB <= v8"
     echo "  PACKAGES:              <OTB-X.X.X-Linux*.tar.gz>... for OTB >= v9"
@@ -318,7 +320,7 @@ while [ $# -gt 0 ] ; do
             ;;
         -p|--python)
             shift
-            [ $# -gt 1 ] || _die "Cannot read python version"
+            [ $# -ge 1 ] || _die "Cannot read python version"
             py_version=$1
             ;;
         -n|--dryrun)
@@ -344,8 +346,8 @@ while [ $# -gt 0 ] ; do
 done
 
 # Cache system libstdc++ in case system has more recent libraries than conda
-_std_libstdcpp="$(ldconfig -p| awk -v needle="libstdc++.so.6" '$1 == needle {sub(/.* => /, ""); print}')"
-_version_libstdcpp_sys=$(_GLIBCXX_version "${_std_libstdcpp}")
+_std_libstdcpp=($(ldconfig -p| awk -v needle="libstdc++.so.6" '$1 == needle {sub(/.* => /, ""); print}'))
+_version_libstdcpp_sys=$(_GLIBCXX_version "${_std_libstdcpp[0]}")
 
 # Analyse binary packages to extract
 # Exacty one shall be set!
@@ -381,14 +383,14 @@ else
     usage "No OTB binary archive to extract has been specified"
 fi
 
-s1tiling_src_dir="${args[0]}"
+project_src_dir="${args[0]}"
 
 
-[ -d "${s1tiling_src_dir}" ]          || usage "Non existant S1Tiling source directory (${s1tiling_src_dir})"
-[ -d "${s1tiling_src_dir}/s1tiling" ] || usage "Invalid S1Tiling source directory (${s1tiling_src_dir})"
-[ -f "${s1tiling_src_dir}/setup.py" ] || usage "Invalid S1Tiling source directory (${s1tiling_src_dir})"
+[ -d "${project_src_dir}" ]          || usage "Non existant S1Tiling source directory (${project_src_dir})"
+[ -d "${project_src_dir}/s1tiling" ] || usage "Invalid S1Tiling source directory (${project_src_dir})"
+[ -f "${project_src_dir}/setup.py" ] || usage "Invalid S1Tiling source directory (${project_src_dir})"
 
-s1tiling_fulldir="$(readlink -f "${s1tiling_src_dir}" )"
+project_fulldir="$(readlink -f "${project_src_dir}" )"
 module_paths=($(_split_path "${MODULEPATH}"))
 module_root="$(_search_array "${HOME}" "${module_paths[@]}")"
 
@@ -401,8 +403,8 @@ short_py_version=$(echo "${py_version}" | sed 's#\.##g')
 otb_basename_prefix="${run_script_name}-py${short_py_version}"
 otb_prefix="${prefix_root}/${otb_basename_prefix}"
 
-env_name="s1tiling-otb${short_otb_version}-py${short_py_version}"
-mod_name="s1tiling/otb${short_otb_version}-py${short_py_version}"
+env_name="${project_name}-otb${short_otb_version}-py${short_py_version}"
+mod_name="${project_name}/otb${short_otb_version}-py${short_py_version}"
 
 echo "OTB version:      ${otb_version} -> ${short_otb_version}"
 echo "Python version:   ${py_version}  -> ${short_py_version}"
@@ -491,7 +493,7 @@ _execute python -m pip --no-cache-dir install "numpy<2"     || _die "Can't insta
     # # Inject ${CMAKE_PREFIX_PATH}/lib into LD_LIBRARY_PATH
     # _execute patch -p1 --ignore-whitespace < "${current_dir}/OTB-env.patch"
     echo "" >> "otbenv.profile"  # Add missing EOL at EOF
-    echo "# LD_LIBRARY_PATH patch for s1tiling" >> "otbenv.profile"
+    echo "# LD_LIBRARY_PATH patch for ${project_name}" >> "otbenv.profile"
     echo 'export LD_LIBRARY_PATH="${CMAKE_PREFIX_PATH}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> "otbenv.profile" \
     # Make sure to compile with new C++ ABI with OTB 7.4.2
     [[ "${otb_version}" != "7.4.2" ]] || _execute patch -p1 --ignore-whitespace < "${current_dir}/OTB-CXX-ABI.patch"
@@ -504,7 +506,7 @@ _execute ctest -VV -S "${otb_prefix}/share/otb/swig/build_wrapping.cmake" -VV \
     || _die "Cannnot recompile OTB bindings for Python ${py_version}"
 
 # ==[ Tune GDAL
-_execute cp "${s1tiling_fulldir}/s1tiling/resources/gdal-config" "${otb_prefix}/bin" \
+_execute cp "${project_fulldir}/s1tiling/resources/gdal-config" "${otb_prefix}/bin" \
     || _die "Cannot copy gdal-config patch into OTB binaries"
 _execute chmod +x "${otb_prefix}/bin/gdal-config" \
     || _die "Cannot make gdal-config executable"
@@ -529,7 +531,7 @@ function _test_gdal_gpkg
 [ "${noexec:-0}" = "1" ] || _test_gdal_gpkg || _die "GDAL lacks GPKG support"
 
 # ==[ Install S1Tiling
-_execute cd "${s1tiling_fulldir}"
+_execute cd "${project_fulldir}"
 # TODO: add options for dev/docs
 _execute python -m pip install -e .[dev,docs]
 
@@ -540,7 +542,7 @@ if _has_executable module ; then
     # Detect where conda is really installed
     _conda_pkg="$(_dirname_n 2 "${CONDA_EXE}")"
 
-    [ -d "${module_root}/s1tiling" ] || _execute mkdir "${module_root}/s1tiling"
+    [ -d "${module_root}/${project_name}" ] || _execute mkdir "${module_root}/${project_name}"
     export module_file="${module_root}/${mod_name}.lua"
     _verbose "Create modulefile: ${module_file}"
     [ "${noexec:-0}" = "1" ] || cat > "${module_file}" << EOF
@@ -550,7 +552,7 @@ help(
 [[
 OTB:       ${otb_version}
 Python:    ${py_version}
-S1Tiling:  ${s1tiling_fulldir}
+S1Tiling:  ${project_fulldir}
 Conda env: ${env_name}
 ]])
 
@@ -559,7 +561,7 @@ local function is_empty(s)
 end
 
 -- Information du modulefile
-local nom           = "s1tiling+otb"
+local nom           = "${project_name}+otb"
 local home          = os.getenv("HOME")
 local version       = "${otb_version}"
 local installation  = "$(date)"
@@ -577,6 +579,7 @@ whatis("Date d installation : "..installation)
 -- Action du modulefile
 setenv("GDAL_DATA",pathJoin(pkg,"share/gdal"))
 setenv("PROJ_LIB", pathJoin(pkg,"share/proj"))
+setenv("PROJ_DATA", pathJoin(pkg,"share/proj"))
 setenv('GDAL_DRIVER_PATH', 'disable')
 prepend_path("CPATH",pathJoin(pkg,"include"))
 prepend_path("PYTHONPATH",pathJoin(pkg,"${_pypath}"))
