@@ -1115,17 +1115,17 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
 
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        *,
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that generates Local
@@ -1415,8 +1415,8 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
 
 
 def s1_process_gamma_area(  # pylint: disable=too-many-arguments
-    *,
     config_opt             : Union[str, Configuration],
+    *,
     dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
     dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
     searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
