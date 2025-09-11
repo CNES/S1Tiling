@@ -34,11 +34,8 @@
 
 from collections.abc import Iterable, Sequence
 import fnmatch
-from functools import partial
 import glob
 import logging
-import logging.handlers
-import multiprocessing
 import os
 import re
 import shutil
@@ -52,7 +49,9 @@ from eodag.api.search_result import SearchResult
 from eodag.utils.exceptions  import NotAvailableError
 from eodag.utils.logging     import setup_logging
 
+
 from .                   import exceptions
+from .utils.eodag        import download_and_extract_products
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -62,7 +61,6 @@ from .Utils              import (
 )
 from .S1DateAcquisition  import S1DateAcquisition
 # from .orbit._conversions import ORBIT_CONVERTERS
-from .otbpipeline        import mp_worker_config
 from .outcome            import S1DownloadOutcome
 from .s1.filters         import (
     discard_small_redundant,
@@ -362,138 +360,6 @@ def _keep_products_with_enough_coverage(
             target_cover,
             get_cover=lambda ci: ci.get_current_tile_coverage() or 0
     )
-
-
-def _download_and_extract_one_product(
-    dag:           EODataAccessGateway,
-    raw_directory: str,
-    dl_wait:       int,
-    dl_timeout:    int,
-    product:       EOProduct
-) -> S1DownloadOutcome[str, EOProduct]:
-    """
-    Takes care of downloading exactly one remote product and unzipping it,
-    if required.
-
-    Some products are already unzipped on the fly by eodag.
-    """
-    logging.info("Starting download of %s...", product)
-    ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
-    prod_id = product.as_dict()['id']
-    zip_file = os.path.join(raw_directory, prod_id) + '.zip'
-    path: S1DownloadOutcome[str, EOProduct]
-    try:
-        path = S1DownloadOutcome(
-                dag.download(
-                    product,            # EODAG will clear this variable
-                    extract=True,       # Let's eodag do the job
-                    wait=dl_wait,       # Wait time in minutes between two download tries
-                    timeout=dl_timeout  # Maximum time in mins before stop retrying to download (default=20’)
-                ),
-                product)
-        logging.debug(ok_msg)
-        if os.path.exists(zip_file) :
-            try:
-                logger.debug('Removing downloaded ZIP: %s', zip_file)
-                os.remove(zip_file)
-            except OSError:
-                pass
-        # eodag may say the product is correctly downloaded while it failed to do so
-        # => let's do a quick sanity check
-
-        # eodag2 product naming scheme
-        manifest = os.path.join(raw_directory, prod_id, f'{prod_id}.SAFE', 'manifest.safe')
-        if not os.path.exists(manifest):
-            # eodag3 product naming scheme
-            manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
-            if not os.path.exists(manifest):
-                logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
-                e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
-                path = S1DownloadOutcome(e, product)
-    except BaseException as e:  # pylint: disable=broad-except
-        logger.warning('%s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
-        # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
-        logger.debug('Exception type is: %s', e.__class__.__name__)
-        ## ERROR - Product is OFFLINE
-        ## ERROR - Exception type is: NotAvailableError
-        # logger.error('======================')
-        # logger.exception(e)
-        ## Traceback (most recent call last):
-        ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
-        ##     path = S1DownloadOutcome(dag.download(
-        ##   File "site-packages/eodag/api/core.py", line 1487, in download
-        ##     path = product.download(
-        ##   File "site-packages/eodag/api/product/_product.py", line 288, in download
-        ##     fs_path = self.downloader.download(
-        ##   File "site-packages/eodag/plugins/download/http.py", line 269, in download
-        ##     raise NotAvailableError(
-        ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E
-        ##                                           is not available (OFFLINE) and could not be downloaded, timeout reached
-
-        path = S1DownloadOutcome(e, product)
-
-    return path
-
-
-def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-arguments, too-many-locals
-    *,
-    dag:           EODataAccessGateway,
-    raw_directory: str,
-    products:      List[EOProduct],
-    nb_procs:      int,
-    tile_name:     str,
-    dl_wait:       int,
-    dl_timeout:    int,
-) -> List[S1DownloadOutcome]:
-    """
-    Takes care of downloading exactly all remote products and unzipping them,
-    if required, in parallel.
-
-    Returns :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
-    """
-    nb_products = len(products)
-    paths : List[S1DownloadOutcome] = []
-    log_queue : multiprocessing.Queue = multiprocessing.Queue()
-    log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
-    with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
-        log_queue_listener.start()
-        try:
-            # In case timeout happens, we try again if and only if we have been able to
-            # download other products after the timeout.
-            # -> IOW, downloading instability justifies trying again.
-            # /> On the contrary, on a complete network failure, we should not try again and again...
-            while len(products) > 0:
-                products_in_timeout : List[S1DownloadOutcome] = []
-                nb_successes_since_timeout = 0
-                for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
-                    # logger.debug('DL -> %s', result)
-                    if result:
-                        logger.info("%s correctly downloaded", result.value())
-                        logger.info(' --> Downloading products for %s... %s%%', tile_name, count * 100. / nb_products)
-                        paths.append(result)
-                        if len(products_in_timeout) > 0:
-                            nb_successes_since_timeout += 1
-                    else:
-                        logger.warning("Cannot download %s: %s", result.related_product(), result.error())
-                        # TODO: make it possible to detect missing products in the analysis
-                        if isinstance(result.error(), ReadTimeout):
-                            products_in_timeout.append(result)
-                        else:
-                            paths.append(result)
-                products = []
-                if nb_successes_since_timeout > nb_procs:
-                    products = [r.related_product() for r in products_in_timeout]
-                    logger.info("Attempting again to download %s products on timeout...", len(products))
-                elif len(products_in_timeout) > 0:
-                    paths.extend(products_in_timeout)
-        finally:
-            pool.close()
-            pool.join()
-            log_queue_listener.stop()  # no context manager for QueueListener unfortunately
-
-    # paths returns the list of .SAFE directories
-    return paths
 
 
 class S1FileManager:
@@ -848,12 +714,12 @@ class S1FileManager:
             return paths
 
         eo_products = [p.product for p in products]
-        paths = _parallel_download_and_extraction_of_products(
+        paths = download_and_extract_products(
             dag=dag,
             raw_directory=self.cfg.raw_directory,
             products=eo_products,
             nb_procs=self.cfg.nb_download_processes,
-            tile_name=tile_name,
+            context=f" for {tile_name}",
             dl_wait=self.__dl_wait,
             dl_timeout=self.__dl_timeout,
         )
@@ -864,8 +730,8 @@ class S1FileManager:
     def download_images(
         self,
         output_name_formats: List[Tuple[str, str]],
-        dryrun: bool                = False,
-        tiles:  Optional[List[str]] = None
+        dryrun:              bool                  = False,
+        tiles:               Optional[List[str]]   = None
     ) -> None:
         """ This method downloads the required images if download is True"""
         if not self.download_is_enabled:
@@ -1025,7 +891,14 @@ class S1FileManager:
             'calibration_type'  : self.cfg.calibration_type,
         }
         assert output_name_formats, "Empty output filename formats"
-        k_dir_assoc = { 'ascending': 'ASC', 'descending': 'DES' }
+        k_dir_assoc = {
+            'ascending' : 'ASC',  # some eo providers return ascending/descending
+            'descending': 'DES',
+            'Ascending' : 'ASC',  # some eo providers return Ascending/Descending
+            'Descending': 'DES',
+            'ASCENDING' : 'ASC',  # some eo providers return ASCENDING/DESCENDING
+            'DESCENDING': 'DES',
+        }
         prod_re = re.compile(r'(S1.)_IW_...._...._(\d{8})T\d{6}_\d{8}T\d{6}.*')
 
         # We need to report every S2 product that could not be generated,
