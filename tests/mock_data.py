@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,6 +36,7 @@ import os
 
 import numpy as np
 
+from s1tiling.libs.Utils import Polygon
 from s1tiling.libs.otbtools import otb_version
 
 # from .mock_otb import compute_coverage
@@ -73,6 +74,7 @@ class FileDB:
         'sardemprojfile'      : 'S1_on_DEM_{s1_polarless}{tmp}.tiff',
         'xyzfile'             : 'XYZ_{s1_polarless}{tmp}.tiff',
         'normalsfile'         : 'Normals_{s1_polarless}{tmp}.tiff',
+        'LIAtask'             : 'TaskLIA_{s1_polarless}.tiff',
         'degLIAfile'          : 'LIA_{s1_polarless}{tmp}.tiff',
         'sinLIAfile'          : 'sin_LIA_{s1_polarless}{tmp}.tiff',
         'orthodegLIAfile'     : 'LIA_{s2_polarless}{tmp}',
@@ -92,12 +94,14 @@ class FileDB:
         'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
         'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
         # TODO: add fmt for orbit direction/number
+        'tasklia_on_s2'       : 'TaskLIA_s1a_{tile}_007{tmp}.tif',
         'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
         'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
         'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif',
 
         # Ellipsoid Incidence Angle
         'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
+        'taskia_on_s2'        : 'TaskIA_s1a_{tile}_007{tmp}.tif',
         'degia_on_s2'         : 'IA_s1a_{tile}_007{tmp}.tif',
         'cosia_on_s2'         : 'cos_IA_s1a_{tile}_007{tmp}.tif',
         'sinia_on_s2'         : 'sin_IA_s1a_{tile}_007{tmp}.tif',
@@ -501,10 +505,10 @@ class FileDB:
         assert idx < 6
         return self.input_file(idx, polarity='vv')
 
-    def tile_origins(self, tile_name) -> List[Tuple[float, float]]:
+    def tile_origins(self, tile_name) -> Polygon:
         origins = {
-                '33NWB': [(14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)],
-                }
+            '33NWB': ((14.9998201759, 1.8098185887), (15.9870050338, 1.8095484335), (15.9866155411, 0.8163071941), (14.9998202469, 0.8164290331000001)),
+        }
         return origins[tile_name]
 
     # def raster_vv(self, idx) -> dict:
@@ -696,6 +700,9 @@ class FileDB:
     def normalsfile(self, idx, tmp) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
+    def LIAtask(self, idx, tmp) -> str:
+        crt = self.FILES[idx]
+        return f'{self.FILE_FMTS["LIAtask"]}'.format(**crt)
     def degLIAfile(self, idx, tmp) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
@@ -818,6 +825,9 @@ class FileDB:
         dir, ext = self._xiadir_and_ext_on_s2(tmp, default_ext)
         return f'{dir}/{self.FILE_FMTS[map_kind]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
 
+    def tasklia_on_s2(self, tmp: bool) -> str:
+        return self.FILE_FMTS["tasklia_on_s2"].format(tile=self.__tile, tmp='')
+
     def deglia_on_s2(self, tmp: bool) -> str:
         return self._xia_map_on_s2(tmp, self.extended_compress, "deglia_on_s2")
 
@@ -829,6 +839,9 @@ class FileDB:
             dir = f'{self.gamma_area_dir()}'
             ext = ''
         return f'{dir}/{self.FILE_FMTS["gamma_area_on_s2"]}{ext}'.format(tile=self.__tile, tmp=tmp_suffix(tmp))
+
+    def taskia_on_s2(self, tmp: bool) -> str:
+        return self.FILE_FMTS["taskia_on_s2"].format(tile=self.__tile, tmp='')
 
     def sinlia_on_s2(self, tmp: bool) -> str:
         return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "sinlia_on_s2")

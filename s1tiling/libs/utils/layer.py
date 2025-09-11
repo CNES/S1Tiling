@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,12 +29,14 @@
 #
 # =========================================================================
 
-"""Layer related toolbox"""
+"""Layer and OGR related toolbox"""
 
 import logging
 from typing import Dict, List
 
-from ..Utils import Layer, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name
+from osgeo.ogr import Geometry
+
+from ..Utils import Layer, Polygon, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name
 
 logger = logging.getLogger('s1tiling.utils.layer')
 
@@ -117,3 +119,27 @@ def check_dem_coverage(
         logger.info("S2 tile %s is covered by %s DEM tiles", tile, len(dem_tiles))
     logger.info("DEM ok")
     return needed_dem_tiles
+
+
+def polygon2extent(polygon: Polygon) -> Dict[str, float]:
+    """
+    Transforms an OGR polygon into an extent dictionary.
+
+    :return: dictionary made of the keys: "lonmin", "lonmax", "latmin", "latmax"
+    """
+    extent = {
+        'lonmin': min(a[0] for a in polygon),
+        'lonmax': max(a[0] for a in polygon),
+        'latmin': min(a[1] for a in polygon),
+        'latmax': max(a[1] for a in polygon),
+    }
+    return extent
+
+
+def footprint2extent(footprint: Geometry) -> Dict[str, float]:
+    """
+    Transforms an OGR :class:`osgeo.ogr.Geometry` into an extent dictionary.
+
+    :return: dictionary made of the keys: "lonmin", "lonmax", "latmin", "latmax"
+    """
+    return polygon2extent(footprint.GetPoints())

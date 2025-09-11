@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,7 +41,6 @@ from typing import Dict, List, Optional, Protocol, Tuple
 from dateutil.parser import parse
 
 from eodag.api.core import EODataAccessGateway
-from eof.client import Filename
 from portion import Interval, closed as closed_interval
 from portion import empty as empty_interval
 
@@ -55,7 +54,7 @@ from ._file      import (
     glob_eof_files,
 )
 from ..outcome   import DownloadOutcome
-from ..utils     import partition
+from ..utils     import AnyPath, partition
 
 
 EOFDownloadOutcome = DownloadOutcome[SentinelOrbitFile]
@@ -72,11 +71,11 @@ class EOFConfiguration(Protocol):
     Can be seen an a ISP compliant concept for Configuration object regarding EOF data.
     """
 
-    first_date    : str
-    last_date     : str
-    eof_directory : Filename
-    platform_list : List[str]
-    download      : bool
+    first_date        : str
+    last_date         : str
+    extra_directories : Dict[str, AnyPath]
+    platform_list     : List[str]
+    download          : bool
 
 
 class ProviderKind(Enum):
@@ -108,7 +107,7 @@ class EOFFileManager:
         self.__dag           = dag
         self.__first_date    = parse(cfg.first_date)
         self.__last_date     = parse(cfg.last_date) + timedelta(days=1) - timedelta(seconds=1)
-        self.__dest_dir      = cfg.eof_directory
+        self.__dest_dir      = cfg.extra_directories['eof_dir']
         self.__missions      = cfg.platform_list
         self.__build_options : Dict[ProviderKind, Dict] = {
                 ProviderKind.COP_DATASPACE : {

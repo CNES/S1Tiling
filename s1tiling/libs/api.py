@@ -37,7 +37,6 @@ Submodule that defines all API related functions and classes.
 from collections.abc import Callable
 import contextlib
 import logging
-import logging.config
 import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, cast
 
@@ -130,7 +129,6 @@ from .utils       import eodag
 from .utils.layer import filter_existing_tiles
 from .utils.timer import timethis
 
-
 from .vis import SimpleComputationGraph  # Graphs
 from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tiled_workspaces_exist
 
@@ -139,6 +137,25 @@ IntersectingS1FilesOutcome = Outcome[List[Dict]]
 
 
 logger = logging.getLogger('s1tiling.api')
+
+
+def main_output_name_formats(configuration: Configuration) -> List[Tuple[str,str]]:
+    """
+    Helper function that generates the list of output name formats (dirname + filename) in the
+    main case scenarios: :ref:`scenario.S1Processor`, :ref:`scenario.S1ProcessorLIA` and
+    :ref:`scenario.S1ProcessorRTC`.
+    """
+    res = []
+    if configuration.calibration_type == 'normlim':
+        res.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
+    elif configuration.calibration_type == 'gamma_naught_rtc':
+        res.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
+        res.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
+    else:
+        res.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
+    if configuration.filter:
+        res.append((dname_fmt_filtered(configuration), fname_fmt_filtered(configuration)))
+    return res
 
 
 def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
@@ -201,6 +218,7 @@ def _execute_tasks_debug(dsk: Dict, tile_name: str) -> List:
 
 
 def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
+    *,
     dsk:                   Dict[str, Union[Tuple, "FirstStep"]],
     tile_name:             str,
     tile_idx:              int,
@@ -242,10 +260,10 @@ def _execute_tasks_with_dask(  # pylint: disable=too-many-arguments
 
 
 def get_s1_files_for_tile(
-        s1_file_manager:     S1FileManager,
-        tile_name:           str,
-        output_name_formats: List[Tuple[str, str]],
-        dryrun:              bool,
+    s1_file_manager:     S1FileManager,
+    tile_name:           str,
+    output_name_formats: List[Tuple[str, str]],
+    dryrun:              bool,
 ) -> IntersectingS1FilesOutcome:
     """
     Returns the list of all S1 files intersecting the given S2 MGRS tile name.
@@ -274,6 +292,7 @@ def get_s1_files_for_tile(
 
 @timethis("Processing of tile {tile_name}", log_level=logging.INFO)
 def process_one_tile(  # pylint: disable=too-many-arguments
+    *,
     tile_name:               str,
     tile_idx:                int,
     tiles_nb:                int,
@@ -308,8 +327,15 @@ def process_one_tile(  # pylint: disable=too-many-arguments
     else:
         assert client, "Dask client shall exist when not debugging calls to OTB applications"
         return _execute_tasks_with_dask(
-                dsk, tile_name, tile_idx,
-                required_products, client, pipelines, do_watch_ram, debug_tasks)
+            dsk=dsk,
+            tile_name=tile_name,
+            tile_idx=tile_idx,
+            required_products=required_products,
+            client=client,
+            pipelines=pipelines,
+            do_watch_ram=do_watch_ram,
+            debug_tasks=debug_tasks,
+        )
 
 
 def read_config(
@@ -412,11 +438,17 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         with DaskContext(config, debug_otb) as dask_client:
             for idx, tile_it in enumerate(tiles_to_process):
                 res = process_one_tile(
-                        tile_it, idx, nb_tiles,
-                        config, pipelines, dask_client.client,
-                        required_workspaces,
-                        debug_otb=debug_otb, do_watch_ram=watch_ram,
-                        debug_tasks=debug_tasks)
+                    tile_name=tile_it,
+                    tile_idx=idx,
+                    tiles_nb=nb_tiles,
+                    cfg=config,
+                    pipelines=pipelines,
+                    client=dask_client.client,
+                    required_workspaces=required_workspaces,
+                    debug_otb=debug_otb,
+                    do_watch_ram=watch_ram,
+                    debug_tasks=debug_tasks,
+                )
                 results.extend(res)
 
         nb_errors_detected = sum(not bool(res) for res in results)
@@ -441,10 +473,10 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
         download_failures = s1_file_manager.get_download_failures()
         download_timeouts = s1_file_manager.get_download_timeouts()
         return exits.Situation(
-                nb_computation_errors=nb_errors_detected - search_failures,
-                nb_search_failures=search_failures,
-                nb_download_failures=len(download_failures),
-                nb_download_timeouts=len(download_timeouts)
+            nb_computation_errors=nb_errors_detected - search_failures,
+            nb_search_failures=search_failures,
+            nb_download_failures=len(download_failures),
+            nb_download_timeouts=len(download_timeouts)
         )
 
 
@@ -453,15 +485,25 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
     Internal function that takes care to register all pipelines related to
     LIA map and sin(LIA) map.
     """
-    dem = pipelines.register_pipeline([AgglomerateDEMOnS1], 'AgglomerateDEM',
-            inputs={'insar': 'basename'})
+    dem = pipelines.register_pipeline(
+        [AgglomerateDEMOnS1],
+        'AgglomerateDEM',
+        inputs={'insar': 'basename'})
 
-    demproj = pipelines.register_pipeline([ExtractSentinel1Metadata, SARDEMProjection], 'SARDEMProjection', is_name_incremental=True,
-            inputs={'insar': 'basename', 'indem': dem})
-    xyz = pipelines.register_pipeline([SARCartesianMeanEstimation],                     'SARCartesianMeanEstimation',
-            inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
-    lia = pipelines.register_pipeline([ComputeNormalsOnS1, ComputeLIAOnS1],                     'Normals|LIA', is_name_incremental=True,
-            inputs={'xyz': xyz})
+    demproj = pipelines.register_pipeline(
+        [ExtractSentinel1Metadata, SARDEMProjection],
+        'SARDEMProjection',
+        is_name_incremental=True,
+        inputs={'insar': 'basename', 'indem': dem})
+    xyz = pipelines.register_pipeline(
+        [SARCartesianMeanEstimation],
+        'SARCartesianMeanEstimation',
+        inputs={'insar': 'basename', 'indem': dem, 'indemproj': demproj})
+    lia = pipelines.register_pipeline(
+        [ComputeNormalsOnS1, ComputeLIAOnS1],
+        'Normals|LIA',
+        is_name_incremental=True,
+        inputs={'xyz': xyz})
 
     # "inputs" parameter doesn't need to be specified in the following pipeline declarations
     # but we still use it for clarity!
@@ -499,8 +541,8 @@ def register_LIA_pipelines_v0(pipelines: PipelineDescriptionSequence, produce_an
 
 
 def register_LIA_pipelines_v1_1(
-        pipelines: PipelineDescriptionSequence,
-        produce_angles: bool,
+    pipelines: PipelineDescriptionSequence,
+    produce_angles: bool,
 ) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
@@ -508,14 +550,16 @@ def register_LIA_pipelines_v1_1(
     """
     pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
-            [AgglomerateDEMOnS2], 'AgglomerateDEM',
-            inputs={'tilename': 'tilename'},
+        [AgglomerateDEMOnS2],
+        'AgglomerateDEM',
+        inputs={'tilename': 'tilename'},
     )
 
     s2_dem = pipelines.register_pipeline(
-            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
-            is_name_incremental=True,
-            inputs={"indem": dem_vrt}
+        [ProjectDEMToS2Tile],
+        "ProjectDEMToS2Tile",
+        is_name_incremental=True,
+        inputs={"indem": dem_vrt}
     )
 
     s2_height = pipelines.register_pipeline(
@@ -544,32 +588,32 @@ def register_LIA_pipelines_v1_1(
     # * ComputeGroundAndSatPositionsOnDEM takes care of filtering on the
     #   coverage. We don't need any SelectBestS1onS2Coverage prior to this step.
     sar = pipelines.register_pipeline(
-            [ExtractSentinel1Metadata],
-            inputs={'inrawsar': 'basename'}
+        [ExtractSentinel1Metadata],
+        inputs={'inrawsar': 'basename'}
     )
     xyz = pipelines.register_pipeline(
-            [ComputeGroundAndSatPositionsOnDEM],
-            "ComputeGroundAndSatPositionsOnDEM",
-            inputs={'insar': sar, 'inheight': s2_height},
+        [ComputeGroundAndSatPositionsOnDEM],
+        "ComputeGroundAndSatPositionsOnDEM",
+        inputs={'insar': sar, 'inheight': s2_height},
     )
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
     # produce_angles is ignored as there is no extra select_LIA step
     lia = pipelines.register_pipeline(
-            [ComputeNormalsOnS2, ComputeLIAOnS2],
-            'ComputeLIAOnS2',
-            is_name_incremental=True,
-            inputs={'xyz': xyz},
-            product_required=True,
+        [ComputeNormalsOnS2, ComputeLIAOnS2],
+        'ComputeLIAOnS2',
+        is_name_incremental=True,
+        inputs={'xyz': xyz},
+        product_required=True,
     )
     return lia
 
 
 
 def register_GAMMA_AREA_pipelines(
-        pipelines: PipelineDescriptionSequence,
-        config: Configuration
+    pipelines: PipelineDescriptionSequence,
+    config: Configuration
 ) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
@@ -577,18 +621,18 @@ def register_GAMMA_AREA_pipelines(
     """
     # Build VRT
     dem = pipelines.register_pipeline(
-            [AgglomerateDEMOnS1],
-            'AgglomerateDEM',
-            inputs={'insar': 'basename'},
+        [AgglomerateDEMOnS1],
+        'AgglomerateDEM',
+        inputs={'insar': 'basename'},
     )
 
     # Resample DEM
     resampled_dem = dem
     if config.use_resampled_dem:
         resampled_dem = pipelines.register_pipeline(
-                [NaNifyNoData, ResampleDEM],
-                'RigidTransformResample',
-                inputs={'indem': dem},
+            [NaNifyNoData, ResampleDEM],
+            'RigidTransformResample',
+            inputs={'indem': dem},
         )
 
     # Combine dem + geoid in order to optimize SARDEMProjection execution
@@ -612,50 +656,50 @@ def register_GAMMA_AREA_pipelines(
 
     # Project DEM
     demproj = pipelines.register_pipeline(
-            [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
-            'SARDEMProjection',
-            is_name_incremental=True,
-            # inputs={'insar': 'basename', 'indem': resampled_dem},
-            inputs={'insar': 'basename', 'indem': heights},
+        [ExtractSentinel1Metadata, SARDEMProjectionImageEstimation],
+        'SARDEMProjection',
+        is_name_incremental=True,
+        # inputs={'insar': 'basename', 'indem': resampled_dem},
+        inputs={'insar': 'basename', 'indem': heights},
     )
 
     # gamma area
     gamma_area = pipelines.register_pipeline(
-            [SARGammaAreaImageEstimation],
-            'SARGammaAreaImageEstimation',
-            # TODO: indem parameter doesn't make sens in the application code...
-            inputs={'insar': 'basename', 'indem': heights, 'indemproj': demproj},
+        [SARGammaAreaImageEstimation],
+        'SARGammaAreaImageEstimation',
+        # TODO: indem parameter doesn't make sens in the application code...
+        inputs={'insar': 'basename', 'indem': heights, 'indemproj': demproj},
     )
 
     # ortho gamma area
     ortho_gamma_area = pipelines.register_pipeline(
-            [OrthoRectifyGAMMA_AREA],
-            'OrthoGAMMA_AREA',
-            inputs={'in': gamma_area},
-            is_name_incremental=True,
+        [OrthoRectifyGAMMA_AREA],
+        'OrthoGAMMA_AREA',
+        inputs={'in': gamma_area},
+        is_name_incremental=True,
     )
     concat_ortho_gamma_area = pipelines.register_pipeline(
-            [ConcatenateGAMMA_AREA],
-            'ConcatGAMMA_AREA',
-            inputs={'in': ortho_gamma_area},
+        [ConcatenateGAMMA_AREA],
+        'ConcatGAMMA_AREA',
+        inputs={'in': ortho_gamma_area},
     )
     best_concat_ortho_gamma_area = pipelines.register_pipeline(
-            [SelectGammaNaughtAreaBestCoverage],
-            'SelectGAMMA_AREA',
-            inputs={'in': concat_ortho_gamma_area},
-            product_required=True,
+        [SelectGammaNaughtAreaBestCoverage],
+        'SelectGAMMA_AREA',
+        inputs={'in': concat_ortho_gamma_area},
+        product_required=True,
     )
 
     return best_concat_ortho_gamma_area
 
 
 def s1_raster_first_inputs_factory(
-        tile_name          : str,
-        configuration      : Configuration,
-        s1_file_manager    : S1FileManager,
-        output_name_formats: List[Tuple[str, str]],
-        dryrun             : bool,
-        **kwargs,  # pylint: disable=unused-argument
+    *,
+    tile_name          : str,
+    s1_file_manager    : S1FileManager,
+    output_name_formats: List[Tuple[str, str]],
+    dryrun             : bool,
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S1 images.
@@ -672,9 +716,9 @@ def s1_raster_first_inputs_factory(
 
 
 def s1_raster_first_inputs_factory_from_rasters(
-        tile_name      : str,
-        raster_list : List[Dict],
-        **kwargs,  # pylint: disable=unused-argument
+    tile_name      : str,
+    raster_list : List[Dict],
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S1 images: converts S1 raster list into
@@ -700,9 +744,10 @@ def s1_raster_first_inputs_factory_from_rasters(
 
 
 def tilename_first_inputs_factory(
-        tile_name    : str,
-        configuration: Configuration,
-        **kwargs,  # pylint: disable=unused-argument
+    *,
+    tile_name    : str,
+    configuration: Configuration,
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to S2 MGRS tile information: name and footprint origin.
@@ -718,21 +763,21 @@ def tilename_first_inputs_factory(
     points         = area_polygon.GetPoints()
     tile_origin    = [(point[0], point[1]) for point in points[:-1]]
     return [
-            Outcome(FirstStep(
-                tile_name=tile_name,
-                tile_origin=tile_origin,  # S2 tile footprint
-                basename=f"S2info_{tile_name}",
-                out_filename=tiles_db,  # Trick existing file detection
-                does_product_exist=lambda: True,
-            )),
+        Outcome(FirstStep(
+            tile_name=tile_name,
+            tile_origin=tile_origin,  # S2 tile footprint
+            basename=f"S2info_{tile_name}",
+            out_filename=tiles_db,  # Trick existing file detection
+            does_product_exist=lambda: True,
+        )),
     ]
 
 
 def eof_first_inputs_factory(
-        tile_name    : str,
-        configuration: Configuration,
-        dag          : EODataAccessGateway,
-        **kwargs,  # pylint: disable=unused-argument
+    tile_name    : str,
+    configuration: Configuration,
+    dag          : EODataAccessGateway,
+    **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
     :class:`FirstStepFactory` hook dedicated to precise orbit inputs.
@@ -766,10 +811,10 @@ def eof_first_inputs_factory(
             logger.debug("#  orb=%03d, product=%s", relorb, product.filename)
             assert product, f"Here, we should have a non null instance for {product=}"
             step = FirstStep(
-                    orbit=f"{relorb:0>3d}",
-                    basename=str(product.filename),
-                    flying_unit_code=product.mission.lower(),
-                    tile_name=tile_name,
+                orbit=f"{relorb:0>3d}",
+                basename=str(product.filename),
+                flying_unit_code=product.mission.lower(),
+                tile_name=tile_name,
             )
             steps.append(step)
     for step in steps:
@@ -778,8 +823,8 @@ def eof_first_inputs_factory(
 
 
 def register_LIA_pipelines(
-        pipelines: PipelineDescriptionSequence,
-        produce_angles: bool,
+    pipelines: PipelineDescriptionSequence,
+    produce_angles: bool,
 ) -> PipelineDescription:
     """
     Internal function that takes care to register all pipelines related to
@@ -787,14 +832,14 @@ def register_LIA_pipelines(
     """
     pipelines.register_inputs('tilename', tilename_first_inputs_factory)
     dem_vrt = pipelines.register_pipeline(
-            [AgglomerateDEMOnS2], 'AgglomerateDEM',
-            inputs={'tilename': 'tilename'},
+        [AgglomerateDEMOnS2], 'AgglomerateDEM',
+        inputs={'tilename': 'tilename'},
     )
 
     s2_dem = pipelines.register_pipeline(
-            [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
-            is_name_incremental=True,
-            inputs={"indem": dem_vrt}
+        [ProjectDEMToS2Tile], "ProjectDEMToS2Tile",
+        is_name_incremental=True,
+        inputs={"indem": dem_vrt}
     )
 
     s2_height = pipelines.register_pipeline(
@@ -815,20 +860,20 @@ def register_LIA_pipelines(
 
     pipelines.register_inputs('eof', eof_first_inputs_factory)
     xyz = pipelines.register_pipeline(
-            [ComputeGroundAndSatPositionsOnDEMFromEOF],
-            "ComputeGroundAndSatPositionsOnDEM",
-            inputs={'ineof': 'eof', 'inheight': s2_height},
+        [ComputeGroundAndSatPositionsOnDEMFromEOF],
+        "ComputeGroundAndSatPositionsOnDEM",
+        inputs={'ineof': 'eof', 'inheight': s2_height},
     )
 
     # Always generate sin(LIA). If LIA° is requested, then it's also a
     # final/requested product.
     # produce_angles is ignored as there is no extra select_LIA step
     lia = pipelines.register_pipeline(
-            [ComputeNormalsOnS2, ComputeLIAOnS2],
-            'ComputeLIAOnS2',
-            is_name_incremental=True,
-            inputs={'xyz': xyz},
-            product_required=True,
+        [ComputeNormalsOnS2, ComputeLIAOnS2],
+        'ComputeLIAOnS2',
+        is_name_incremental=True,
+        inputs={'xyz': xyz},
+        product_required=True,
     )
     return lia
 
@@ -845,9 +890,9 @@ def register_IA_pipelines(
 
     pipelines.register_inputs('eof', eof_first_inputs_factory)
     xyz = pipelines.register_pipeline(
-            [ComputeGroundAndSatPositionsOnEllipsoid],
-            "ComputeGroundAndSatPositionsOnEllipsoid",
-            inputs={'tilename': 'tilename', 'ineof': 'eof'},
+        [ComputeGroundAndSatPositionsOnEllipsoid],
+        "ComputeGroundAndSatPositionsOnEllipsoid",
+        inputs={'tilename': 'tilename', 'ineof': 'eof'},
     )
 
     # And then this time, normals are computed from S2 tile
@@ -855,36 +900,35 @@ def register_IA_pipelines(
     # final/requested product.
     # produce_angles is ignored as there is no extra select_IA step
     lia = pipelines.register_pipeline(
-            [ComputeEllipsoidNormalsOnS2, ComputeIAOnS2],
-            'ComputeIAOnS2',
-            is_name_incremental=True,
-            inputs={'tilename': 'tilename', 'xyz': xyz},
-            product_required=True,
+        [ComputeEllipsoidNormalsOnS2, ComputeIAOnS2],
+        'ComputeIAOnS2',
+        is_name_incremental=True,
+        inputs={'tilename': 'tilename', 'xyz': xyz},
+        product_required=True,
     )
     return lia
 
 
 def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
-        config_opt              : Union[str, Configuration],
-        *,
-        dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries   : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        dryrun                  : bool = False,
-        debug_otb               : bool = False,
-        debug_caches            : bool = False,
-        watch_ram               : bool = False,
-        debug_tasks             : bool = False,
-        cache_before_ortho      : bool = False,
-        lia_process                    = None,
-        gamma_area_process             = None,
+    config_opt              : Union[str, Configuration],
+    *,
+    dl_wait                 : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout              : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page : int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries   : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                  : bool = False,
+    debug_otb               : bool = False,
+    debug_caches            : bool = False,
+    watch_ram               : bool = False,
+    debug_tasks             : bool = False,
+    cache_before_ortho      : bool = False,
+    lia_process                    = None,
+    gamma_area_process             = None,
 ) -> exits.Situation:
     """
-    Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and
-    :ref:`S1Tiling NORMLIM scenario <scenario.S1ProcessorLIA>` of on demand
-    Ortho-rectification of Sentinel-1 data on Sentinel-2 grid for all
-    calibration kinds.
+    Entry point to :ref:`S1Tiling classic scenario <scenario.S1Processor>` and :ref:`S1Tiling
+    NORMLIM scenario <scenario.S1ProcessorLIA>` of on demand Ortho-rectification of Sentinel-1 data
+    on Sentinel-2 grid for all calibration kinds.
 
     It performs the following steps:
 
@@ -900,54 +944,45 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
     :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
+        Permits to override EODAG default wait time in minutes between two download tries.
     :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
+        Permits to override EODAG default maximum time in mins before stop retrying to download
+        (default=20)
     :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
+        Tells how many items are to be returned by EODAG when searching for S1 images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
-        Used for debugging: Don't execute processing tasks in DASK workers but
-        directly in order to be able to analyse OTB/external application
-        through a debugger.
+        Used for debugging: Don't execute processing tasks in DASK workers but directly in order to
+        be able to analyse OTB/external application through a debugger.
     :param debug_caches:
-        Used for debugging: Don't delete the intermediary files but leave them
-        behind.
+        Used for debugging: Don't delete the intermediary files but leave them behind.
     :param watch_ram:
         Used for debugging: Monitoring Python/Dask RAM consumption.
     :param debug_tasks:
         Generate SVG images showing task graphs of the processing flows
     :param cache_before_ortho:
-        Cutting, calibration and orthorectification are chained in memory
-        unless this option is true. In that case, :ref:`Cut and calibrated (aka
-        "OrthoReady") files <orthoready-files>` are stored in :ref:`%(tmp)
-        <paths.tmp>`:samp:`/S1/` directory.
+        Cutting, calibration and orthorectification are chained in memory unless this option is
+        true. In that case, :ref:`Cut and calibrated (aka "OrthoReady") files <orthoready-files>`
+        are stored in :ref:`%(tmp) <paths.tmp>`:samp:`/S1/` directory.
         Do not forget to regularly clean up this space.
 
     :return:
-        A *nominal* exit code depending of whether everything could have been
-        downloaded and produced.
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
     :rtype: :class:`s1tiling.libs.exits.Situation`
 
     :exception Error: A variety of exceptions. See below (follow the link).
     """
-    def builder(config: Configuration, dryrun: bool, debug_caches: bool) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
+    def builder(
+        config: Configuration,
+        dryrun: bool,
+        debug_caches: bool,
+    ) -> Tuple[PipelineDescriptionSequence, List[WorkspaceKinds]]:
         assert (not config.filter) or (config.keep_non_filtered_products or not config.mask_cond), \
                 'Cannot purge non filtered products when mask are also produced!'
 
-        output_name_formats = []
-        if config.calibration_type == 'normlim':
-            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_lia_corrected(config)))
-        elif config.calibration_type == 'gamma_naught_rtc':
-            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_gamma_area_corrected(config)))
-        else:
-            output_name_formats.append((dname_fmt_tiled(config), fname_fmt_concatenation(config)))
-        if config.filter:
-            output_name_formats.append((dname_fmt_filtered(config), fname_fmt_filtered(config)))
+        output_name_formats = main_output_name_formats(config)
 
         chain_LIA_and_despeckle_inmemory        = config.filter and not config.keep_non_filtered_products
         chain_GAMMA_AREA_and_despeckle_inmemory = config.filter and not config.keep_non_filtered_products
@@ -981,9 +1016,9 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             need_to_keep_non_filtered_products = True
 
         concat_S2 = pipelines.register_pipeline(
-                concat_seq,
-                product_required=calibration_is_done_in_S1,
-                is_name_incremental=True
+            concat_seq,
+            product_required=calibration_is_done_in_S1,
+            is_name_incremental=True
         )
         last_product_S2 = concat_S2
 
@@ -1004,24 +1039,22 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             # This steps helps forwarding sin(LIA) (only) to the next step
             # that corrects the β° with sin(LIA) map.
             sin_LIA = pipelines.register_pipeline(
-                    [filter_LIA('sin_LIA')],
-                    'SelectSinLIA',
-                    is_name_incremental=True,
-                    inputs={'in': lias},
+                [filter_LIA('sin_LIA')],
+                'SelectSinLIA',
+                is_name_incremental=True,
+                inputs={'in': lias},
             )
             # TODO: Merge filter_LIA in apply_LIA_seq!
             apply_LIA = pipelines.register_pipeline(
-                    apply_LIA_seq, product_required=True,
-                    inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2},
-                    is_name_incremental=True,
+                apply_LIA_seq, product_required=True,
+                inputs={'sin_LIA': sin_LIA, 'concat_S2': concat_S2},
+                is_name_incremental=True,
             )
             last_product_S2 = apply_LIA
             required_workspaces.append(WorkspaceKinds.LIA)
 
         # GAMMA AREA Calibration (...+ Despeckle)
-        if config.calibration_type == 'gamma_naught_rtc':
-            output_name_formats.append((dname_fmt_gamma_area_product(config), fname_fmt_gamma_area_product(config)))
-
+        elif config.calibration_type == 'gamma_naught_rtc':
             apply_GAMMA_AREA_seq: List[Type[StepFactory]] = [ApplyGammaNaughtRTCCalibration]
             if chain_GAMMA_AREA_and_despeckle_inmemory:
                 apply_GAMMA_AREA_seq.append(SpatialDespeckle)
@@ -1033,17 +1066,18 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             gammanaughtareas = GammaNaughtArea_registration(pipelines, config)
 
             apply_GAMMA_AREA = pipelines.register_pipeline(
-                    apply_GAMMA_AREA_seq, product_required=True,
-                    inputs={'gamma_area': gammanaughtareas, 'concat_S2': concat_S2},
-                    is_name_incremental=True,
+                apply_GAMMA_AREA_seq, product_required=True,
+                inputs={'gamma_area': gammanaughtareas, 'concat_S2': concat_S2},
+                is_name_incremental=True,
             )
             last_product_S2 = apply_GAMMA_AREA
             required_workspaces.append(WorkspaceKinds.GAMMA_AREA)
 
         # Masking
         if config.mask_cond:
-            pipelines.register_pipeline([BuildBorderMask, SmoothBorderMask], 'GenerateMask',
-                    product_required=True, inputs={'in': last_product_S2})
+            pipelines.register_pipeline(
+                [BuildBorderMask, SmoothBorderMask], 'GenerateMask',
+                product_required=True, inputs={'in': last_product_S2})
             required_workspaces.append(WorkspaceKinds.MASK)
 
         # Despeckle in non-inmemory case
@@ -1052,8 +1086,9 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
             required_workspaces.append(WorkspaceKinds.FILTER)
             if need_to_keep_non_filtered_products:  # config.keep_non_filtered_products:
                 # Define another pipeline if chaining cannot be done in memory
-                pipelines.register_pipeline([SpatialDespeckle], product_required=True,
-                        inputs={'in': last_product_S2})
+                pipelines.register_pipeline(
+                    [SpatialDespeckle], product_required=True,
+                    inputs={'in': last_product_S2})
 
         return pipelines, required_workspaces
 
@@ -1062,39 +1097,39 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         return config.calibration_type != 'normlim' or len(config.relative_orbit_list) > 0
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            extra_config_checks=[(
-                _check_requested_number_of_orbits,
-                "At least one relative orbit is required for LIA map generation"
-            )],
-            ctx_managers=[DEMWorkspace],
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
-            dryrun=dryrun,
-            debug_otb=debug_otb,
-            debug_caches=debug_caches,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        extra_config_checks=[(
+            _check_requested_number_of_orbits,
+            "At least one relative orbit is required for LIA map generation"
+        )],
+        ctx_managers=[DEMWorkspace],
+        dl_wait=dl_wait, dl_timeout=dl_timeout,
+        searched_items_per_page=searched_items_per_page,
+        nb_max_search_retries=nb_max_search_retries,
+        dryrun=dryrun,
+        debug_otb=debug_otb,
+        debug_caches=debug_caches,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )
 
 
 def s1_process_lia_v0(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        *,
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
-    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
-    generates Local Incidence Angle Maps on S2 geometry.
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that generates Local
+    Incidence Angle Maps on S2 geometry.
 
     It performs the following steps:
 
@@ -1111,31 +1146,27 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
     :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
+        Permits to override EODAG default wait time in minutes between two download tries.
     :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
+        Permits to override EODAG default maximum time in mins before stop retrying to download
+        (default=20)
     :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
+        Tells how many items are to be returned by EODAG when searching for S1 images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
-        Used for debugging: Don't execute processing tasks in DASK workers but
-        directly in order to be able to analyse OTB/external application
-        through a debugger.
+        Used for debugging: Don't execute processing tasks in DASK workers but directly in order to
+        be able to analyse OTB/external application through a debugger.
     :param debug_caches:
-        Used for debugging: Don't delete the intermediary files but leave them
-        behind.
+        Used for debugging: Don't delete the intermediary files but leave them behind.
     :param watch_ram:
         Used for debugging: Monitoring Python/Dask RAM consumption.
     :param debug_tasks:
         Generate SVG images showing task graphs of the processing flows
 
     :return:
-        A *nominal* exit code depending of whether everything could have been
-        downloaded and produced.
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
     :rtype: :class:`s1tiling.libs.exits.Situation`
 
     :exception Error: A variety of exceptions. See below (follow the link).
@@ -1156,31 +1187,31 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            ctx_managers=[DEMWorkspace],
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
-            dryrun=dryrun,
-            debug_caches=debug_caches,
-            debug_otb=debug_otb,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        ctx_managers=[DEMWorkspace],
+        dl_wait=dl_wait, dl_timeout=dl_timeout,
+        searched_items_per_page=searched_items_per_page,
+        nb_max_search_retries=nb_max_search_retries,
+        dryrun=dryrun,
+        debug_caches=debug_caches,
+        debug_otb=debug_otb,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )
 
 
 def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        *,
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
@@ -1246,31 +1277,31 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            ctx_managers=[DEMWorkspace],
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
-            dryrun=dryrun,
-            debug_caches=debug_caches,
-            debug_otb=debug_otb,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        ctx_managers=[DEMWorkspace],
+        dl_wait=dl_wait, dl_timeout=dl_timeout,
+        searched_items_per_page=searched_items_per_page,
+        nb_max_search_retries=nb_max_search_retries,
+        dryrun=dryrun,
+        debug_caches=debug_caches,
+        debug_otb=debug_otb,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )
 
 
 def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        *,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
-    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that
-    generates :ref:`Local Incidence Angle Maps on S2 geometry <lia-files>`.
+    Entry point to :ref:`LIA Map production scenario <scenario.S1LIAMap>` that generates :ref:`Local
+    Incidence Angle Maps on S2 geometry <lia-files>`.
 
     It performs the following steps:
 
@@ -1283,20 +1314,18 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
-        Used for debugging: Don't execute processing tasks in DASK workers but
-        directly in order to be able to analyse OTB/external application
-        through a debugger.
+        Used for debugging: Don't execute processing tasks in DASK workers but directly in order to
+        be able to analyse OTB/external application through a debugger.
     :param debug_caches:
-        Used for debugging: Don't delete the intermediary files but leave them
-        behind.
+        Used for debugging: Don't delete the intermediary files but leave them behind.
     :param watch_ram:
         Used for debugging: Monitoring Python/Dask RAM consumption.
     :param debug_tasks:
         Generate SVG images showing task graphs of the processing flows
 
     :return:
-        A *nominal* exit code depending of whether everything could have been
-        downloaded and produced.
+        A *nominal* exit code depending of whether everything could have been downloaded and
+        produced.
     :rtype: :class:`s1tiling.libs.exits.Situation`
 
     :exception Error: A variety of exceptions. See below (follow the link).
@@ -1308,17 +1337,17 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            extra_config_checks=[(
-                lambda config: len(config.relative_orbit_list) > 0,
-                "At least one relative orbit is required for LIA map generation"
-            )],
-            ctx_managers=[DEMWorkspace],
-            dryrun=dryrun,
-            debug_caches=debug_caches,
-            debug_otb=debug_otb,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        extra_config_checks=[(
+            lambda config: len(config.relative_orbit_list) > 0,
+            "At least one relative orbit is required for LIA map generation"
+        )],
+        ctx_managers=[DEMWorkspace],
+        dryrun=dryrun,
+        debug_caches=debug_caches,
+        debug_otb=debug_otb,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )
 
 
@@ -1326,13 +1355,13 @@ s1_process_lia = s1_process_lia_v1_2
 
 
 def s1_process_ia(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        *,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Entry point to :ref:`IA Map production scenario <scenario.S1IAMap>` that
@@ -1349,12 +1378,10 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
-        Used for debugging: Don't execute processing tasks in DASK workers but
-        directly in order to be able to analyse OTB/external application
-        through a debugger.
+        Used for debugging: Don't execute processing tasks in DASK workers but directly in order to
+        be able to analyse OTB/external application through a debugger.
     :param debug_caches:
-        Used for debugging: Don't delete the intermediary files but leave them
-        behind.
+        Used for debugging: Don't delete the intermediary files but leave them behind.
     :param watch_ram:
         Used for debugging: Monitoring Python/Dask RAM consumption.
     :param debug_tasks:
@@ -1374,30 +1401,31 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            extra_config_checks=[(
-                lambda config: len(config.relative_orbit_list) > 0,
-                "At least one relative orbit is required for Ellipsoid IA map generation"
-            )],
-            dryrun=dryrun,
-            debug_caches=debug_caches,
-            debug_otb=debug_otb,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        extra_config_checks=[(
+            lambda config: len(config.relative_orbit_list) > 0,
+            "At least one relative orbit is required for Ellipsoid IA map generation"
+        )],
+        dryrun=dryrun,
+        debug_caches=debug_caches,
+        debug_otb=debug_otb,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )
 
 
 def s1_process_gamma_area(  # pylint: disable=too-many-arguments
-        config_opt             : Union[str, Configuration],
-        dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
-        dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
-        searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
-        nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
-        dryrun                 : bool = False,
-        debug_otb              : bool = False,
-        debug_caches           : bool = False,
-        watch_ram              : bool = False,
-        debug_tasks            : bool = False,
+    config_opt             : Union[str, Configuration],
+    *,
+    dl_wait                : int  = EODAG_DEFAULT_DOWNLOAD_WAIT,
+    dl_timeout             : int  = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    searched_items_per_page: int  = EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    nb_max_search_retries  : int  = EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    dryrun                 : bool = False,
+    debug_otb              : bool = False,
+    debug_caches           : bool = False,
+    watch_ram              : bool = False,
+    debug_tasks            : bool = False,
 ) -> exits.Situation:
     """
     Entry point to :ref:`GAMMA_AREA Map production scenario <scenario.S1GammaAreaMap>` that
@@ -1406,35 +1434,31 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
     It performs the following steps:
 
     1. Determine the S1 products to process
-        Given a list of S2 tiles, we first determine the day that'll the best
-        coverage of each S2 tile in terms of S1 products.
+        Given a list of S2 tiles, we first determine the day that'll the best coverage of each S2
+        tile in terms of S1 products.
 
-        In case there is no single day that gives the best coverage for all
-        S2 tiles, we try to determine the best solution that minimizes the
-        number of S1 products to download and process.
+        In case there is no single day that gives the best coverage for all S2 tiles, we try to
+        determine the best solution that minimizes the number of S1 products to download and
+        process.
     2. Process these S1 products
 
     :param config_opt:
         Either a :ref:`request configuration file <request-config-file>` or a
         :class:`s1tiling.libs.configuration.Configuration` instance.
     :param dl_wait:
-        Permits to override EODAG default wait time in minutes between two
-        download tries.
+        Permits to override EODAG default wait time in minutes between two download tries.
     :param dl_timeout:
-        Permits to override EODAG default maximum time in mins before stop
-        retrying to download (default=20)
+        Permits to override EODAG default maximum time in mins before stop retrying to download
+        (default=20)
     :param searched_items_per_page:
-        Tells how many items are to be returned by EODAG when searching for S1
-        images.
+        Tells how many items are to be returned by EODAG when searching for S1 images.
     :param dryrun:
         Used for debugging: external (OTB/GDAL) application aren't executed.
     :param debug_otb:
-        Used for debugging: Don't execute processing tasks in DASK workers but
-        directly in order to be able to analyse OTB/external application
-        through a debugger.
+        Used for debugging: Don't execute processing tasks in DASK workers but directly in order to
+        be able to analyse OTB/external application through a debugger.
     :param debug_caches:
-        Used for debugging: Don't delete the intermediary files but leave them
-        behind.
+        Used for debugging: Don't delete the intermediary files but leave them behind.
     :param watch_ram:
         Used for debugging: Monitoring Python/Dask RAM consumption.
     :param debug_tasks:
@@ -1458,14 +1482,14 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
         return pipelines, required_workspaces
 
     return do_process_with_pipeline(
-            config_opt, builder,
-            ctx_managers=[DEMWorkspace],
-            dl_wait=dl_wait, dl_timeout=dl_timeout,
-            searched_items_per_page=searched_items_per_page,
-            nb_max_search_retries=nb_max_search_retries,
-            dryrun=dryrun,
-            debug_caches=debug_caches,
-            debug_otb=debug_otb,
-            watch_ram=watch_ram,
-            debug_tasks=debug_tasks,
+        config_opt, builder,
+        ctx_managers=[DEMWorkspace],
+        dl_wait=dl_wait, dl_timeout=dl_timeout,
+        searched_items_per_page=searched_items_per_page,
+        nb_max_search_retries=nb_max_search_retries,
+        dryrun=dryrun,
+        debug_caches=debug_caches,
+        debug_otb=debug_otb,
+        watch_ram=watch_ram,
+        debug_tasks=debug_tasks,
     )

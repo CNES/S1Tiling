@@ -52,9 +52,7 @@ from eodag.api.search_result import SearchResult
 from eodag.utils.exceptions  import NotAvailableError
 from eodag.utils.logging     import setup_logging
 
-import numpy as np
-
-from s1tiling.libs       import exceptions
+from .                   import exceptions
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -63,9 +61,6 @@ from .Utils              import (
     regex_join,
 )
 from .S1DateAcquisition  import S1DateAcquisition
-from .configuration      import (
-    fname_fmt_concatenation,
-)
 # from .orbit._conversions import ORBIT_CONVERTERS
 from .otbpipeline        import mp_worker_config
 from .outcome            import S1DownloadOutcome
@@ -80,7 +75,8 @@ from .s1.filters         import (
 from .s1.product         import EOProductInformation, FileProductInformation, product_property
 from .utils.timer        import timethis
 from .utils.formatters   import ResilientFormater
-from .utils.path         import list_dirs, list_files
+from .utils.layer        import footprint2extent
+from .utils.path         import AnyPath, list_dirs, list_files
 
 setup_logging(verbose=1)
 
@@ -107,7 +103,7 @@ class S1FileManagerConfiguration(Protocol):
     raw_directory                : str
     tmpdir                       : str
     output_preprocess            : str
-    gamma_area_directory         : str
+    extra_directories            : Dict[str, AnyPath]
     nb_download_processes        : int
     tile_list                    : List[str]
     output_grid                  : str
@@ -258,9 +254,9 @@ def filter_images_or_ortho(kind, all_images: List[str]) -> List[str]:
 def _filter_s1_images_required_for_expected_s2_product(  # pylint: disable=too-many-arguments, too-many-locals
     *,
     s1_products:         Sequence[EOProductInformation],
-    tile_out_dir:        str,
+    tile_out_dir:        AnyPath,
     tile_name:           str,
-    gamma_area_dir:      str,
+    gamma_area_dir:      AnyPath,
     polarization:        str,
     orbit_direction:     Optional[str],
     relative_orbit_list: List[int],
@@ -440,6 +436,7 @@ def _download_and_extract_one_product(
 
 
 def _parallel_download_and_extraction_of_products(  # pylint: disable=too-many-arguments, too-many-locals
+    *,
     dag:           EODataAccessGateway,
     raw_directory: str,
     products:      List[EOProduct],
@@ -614,6 +611,7 @@ class S1FileManager:
 
     def _search_products(  # pylint: disable=too-many-arguments, too-many-locals
         self,
+        *,
         dag:                            EODataAccessGateway,
         extent:                         Dict[str, float],
         first_date:                     str,
@@ -711,10 +709,11 @@ class S1FileManager:
 
     def _filter_products_to_download(  # pylint: disable=too-many-arguments
         self,
+        *,
         products:            Sequence[EOProductInformation],
         extent:              Dict[str, float],
-        tile_out_dir:        str,
-        gamma_area_dir:      str,
+        tile_out_dir:        AnyPath,
+        gamma_area_dir:      AnyPath,
         tile_name:           str,
         polarization:        str,
         cover:               float,
@@ -783,15 +782,13 @@ class S1FileManager:
 
     def _download(  # pylint: disable=too-many-arguments, too-many-locals
         self,
+        *,
         dag:                     EODataAccessGateway,
-        lonmin:                  float,
-        lonmax:                  float,
-        latmin:                  float,
-        latmax:                  float,
+        extent:                  Dict[str, float],
         first_date:              str,
         last_date:               str,
-        tile_out_dir:            str,
-        gamma_area_dir:          str,
+        tile_out_dir:            AnyPath,
+        gamma_area_dir:          AnyPath,
         tile_name:               str,
         platform_list:           List[str],
         orbit_direction:         Optional[str],
@@ -807,30 +804,31 @@ class S1FileManager:
         :rtype: :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
         :raises RuntimeError: If the search fails
         """
-        extent = {
-            'lonmin': lonmin,
-            'lonmax': lonmax,
-            'latmin': latmin,
-            'latmax': latmax
-        }
         try:
             sproducts = self._search_products(
-                dag, extent,
-                first_date, last_date, platform_list, orbit_direction, relative_orbit_list,
-                polarization, dryrun)
+                dag=dag,
+                extent=extent,
+                first_date=first_date,
+                last_date=last_date,
+                platform_list=platform_list,
+                orbit_direction=orbit_direction,
+                relative_orbit_list=relative_orbit_list,
+                polarization=polarization,
+                dryrun=dryrun,
+            )
         except Exception as e:
             self.__search_failures += 1
             raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
 
         products = self._filter_products_to_download(
-            [EOProductInformation(p) for p in sproducts],
-            extent,
-            tile_out_dir,
-            gamma_area_dir,
-            tile_name,
-            polarization,
-            cover,
-            output_name_formats,
+            products=[EOProductInformation(p) for p in sproducts],
+            extent=extent,
+            tile_out_dir=tile_out_dir,
+            gamma_area_dir=gamma_area_dir,
+            tile_name=tile_name,
+            polarization=polarization,
+            cover=cover,
+            output_name_formats=output_name_formats,
         )
 
         # And finally download all!
@@ -851,9 +849,14 @@ class S1FileManager:
 
         eo_products = [p.product for p in products]
         paths = _parallel_download_and_extraction_of_products(
-                dag, self.cfg.raw_directory, eo_products, self.cfg.nb_download_processes,
-                tile_name,
-                self.__dl_wait, self.__dl_timeout)
+            dag=dag,
+            raw_directory=self.cfg.raw_directory,
+            products=eo_products,
+            nb_procs=self.cfg.nb_download_processes,
+            tile_name=tile_name,
+            dl_wait=self.__dl_wait,
+            dl_timeout=self.__dl_timeout,
+        )
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         return paths
 
@@ -890,16 +893,12 @@ class S1FileManager:
             tile_name : str = name
             if tile_name in tile_list:
                 tile_footprint = current_tile.GetGeometryRef().GetGeometryRef(0)
-                latmin = np.min([p[1] for p in tile_footprint.GetPoints()])
-                latmax = np.max([p[1] for p in tile_footprint.GetPoints()])
-                lonmin = np.min([p[0] for p in tile_footprint.GetPoints()])
-                lonmax = np.max([p[0] for p in tile_footprint.GetPoints()])
                 downloaded_products += self._download(
-                    self._dag,
-                    lonmin, lonmax, latmin, latmax,
-                    self.first_date, self.last_date,
+                    dag=self._dag,
+                    extent=footprint2extent(tile_footprint),
+                    first_date=self.first_date, last_date=self.last_date,
                     tile_out_dir=self.cfg.output_preprocess,
-                    gamma_area_dir=self.cfg.gamma_area_directory,
+                    gamma_area_dir=self.cfg.extra_directories['gamma_area_dir'],
                     tile_name=tile_name,
                     platform_list=self.cfg.platform_list,
                     orbit_direction=self.cfg.orbit_direction,
@@ -1038,7 +1037,9 @@ class S1FileManager:
             # (we suppose there won't be a mix of S1A + S1B for the same pair)
             ref_missing_S1_product = missing[0].related_product()
             eo_ron  = product_property(ref_missing_S1_product, 'relativeOrbitNumber')
-            assert eo_ron, f"Product information misses 'relativeOrbitNumber', only {ref_missing_S1_product.properties.keys()} are available, and {ref_missing_S1_product.properties['orbitNumber']=}"
+            assert eo_ron, (
+                f"Product information misses 'relativeOrbitNumber', only {ref_missing_S1_product.properties.keys()} are available, and {ref_missing_S1_product.properties['orbitNumber']=}"
+            )
             eo_dir  = product_property(ref_missing_S1_product, 'orbitDirection', '')
             eo_dir  = k_dir_assoc.get(eo_dir, eo_dir)
             eo_id   = ref_missing_S1_product.as_dict()['id']

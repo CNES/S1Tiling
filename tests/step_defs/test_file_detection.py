@@ -47,6 +47,7 @@ from tests.mock_otb  import isdir, isfile, glob, dirname
 from tests.mock_data import FileDB
 # import s1tiling.libs.Utils
 from s1tiling.libs.S1FileManager import S1FileManager
+from s1tiling.libs.api           import main_output_name_formats
 from s1tiling.libs.configuration import (
     _split_option,
     dname_fmt_filtered,
@@ -54,10 +55,9 @@ from s1tiling.libs.configuration import (
     dname_fmt_tiled,
     fname_fmt_concatenation,
     fname_fmt_filtered,
-    fname_fmt_gamma_area_corrected,
     fname_fmt_gamma_area_product,
-    fname_fmt_lia_corrected,
 )
+from s1tiling.libs.utils.layer   import polygon2extent
 from s1tiling.libs.outcome       import S1DownloadOutcome
 from s1tiling.libs.s1.product    import FileProductInformation
 
@@ -120,6 +120,7 @@ class Configuration():
         self.raw_directory           = inputdir
         self.tmpdir                  = tmpdir
         self.output_preprocess       = outputdir
+        self.extra_directories       : Dict[str, str] = {}
         self.cache_dem_by            = 'symlink'
         self.platform_list           : List[str] = []
         self.orbit_direction         = None
@@ -206,19 +207,10 @@ def configuration() -> Configuration:
 # Given steps
 
 def _output_name_formats(configuration) -> List[Tuple[str,str]]:
-    res = []
     if configuration.calibration_type == 'gamma_area':
-        res.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
-    elif configuration.calibration_type == 'normlim':
-        res.append((dname_fmt_tiled(configuration), fname_fmt_lia_corrected(configuration)))
-    elif configuration.calibration_type == 'gamma_naught_rtc':
-        res.append((dname_fmt_tiled(configuration), fname_fmt_gamma_area_corrected(configuration)))
-        res.append((dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration)))
+        return [(dname_fmt_gamma_area_product(configuration), fname_fmt_gamma_area_product(configuration))]
     else:
-        res.append((dname_fmt_tiled(configuration), fname_fmt_concatenation(configuration)))
-    if configuration.filter:
-        res.append((dname_fmt_filtered(configuration), fname_fmt_filtered(configuration)))
-    return res
+        return main_output_name_formats(configuration)
 
 
 def _mock_S1Tiling_functions(mocker, known_files, known_dirs) -> None:
@@ -290,22 +282,13 @@ def given_all_S1_VH_files_are_known(mocker, known_files, known_dirs) -> None:
 # ----------------------------------------------------------------------
 # Given / download scenarios
 
-def polygon2extent(polygon) -> Dict[str, float]:
-    extent = {
-            'lonmin': min(a[0] for a in polygon),
-            'lonmax': max(a[0] for a in polygon),
-            'latmin': min(a[1] for a in polygon),
-            'latmax': max(a[1] for a in polygon),
-            }
-    return extent
-
 def extent2box(extent):
     coords = (
-            float(extent['lonmin']),
-            float(extent['latmin']),
-            float(extent['lonmax']),
-            float(extent['latmax']),
-            )
+        float(extent['lonmin']),
+        float(extent['latmin']),
+        float(extent['lonmax']),
+        float(extent['latmax']),
+    )
     return geometry.box(*coords)
 
 
@@ -392,10 +375,10 @@ def _declare_known_products_for_download_from_ids(mocker, product_ids: Sequence[
         return SearchResult([MockEOProduct(p) for p in product_ids])
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
-            lambda slf, dag, extent_33NWB, first_date, last_date,
+            lambda slf, dag, extent, first_date, last_date,
             platform_list, orbit_direction, relative_orbit_list, polarization,
             dryrun
-            : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
+            : mock_search_products(slf, dag, extent, first_date, last_date,
                 platform_list, orbit_direction, relative_orbit_list, polarization,
                 dryrun))
 
@@ -406,10 +389,10 @@ def _declare_known_products_for_download_from_names(mocker, product_ids: Sequenc
         return SearchResult([MockEOProduct(file_db._find_image(p)) for p in product_ids])
 
     mocker.patch('s1tiling.libs.S1FileManager.S1FileManager._search_products',
-            lambda slf, dag, extent_33NWB, first_date, last_date,
+            lambda slf, dag, extent, first_date, last_date,
             platform_list, orbit_direction, relative_orbit_list, polarization,
             dryrun
-            : mock_search_products(slf, dag, extent_33NWB, first_date, last_date,
+            : mock_search_products(slf, dag, extent, first_date, last_date,
                 platform_list, orbit_direction, relative_orbit_list, polarization,
                 dryrun))
 
@@ -553,11 +536,6 @@ def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) 
 
 @when('Searching which S1 files to download', target_fixture='downloads')
 def when_searching_which_S1_to_download(configuration, mocker) -> list:
-    # mocker.patch('s1tiling.libs.S1FileManager._search_products',
-    #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
-    #         orbit_direction, relative_orbit_list, polarization,
-    #         searched_items_per_page
-    #         : downloads)
     mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
             mock_download_one_product)
 
@@ -576,9 +554,8 @@ def when_searching_which_S1_to_download(configuration, mocker) -> list:
 
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     paths = manager._download(
-        None,
-        lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
-        latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
+        dag=None,
+        extent=extent_33NWB,
         first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
         tile_out_dir=OUTPUT,
         gamma_area_dir="UNUSED",
@@ -983,11 +960,6 @@ def when_searching_which_S1_to_download2(
         logging.debug("* %s:", what)
         for node in node_list:
             logging.debug("  - %r", node)
-    # mocker.patch('s1tiling.libs.S1FileManager._search_products',
-    #         lambda dag, lonmin, lonmax, latmin, latmax, first_date, last_date,
-    #         orbit_direction, relative_orbit_list, polarization,
-    #         searched_items_per_page
-    #         : downloads)
     _declare_known_S1_files(known_files, [file for file in known_local_s1], all_manifests=False)
     _declare_known_S2_files_from_ids(known_files, [file for file in known_local_s2], known_dirs, configuration)
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
@@ -1010,9 +982,8 @@ def when_searching_which_S1_to_download2(
     manager._update_s1_img_list_for('33NWB', output_name_formats)
     # logging.debug('_search(%s) --> += %s', polarisation, manager.get_raster_list())
     paths = manager._download(
-        None,
-        lonmin=extent_33NWB['lonmin'], lonmax=extent_33NWB['lonmax'],
-        latmin=extent_33NWB['latmin'], latmax=extent_33NWB['latmax'],
+        dag=None,
+        extent=extent_33NWB,
         first_date=file_db.start_time(0), last_date=file_db.start_time(file_db.nb_S1_products-1),
         tile_out_dir=OUTPUT,
         gamma_area_dir=GAMMA_AREADIR,

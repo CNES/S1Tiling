@@ -205,6 +205,9 @@ def deg_LIA_file_s2() -> str:
 def sin_LIA_file_s2() -> str:
     return file_db.sinlia_on_s2(tmp=False)
 
+def LIA_task_s2() -> str:
+    return file_db.tasklia_on_s2(tmp=False)
+
 def DEM_file(idx) -> str:
     return file_db.vrtfile(idx, tmp=False)
 
@@ -216,6 +219,9 @@ def DEMPROJ_file(idx) -> str:
 
 def XYZ_file_s1(idx) -> str:
     return file_db.xyzfile(idx, tmp=False)
+
+def LIA_task_s1(idx) -> str:
+    return file_db.LIAtask(idx, tmp=False)
 
 def LIA_file_s1(idx) -> str:
     return file_db.degLIAfile(idx, tmp=False)
@@ -282,8 +288,10 @@ class Configuration():
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10
         self.output_preprocess                 = outputdir
-        self.lia_directory                     = liadir
-        self.gamma_area_directory              = gamma_areadir
+        self.extra_directories: Dict[str, str] = {
+            'lia_dir'       : liadir,
+            'gamma_area_dir': gamma_areadir,
+        }
         self.override_azimuth_cut_threshold_to = None
         self.ram_per_process                   = 4096
         self.removethermalnoise                = True
@@ -914,11 +922,13 @@ def __then_depends_on_a_single_ortho_file(dependencies, known_file_ids, a) -> No
 # Helpers
 def assert_orthorectify_product_number(idx, tasks, task2outfile_map) -> None:
     expectations = {
-            orthofile(idx, 'vv'): {'pipeline': 'FullOrtho',
-                'input_steps': {
-                    input_file(idx, 'vv'): ['in', FirstStep],
-                    }}
-            }
+        orthofile(idx, 'vv'): {
+            'pipeline': 'FullOrtho',
+            'input_steps': {
+                input_file(idx, 'vv'): ['in', FirstStep],
+            }}
+    }
+
     _check_registered_task(expectations, tasks, [orthofile(idx, 'vv')], task2outfile_map)
 
 def assert_dont_orthorectify_product_number(idx, tasks) -> None:
@@ -937,20 +947,14 @@ def assert_dont_start_from_s1_image_number(idx, tasks) -> None:
 
 def _check_registered_task(expectations, tasks, task_names, task2outfile_map) -> None:
     for req_taskname in task_names:
+        assert req_taskname in task2outfile_map, f"{req_taskname} is not found in {task2outfile_map.keys()}"
         ex_output        = task2outfile_map[req_taskname]
         # Special case for LIA, we register only one of the two files for the
         # tests, let's find which one it is.
         if isinstance(ex_output, list):
-            for exo in ex_output:
-                if exo in expectations:
-                    res = exo
-                    break
-            else:
-                res = None
-            single_ex_output = res
+            single_ex_output = req_taskname
         else:
             single_ex_output = ex_output
-        assert single_ex_output in expectations, f"Task {single_ex_output} isn't expected (expectations: {list(expectations.keys())})"
         ex               = expectations[single_ex_output]
         ex_pipeline_name = ex['pipeline']
         ex_in_steps      = ex['input_steps']
@@ -977,20 +981,22 @@ def _check_registered_task(expectations, tasks, task_names, task2outfile_map) ->
 @then(parsers.parse('a concatenation task is registered and produces txxxxxxx S2 file and {a} mask'))
 def then_concatenate_2_files_(tasks, dependencies, a, calibration) -> None:
     expectations = {
-            # MergeStep as there are two inputs
-            concatfile(None, 'vv'): {'pipeline': 'Concatenation',
-                'input_steps': {
-                    orthofile(0, 'vv'): ['in', MergeStep],
-                    orthofile(1, 'vv'): ['in', MergeStep],
-                    }}
-            }
+        # MergeStep as there are two inputs
+        concatfile(None, 'vv'): {
+            'pipeline': 'Concatenation',
+            'input_steps': {
+                orthofile(0, 'vv'): ['in', MergeStep],
+                orthofile(1, 'vv'): ['in', MergeStep],
+            }}
+    }
     required, previous, task2outfile_map = dependencies
     # concat task name may differ from the produced filename
     dest = [tn for tn in required if task2outfile_map[tn] == concatfile(None, 'vv')]
     if a != 'no':
-        expectations[maskfile(None, 'vv')] = {'pipeline': 'GenerateMask',
-                'input_steps': {
-                    concatfile(None, 'vv'): ['in', FirstStep]}}
+        expectations[maskfile(None, 'vv')] = {
+            'pipeline': 'GenerateMask',
+            'input_steps': {
+                concatfile(None, 'vv'): ['in', FirstStep]}}
         dest.append(maskfile(None, 'vv'))
     # logging.info("tasks (type: %s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1024,17 +1030,19 @@ def then_concatenate_1_files(tasks, dependencies, known_file_ids, a) -> None:
     assert len(known_file_ids) == 1
     known_file_number, polar = known_file_ids[0]
     expectations = {
-            # Task name is in txxxxxx, but file name is not
-            concatfile(known_file_number, 'vv'): {'pipeline': 'Concatenation',
-                'input_steps': {
-                    # FirstStep as there is only one input
-                    orthofile(known_file_number, 'vv'): ['in', FirstStep],
-                    }}
-            }
+        # Task name is in txxxxxx, but file name is not
+        concatfile(known_file_number, 'vv'): {
+            'pipeline': 'Concatenation',
+            'input_steps': {
+                # FirstStep as there is only one input
+                orthofile(known_file_number, 'vv'): ['in', FirstStep],
+            }}
+    }
     if a != 'no':
-        expectations[maskfile(known_file_number, 'vv')] = {'pipeline': 'GenerateMask',
-                'input_steps': {
-                    concatfile(known_file_number, 'vv'): ['in', FirstStep]}}
+        expectations[maskfile(known_file_number, 'vv')] = {
+            'pipeline': 'GenerateMask',
+            'input_steps': {
+                concatfile(known_file_number, 'vv'): ['in', FirstStep]}}
 
     required, previous, task2outfile_map = dependencies
     assert task2outfile_map[concattask('vv')] == concatfile(known_file_number, 'vv')
@@ -1101,7 +1109,7 @@ def depend_on_two_existing_fullortho_products(tasks, dependencies) -> None:
 def then_sin_LIA_image_is_required_in_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [sin_LIA_file_s2()]
+    expected_fn = [LIA_task_s2()]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
@@ -1113,7 +1121,7 @@ def then_sin_LIA_image_is_required_in_s2(dependencies) -> None:
 def then_sin_LIA_image_is_required_in_s1(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = [sin_LIA_file_s1(0)]
+    expected_fn = [LIA_task_s1(0)]
 
     logging.info("required (%s) = %s", type(required), required)
     assert isinstance(required, set)
@@ -1193,8 +1201,7 @@ def then_no_S2_LIA_image_is_required_s2(dependencies) -> None:
         # Yet, they are known
         # assert fn in previous.keys(), f'Expected {fn} is not found in computed dependencies {previous.keys()}'
     # Yet sin(LIA), only, is know
-    assert sin_LIA_file_s2() in previous.keys(), f'{sin_LIA_file_s2()} is not found in computed dependencies {previous.keys()}'
-    assert deg_LIA_file_s2() not in previous.keys(), f'{deg_LIA_file_s2()} is found in computed dependencies {previous.keys()}'
+    assert LIA_task_s2() in previous.keys(), f'{LIA_task_s2()} is not found in computed dependencies {previous.keys()}'
 
 @then('no S2 LIA image is required')
 def then_no_S2_LIA_image_is_required(dependencies) -> None:
@@ -1312,7 +1319,7 @@ def two_ortho_GAMMA_AREA_depend_on_two_GAMMA_AREA_images(dependencies) -> None:
 def then_the_sin_LIA_image_depends_on_a_single_XYZ_image_s2(dependencies) -> None:
     required, previous, task2outfile_map = dependencies
 
-    expected_fn = sin_LIA_file_s2()
+    expected_fn = LIA_task_s2()
     # assert expected_fn not in required  # Depends on the scenario...
     prev_expected = previous[expected_fn]
     expected_inputs = prev_expected.inputs
@@ -1383,16 +1390,16 @@ def then_the_DEMS2_image_depends_on_a_single_DEM_VRT_image_s2(dependencies) -> N
 @then('sin(LIA) task(s) is(/are) registered (S2)')
 def then_a_sin_LIA_task_is_registered_s2(tasks, dependencies) -> None:
     expectations = {}
-    out = sin_LIA_file_s2()
+    out = LIA_task_s2()
     dest = [out]
     expectations[out] = {
-            'pipeline': 'ComputeLIAOnS2',
-            'input_steps': {
-                XYZ_file_s2(): ['xyz', FirstStep]
-            }
+        'pipeline': 'ComputeLIAOnS2',
+        'input_steps': {
+            XYZ_file_s2(): ['xyz', FirstStep]
+        }
     }
     required, previous, task2outfile_map = dependencies
-    # logging.info("tasks (%s) = %s", type(tasks), tasks)
+    # logging.info("tasks (%s) = %s", type(tasks), tasks.keys())
     assert isinstance(tasks, dict)
     assert len(tasks) >= 3
     # assert len(required) == len(expectations)
@@ -1406,11 +1413,11 @@ def then_a_XYZ_task_is_registered_s2(tasks, dependencies) -> None:
     out = XYZ_file_s2()
     dest = [out]
     expectations[out] = {
-            'pipeline': 'ComputeGroundAndSatPositionsOnDEM',
-            'input_steps': {
-                height_file_s2():     ['inheight',  FirstStep],
-                input_file(0, 'vv'):  ['insar',     FirstStep],
-            }
+        'pipeline': 'ComputeGroundAndSatPositionsOnDEM',
+        'input_steps': {
+            height_file_s2():     ['inheight',  FirstStep],
+            input_file(0, 'vv'):  ['insar',     FirstStep],
+        }
     }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1424,10 +1431,10 @@ def then_height_tasks_is_are_registered_s2(tasks, dependencies) -> None:
     out = height_file_s2()
     dest = [out]
     expectations[out] = {
-            'pipeline': 'GenerateHeightForS2Tile',
-            'input_steps': {
-                DEM_file_s2():     ['in_s2_dem',  FirstStep],
-            }
+        'pipeline': 'GenerateHeightForS2Tile',
+        'input_steps': {
+            DEM_file_s2():     ['in_s2_dem',  FirstStep],
+        }
     }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1441,10 +1448,10 @@ def then_dem_projection_tasks_is_are_registered_s2(tasks, dependencies) -> None:
     out = DEM_file_s2()
     dest = [out]
     expectations[out] = {
-            'pipeline': 'ProjectDEMToS2Tile',
-            'input_steps': {
-                DEM_VRT_file_s2():     ['indem',  FirstStep],
-            }
+        'pipeline': 'ProjectDEMToS2Tile',
+        'input_steps': {
+            DEM_VRT_file_s2():     ['indem',  FirstStep],
+        }
     }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1458,10 +1465,10 @@ def then_dem_agglomeration_tasks_is_are_registered_s2(tasks, dependencies, confi
     out = DEM_VRT_file_s2()
     dest = [out]
     expectations[out] = {
-            'pipeline': 'AgglomerateDEM',
-            'input_steps': {
-                configuration.output_grid:     ['tilename',  FirstStep],
-            }
+        'pipeline': 'AgglomerateDEM',
+        'input_steps': {
+            configuration.output_grid:     ['tilename',  FirstStep],
+        }
     }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1473,7 +1480,7 @@ def sin_LIA_images_depend_on_two_XYZ_images_s1(dependencies, expected_files_id) 
     required, previous, task2outfile_map = dependencies
 
     for i in expected_files_id:
-        expected_fn = sin_LIA_file_s1(i)
+        expected_fn = LIA_task_s1(i)
         # assert expected_fn not in required  # Depends on the scenario...
         prev_expected = previous[expected_fn]
         expected_inputs = prev_expected.inputs
@@ -1619,15 +1626,19 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id,
     out     = S2_LIA_file()
     out_sin = S2_sin_LIA_file()
     expectations = {
-            out_sin: {'pipeline': 'SelectSinLIA',
-                'input_steps': {
-                    S2_sin_LIA_preselect_file(): ['in', FirstStep]
-                    }},
-            out: {'pipeline': 'SelectLIA',
-                'input_steps': {
-                    S2_LIA_preselect_file(): ['in', FirstStep]
-                    }},
+        out_sin: {
+            'pipeline': 'SelectSinLIA',
+            'input_steps': {
+                S2_sin_LIA_preselect_file(): ['in', FirstStep]
             }
+        },
+        out: {
+            'pipeline': 'SelectLIA',
+            'input_steps': {
+                S2_LIA_preselect_file(): ['in', FirstStep]
+            }
+        },
+    }
     dest = [out_sin]
 
     LIA_product_required = 'concat' not in pipeline_ids
@@ -1652,10 +1663,10 @@ def then_a_select_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 def then_a_select_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_GAMMA_AREA_file()
     expectations = {
-            out: {'pipeline': 'SelectGAMMA_AREA',
-                  'input_steps': {
-                      S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
-                  }},
+        out: {'pipeline': 'SelectGAMMA_AREA',
+              'input_steps': {
+                  S2_GAMMA_AREA_preselect_file(): ['in', FirstStep]
+              }},
     }
     dest = []
     GAMMA_AREA_product_required = 'concat' not in pipeline_ids
@@ -1680,11 +1691,11 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id,
     out     = S2_LIA_preselect_file()
     out_sin = S2_sin_LIA_preselect_file()
     expectations = {
-            out: {'pipeline': 'ConcatLIA',
-                'input_steps': {}},
-            out_sin: {'pipeline': 'ConcatSinLIA',
-                'input_steps': {}}
-            }
+        out: {'pipeline': 'ConcatLIA',
+              'input_steps': {}},
+        out_sin: {'pipeline': 'ConcatSinLIA',
+                  'input_steps': {}}
+    }
     dest = [out_sin]
 
     LIA_product_required = 'concat' not in pipeline_ids
@@ -1709,8 +1720,8 @@ def then_a_concat_LIA_task_is_registered(tasks, dependencies, expected_files_id,
 def then_a_concat_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files_id, pipeline_ids) -> None:
     out     = S2_GAMMA_AREA_preselect_file()
     expectations = {
-            out: {'pipeline': 'ConcatGAMMA_AREA',
-                  'input_steps': {}},
+        out: {'pipeline': 'ConcatGAMMA_AREA',
+              'input_steps': {}},
     }
     dest = []
 
@@ -1738,9 +1749,9 @@ def then_ortho_LIA_task_is_registered(tasks, dependencies, expected_files_id) ->
         out = ortho_LIA_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'OrthoLIA',
-                'input_steps': {LIA_file_s1(i) : ['in', FirstStep]}
-                }
+            'pipeline': 'OrthoLIA',
+            'input_steps': {LIA_file_s1(i) : ['in', FirstStep]}
+        }
 
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1759,8 +1770,8 @@ def then_ortho_GAMMA_AREA_task_is_registered(tasks, dependencies, expected_files
         out = ortho_GAMMA_AREA_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'OrthoGAMMA_AREA',
-                'input_steps': {GAMMA_AREA_file_s1(i) : ['in', FirstStep]}
+            'pipeline': 'OrthoGAMMA_AREA',
+            'input_steps': {GAMMA_AREA_file_s1(i) : ['in', FirstStep]}
         }
 
     required, previous, task2outfile_map = dependencies
@@ -1776,14 +1787,14 @@ def then_a_sin_LIA_task_is_registered_s1(tasks, dependencies, expected_files_id)
     expectations = {}
     dest = []
     for i in expected_files_id:
-        out = sin_LIA_file_s1(i)
+        out = LIA_task_s1(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'Normals|LIA',
-                'input_steps': {
-                    XYZ_file_s1(i): ['xyz', FirstStep]
-                    }
-                }
+            'pipeline': 'Normals|LIA',
+            'input_steps': {
+                XYZ_file_s1(i): ['xyz', FirstStep]
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1800,13 +1811,13 @@ def then_a_XYZ_task_is_registered_s1(tasks, dependencies, expected_files_id) -> 
         out = XYZ_file_s1(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARCartesianMeanEstimation',
-                'input_steps': {
-                    DEM_file(i):          ['indem',     FirstStep],
-                    DEMPROJ_file(i):      ['indemproj', FirstStep],
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                    }
-                }
+            'pipeline': 'SARCartesianMeanEstimation',
+            'input_steps': {
+                DEM_file(i):          ['indem',     FirstStep],
+                DEMPROJ_file(i):      ['indemproj', FirstStep],
+                input_file(i, 'vv'):  ['insar',     FirstStep],
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1820,12 +1831,12 @@ def then_a_GAMMA_AREA_task_is_registered_s1(tasks, dependencies, expected_files_
         out = GAMMA_AREA_file_s1(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARGammaAreaImageEstimation',
-                'input_steps': {
-                    RESAMPLED_DEM_file(i): ['indem',     FirstStep],
-                    DEMPROJ_file(i):       ['indemproj', FirstStep],
-                    input_file(i, 'vv'):   ['insar',     FirstStep],
-                }
+            'pipeline': 'SARGammaAreaImageEstimation',
+            'input_steps': {
+                RESAMPLED_DEM_file(i): ['indem',     FirstStep],
+                DEMPROJ_file(i):       ['indemproj', FirstStep],
+                input_file(i, 'vv'):   ['insar',     FirstStep],
+            }
         }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1840,12 +1851,12 @@ def then_a_DEMPROJ_task_is_registered(tasks, dependencies, expected_files_id) ->
         out = DEMPROJ_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARDEMProjection',
-                'input_steps': {
-                    DEM_file(i):          ['indem',     FirstStep],
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                    }
-                }
+            'pipeline': 'SARDEMProjection',
+            'input_steps': {
+                DEM_file(i):          ['indem',     FirstStep],
+                input_file(i, 'vv'):  ['insar',     FirstStep],
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1859,11 +1870,11 @@ def then_a_RESAMPLEDDEMPROJ_task_is_registered(tasks, dependencies, expected_fil
         out = DEMPROJ_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'SARDEMProjectionImageEstimation',
-                'input_steps': {
-                    RESAMPLED_DEM_file(i):          ['indem',     FirstStep],
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                }
+            'pipeline': 'SARDEMProjectionImageEstimation',
+            'input_steps': {
+                RESAMPLED_DEM_file(i): ['indem',     FirstStep],
+                input_file(i, 'vv'):   ['insar',     FirstStep],
+            }
         }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
@@ -1878,11 +1889,11 @@ def then_a_DEM_task_is_registered(tasks, dependencies, expected_files_id) -> Non
         out = DEM_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'AgglomerateDEM',
-                'input_steps': {
-                    input_file(i, 'vv'):  ['insar',     FirstStep],
-                    }
-                }
+            'pipeline': 'AgglomerateDEM',
+            'input_steps': {
+                input_file(i, 'vv'):  ['insar',     FirstStep],
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
@@ -1896,13 +1907,12 @@ def then_a_RESAMPLEDDEM_task_is_registered(tasks, dependencies, expected_files_i
         out = RESAMPLED_DEM_file(i)
         dest.append(out)
         expectations[out] = {
-                'pipeline': 'RigidTransformResample',
-                'input_steps': {
-                    DEM_file(i):          ['indem',     FirstStep],
-                    }
-                }
+            'pipeline': 'RigidTransformResample',
+            'input_steps': {
+                DEM_file(i): ['indem',     FirstStep],
+            }
+        }
     required, previous, task2outfile_map = dependencies
     # logging.info("tasks (%s) = %s", type(tasks), tasks)
     assert isinstance(tasks, dict)
     _check_registered_task(expectations, tasks, dest, task2outfile_map)
-

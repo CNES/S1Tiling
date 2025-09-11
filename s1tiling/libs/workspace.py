@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -69,6 +69,9 @@ class DEMWorkspaceConfiguration(Protocol):
     tmp_dem_dir         : str
     GeoidFile           : str
     def register_dems_related_to_S2_tiles(self, dem: Dict[str, Dict]) -> None:
+        """
+        Workaround that helps caching DEM related information for later use.
+        """
         pass
 
 
@@ -254,9 +257,9 @@ def ensure_tiled_workspaces_exist(
     directories = {
         'out_dir'        : cfg.output_preprocess,
         'tmp_dir'        : cfg.tmpdir,
-        'lia_dir'        : cfg.lia_directory,
-        'ia_dir'         : cfg.ia_directory,
-        'gamma_area_dir' : cfg.gamma_area_directory,
+        'lia_dir'        : cfg.extra_directories['lia_dir'],
+        'ia_dir'         : cfg.extra_directories['ia_dir'],
+        'gamma_area_dir' : cfg.extra_directories['gamma_area_dir'],
     }
 
     working_directory = os.path.join(cfg.tmpdir, 'S2', tile_name)

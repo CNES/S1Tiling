@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,6 +25,7 @@
 #
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
+#
 # =========================================================================
 
 # from __future__ import annotations  # Require Python 3.7+...
@@ -33,6 +34,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import os
 import pprint
@@ -42,7 +44,7 @@ from itertools import filterfalse
 import logging
 import logging.handlers
 import multiprocessing
-from typing import Dict, List, Optional, Protocol, Set, Tuple, Type, Union, runtime_checkable
+from typing import Dict, Generic, List, Optional, Protocol, Set, Tuple, Type, TypeVar, Union, runtime_checkable
 
 from distributed import get_worker
 # memory leaks
@@ -52,10 +54,9 @@ from pympler import tracker  # , muppy
 
 from .                  import Utils
 from .                  import exceptions
-from .configuration     import Configuration
 from .file_naming       import CannotGenerateFilename
 from .meta              import (
-        Meta, accept_as_compatible_input, is_running_dry, get_task_name, product_exists, out_filename,
+        Meta, TaskName, accept_as_compatible_input, is_running_dry, get_task_name, product_exists, out_filename,
 )
 from .node_queue        import node_queue
 from .outcome           import Outcome, PipelineOutcome, filter_outcome_dict
@@ -68,8 +69,9 @@ from .utils.timer       import timethis
 
 
 # Typing hints
-TaskNode     = Union[Tuple, "FirstStep"]
-TaskNodeDict = Dict[str, Union[Tuple, "FirstStep"]]
+TaskNode            = Union[Tuple, "FirstStep"]
+TaskNodeDict        = Dict[str, Union[Tuple, "FirstStep"]]
+DomainConfiguration = TypeVar("DomainConfiguration")
 
 
 # Globals
@@ -91,17 +93,12 @@ class AnalysedTasks:
 @runtime_checkable
 class FirstStepFactory(Protocol):
     """
-    Defines the prototype of :class:`FirstStep <s1tiling.libs.steps.FirstStep>` factory functions accepted in
-    :func:`PipelineDescriptionSequence.register_inputs`.
-
-    :param str tile_name: Name of the tile the :class:`FirstSteps <s1tiling.libs.steps.FirstStep>`
-                          built relate to.
-
-                          .. todo:: Drop ``tile_name`` from expectations of generic pipeline
+    Defines the prototype of :class:`FirstStep <s1tiling.libs.steps.FirstStep>` factory functions
+    accepted in :func:`PipelineDescriptionSequence.register_inputs`.
 
     :param Configuration configuration: List of configuration options
     :param dict kwargs:                 Any other named parameters into which the actual factory can
-                                        search it specific parameters.
+                                        search its specific parameters.
     :return: A list of instanciated :class:`FirstStep <s1tiling.libs.steps.FirstStep>`
 
 
@@ -109,14 +106,8 @@ class FirstStepFactory(Protocol):
     fill in a few parameters like the ``configuration``. Other specific parameters are expected to
     be filled through
     :func:`PipelineDescriptionSequence.register_extra_parameters_for_input_factories`.
-
     """
-    def __call__(
-            self,
-            tile_name     : str,
-            configuration : Configuration,
-            **kwargs,
-    ) -> List[Outcome[FirstStep]]: ...
+    __call__ : Callable[..., List[Outcome[FirstStep]]]
 
 
 class Pipeline:
@@ -134,13 +125,13 @@ class Pipeline:
         execution_parameters: Dict,
         do_watch_ram:         bool,
         name:                 Optional[str] = None,
-        output:               Optional[str] = None
+        output:               Optional[Union[str, List[str]]] = None
     ) -> None:
         self.__pipeline             : List[StepFactory] = []
         self.__execution_parameters = execution_parameters
         self.__do_watch_ram         = do_watch_ram
         self.__name                 = name
-        self.__output               = output
+        self.__output               : Optional[Union[str, List[str]]] = output
         self.__inputs               : InputList = []
 
     def __repr__(self) -> str:
@@ -191,7 +182,7 @@ class Pipeline:
         return f'{self.appname} -> {self.__output} from {self._input_filenames}'
 
     @property
-    def output(self):
+    def output(self) -> Optional[Union[str, List[str]]]:
         """
         Expected pipeline final output file.
         """
@@ -257,7 +248,7 @@ class Pipeline:
         res = steps[-1][0]['__last'].out_filename
         assert res == self.output, (
             f"Step output {self.output!r} doesn't match expected output {res!r}."
-            "\nThis is likely happenning because pipeline name generation isn't incremental."
+            "\nThis is likely happening because pipeline name generation isn't incremental."
         )
         steps = None  # type: ignore  # force reset local variable, in doubt...
         # logger.debug('Pipeline "%s" terminated -> %s', self, res)
@@ -277,22 +268,24 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
     if watch_ram:
         logger.info("=== objgraph growth (before pipeline exection) ===")
         objgraph.show_growth(limit=5)
+    output = pipeline.output
+    assert output is not None
     try:
         assert len(args) == 1
         for arg in args[0]:
             # logger.info('ARG: %s (%s)', arg, type(arg))
             if isinstance(arg, PipelineOutcome) and not arg:
                 logger.warning('Cancel execution of %s because an error has occured upstream on a dependent input file: %s', pipeline, arg)
-                return copy.deepcopy(arg).add_related_filename(pipeline.output)
+                return copy.deepcopy(arg).add_related_filename(output)
         # Any exceptions leaking to Dask Scheduler would end the execution of the scheduler.
         # That's why errors need to be caught and transformed here.
         logger.info('Execute %s', pipeline)
-        res = pipeline.do_execute().add_related_filename(pipeline.output)
+        res = pipeline.do_execute().add_related_filename(output)
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
     # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
-        return PipelineOutcome(ex).add_related_filename(pipeline.output).set_pipeline_name(pipeline.appname)
+        return PipelineOutcome(ex).add_related_filename(output).set_pipeline_name(pipeline.appname)  # type: ignore # mypy issue 16788
 
     del pipeline  # Release the pipeline
     if watch_ram:
@@ -344,7 +337,7 @@ class PipelineDescription:
         # logger.debug("New pipeline: %s; required: %s, incremental: %s",
         #     '|'.join([step.name for step in self.__factory_steps]), self.__is_product_required, self.__is_name_incremental)
 
-    def expected(self, input_meta: Meta) -> Optional[Dict]:
+    def expected(self, input_meta: Meta) -> Optional[Meta]:
         """
         Returns the expected name of the product(s) of this pipeline
         """
@@ -402,7 +395,14 @@ class PipelineDescription:
         """
         return self.__is_product_required
 
-    def instanciate(self, file: str, do_measure: bool, in_memory: bool, do_watch_ram: bool) -> Pipeline:
+    def instanciate(
+        self,
+        *,
+        file        : Union[str, List[str]],
+        do_measure  : bool,
+        in_memory   : bool,
+        do_watch_ram: bool,
+    ) -> Pipeline:
         """
         Instanciates the pipeline specified.
 
@@ -417,7 +417,7 @@ class PipelineDescription:
                 'in_memory' : in_memory,
                 'do_measure': do_measure
         }
-        pipeline = Pipeline(execution_parameters, do_watch_ram, self.name, file)
+        pipeline = Pipeline(execution_parameters, do_watch_ram, name=self.name, output=file)
         need_OTB_store = False
         for factory_step in self.__factory_steps + []:
             pipeline.push(factory_step)
@@ -526,7 +526,7 @@ class TaskInputInfo:
         return self._inputs
 
     @property
-    def input_task_names(self) -> List[str]:
+    def input_task_names(self) -> List[TaskName]:
         """
         List of input tasks the current task depends on.
         """
@@ -535,7 +535,7 @@ class TaskInputInfo:
         return tns
 
     @property
-    def input_metas(self) -> List[Dict]:
+    def input_metas(self) -> List[Meta]:
         """
         List of input meta information the current task depends on.
         """
@@ -628,7 +628,64 @@ def _register_new_input_and_update_out_filename(
         logger.debug('    The %s task depends on one more input, but only one will be kept.\n    %s has been updated.', task_name, new_task_meta)
 
 
-class PipelineInputs:
+def _analyse_dropped_inputs(
+    dropped_inputs : Dict,
+    outputs        : List[Meta] ,
+    previous       : Dict[TaskName, TaskInputInfo],
+) -> None:
+    # For all new outputs, check which dropped inputs would be compatible
+    logger.debug('* Checking dropped inputs: %s', list(dropped_inputs.keys()))
+    # TODO: support case where all inputs have been dropped...
+    # +-> this is what would happen if we don't inject all tilenames into EOF FirstSteps
+    if dropped_inputs:
+        for output in outputs:
+            logger.debug("  - regarding output '%s'...", output)
+            for origin, inputs in dropped_inputs.items():
+                for inp in inputs:
+                    logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(inp), origin, out_filename(output))
+                    # Does the output accepts the inpu as compatible?
+                    if accept_as_compatible_input(output, inp):
+                        logger.debug('    => YES')
+                        _register_new_input_and_update_out_filename(
+                                tasks=previous,
+                                origin=origin,
+                                input_meta=inp,
+                                new_task_meta=output,
+                                outputs=outputs)
+                    else:
+                        logger.debug('  => NO')
+
+
+def _filter_required_tasks(
+    required : Dict[TaskName, Meta],
+    previous : Dict[TaskName, TaskInputInfo],
+) -> Set[TaskName]:
+    logger.debug('#############################################################################')
+    logger.debug('#############################################################################')
+    required_task_names : Set[TaskName] = set()
+    logger.debug("Check required tasks:")
+    for name, meta in required.items():
+        logger.debug("- check task_name: %s", name)
+        if product_exists(meta):
+            logger.debug("  -> Ignoring %s as the product already exists", name)
+            previous[name].clear()  # for the next log
+        else:
+            logger.debug("  -> Registering %s the product doesn't exists", name)
+            required_task_names.add(name)
+    return required_task_names
+
+
+def _trace_dependencies_found(previous: Dict[TaskName, TaskInputInfo]) -> None:
+    logger.debug("Dependencies found:")
+    for task_name, prev in previous.items():
+        if prev:
+            # logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [out_filename(i) for i in prev.input_metas])
+            logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [get_task_name(i) for i in prev.input_metas])
+        else:
+            logger.debug('- %s already exists, no need to produce it', task_name)
+
+
+class PipelineInputs(Generic[DomainConfiguration]):
     """
     Internal helper class used to centralize the instanciation of :class:`FirstStep` according to
     the exact pipeline instanciated.
@@ -660,7 +717,7 @@ class PipelineInputs:
     @timethis("instanciate_all inputs")
     def instanciate_all(
             self,
-            configuration: Configuration,
+            configuration: DomainConfiguration,
     ) -> Dict[str, List[Outcome[Meta]]]:
         """
         Returns all the :class:`FirstStep` instances organized by their associated sourced id.
@@ -679,20 +736,20 @@ class PipelineInputs:
         return inputs
 
 
-class PipelineDescriptionSequence:
+class PipelineDescriptionSequence(Generic[DomainConfiguration]):
     """
     This class is the main entry point to describe pipelines.
 
     Internally, it can be seen as a list of :class:`PipelineDescription` objects.
     """
-    def __init__(self, cfg: Configuration, dryrun: bool, debug_caches: bool) -> None:
+    def __init__(self, cfg: DomainConfiguration, dryrun: bool, debug_caches: bool) -> None:
         """
         Constructor.
         """
         assert cfg
         self.__cfg                  = cfg
         self.__pipelines            : List[PipelineDescription] = []
-        self.__inputs               = PipelineInputs()
+        self.__inputs               = PipelineInputs[DomainConfiguration]()
         self.__execution_parameters = {
                 'dryrun'      : dryrun,
                 'debug_caches': debug_caches,
@@ -731,9 +788,10 @@ class PipelineDescriptionSequence:
         :type kind:                 str
         :param first_steps_factory: Hook that'll build :class:`FirstSteps
                                     <s1tiling.libs.steps.FirstStep>` on the fly from the registered
-                                    :class:`Configuration
-                                    <s1tiling.libs.configuration.Configuration>` and the :func:`registered
-                                    extra parameters <register_extra_parameters_for_input_factories>`.
+                                    :class:`DomainConfiguration
+                                    <s1tiling.libs.configuration.DomainConfiguration>` and the
+                                    :func:`registered extra parameters
+                                    <register_extra_parameters_for_input_factories>`.
         :type first_steps_factory:  FirstStepFactory
 
         .. note::
@@ -765,9 +823,9 @@ class PipelineDescriptionSequence:
         Takes care of instanciating all :class:`FirstSteps <s1tiling.libs.steps.FirstStep>` with the
         registered :class:`FirstStepFactories <FirstStepFactory>`.
 
-        Only one parameter is assumed the registered :class:`Configuration
-        <s1tiling.libs.configuration.Configuration>` object. Other parameters are assumed from the
-        :func:`registered extra parameters <register_extra_parameters_for_input_factories>`.
+        Only one parameter is assumed the registered :class:`DomainConfiguration
+        <s1tiling.libs.configuration.DomainConfiguration>` object. Other parameters are assumed from
+        the :func:`registered extra parameters <register_extra_parameters_for_input_factories>`.
         """
         inputs : Dict[str, List[Outcome[Meta]]] = self.__inputs.instanciate_all(configuration=self.__cfg)
         logger.debug("FIRST: %s", pprint.pformat(inputs))
@@ -777,16 +835,22 @@ class PipelineDescriptionSequence:
     @timethis("Building dependencies", logging.DEBUG)
     def _build_dependencies(  # pylint: disable=too-many-locals
             self, first_inputs: Dict[str, List[Meta]]
-    ) -> Tuple[Set[str], Dict, Dict]:
+    ) -> Tuple[Set[TaskName],
+               Dict[TaskName, TaskInputInfo],
+               Dict[TaskName, Union[str,List[str]]]
+               ]:
         """
         Runs the inputs through all pipeline descriptions to build the full list of intermediary and
         final products and what they require to be built.
         """
         pipelines_outputs = first_inputs
 
-        required = {}  # (first batch) Final products identified as _needed to be produced_
-        previous : Dict[str, TaskInputInfo] = {}  # Graph of deps: for a product tells how it's produced (pipeline + inputs)
-        task_names_to_output_files_table = {}
+        #: (first batch) Final products identified as _needed to be produced_
+        required                         : Dict[TaskName, Meta]                 = {}
+        #: Graph of deps: for a product tells how it's produced (pipeline + inputs)
+        previous                         : Dict[TaskName, TaskInputInfo]        = {}
+        task_names_to_output_files_table : Dict[TaskName, Union[str,List[str]]] = {}
+
         # +-> TODO: cache previous in order to remember which files already exists or not
         #     the difficult part is to flag as "generation successful" or not
         for pipeline in self.__pipelines:
@@ -794,7 +858,7 @@ class PipelineDescriptionSequence:
             logger.debug('#############################################################################')
             logger.debug('Analysing |%s| dependencies', pipeline.name)
             logger.debug('Sources --> %s', pipeline.sources)
-            outputs = []
+            outputs : List[Meta] = []
 
             dropped_inputs = {}
             for origin, sources in pipeline.inputs.items():
@@ -803,14 +867,14 @@ class PipelineDescriptionSequence:
                 logger.debug('* Checking sources from "%s" origin: %s', origin, source_name)
                 # Locate all inputs for the current pipeline
                 # -> Select all inputs for pipeline sources from pipelines_outputs
-                inputs = pipelines_outputs[source_name][:]
+                inputs : List[Meta] = pipelines_outputs[source_name][:]
 
                 logger.debug('  FROM all %s inputs as "%s": %s', len(inputs), origin, [out_filename(i) for i in inputs])
                 dropped = []
-                for inp in inputs:  # inputs are meta
+                for inp in inputs:  # inputs are Meta
                     logger.debug('  ----------------------------------------------------------------------')
                     logger.debug('  - GIVEN "%s" "%s": %s', origin, out_filename(inp), inp)
-                    expected = pipeline.expected(inp)
+                    expected : Optional[Meta] = pipeline.expected(inp)
                     if not expected:
                         logger.debug("    No '%s' product can be generated from '%s' input '%s' ==> Ignore for now",
                                 pipeline.name, origin, out_filename(inp))
@@ -820,21 +884,19 @@ class PipelineDescriptionSequence:
                     logger.debug('    task %s <-- from input: %s', expected_taskname, out_filename(inp))
                     assert len(expected_taskname) > 0, f"No taskname found for {pipeline.name}({out_filename(inp)} -> {expected})"
                     logger.debug('    --> file "%s": %s', out_filename(expected), expected)
-                    # TODO: Correctly handle the case where a task produce
-                    # several filenames. In that case we shall have only one
-                    # task, but possibly, several following tasks may depend on
-                    # the current task.
-                    # For the moment, just keep the first, and use product
-                    # selection pattern as in filter_LIA().
+                    # TODO: Correctly handle the case where a task produce several filenames. In
+                    # that case we shall have only one task, but possibly, several following tasks
+                    # may depend on the current task.
+                    # For the moment, just keep the first, and use product selection pattern as in
+                    # filter_LIA().
+                    assert  isinstance(expected_taskname, TaskName), f"Taskname is not a string: {expected_taskname}"
                     if isinstance(expected_taskname, list):
                         expected_taskname = expected_taskname[0]  # TODO: see comment above
 
-                    # We cannot analyse early whether a task product is already
-                    # there as some product have names that depend on all
-                    # inputs (see Concatenate).
-                    # This is why the full dependencies tree is produced at
-                    # this time. Unrequired parts will be trimmed in the next
-                    # task producing step.
+                    # We cannot analyse early whether a task product is already there as some
+                    # product have names that depend on all inputs (see Concatenate).
+                    # This is why the full dependencies tree is produced at this time. Unrequired
+                    # parts will be trimmed in the next task producing step.
                     if expected_taskname not in previous:
                         outputs.append(expected)
                         previous[expected_taskname] = TaskInputInfo(pipeline=pipeline)
@@ -859,54 +921,21 @@ class PipelineDescriptionSequence:
                     dropped_inputs[origin] = dropped
             # endfor origin, sources in pipeline.inputs.items():
 
-            # For all new outputs, check which dropped inputs would be compatible
-            logger.debug('* Checking dropped inputs: %s', list(dropped_inputs.keys()))
-            # TODO: support case where all inputs have been dropped...
-            # +-> this is what would happen if we don't inject all tilenames into EOF FirstSteps
-            for output in outputs:
-                logger.debug("  - regarding output '%s'...", output)
-                for origin, inputs in dropped_inputs.items():
-                    for inp in inputs:
-                        logger.debug("  - Is '%s' a '%s' input for '%s' ?", out_filename(inp), origin, out_filename(output))
-                        # Does the output accepts the inpu as compatible?
-                        if accept_as_compatible_input(output, inp):
-                            logger.debug('    => YES')
-                            _register_new_input_and_update_out_filename(
-                                    tasks=previous,
-                                    origin=origin,
-                                    input_meta=inp,
-                                    new_task_meta=output,
-                                    outputs=outputs)
-                        else:
-                            logger.debug('  => NO')
+            _analyse_dropped_inputs(dropped_inputs, outputs, previous)
 
             pipelines_outputs[pipeline.name] = outputs
+        # endfor pipeline in self.__pipelines
 
-        logger.debug('#############################################################################')
-        logger.debug('#############################################################################')
-        required_task_names = set()
-        for name, meta in required.items():
-            logger.debug("check task_name: %s", name)
-            if product_exists(meta):
-                logger.debug("Ignoring %s as the product already exists", name)
-                previous[name].clear()  # for the next log
-            else:
-                required_task_names.add(name)
-
-        logger.debug("Dependencies found:")
-        for task_name, prev in previous.items():
-            if prev:
-                logger.debug('- %s requires %s on %s', task_name, prev.pipeline.name, [out_filename(i) for i in prev.input_metas])
-            else:
-                logger.debug('- %s already exists, no need to produce it', task_name)
+        required_task_names = _filter_required_tasks(required, previous)
+        _trace_dependencies_found(previous)
         return required_task_names, previous, task_names_to_output_files_table
 
     @timethis("Building tasks from dependencies", logging.DEBUG)
     def _build_tasks_from_dependencies(  # pylint: disable=too-many-locals
         self,
-        required :                        Set[str],
-        previous :                        Dict,
-        task_names_to_output_files_table: Dict,
+        required :                        Set[TaskName],
+        previous :                        Dict[TaskName, TaskInputInfo],
+        task_names_to_output_files_table: Dict[TaskName, Union[str,List[str]]],
         do_watch_ram:                     bool
     ) -> TaskNodeDict:  # Dict of FirstStep or Tuple parameter for execute4dask
         """
@@ -920,7 +949,7 @@ class PipelineDescriptionSequence:
         logger.debug('#############################################################################')
         logger.debug('#############################################################################')
         logger.debug('Building all tasks')
-        required_tasks = node_queue(required)
+        required_tasks = node_queue(required)  # : Iterable[TaskName]
         for task_name in required_tasks:
             logger.debug("* Checking if task '%s' needs to be executed", os.path.basename(task_name))
             assert (task_name in previous) and previous[task_name], \
@@ -936,25 +965,25 @@ class PipelineDescriptionSequence:
             assert list(input_task_keys)
             logger.debug(' - It depends on %s --> %s', [os.path.basename(tn) for tn in input_task_keys], task_inputs)
             output_filename = task_names_to_output_files_table[task_name]
-            pipeline_instance = pipeline_descr.instanciate(output_filename, True, True, do_watch_ram)
+            pipeline_instance = pipeline_descr.instanciate(file=output_filename, do_measure=True, in_memory=True, do_watch_ram=do_watch_ram)
             pipeline_instance.set_inputs(task_inputs)
             logger.debug(' ~~> TASKS[%s] += %s(keys=%s)', os.path.basename(base_task_name), pipeline_descr.name, [os.path.basename(tn) for tn in input_task_keys])
             register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
             logger.debug(" - Analysing whether its inputs needs to be registered for production...")
-            logger.debug("   Already registered: %s", [os.path.basename(tn) for tn in required_tasks])
+            logger.debug("   Note: the following tasks already been registered: %s", [os.path.basename(tn) for tn in required_tasks])
             # logger.debug("   Already registered: %s", already_registered)
             for t in previous[task_name].input_metas:  # TODO: check whether the inputs need to be produced as well
                 tn = first(get_task_name(t))
                 logger.debug("   - About task '%s': %s?", os.path.basename(tn), t)
                 # logger.debug("   - About task '%s': %s?", tn, t)
                 if tn in required_tasks:
-                    logger.info("      ~> Ignoring '%s' which is already registered for production", os.path.basename(tn))
+                    logger.info("     ~> Ignoring '%s' which is already registered for production", os.path.basename(tn))
                 elif not product_exists(t):
-                    logger.info("      => Need to register production of task '%s' (for %s)", os.path.basename(tn), pipeline_descr.name)
+                    logger.info("     => Need to register production of task '%s' (for %s)", os.path.basename(tn), pipeline_descr.name)
                     required_tasks.add_if_new(tn)
                 else:
-                    logger.info("      => Starting %s from existing '%s' task", pipeline_descr.name, os.path.basename(tn))
+                    logger.info("     => Starting %s from existing '%s' task", pipeline_descr.name, os.path.basename(tn))
                     register_task(tasks, to_dask_key(tn), FirstStep(**t))
         return tasks
 

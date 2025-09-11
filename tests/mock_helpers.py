@@ -117,19 +117,12 @@ def declare_know_files(
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))
     mocker.patch('s1tiling.libs.Utils.get_s1image_orbit_time_range', lambda a : file_db.orbit_time_range(a))
 
-    def mock_commit_execution_for_SelectLIA(inp, out):
+    def mock_commit_execution_for_SelectBestCoverage(inp, out):
         logging.debug('mock.mv %s %s', inp, out)
         assert os.path.isfile(inp)
         known_files.append(out)
         known_files.remove(inp)
-    mocker.patch('s1tiling.libs.otbwrappers.lia.commit_execution', mock_commit_execution_for_SelectLIA)
-
-    def mock_commit_execution_for_SelectGAMMA_AREA(inp, out):
-        logging.debug('mock.mv %s %s', inp, out)
-        assert os.path.isfile(inp)
-        known_files.append(out)
-        known_files.remove(inp)
-    mocker.patch('s1tiling.libs.otbwrappers.gamma_area.commit_execution', mock_commit_execution_for_SelectGAMMA_AREA)
+    mocker.patch('s1tiling.libs.otbwrappers._applications.commit_execution', mock_commit_execution_for_SelectBestCoverage)
 
     def mock_add_image_metadata(slf, mt, *args, **kwargs):
         # TODO: Problem: how can we pass around meta from different pipelines???

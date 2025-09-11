@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,9 +36,10 @@ import logging
 import os
 from typing import Dict, Union
 
-logger = logging.getLogger('s1tiling.meta')
+logger = logging.getLogger('s1tiling.metadata')
 
 Meta          = Dict
+TaskName      = str
 
 
 def append_to(meta: Meta, key: str, value) -> Dict:
@@ -59,7 +60,7 @@ def in_filename(meta: Meta) -> str:
 
 def out_filename(meta: Meta) -> str:
     """
-    Helper accessor to access the ouput filename of a `Step`.
+    Helper accessor to access the ouput filename(s) of a `Step`.
     """
     assert 'out_filename' in meta
     return meta['out_filename']
@@ -73,6 +74,23 @@ def tmp_filename(meta: Meta) -> str:
     return meta['out_tmp_filename']
 
 
+def output_parameter(meta: Meta) -> str:
+    """
+    Helper accessor to the exact outpout parameter passed to (OTB) applications.
+    Most of the time, the correct output parameter is :func:`tmp_filename`, but in some instances,
+    the application receives an output parameter that is more like _file pattern_. In that cases we
+    need to be able to override the exact output parameter.
+
+    .. warning:: The result still needs to contain the ``.tmp`` pattern.
+    """
+    if 'output_parameter' in meta:
+        res = meta['output_parameter']
+        assert ".tmp" in res, f"meta['output_parameter']={res!r} needs to contain '.tmp'\n        In {meta=}"
+        return res
+    else:
+        return tmp_filename(meta)
+
+
 def out_extended_filename_complement(meta: Meta) -> str:
     """
     Helper accessor to the extended filename to use to produce the image.
@@ -80,7 +98,7 @@ def out_extended_filename_complement(meta: Meta) -> str:
     return meta.get('out_extended_filename_complement', '')
 
 
-def get_task_name(meta: Meta) -> str:
+def get_task_name(meta: Meta) -> TaskName:
     """
     Helper accessor to the task name related to a `Step`.
 
@@ -102,7 +120,7 @@ def check_one_product(filename: Union[str, os.PathLike], step_factory_name: str)
     """
     assert isinstance(filename, (str, os.PathLike)), f"[{step_factory_name}] product name {filename=!r} not a string/pathlike, but a {type(filename)}"
     exist_file_name = os.path.isfile(filename)
-    logger.debug('Checking %s product: %s => %s', step_factory_name, filename, '∃' if exist_file_name else '∅')
+    logger.debug('     Checking %s product: %s => %s', step_factory_name, filename, '∃' if exist_file_name else '∅')
     return exist_file_name
 
 
@@ -121,8 +139,11 @@ def product_exists(meta: Meta) -> bool:
     """
     if 'does_product_exist' in meta:
         return meta['does_product_exist']()
+    output = out_filename(meta)
+    if isinstance(output, list):
+        return check_several_products(output, meta.get('current_step', '??'))
     else:
-        return check_one_product(out_filename(meta), meta.get('current_step', '??'))
+        return check_one_product(output, meta.get('current_step', '??'))
 
 
 def accept_as_compatible_input(output_meta: Meta, input_meta: Meta) -> bool:

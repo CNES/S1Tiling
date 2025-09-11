@@ -35,7 +35,6 @@ the pipeline for S1Tiling needs.
 
 import logging
 import os
-import shutil
 import re
 from abc import abstractmethod
 from typing import Dict, List, Optional, Union
@@ -48,14 +47,14 @@ from ..file_naming   import (
         ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
 )
 from ..meta import (
-        Meta, get_task_name, in_filename, out_filename, is_running_dry,
+        Meta, get_task_name, in_filename, out_filename,
 )
 from ..steps import (
         InputList, OTBParameters,
         _check_input_step_type,
         AbstractStep, StepFactory,
         OTBStepFactory,
-        FirstStep, MergeStep, _OTBStep, SkippedStep,
+        _OTBStep, SkippedStep,
         manifest_to_product_name,
         ram,
 )
@@ -73,6 +72,9 @@ from ..configuration import (
         fname_fmt_concatenation, fname_fmt_filtered,
 )
 from ..configuration import pixel_type as cfg_pixel_type  # avoid name hiding
+from ._applications import (
+    _ConcatenatorFactory,
+)
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
@@ -467,8 +469,8 @@ class CorrectDenoising(OTBStepFactory):
         """
         Helper function to retrieve the canonical input associated to a list of inputs.
 
-        In current case, the canonical input comes from the "in_cal"
-        step instanciated in :func:`s1tiling.s1_process` pipeline builder.
+        In current case, the canonical input comes from the "in_cal" step instanciated in
+        :func:`s1tiling.s1_process` pipeline builder.
         """
         _check_input_step_type(inputs)
         keys = set().union(*(input.keys() for input in inputs))
@@ -761,120 +763,6 @@ class OrthoRectify(_OrthoRectifierFactory):
         return in_filename(meta)   # meta['in_filename']
 
 
-class _ConcatenatorFactory(OTBStepFactory):
-    """
-    Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
-    described in :ref:`Concatenation` documentation.
-
-    Requires the following information from the configuration object:
-
-    - `ram_per_process`
-
-    Requires the following information from the metadata dictionary
-
-    - input filename
-    - output filename
-    """
-    def __init__(
-            self,
-            cfg              : Configuration,
-            extended_filename: Optional[str],
-            pixel_type       : Optional[int],
-            *args, **kwargs,
-    ) -> None:
-        super().__init__(  # type: ignore # mypy issue 4335
-            cfg,
-            appname='Synthetize',
-            name='Concatenation',
-            param_in='il',
-            param_out='out',
-            extended_filename=extended_filename,
-            pixel_type=pixel_type,
-            *args, **kwargs
-        )
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Precompute output basename from the input file(s).
-
-        In concatenation case, the task_name needs to be overridden to stay
-        unique and common to all inputs.
-
-        Also, inject files to remove
-        """
-        meta = super().complete_meta(meta, all_inputs)  # Needs a valid basename
-
-        # logger.debug("Concatenate.complete_meta(%s) /// task_name: %s /// out_file: %s", meta, meta['task_name'], out_file)
-        in_file = in_filename(meta)
-        if isinstance(in_file, list):
-            logger.debug('Register files to remove after concatenation: %s', in_file)
-            meta['files_to_remove'] = in_file
-        else:
-            logger.debug('DONT register single file to remove after concatenation: %s', in_file)
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set concatenation related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        inp = self._get_canonical_input(all_inputs)  # input_metas in FirstStep, MergeStep
-        assert isinstance(inp, (FirstStep, MergeStep))
-        if len(inp.input_metas) >= 2:
-            product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
-            imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
-            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-            for idx, pn in enumerate(product_names, start=1):
-                acq_time = Utils.extract_product_start_time(os.path.basename(pn))
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-        else:
-            imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
-
-    def parameters(self, meta: Meta) -> OTBParameters:
-        """
-        Returns the parameters to use with :external+OTB:doc:`Synthetize OTB application
-        <Applications/app_Synthetize>`.
-        """
-        return {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : in_filename(meta),
-                # self.param_out     : out_filename(meta),
-        }
-
-    def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
-    ) -> AbstractStep:
-        """
-        :func:`create_step` is overridden in :class:`Concatenate` case in
-        order to by-pass Concatenation in case there is only a single file.
-        """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
-        if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
-            # This situation should not happen any more, we now a single string as inp.
-            # The code is kept in case s1tiling kernel changes again.
-            concat_in_filename = inp.out_filename[0]
-        elif isinstance(inp.out_filename, str):
-            concat_in_filename = inp.out_filename
-        else:
-            return super().create_step(execution_parameters, previous_steps)
-        # Back to a single file inp case
-        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        meta = self.complete_meta(inp.meta, inputs)
-        dryrun = is_running_dry(execution_parameters)
-        res = AbstractStep(**meta)
-        logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        if not dryrun:
-            shutil.move(concat_in_filename, res.out_filename)
-        return res
-
-
 class Concatenate(_ConcatenatorFactory):
     """
     Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
@@ -945,8 +833,8 @@ class Concatenate(_ConcatenatorFactory):
         Make sure the task_name and the basename are updated
         """
         meta['task_name']     = os.path.join(
-                self.output_directory(meta),
-                TemplateOutputFilenameGenerator(self.__tname_fmt).generate(meta['basename'], meta))
+            self.output_directory(meta),
+            TemplateOutputFilenameGenerator(self.__tname_fmt).generate(meta['basename'], meta))
         meta['basename']      = self._get_nominal_output_basename(meta)
         meta['update_out_filename'] = self.update_out_filename
         in_file               = out_filename(meta)

@@ -52,7 +52,6 @@ from ..incidence_angle import IA_map, extended_filename_ia, pixel_type_ia
 
 from ..meta            import (
     Meta,
-    append_to,
     in_filename,
     out_filename,
     tmp_filename,
@@ -60,32 +59,35 @@ from ..meta            import (
 )
 from ..otbtools        import otb_version
 from ..steps           import (
+    AbstractStep,
+    AnyProducerStepFactory,
+    ExeParameters,
+    ExecutableStepFactory,
     InputList,
     OTBParameters,
-    ExeParameters,
-    _check_input_step_type,
-    AbstractStep,
-    StepFactory,
-    _FileProducingStepFactory,
-    AnyProducerStepFactory,
-    ExecutableStepFactory,
     OTBStepFactory,
-    commit_execution,
+    StepFactory,
+    _check_input_step_type,
     ram,
 )
 from ..otbpipeline     import (
     fetch_input_data,
     fetch_input_data_all_inputs,
-    TaskInputInfo,
+)
+from ._applications import (
+    _ConcatenatorFactoryForMaps,
+    _PostSARDEMProjectionFamily,
+    _ProjectGeoidTo,
+    _SARDEMProjectionFamily,
+    _SelectBestCoverage,
 )
 from .helpers          import (
+    depolarize_4_filename_pre_hook,
     does_s2_data_match_s2_tile,
     does_sin_lia_match_s2_tile_for_orbit,
-    remove_polarization_marks,
 )
 from .s1_to_s2         import (
     s2_tile_extent,
-    _ConcatenatorFactory,
     _OrthoRectifierFactory,
 )
 from ..                 import Utils
@@ -267,7 +269,7 @@ class ProjectDEMToS2Tile(ExecutableStepFactory):
         return parameters
 
 
-class ProjectGeoidToS2Tile(OTBStepFactory):
+class ProjectGeoidToS2Tile(_ProjectGeoidTo):
     """
     Factory that produces a :class:`Step` that projects any kind of Geoid onto target S2 tile as
     described in :ref:`Project Geoid to S2 tile <project_geoid_to_s2-proc>`.
@@ -296,21 +298,12 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('geoid_on_s2', fname_fmt)
         super().__init__(
             cfg,
-            param_in="inr",
-            param_out="out",
-            appname='Superimpose',
             name='ProjectGeoidToS2Tile',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-            gen_output_dir=None,  # Use gen_tmp_dir,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            output_fname_fmt=fname_fmt,
             extended_filename=extended_filename_hidden(cfg, 'geoid_on_s2'),
             image_description="Geoid superimposed on S2 tile",
         )
-        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
-        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
-        self.__interpolation_method = cfg.interpolation_method
-        self.__out_spatial_res      = cfg.out_spatial_res  # TODO: should extract this information from reference image
-        self.__nodata               = nodata_DEM(cfg)
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -319,25 +312,8 @@ class ProjectGeoidToS2Tile(OTBStepFactory):
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
-        imd['GEOID_ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
         imd['ORTHORECTIFIED']                        = 'true'
         imd['S2_TILE_CORRESPONDING_CODE']            = meta['tile_name']
-        imd['SPATIAL_RESOLUTION']                    = str(self.__out_spatial_res)
-
-    def parameters(self, meta: Meta) -> OTBParameters:
-        """
-        Returns the parameters to use with :external+OTB:std:doc:`super impose
-        <Applications/app_Superimpose>` to projected the Geoid onto the S2 geometry.
-        """
-        in_s2_dem = in_filename(meta)
-        return {
-            'ram'                     : ram(self.ram_per_process),
-            'inr'                     : in_s2_dem,  # Reference input is the DEM projected on S2
-            'inm'                     : self.__GeoidFile,
-            'interpolator'            : self.__interpolation_method,  # TODO: add parameter
-            'interpolator.bco.radius' : 2,  # 2 is the default value for bco
-            'fv'                      : self.__nodata,  # Make sure meta data are correctly set
-        }
 
 
 class _SumAllHeights(OTBStepFactory):
@@ -778,12 +754,7 @@ class ComputeGroundAndSatPositionsOnDEM(OTBStepFactory):
         Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
         polar related information.
         """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
+        depolarize_4_filename_pre_hook(meta)
         meta['reduce_inputs_insar'] = ComputeGroundAndSatPositionsOnDEM.reduce_inputs
         return meta
 
@@ -1045,6 +1016,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         gen_output_dir         : Optional[str],
         image_description_dict : Dict[IA_map, str],
         incidence_angle_kind   : str,  # "IA" or "LIA"
+        tname_fmt              : str,
         fname_fmt_cos          : Optional[str] = None,
         fname_fmt_sin          : Optional[str] = None,
         fname_fmt_tan          : Optional[str] = None,
@@ -1093,6 +1065,7 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         )
         self.__incidence_angle_kind = incidence_angle_kind
         self.__nodata               = nodata_LIA(cfg)
+        self.__task_name_fmt        = tname_fmt
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -1103,6 +1076,16 @@ class _ComputeIncidenceAngle(OTBStepFactory):
         imd = meta['image_metadata']
         imd['DATA_TYPE']  = self.__data_types
         imd['IMAGE_TYPE'] = self.__incidence_angle_kind
+
+    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
+        """
+        The task name is the root basename, with no list
+        """
+        # logger.debug('%s(%s)._update_filename_meta_post_hook -> out_filename=%s',
+                     # self.__class__.__name__, self._burst_index, out_filename(meta))
+        generator = TemplateOutputFilenameGenerator(self.__task_name_fmt)
+        meta['task_name'] = generator.generate(meta['basename'], meta)
+        logger.debug('Setting task_name to %s', meta['task_name'])
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
@@ -1179,6 +1162,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     def __init__(self, cfg: Configuration) -> None:
         fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
+        tname_fmt     = partial_format(fname_fmt0, LIA_kind="TaskLIA")
         fname_fmt_deg = partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None
         fname_fmt_sin = partial_format(fname_fmt0, LIA_kind="sin_LIA")
         dname_fmt = dname_fmt_lia_product(cfg)
@@ -1186,6 +1170,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2'),
             gen_output_dir=dname_fmt,
+            tname_fmt=tname_fmt,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description_dict=self._image_descriptions,
@@ -1408,7 +1393,7 @@ class ApplyLIACalibration(OTBStepFactory):
 # concatenated.
 
 
-class SARDEMProjection(OTBStepFactory):
+class SARDEMProjection(_SARDEMProjectionFamily):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARDEMProjection` as
     described in :ref:`Normals computation` documentation.
@@ -1445,93 +1430,12 @@ class SARDEMProjection(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('s1_on_dem', fname_fmt)
         super().__init__(
             cfg,
-            appname='SARDEMProjection2',
             name='SARDEMProjection',
-            param_in=None,
-            param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
-            gen_output_dir=None,  # Use gen_tmp_dir
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            output_fname_fmt=fname_fmt,
             extended_filename=extended_filename_s1_on_dem(cfg),
             image_description="SARDEM projection onto DEM list",
         )
-        self.__dem_db_filepath     = cfg.dem_db_filepath
-        self.__dem_field_ids       = cfg.dem_field_ids
-        self.__dem_main_field_id   = cfg.dem_main_field_id
-        self.__dem_info            = cfg.dem_info
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and
-        provide names clear from polar related information.
-        """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-
-        meta['reduce_inputs_insar'] = lambda inputs: [inputs[0]]  # TODO!!!
-        return meta
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        - Complete meta information with hook for updating image metadata w/ directiontoscandemc,
-          directiontoscandeml and gain.
-        - Computes dem information and add them to the meta structure, to be used later to fill-in
-          the image metadata.
-        """
-        meta = super().complete_meta(meta, all_inputs)
-        append_to(meta, 'post', self.add_image_metadata)
-        assert 'inputs' in meta, "Meta data shall have been filled with inputs"
-
-        # TODO: The following has been duplicated from AgglomerateDEM.
-        # See to factorize this code
-        # find DEMs that intersect the input image
-        meta['dem_infos'] = Utils.find_dem_intersecting_raster(
-            in_filename(meta), self.__dem_db_filepath, self.__dem_field_ids, self.__dem_main_field_id
-        )
-        meta['dems'] = sorted(meta['dem_infos'].keys())
-
-        logger.debug("SARDEMProjection: DEM found for %s: %s", in_filename(meta), meta['dems'])
-        _, inbasename = os.path.split(in_filename(meta))
-        meta['inbasename'] = inbasename
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set SARDEMProjection related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        imd['POLARIZATION'] = ""  # Clear polarization information (makes no sense here)
-        imd['DEM_INFO']     = self.__dem_info
-        imd['DEM_LIST']     = ', '.join(meta['dems'])
-
-    def add_image_metadata(self, meta: Meta, app) -> None:
-        """
-        Post-application hook used to complete GDAL metadata.
-
-        As :func:`update_image_metadata` is not designed to access OTB application information
-        (``directiontoscandeml``...), we need this extra hook to fetch and propagate the PRJ
-        information.
-        """
-        fullpath = out_filename(meta)
-        logger.debug('Set metadata in %s', fullpath)
-        dst = gdal.Open(fullpath, gdal.GA_Update)
-        assert dst
-
-        # Pointless here! :(
-        assert app
-        meta['directiontoscandeml'] = app.GetParameterInt('directiontoscandeml')
-        meta['directiontoscandemc'] = app.GetParameterInt('directiontoscandemc')
-        meta['gain']                = app.GetParameterFloat('gain')
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEML', str(meta['directiontoscandeml']))
-        dst.SetMetadataItem('PRJ.DIRECTIONTOSCANDEMC', str(meta['directiontoscandemc']))
-        dst.SetMetadataItem('PRJ.GAIN',                str(meta['gain']))
-        dst.FlushCache()  # We really need to be sure it has been flushed now, if not closed
-        del dst
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1551,15 +1455,8 @@ class SARDEMProjection(OTBStepFactory):
             'nodata'     : nodata
         }
 
-    def requirement_context(self) -> str:
-        """
-        Return the requirement context that permits to fix missing requirements.
-        SARDEMProjection2 comes from normlim_sigma0.
-        """
-        return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
 
-
-class SARCartesianMeanEstimation(OTBStepFactory):
+class SARCartesianMeanEstimation(_PostSARDEMProjectionFamily):
     """
     Factory that prepares steps that run :external:doc:`Applications/app_SARCartesianMeanEstimation`
     as described in :ref:`Normals computation` documentation.
@@ -1594,79 +1491,6 @@ class SARCartesianMeanEstimation(OTBStepFactory):
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
             image_description='Cartesian XYZ coordinates estimation',
         )
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Injects the :func:`reduce_inputs_insar` hook in step metadata, and provide names clear from
-        polar related information.
-        """
-        # Ignore polarization in filenames
-        if 'polarless_basename' in meta:
-            assert meta['polarless_basename'] == remove_polarization_marks(meta['basename'])
-        else:
-            meta['polarless_basename'] = remove_polarization_marks(meta['basename'])
-        meta['reduce_inputs_insar'] = lambda inputs: [inputs[0]]  # TODO!!!
-        return meta
-
-    def _get_canonical_input(self, inputs: InputList) -> AbstractStep:
-        """
-        Helper function to retrieve the canonical input associated to a list of inputs.
-
-        In :class:`SARCartesianMeanEstimation` case, the canonical input comes from the "indem"
-        pipeline defined in :func:s1tiling.s1_process_lia` pipeline builder.
-        """
-        _check_input_step_type(inputs)
-        keys = set().union(*(input.keys() for input in inputs))
-        assert len(inputs) == 3, f'Expecting 3 inputs. {len(inputs)} are found: {keys}'
-        assert 'indemproj' in keys
-        return [input['indemproj'] for input in inputs if 'indemproj' in input.keys()][0]
-
-    def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
-        """
-        Complete meta information with hook for updating image metadata w/ directiontoscandemc,
-        directiontoscandeml and gain.
-        """
-        inputpath = out_filename(meta)  # needs to be done before super.complete_meta!!
-        meta = super().complete_meta(meta, all_inputs)
-        if 'directiontoscandeml' not in meta or 'directiontoscandemc' not in meta:
-            self.fetch_direction(inputpath, meta)
-        indem     = fetch_input_data('indem',     all_inputs).out_filename
-        indemproj = fetch_input_data('indemproj', all_inputs).out_filename
-        meta['files_to_remove'] = [indem, indemproj]
-        logger.debug('Register files to remove after XYZ computation: %s', meta['files_to_remove'])
-        _, inbasename = os.path.split(in_filename(meta))
-        meta['inbasename'] = inbasename
-        return meta
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Set SARCartesianMeanEstimation related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        assert 'image_metadata' in meta
-        imd = meta['image_metadata']
-        # Clear PRJ.* information: makes no sense anymore
-        imd['PRJ.DIRECTIONTOSCANDEML'] = ""
-        imd['PRJ.DIRECTIONTOSCANDEMC'] = ""
-        imd['PRJ.GAIN']                = ""
-
-    def fetch_direction(self, inputpath, meta: Meta) -> None:
-        """
-        Extract back direction to scan DEM from SARDEMProjected image metadata.
-        """
-        logger.debug("Fetch PRJ.DIRECTIONTOSCANDEM* from '%s'", inputpath)
-        if not is_running_dry(meta):  # FIXME: this info is no longer in meta!
-            dst = gdal.Open(inputpath, gdal.GA_ReadOnly)
-            if not dst:
-                raise RuntimeError(f"Cannot open SARDEMProjected file {inputpath!r} to collect scan direction metadata.")
-            meta['directiontoscandeml'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEML')
-            meta['directiontoscandemc'] = dst.GetMetadataItem('PRJ.DIRECTIONTOSCANDEMC')
-            if meta['directiontoscandeml'] is None or meta['directiontoscandemc'] is None:
-                raise RuntimeError(f"Cannot fetch direction to scan from SARDEMProjected file {inputpath!r}")
-            del dst
-        else:
-            meta['directiontoscandeml'] = 42
-            meta['directiontoscandemc'] = 42
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -1759,12 +1583,14 @@ class ComputeLIAOnS1(_ComputeIncidenceAngle):
     }
 
     def __init__(self, cfg: Configuration) -> None:
+        tname_fmt     = 'TaskLIA_{polarless_basename}'
         fname_fmt_deg = cfg.fname_fmt.get('s1_lia',     'LIA_{polarless_basename}') if cfg.produce_lia_map else None
         fname_fmt_sin = cfg.fname_fmt.get('s1_sin_lia', 'sin_LIA_{polarless_basename}')
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,
+            tname_fmt=tname_fmt,
             fname_fmt_deg=fname_fmt_deg,
             fname_fmt_sin=fname_fmt_sin,
             image_description_dict=self._image_descriptions,
@@ -1854,7 +1680,7 @@ class OrthoRectifyLIA(_OrthoRectifierFactory):
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
 
 
-class ConcatenateLIA(_ConcatenatorFactory):
+class ConcatenateLIA(_ConcatenatorFactoryForMaps):
     """
     Factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` on LIA
     images.
@@ -1875,36 +1701,14 @@ class ConcatenateLIA(_ConcatenatorFactory):
         fname_fmt = cfg.fname_fmt.get('lia_concatenation', fname_fmt)
         super().__init__(
             cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-            gen_output_dir=None,  # Use gen_tmp_dir
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            fname_fmt=fname_fmt,
             image_description='Orthorectified {LIA_kind} Sentinel-{flying_unit_code_short} IW GRD',
             extended_filename=None,  # will be set later...
-            pixel_type=None,         # will be set later...
         )
         self._extended_filenames = {
             'LIA'     : extended_filename_lia_degree(cfg),
             'sin_LIA' : extended_filename_lia_sin(cfg),
         }
-        self.__dem_info = cfg.dem_info
-
-    def _update_filename_meta_post_hook(self, meta: Meta) -> None:
-        """
-        Override "update_out_filename" hook to help select the input set with the best coverage.
-        """
-        assert 'LIA_kind' in meta
-        meta['update_out_filename'] = self.update_out_filename  # <- needs to be done in post_hook!
-        # Remove acquisition_time that no longer makes sense
-        meta.pop('acquisition_time', None)
-
-    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
-        """
-        Update concatenated LIA related information that'll get carried around.
-        """
-        super().update_image_metadata(meta, all_inputs)
-        imd = meta['image_metadata']
-        imd['DEM_INFO']  = self.__dem_info
-        imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         meta = super().complete_meta(meta, all_inputs)
@@ -1912,31 +1716,6 @@ class ConcatenateLIA(_ConcatenatorFactory):
         kind = meta['LIA_kind']
         meta['out_extended_filename_complement'] = self._extended_filenames[kind]
         return meta
-
-    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
-        """
-        Unlike usual :class:`Concatenate`, the output filename will always ends in "txxxxxx".
-
-        However we want to update the coverage of the current pair as a new input file has been
-        registered.
-
-        TODO: Find a better name for the hook as it handles two different services.
-        """
-        inputs = with_task_info.inputs['in']
-        dates = {re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs}
-        assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
-        date = min(dates)
-        logger.debug('[ConcatenateLIA] at %s:', date)
-        coverage = 0.
-        for inp in inputs:
-            if re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) == date:
-                s1_cov = inp['tile_coverage']
-                coverage += s1_cov
-                logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
-        # Round coverage at 3 digits as tile footprint has a very limited precision
-        coverage = round(coverage, 3)
-        logger.debug('[ConcatenateLIA] => total coverage at %s: %s%%', date, coverage * 100)
-        meta['tile_coverage'] = coverage
 
     def set_output_pixel_type(self, app, meta: Meta) -> None:
         """
@@ -1946,7 +1725,7 @@ class ConcatenateLIA(_ConcatenatorFactory):
             app.SetParameterOutputImagePixelType(self.param_out, otb.ImagePixelType_int16)
 
 
-class SelectBestCoverage(_FileProducingStepFactory):
+class SelectBestCoverage(_SelectBestCoverage):
     """
     StepFactory that helps select only one path after LIA concatenation: the one that have the best
     coverage of the S2 tile target.
@@ -1980,46 +1759,6 @@ class SelectBestCoverage(_FileProducingStepFactory):
             cfg,
             name='SelectBestCoverage',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-            gen_output_dir=dname_fmt,
-            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            dname_fmt=dname_fmt,
+            fname_fmt=fname_fmt
         )
-
-    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
-        """
-        Inject the :func:`reduce_LIAs` hook in step metadata.
-        """
-        def reduce_LIAs(inputs):
-            """
-            Select the concatenated pair of LIA files that have the best coverage of the considered
-            S2 tile.
-            """
-            # TODO: quid if different dates have best different coverage on a set of tiles?
-            # How to avoid computing LIA again and again on a same S1 zone?
-            # dates = set([re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs])
-            best_covered_input = max(inputs, key=lambda inp: inp['tile_coverage'])
-            logger.debug('Best coverage is %s at %s among:', best_covered_input['tile_coverage'], best_covered_input['acquisition_day'])
-            for inp in inputs:
-                logger.debug(' - %s: %s', inp['acquisition_day'], inp['tile_coverage'])
-            return [best_covered_input]
-
-        meta['reduce_inputs_in'] = reduce_LIAs
-        return meta
-
-    def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps:       List[InputList]
-    ) -> AbstractStep:
-        logger.debug("Directly execute %s step", self.name)
-        inputs = self._get_inputs(previous_steps)
-        inp = self._get_canonical_input(inputs)
-        meta = self.complete_meta(inp.meta, inputs)
-
-        # Let's reuse commit_execution as it does exactly what we need
-        if not is_running_dry(execution_parameters):
-            commit_execution(out_filename(inp.meta), out_filename(meta))
-
-        # Return a dummy Step
-        # logger.debug("%s step executed!", self.name)
-        res = AbstractStep('move', **meta)
-        return res

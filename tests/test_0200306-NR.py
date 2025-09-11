@@ -1028,6 +1028,7 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
                 # 'out': otb.ImagePixelType_float
             }, {
                 'ACQUISITION_DATETIME'     : file_db.start_time(idx),
+                'DEM_INFO'                 : 'SRTM_30_hgt',
                 'DEM_LIST'                 : ', '.join(exp_dem_names),
                 'FLYING_UNIT_CODE'         : 's1a',
                 'IMAGE_TYPE'               : 'GRD',
@@ -1138,6 +1139,7 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
             'ACQUISITION_DATETIME'     : file_db.start_time_for_two(0),
             'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
             'ACQUISITION_DATETIME_2'   : file_db.start_time(1),
+            'DEM_INFO'                 : 'SRTM_30_hgt',
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
@@ -1454,10 +1456,10 @@ def test_33NWB_202001_lia_mocked(tmpdir, demdir, ram, mocker, register_expectati
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type    = 'normlim'
-    configuration.lia_directory       = liadir.absolute()
-    configuration.produce_lia_map     = True
-    configuration.relative_orbit_list = [7]
+    configuration.calibration_type             = 'normlim'
+    configuration.extra_directories['lia_dir'] = liadir.absolute()
+    configuration.produce_lia_map              = True
+    configuration.relative_orbit_list          = [7]
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
@@ -1516,11 +1518,11 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'normlim'
-    configuration.lia_directory    = liadir.absolute()
-    configuration.produce_lia_map  = True
-    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
-    configuration.relative_orbit_list = [7]
+    configuration.calibration_type             = 'normlim'
+    configuration.extra_directories['lia_dir'] = liadir.absolute()
+    configuration.produce_lia_map              = True
+    configuration.fname_fmt['concatenation']   = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
+    configuration.relative_orbit_list          = [7]
     configuration.show_configuration()
     logging.info("Sigma0 NORMLIM mocked test")
 
@@ -1613,10 +1615,10 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker)
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'normlim'
-    configuration.lia_directory = liadir.absolute()
-    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
-    configuration.relative_orbit_list = [7]
+    configuration.calibration_type             = 'normlim'
+    configuration.extra_directories['lia_dir'] = liadir.absolute()
+    configuration.fname_fmt['concatenation']   = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpbeta.tif'
+    configuration.relative_orbit_list          = [7]
     logging.info("Sigma0 NORMLIM mocked test")
 
     file_db = FileDB(
@@ -1720,8 +1722,8 @@ def test_33NWB_202001_gamma_area_mocked(
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.gamma_area_directory    = gamma_areadir.absolute()
+    configuration.calibration_type                    = 'gamma_naught_rtc'
+    configuration.extra_directories['gamma_area_dir'] = gamma_areadir.absolute()
     configuration.show_configuration()
     print(configuration)
     logging.info("Sigma0 GAMMA_AREA mocked test")
@@ -1776,8 +1778,8 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.gamma_area_directory    = gamma_areadir.absolute()
+    configuration.calibration_type                    = 'gamma_naught_rtc'
+    configuration.extra_directories['gamma_area_dir'] = gamma_areadir.absolute()
     configuration.show_configuration()
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpsigma.tif'
     logging.info("Gamma0 RTC mocked test")
@@ -1868,8 +1870,8 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
     # baseline_path = baselinedir / 'expected'
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
-    configuration.calibration_type = 'gamma_naught_rtc'
-    configuration.gamma_area_directory = gamma_areadir.absolute()
+    configuration.calibration_type                    = 'gamma_naught_rtc'
+    configuration.extra_directories['gamma_area_dir'] = gamma_areadir.absolute()
     configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_tmpsigma.tif'
     logging.info("Gamma0 RTC mocked test")
 

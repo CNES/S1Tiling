@@ -14,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,10 +47,10 @@ from osgeo import gdal
 import otbApplication as otb
 
 from .              import Utils
-from .configuration import Configuration
+from .configuration import FileProducingConfiguration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-        Meta, check_several_products, is_debugging_caches, is_running_dry, tmp_filename, out_filename, out_extended_filename_complement
+    Meta, check_several_products, is_debugging_caches, is_running_dry, output_parameter, tmp_filename, out_filename, out_extended_filename_complement
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -95,8 +95,8 @@ def as_list(param) -> List:
 
 def as_app_shell_param(param) -> str:
     """
-    Internal function used to stringigy value to appear like a a parameter for a program
-    launched through shell.
+    Internal function used to stringigy value to appear like a a parameter for a program launched
+    through shell.
 
     foo     -> 'foo'
     42      -> 42
@@ -105,18 +105,12 @@ def as_app_shell_param(param) -> str:
     :todo: Deprecate, use f"{param!r}" instead
     """
     return f"{param!r}"
-    # if   isinstance(param, list):
-    #     return ' '.join(as_app_shell_param(e) for e in param)
-    # elif isinstance(param, int):
-    #     return param
-    # else:
-    #     return f"'{param}'"
 
 
 def manifest_to_product_name(manifest: str) -> str:
     """
-    Helper function that returns the product name (SAFE directory without the
-    ``.SAFE`` extension) from the full path to the :file:`manifest.safe` file.
+    Helper function that returns the product name (SAFE directory without the ``.SAFE`` extension)
+    from the full path to the :file:`manifest.safe` file.
 
     Works with eodag v2 returned paths:
 
@@ -136,13 +130,14 @@ def manifest_to_product_name(manifest: str) -> str:
 
 def commit_execution(tmp_fn, out_fn) -> None:
     """
-    Concluding step that validates the successful execution of an application,
-    whether it's an OTB application or an external executable.
+    Concluding step that validates the successful execution of an application, whether it's an OTB
+    application or an external executable.
 
     - Rename the tmp image into its final name
     - Rename the associated geom file (if any as well)
     """
-    assert type(tmp_fn) is type(out_fn)
+    assert type(tmp_fn) is type(out_fn), f"{tmp_fn=!r}  <--> {out_fn=!r}"
+
     if isinstance(out_fn, list):
         for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
@@ -193,16 +188,16 @@ class AbstractStep:
 
     - :class:`FirstStep` that contains information about input files
     - :class:`Step` that registers an otbapplication binding
-    - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to
-      force storing of the resulting file.
+    - :class:`StoreStep` that momentarilly disconnect on-memory pipeline to force storing of the
+      resulting file.
     - :class:`AnyProducerStep` that executes Python functions
     - :class:`ExecutableStep` that executes external applications
-    - :class:`MergeStep` that operates a rendez-vous between several steps
-      producing files of a same kind.
+    - :class:`MergeStep` that operates a rendez-vous between several steps producing files of a same
+      kind.
 
-    The step will contain information like the current input file, the current
-    output file... and variation points starting in ``_do_something()`` to
-    specialize by overriding them in child classes.
+    The step will contain information like the current input file, the current output file... and
+    variation points starting in ``_do_something()`` to specialize by overriding them in child
+    classes.
     """
     def __init__(self, *unused_argv, **kwargs) -> None:
         """
@@ -247,18 +242,17 @@ class AbstractStep:
     @property
     def shall_store(self) -> bool:
         """
-        No OTB related step requires its result to be stored on disk and to
-        break in_memory connection by default.
+        No OTB related step requires its result to be stored on disk and to break in_memory
+        connection by default.
 
-        However, the artificial Step produced by :class:`Store` factory will
-        force the result of the `previous` application(s) to be stored on disk.
+        However, the artificial Step produced by :class:`Store` factory will force the result of the
+        `previous` application(s) to be stored on disk.
         """
         return False
 
     def release_app(self) -> None:
         """
-        Makes sure that steps with applications are releasing the application (no-op for
-        this class)
+        Makes sure that steps with applications are releasing the application (no-op for this class)
         """
         pass
 
@@ -270,11 +264,19 @@ class _ProducerStep(AbstractStep):
     @property
     def tmp_filename(self) -> str:
         """
-        Property that returns the name of the file produced by the current step while
-        the OTB application, or the executable, or even the gdal function is running.
+        Property that returns the name of the file produced by the current step while the OTB
+        application, or the executable, or even the gdal function is running.
         Eventually, it'll get renamed into `self.out_filename` if the application succeeds.
         """
         return tmp_filename(self.meta)
+
+    @property
+    def output_parameter(self):
+        """
+        Property that returns the output parameter to use as output of the application.
+        See: :func:`output_parameter`
+        """
+        return output_parameter(self.meta)
 
     @property
     def pipeline_name(self):
@@ -283,12 +285,11 @@ class _ProducerStep(AbstractStep):
 
     def execute_and_write_output(self, parameters, execution_parameters: Dict) -> None:
         """
-        Actually produce the expected output. The how is still a variation point
-        that'll get decided in :func:`_do_execute` specializations.
+        Actually produce the expected output. The how is still a variation point that'll get decided
+        in :func:`_do_execute` specializations.
 
         While the output is produced, a temporary filename will be used as output.
-        On successful execution, the output will be renamed to match its
-        expected final name.
+        On successful execution, the output will be renamed to match its expected final name.
         """
         dryrun = is_running_dry(execution_parameters)
         logger.debug("_ProducerStep: %s (%s)", self.__class__.__name__, self.meta)
@@ -336,9 +337,8 @@ class _ProducerStep(AbstractStep):
 
     def _clean_cache(self, dryrun: bool, debug_caches: bool) -> None:
         """
-        Takes care or removing intermediary files once we know they are no
-        longer required like the orthorectified subtiles once the
-        concatenation has been done.
+        Takes care or removing intermediary files once we know they are no longer required like the
+        orthorectified subtiles once the concatenation has been done.
         """
         if 'files_to_remove' in self.meta :
             files = self.meta['files_to_remove']
@@ -473,12 +473,11 @@ class ExecutableStep(_ProducerStep):
 class _OTBStep(AbstractStep):
     """
     Step that have a reference to an OTB application.
-    It could be an actual :class:`Step` holding an OTB application,
-    or a :class:`SkippedStep` that forwards the OTB application from its
-    previous step in the pipeline.
+    It could be an actual :class:`Step` holding an OTB application, or a :class:`SkippedStep` that
+    forwards the OTB application from its previous step in the pipeline.
 
-    **Note**: Both child classes are virtually the same. Yet, different types are used in
-    order to really distinguish what is registered and executed.
+    **Note**: Both child classes are virtually the same. Yet, different types are used in order to
+    really distinguish what is registered and executed.
     """
     def __init__(self, app, *argv, **kwargs) -> None:
         """
@@ -520,8 +519,8 @@ class Step(_OTBStep):
     """
     Internal specialized `Step` that holds a binding to an OTB Application.
 
-    The application binding is expected to be built by a dedicated :class:`StepFactory` and
-    passed to the constructor.
+    The application binding is expected to be built by a dedicated :class:`StepFactory` and passed
+    to the constructor.
     """
     # parent __init__ is perfect.
 
@@ -548,9 +547,8 @@ class SkippedStep(_OTBStep):
 
 def _check_input_step_type(inputs: InputList) -> None:
     """
-    Internal helper function that checks :func:`StepFactory.create_step()`
-    ``inputs`` parameters is of the expected type, i.e.:
-    list of dictionaries {'key': :class:`AbstractStep`}
+    Internal helper function that checks :func:`StepFactory.create_step()` ``inputs`` parameters is
+    of the expected type, i.e.: list of dictionaries {'key': :class:`AbstractStep`}
     """
     assert isinstance(inputs, list)
     assert all(issubclass(type(inp), dict) for inp in inputs), f"Inputs not of expected type: {inputs}"
@@ -561,12 +559,32 @@ class StepFactory(ABC):
     """
     Abstract factory for :class:`AbstractStep`
 
-    Meant to be inherited for each possible OTB application or external
-    application used in a pipeline.
+    Meant to be inherited for each possible OTB application, external application... used in a
+    pipeline.
 
-    Sometimes we may also want to add some artificial steps that analyse
-    products, filenames..., or step that help filter products for following
-    pipelines.
+    Sometimes we may also want to add some artificial steps that analyse products, filenames..., or
+    step that help filter products for following pipelines.
+
+    When steps are analysed, their *output filename(s)* are deduced. This information is stored in
+    the *meta* dictionary under the key ``out_filename`` (and it's meant to be extracted through
+    :func:`out_filename`). It can be a single filename or a list of filenames. Internally it will be
+    used to :method:`commit_execution` -- i.e. to rename tempory files with their final exact
+    filenames. ``out_filename`` computation is supposed to be automatically done by the
+    :class:`OutputFilenameGenerator` passed to the constructor of some step factories.
+
+    Also step results need to be precisely identified. This identifier is extracted with
+    :func:`get_task_name`. By default its value is the same as ``out_filename``. In some cases, we
+    need to override this *task name*. This is meant to be done in
+    :method:`_update_filename_meta_post_hook` exclusively. A typical use case is when a steps
+    produced several files. It's better in that case to have a single *task name*.
+
+    At last, sometimes an (OTB) application produces several files, but it only takes a single ouput
+    parameter which acts as a kind of filename pattern/format. For these situations we need an
+    *output parameter* which is not the list of ``out_filename``s. This can be done through the
+    *metadata* key ``output_parameter`` this is retrieved by :func:`output_parameter` helper
+    function -- if no ``output_parameter`` information is set, this accessor function falls back to
+    ``out_filename`` value. This *metadata* is also meant to be set exclusively in
+    :method:`_update_filename_meta_post_hook`.
 
     See: :ref:`Existing processings`
     """
@@ -594,14 +612,12 @@ class StepFactory(ABC):
 
     def check_requirements(self) -> Optional[Tuple[str, str]]:
         """
-        Abstract method used to test whether a :class:`StepFactory` has all
-        its external requirements fulfilled. For instance,
-        :class:`OTBStepFactory`'s will check their related OTB application can
-        be executed.
+        Abstract method used to test whether a :class:`StepFactory` has all its external
+        requirements fulfilled. For instance, :class:`OTBStepFactory`'s will check their related OTB
+        application can be executed.
 
         :return: ``None`` if requirements are fulfilled.
-        :return: A message indicating what is missing otherwise, and some
-                 context how to fix it.
+        :return: A message indicating what is missing otherwise, and some context how to fix it.
         """
         return None
 
@@ -619,11 +635,10 @@ class StepFactory(ABC):
         """
         Returns a filename to a temporary file to use in output of the current application.
 
-        When an OTB (/External) application is harshly interrupted (crash or
-        user interruption), it leaves behind an incomplete (and thus invalid)
-        file.
-        In order to ignore those files when a pipeline is restarted, an
-        temporary filename is used by the application.
+        When an OTB (/External) application is harshly interrupted (crash or user interruption), it
+        leaves behind an incomplete (and thus invalid) file.
+        In order to ignore those files when a pipeline is restarted, an temporary filename is used
+        by the application.
         Once the application exits with success, the file will be renamed into
         :func:`build_step_output_filename()`, and possibly moved into
         :func:`_FileProducingStepFactory.output_directory()` if this is a final product.
@@ -634,20 +649,21 @@ class StepFactory(ABC):
     def has_several_outputs(self) -> bool:
         """
         Tells whether this step produces several files.
+        This method is meant to be overridden in :class:`_FileProducingStepFactory`.
 
-        :return: False by default. This method is meant to be overridden in :class:`_FileProducingStepFactory`.
+        :return: False by default.
         """
         return False
 
-    def update_filename_meta(self, meta: Meta) -> Dict:  # NOT to be overridden
+    def update_filename_meta(self, meta: Meta) -> Meta:  # NOT to be overridden
         """
-        Duplicates, completes, and returns, the `meta` dictionary with specific
-        information for the current factory regarding tasks analysis.
+        Duplicates, completes, and returns, the `meta` dictionary with specific information for the
+        current factory regarding tasks analysis.
 
         This method is used:
 
-        - while analysing the dependencies to build the task graph -- in this
-          use case the relevant information are the file names and paths.
+        - while analysing the dependencies to build the task graph -- in this use case the relevant
+          information are the file names and paths.
         - and indirectly before instanciating a new :class:`Step`
 
         Other metadata not filled here:
@@ -659,9 +675,9 @@ class StepFactory(ABC):
         :func:`_get_canonical_input()` for instance) thanks to
         :func:`_update_filename_meta_pre_hook()`.
 
-        This method is not meant to be overridden. Instead it implements the
-        `template method` design pattern, and expects the customization to
-        be done through the specialization of the hooks:
+        This method is not meant to be overridden. Instead it implements the `template method`
+        design pattern, and expects the customization to be done through the specialization of the
+        hooks:
 
         - :func:`_update_filename_meta_pre_hook()`,
         - :func:`_update_filename_meta_post_hook()`.
@@ -672,6 +688,7 @@ class StepFactory(ABC):
 
         meta.pop('task_name',                  None)
         meta.pop('task_basename',              None)
+        meta.pop('output_parameter',           None)
         meta.pop('update_out_filename',        None)
         meta.pop('accept_as_compatible_input', None)
         meta.pop('does_product_exist',         None)
@@ -694,8 +711,8 @@ class StepFactory(ABC):
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:  # to be overridden
         """
-        Hook meant to be overridden to complete product metadata before
-        they are used to produce filenames or tasknames.
+        Hook meant to be overridden to complete product metadata before they are used to produce
+        filenames or tasknames.
 
         Called from :func:`update_filename_meta()`
 
@@ -705,8 +722,7 @@ class StepFactory(ABC):
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:  # to be overridden
         """
-        Hook meant to be overridden to fix product metadata by
-        overriding their default definition.
+        Hook meant to be overridden to fix product metadata by overriding their default definition.
 
         Called from :func:`update_filename_meta()`
 
@@ -716,8 +732,8 @@ class StepFactory(ABC):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:  # to be overridden
         """
-        Duplicates, completes, and returns, the `meta` dictionary with specific
-        information for the current factory regarding :class:`Step` instanciation.
+        Duplicates, completes, and returns, the `meta` dictionary with specific information for the
+        current factory regarding :class:`Step` instanciation.
         """
         meta.pop('out_extended_filename_complement', None)
         # logger.debug("OLD inputs (%s): %s", self.__class__.__name__, set().union(*(input.keys() for input in meta.get('inputs', []))))
@@ -729,8 +745,8 @@ class StepFactory(ABC):
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:  # pylint: disable=unused-argument
         """
-        Root implementation of :func:`update_image_metadata` that shall be
-        specialized in every file producing Step Factory.
+        Root implementation of :func:`update_image_metadata` that shall be specialized in every file
+        producing Step Factory.
         """
         if 'image_metadata' not in meta:
             meta['image_metadata'] = {}
@@ -754,11 +770,11 @@ class StepFactory(ABC):
 
     def _get_inputs(self, previous_steps: List[InputList]) -> InputList:
         """
-        Extract the last inputs to use at the current level from all previous
-        products seen in the pipeline.
+        Extract the last inputs to use at the current level from all previous products seen in the
+        pipeline.
 
-        This method will need to be overridden in classes like
-        :class:`_ComputeLIA` in order to fetch N-1 "xyz" input.
+        This method will need to be overridden in classes like :class:`_ComputeLIA` in order to
+        fetch N-1 "xyz" input.
 
         Postcondition:
             :``_check_input_step_type(result)`` is True
@@ -793,27 +809,24 @@ class StepFactory(ABC):
         previous_steps: List[InputList]
     ) -> AbstractStep:
         """
-        Instanciates the step related to the current :class:`StepFactory`,
-        that consumes results from the previous `input` steps.
+        Instanciates the step related to the current :class:`StepFactory`, that consumes results
+        from the previous `input` steps.
 
-        1. This methods starts by updating metadata information through:
-        :func:`complete_meta()` on the ``input`` metadatas.
+        1. This methods starts by updating metadata information through: :func:`complete_meta()` on
+           the ``input`` metadatas.
 
-        2. Then it updates the GDAL image metadata information that will need
-        to be written in the pipeline output image through
-        :func:`update_image_metadata()`.
+        2. Then it updates the GDAL image metadata information that will need to be written in the
+           pipeline output image through :func:`update_image_metadata()`.
 
-        3. Eventually the actual step creation method is executed according
-        to the exact kind of step factory (:class:`ExecutableStepFactory`,
-        :class:`AnyProducerStepFactory`, :class:`OTBStepFactory`) through the
-        variation point :func:`_do_create_actual_step()`.
+        3. Eventually the actual step creation method is executed according to the exact kind of
+           step factory (:class:`ExecutableStepFactory`, :class:`AnyProducerStepFactory`,
+           :class:`OTBStepFactory`) through the variation point :func:`_do_create_actual_step()`.
 
-        While this method is not meant to be overridden, for simplity it will
-        be in :class:`Store` factory.
+        While this method is not meant to be overridden, for simplity it will be in :class:`Store`
+        factory.
 
-        Note: it's possible to override this method to return no step
-        (``None``). In that case, no OTB Application would be registered in the
-        actual :class:`Pipeline`.
+        Note: it's possible to override this method to return no step (``None``). In that case, no
+        OTB Application would be registered in the actual :class:`Pipeline`.
         """
         inputs     = self._get_inputs(previous_steps)
         input_step = self._get_canonical_input(inputs)
@@ -835,8 +848,7 @@ class StepFactory(ABC):
 
 class StoreStep(_ProducerStep):
     """
-    Artificial Step that takes care of executing the last OTB application in the
-    pipeline.
+    Artificial Step that takes care of executing the last OTB application in the pipeline.
     """
     def __init__(self, previous: _OTBStep) -> None:
         assert not previous.is_first_step
@@ -853,7 +865,7 @@ class StoreStep(_ProducerStep):
         Takes care of setting all output parameters.
         """
         p_out = as_list(self._out)
-        files = as_list(self.tmp_filename)
+        files = as_list(self.output_parameter)
         assert len(p_out) == len(files), f"Mismatching number of files parameters and ouput files: {p_out} VS {files}"
         assert self._app
         nb = len(files)
@@ -863,13 +875,13 @@ class StoreStep(_ProducerStep):
         for po, tmp, ef in zip(p_out, files, extended_filenames):
             assert isinstance(po,  str), f"String expected for param_out={po}"
             assert isinstance(tmp, str), f"String expected for output tmp filename={tmp}"
-            logger.debug(" - set output param: %s = %s + %s", po, tmp, ef)
+            logger.debug(" - set ouput param: '%s' = '%s' + '%s'", po, tmp, ef)
             self._app.SetParameterString(po, tmp + ef)
 
     def _do_execute(self, parameters, dryrun: bool) -> None:
         """
-        Takes care of positionning the `out` parameter of the OTB applications
-        pipeline, and trigger the execution of the (in-memory, or not) pipeline.
+        Takes care of positionning the `out` parameter of the OTB applications pipeline, and trigger
+        the execution of the (in-memory, or not) pipeline.
 
         :meta public:
         """
@@ -925,16 +937,15 @@ class FirstStep(AbstractStep):
     @property
     def input_metas(self) -> List[Meta]:
         """
-        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
-        metas from the inputs as a list.
+        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the metas from the inputs as
+        a list.
         """
         return [self._meta]
 
 
 class MergeStep(AbstractStep):
     """
-    Kind of FirstStep that merges the result of one or several other steps
-    of same kind.
+    Kind of FirstStep that merges the result of one or several other steps of same kind.
 
     Used in input of :class:`Concatenate`
 
@@ -967,14 +978,13 @@ class MergeStep(AbstractStep):
 
 class _FileProducingStepFactory(StepFactory):
     """
-    Abstract class that factorizes filename transformations and parameter
-    handling for Steps that produce files, either with OTB or through external
-    calls.
+    Abstract class that factorizes filename transformations and parameter handling for Steps that
+    produce files, either with OTB or through external calls.
 
     :func:`create_step` is kind of *abstract* at this point.
     """
     def __init__(
-        self, cfg          : Configuration,
+        self, cfg          : FileProducingConfiguration,
         gen_tmp_dir        : str,
         gen_output_dir     : Optional[str],
         gen_output_filename: OutputFilenameGenerator,
@@ -983,10 +993,9 @@ class _FileProducingStepFactory(StepFactory):
         """
         Constructor
 
-        See :func:`output_directory`, :func:`tmp_directory`,
-        :func:`build_step_output_filename` and
-        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``,
-        ``gen_output_dir`` and ``gen_output_filename``.
+        See :func:`output_directory`, :func:`tmp_directory`, :func:`build_step_output_filename` and
+        :func:`build_step_output_tmp_filename` for the usage of ``gen_tmp_dir``, ``gen_output_dir``
+        and ``gen_output_filename``.
         """
         super().__init__(*argv, extra_metadata=cfg.extra_metadata, **kwargs)
         is_a_final_step = gen_output_dir and gen_output_dir != gen_tmp_dir
@@ -996,16 +1005,15 @@ class _FileProducingStepFactory(StepFactory):
         self.__gen_output_dir      = gen_output_dir if gen_output_dir else gen_tmp_dir
         self.__gen_output_filename = gen_output_filename
         self.__ram_per_process     = cfg.ram_per_process
-        # TODO: TSSLC: for a domain independent StepFactory, extract the following directory names
-        #       handling to an external domain specific strategy returned by the configuration
-        #       object, and interrogated by the leaf StepFactories.
-        self.__tmpdir              = cfg.tmpdir
-        self.__outdir              = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
-        self.__liadir              = getattr(cfg, 'lia_directory', None)
-        self.__iadir               = getattr(cfg, 'ia_directory', None)
-        self.__gamma_areadir       = getattr(cfg, 'gamma_area_directory', None)
-        self.__has_several_outputs = self.__gen_output_filename.has_several_outputs()
-        logger.debug("new _FileProducingStepFactory(%s) -> TMPDIR=%s  OUT=%s", self.name, self.__tmpdir, self.__outdir)
+        # TODO: for a domain independent StepFactory, extract the following directory names handling
+        #       to an external domain specific strategy returned by the configuration object, and
+        #       interrogated by the leaf StepFactories.
+        self.__directories            = cfg.extra_directories
+        self.__directories['tmp_dir'] = cfg.tmpdir
+        self.__directories['out_dir'] = cfg.output_preprocess if is_a_final_step else cfg.tmpdir
+
+        self.__has_several_outputs    = self.__gen_output_filename.has_several_outputs()
+        logger.debug("new _FileProducingStepFactory(%s) -> directories = %s", self.name, self.__directories)
 
     def has_several_outputs(self) -> bool:
         """
@@ -1015,24 +1023,20 @@ class _FileProducingStepFactory(StepFactory):
 
     def output_directory(self, meta: Meta) -> str:
         """
-        Accessor to where output files will be stored in case their production
-        is required (i.e. not in-memory processing)
+        Accessor to where output files will be stored in case their production is required (i.e. not
+        in-memory processing)
 
         This property is built from ``gen_output_dir`` construction parameter.
         Typical values for the parameter are:
 
-        - ``os.path.join(cfg.output_preprocess, '{tile_name}'),`` where ``tile_name``
-          is looked into ``meta`` parameter
+        - ``os.path.join(cfg.output_preprocess, '{tile_name}'),`` where ``tile_name`` is looked into
+          ``meta`` parameter
         - ``None``, in that case the result will be the same as :func:`tmp_directory`.
           This case will make sense for steps that don't produce required products
         """
         return str(self.__gen_output_dir).format(
             **meta,
-            out_dir=self.__outdir,
-            tmp_dir=self.__tmpdir,
-            lia_dir=self.__liadir,
-            ia_dir=self.__iadir,
-            gamma_area_dir=self.__gamma_areadir,
+            **self.__directories,
         )
 
     def _get_nominal_output_basename(self, meta: Meta) -> Union[str, List[str]]:
@@ -1043,12 +1047,11 @@ class _FileProducingStepFactory(StepFactory):
 
     def build_step_output_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
-        Returns the names of typical result files in case their production
-        is required (i.e. not in-memory processing).
+        Returns the names of typical result files in case their production is required (i.e. not
+        in-memory processing).
 
-        This specialization uses ``gen_output_filename`` naming policy
-        parameter to build the output filename. See the :ref:`Available naming
-        policies`.
+        This specialization uses ``gen_output_filename`` naming policy parameter to build the output
+        filename. See the :ref:`Available naming policies`.
         """
         filename = self._get_nominal_output_basename(meta)
 
@@ -1062,22 +1065,21 @@ class _FileProducingStepFactory(StepFactory):
 
     def tmp_directory(self, meta) -> str:
         """
-        Directory used to store temporary files before they are renamed into
-        their final version.
+        Directory used to store temporary files before they are renamed into their final version.
 
         This property is built from ``gen_tmp_dir`` construction parameter.
         Typical values for the parameter are:
 
         - ``os.path.join(cfg.tmpdir, 'S1')``
-        - ``os.path.join(cfg.tmpdir, 'S2', '{tile_name}')`` where ``tile_name``
-          is looked into ``meta`` parameter
+        - ``os.path.join(cfg.tmpdir, 'S2', '{tile_name}')`` where ``tile_name`` is looked into
+          ``meta`` parameter
         """
         return self.__gen_tmp_dir.format(**meta)
 
     def build_step_output_tmp_filename(self, meta: Meta) -> Union[str, List[str]]:
         """
-        This specialization of :func:`StepFactory.build_step_output_tmp_filename`
-        will automatically insert ``.tmp`` before the filename extension.
+        This specialization of :func:`StepFactory.build_step_output_tmp_filename` will automatically
+        insert ``.tmp`` before the filename extension.
         """
         filename = self._get_nominal_output_basename(meta)
 
@@ -1092,14 +1094,14 @@ class _FileProducingStepFactory(StepFactory):
         """
         Most steps that produce files will expect parameters.
 
-        Warning: parameters that designate output filenames are expected to use
-        :func:`tmp_filename` and not :func:`out_filename`. Indeed products are
-        meant to be first produced with temporary names before being renamed
-        with their final names, once the operation producing them has succeeded.
+        Warning: parameters that designate output filenames are expected to use :func:`tmp_filename`
+        and not :func:`out_filename`. Indeed products are meant to be first produced with temporary
+        names before being renamed with their final names, once the operation producing them has
+        succeeded.
 
-        Note: This method is kind-of abstract --
-        :class:`SelectBestCoverage <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a
-        :class:`_FileProducingStepFactory` but, it doesn't actualy consume parameters.
+        Note: This method is kind-of abstract -- :class:`SelectBestCoverage
+        <s1tiling.libs.otbwrappers.SelectBestCoverage>` is a :class:`_FileProducingStepFactory` but,
+        it doesn't actualy consume parameters.
         """
         raise TypeError(f"An {self.__class__.__name__} step don't produce anything!")
 
@@ -1115,12 +1117,11 @@ class OTBStepFactory(_FileProducingStepFactory):
     """
     Abstract StepFactory for all OTB Applications.
 
-    All step factories that wrap OTB applications are meant to inherit from
-    :class:`OTBStepFactory`.
+    All step factories that wrap OTB applications are meant to inherit from :class:`OTBStepFactory`.
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg                : Configuration,
+        cfg                : FileProducingConfiguration,
         *,
         appname            : str,
         gen_tmp_dir        : str,
@@ -1194,14 +1195,13 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
-        Propagates the optional :external+OTB:std:doc:`extended filename
-        <ExtendedFilenames>` set in the construtor to the step meta data.
+        Propagates the optional :external+OTB:std:doc:`extended filename <ExtendedFilenames>` set in
+        the construtor to the step meta data.
 
         .. note::
 
-            :func:`StepFactory.complete_meta()` already takes care of clearing
-            any residual ``out_extended_filename_complement`` metadata from
-            previous steps
+            :func:`StepFactory.complete_meta()` already takes care of clearing any residual
+            ``out_extended_filename_complement`` metadata from previous steps
         """
         meta = super().complete_meta(meta, all_inputs)
         if self._extended_filename:
@@ -1233,21 +1233,20 @@ class OTBStepFactory(_FileProducingStepFactory):
         meta: Meta
     ) -> AbstractStep:
         """
-        Instanciates the step related to the current :class:`StepFactory`,
-        that consumes results from the previous `input` step.
+        Instanciates the step related to the current :class:`StepFactory`, that consumes results
+        from the previous `input` step.
 
         0. We expect the step metadata and the GDAL image metadata to have been updated.
 
-        1. Steps that wrap an OTB application will instanciate this application
-        object, and:
+        1. Steps that wrap an OTB application will instanciate this application object, and:
 
-           - either pipe the new application to the one from the `input` step
-             if it wasn't a first step
-           - or fill in the "in" parameter of the application with the
-             :func:`out_filename` of the `input` step.
+           - either pipe the new application to the one from the `input` step if it wasn't a first
+             step
+           - or fill in the "in" parameter of the application with the :func:`out_filename` of the
+             `input` step.
 
-        1-bis. in case the new step isn't related to an OTB application,
-        nothing specific is done, we'll just return an :class:`AbstractStep`
+        1-bis. in case the new step isn't related to an OTB application, nothing specific is done,
+        we'll just return an :class:`AbstractStep`
 
         :meta public:
         """
@@ -1327,8 +1326,8 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     def check_requirements(self) -> Optional[Tuple[str, str]]:
         """
-        This specialization of :func:`check_requirements` checks whether the
-        related OTB application can correctly be executed from S1Tiling.
+        This specialization of :func:`check_requirements` checks whether the related OTB application
+        can correctly be executed from S1Tiling.
 
         :return: A pair of the message indicating what is required, and some
                  context how to fix it -- by default: install OTB!
@@ -1353,12 +1352,12 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     """
     Abstract StepFactory for executing any external program.
 
-    All step factories that wrap GDAL applications, or any other executable are
-    meant to inherit from :class:`ExecutableStepFactory`.
+    All step factories that wrap GDAL applications, or any other executable are meant to inherit
+    from :class:`ExecutableStepFactory`.
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg:                 Configuration,
+        cfg:                 FileProducingConfiguration,
         *,
         exename:             str,
         gen_tmp_dir:         str,
@@ -1404,7 +1403,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        cfg:                 Configuration,
+        cfg:                 FileProducingConfiguration,
         *,
         action:              Callable,
         gen_tmp_dir:         str,
@@ -1443,11 +1442,11 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
 
 class Store(StepFactory):
     """
-    Factory for Artificial Step that forces the result of the previous app
-    sequence to be stored on disk by breaking in-memory connection.
+    Factory for Artificial Step that forces the result of the previous app sequence to be stored on
+    disk by breaking in-memory connection.
 
-    While it could be used manually, it's meant to be automatically appended
-    at the end of a pipeline if any step is actually related to OTB.
+    While it could be used manually, it's meant to be automatically appended at the end of a
+    pipeline if any step is actually related to OTB.
     """
     def __init__(self, appname: str, *argv, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
@@ -1460,26 +1459,24 @@ class Store(StepFactory):
     ) -> Union[AbstractStep, StoreStep]:
         """
         Specializes :func:`StepFactory.create_step` to trigger
-        :func:`StoreStep.execute_and_write_output` on the last step that
-        relates to an OTB Application.
+        :func:`StoreStep.execute_and_write_output` on the last step that relates to an OTB
+        Application.
 
-        In case the input step is a `first step`, we simply return a
-        :class:`AbstractStep`. Indeed :class:`StoreStep` doesn't transform
-        anything: it just makes sure the registered transformations have been
-        applied.
+        In case the input step is a `first step`, we simply return a :class:`AbstractStep`. Indeed
+        :class:`StoreStep` doesn't transform anything: it just makes sure the registered
+        transformations have been applied.
 
-        Eventually, it makes sure all the OTB applications have been released
-        with :func:`Step.release_app()`.
+        Eventually, it makes sure all the OTB applications have been released with
+        :func:`Step.release_app()`.
         """
         inputs     = self._get_inputs(previous_steps)
         input_step = self._get_canonical_input(inputs)
         if input_step.is_first_step:
             # TODO: The boolean tested is incorrectly named! Fix that.
-            # | This case may happen when StepFactories skips their actions by returning
-            # | an AbstractStep instead of the usual Step; meaning no OTB application
-            # | will be called.
-            # | This may happen in the case of the concatenation when there is only one
-            # | input image that will be renamed.
+            # | This case may happen when StepFactories skips their actions by returning an
+            # | AbstractStep instead of the usual Step; meaning no OTB application will be called.
+            # | This may happen in the case of the concatenation when there is only one input image
+            # | that will be renamed.
             # logger.debug(f"Unexpected case where StoreStep is build from: {input_step}")
             meta = input_step.meta.copy()
             return AbstractStep(**meta)
