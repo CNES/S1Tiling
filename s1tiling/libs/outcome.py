@@ -85,6 +85,13 @@ class Outcome(Generic[Value]):
         assert isinstance(self.__value_or_error, BaseException)
         return self.__value_or_error
 
+    def transform_error(self, error: BaseException) -> "Outcome[Value]":
+        """
+        Change the actual error
+        """
+        self.__value_or_error    = error
+        return self
+
     def __repr__(self) -> str:
         if self.has_value():
             return f'Success: {self.__value_or_error}'
