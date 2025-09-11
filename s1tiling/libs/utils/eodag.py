@@ -37,11 +37,12 @@ import logging
 import logging.handlers
 import multiprocessing
 import os
-from typing import List, Optional, Protocol
+from typing import List, Optional, Protocol, Tuple
 
-from requests.exceptions import ReadTimeout
-from eodag.api.core      import EODataAccessGateway
-from eodag.api.product   import EOProduct
+from requests.exceptions    import ReadTimeout, Timeout
+from eodag.api.core         import EODataAccessGateway
+from eodag.api.product      import EOProduct
+from eodag.utils.exceptions import TimeOutError
 
 from ..             import exceptions
 from ..outcome      import S1DownloadOutcome
@@ -85,20 +86,30 @@ def create(cfg: EODAGConfiguration) -> Optional[EODataAccessGateway]:
     return dag
 
 
+def _is_a_timeout(exception: BaseException) -> bool:
+    """
+    Helper function that tries to detect the various kind of timeouts encountered with eodag
+    """
+    if isinstance(exception, (ReadTimeout, Timeout, TimeOutError)):
+        return True
+    return False
+
+
 def _download_and_extract_one_product(
     dag:           EODataAccessGateway,
     raw_directory: str,
     dl_wait:       int,
     dl_timeout:    int,
-    product:       EOProduct
+    logger,
+    product:       EOProduct,
 ) -> S1DownloadOutcome[str, EOProduct]:
     """
     Takes care of downloading exactly one remote product and unzipping it, if required.
 
     Some products are already unzipped on the fly by eodag.
     """
-    logging.info("Starting download of %s...", product)
-    ok_msg = f"Successful download (and extraction) of {product}"  # because eodag'll clear product
+    logger.debug("  Starting download of %s...", product)
+    ok_msg = f"  Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
     zip_file = os.path.join(raw_directory, prod_id) + '.zip'
     path: S1DownloadOutcome[str, EOProduct]
@@ -111,10 +122,10 @@ def _download_and_extract_one_product(
                 timeout=dl_timeout  # Maximum time in mins before stop retrying to download (default=20’)
             ),
             product)
-        logging.debug(ok_msg)
+        logger.debug(ok_msg)
         if os.path.exists(zip_file) :
             try:
-                logger.debug('Removing downloaded ZIP: %s', zip_file)
+                logger.debug('  Removing downloaded ZIP: %s', zip_file)
                 os.remove(zip_file)
             except OSError:
                 pass
@@ -127,13 +138,13 @@ def _download_and_extract_one_product(
             # eodag3 product naming scheme
             manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
             if not os.path.exists(manifest):
-                logger.error('Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
+                logger.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
                 e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
                 path = S1DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
-        logger.warning('%s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
+        logger.warning('  %s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
         # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
-        logger.debug('Exception type is: %s', e.__class__.__name__)
+        logger.debug('  Exception type is: %s', e.__class__.__name__)
         ## ERROR - Product is OFFLINE
         ## ERROR - Exception type is: NotAvailableError
         # logger.error('======================')
@@ -155,7 +166,7 @@ def _download_and_extract_one_product(
     return path
 
 
-def download_and_extract_products(  # pylint: disable=too-many-arguments, too-many-locals
+def download_and_extract_products_parallel(  # pylint: disable=too-many-arguments, too-many-locals
     *,
     dag:           EODataAccessGateway,
     raw_directory: str,
@@ -175,7 +186,7 @@ def download_and_extract_products(  # pylint: disable=too-many-arguments, too-ma
     paths     : List[S1DownloadOutcome] = []
     log_queue : multiprocessing.Queue   = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logging)
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
@@ -197,7 +208,7 @@ def download_and_extract_products(  # pylint: disable=too-many-arguments, too-ma
                     else:
                         logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                         # TODO: make it possible to detect missing products in the analysis
-                        if isinstance(result.error(), ReadTimeout):
+                        if _is_a_timeout(result.error()):
                             products_in_timeout.append(result)
                         else:
                             paths.append(result)
@@ -214,3 +225,68 @@ def download_and_extract_products(  # pylint: disable=too-many-arguments, too-ma
 
     # paths returns the list of .SAFE directories
     return paths
+
+
+def download_and_extract_products_sequential(  # pylint: disable=too-many-arguments, too-many-locals
+    *,
+    dag:           EODataAccessGateway,
+    raw_directory: str,
+    products:      List[EOProduct],
+    nb_procs:      int,
+    context:       str,
+    dl_wait:       int,
+    dl_timeout:    int,
+) -> List[S1DownloadOutcome]:
+    """
+    Takes care of downloading exactly all remote products and unzipping them,
+    if required, in parallel.
+
+    Returns :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
+    """
+    nb_procs = 1  # Force nb of simultaneous DL to 1
+
+    nb_products = len(products)
+    paths     : List[S1DownloadOutcome] = []
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logger)
+
+    # In case timeout happens, we try again if and only if we have been able to download
+    # other products after the timeout.
+    # -> IOW, downloading instability justifies trying again.
+    # /> On the contrary, on a complete network failure, we should not try again and again...
+
+    indexed_products : List[Tuple[int, EOProduct]] = list(enumerate(products, 1))
+
+    logger.info("Starting download of %d products...", nb_products)
+    while len(indexed_products) > 0:
+        products_in_timeout : List[S1DownloadOutcome] = []
+        nb_successes_since_timeout = 0
+        for idx, product in indexed_products:
+            # logger.info("Starting download of product #%d/%d: %s...", idx, nb_products, product)
+            result = dl_work(product)
+            # logger.debug('DL -> %s', result)
+            if result:
+                logger.info("  Product #%d/%d %s correctly downloaded", idx, nb_products, result.value())
+                logger.info('--> Downloading products%s... %s%%', context, (1+ len(paths)) * 100. / nb_products)
+                paths.append(result)
+                if len(products_in_timeout) > 0:
+                    nb_successes_since_timeout += 1
+            else:
+                logger.warning("Cannot download %s: %s", result.related_product(), result.error())
+                # TODO: make it possible to detect missing products in the analysis
+                if _is_a_timeout(result.error()):
+                    products_in_timeout.append(result)
+                else:
+                    paths.append(result)
+        indexed_products = []
+        if nb_successes_since_timeout > nb_procs:
+            indexed_products = [r.related_product() for r in products_in_timeout]
+            logger.info("Attempting to download again %d products on timeout...", len(indexed_products))
+        elif len(products_in_timeout) > 0:
+            paths.extend(products_in_timeout)
+
+    # paths returns the list of .SAFE directories
+    return paths
+
+
+#: The default exported way of downloading
+download_and_extract_products = download_and_extract_products_sequential
