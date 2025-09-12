@@ -97,7 +97,9 @@ class FileDB:
         'tasklia_on_s2'       : 'TaskLIA_s1a_{tile}_007{tmp}.tif',
         'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
         'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
-        'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif',
+
+        # γ area maps
+        'gamma_area_on_s2'    : 'GAMMA_AREA_{tile}_007{tmp}.tif',
 
         # Ellipsoid Incidence Angle
         'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
@@ -767,7 +769,7 @@ class FileDB:
         return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
-        return f'{self.gamma_area_dir()}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
+        return f'{self.gamma_area_dir()}/GAMMA_AREA_33NWB_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'

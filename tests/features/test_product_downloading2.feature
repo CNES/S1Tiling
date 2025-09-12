@@ -58,8 +58,8 @@ Feature: Test download request v2
             # TODO: use d1t1_gamma and d1t2_gamma
 
         Given the gamma areas:
-            | id         | product                      |
-            | gamma_area | GAMMA_AREA_s1a_33NWB_DES_007 |
+            | id         | product              |
+            | gamma_area | GAMMA_AREA_33NWB_007 |
 
     Scenario Outline: gamma rtc calibration
         Given The following S1 products are available for download: <remote_s1>
