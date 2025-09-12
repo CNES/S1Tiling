@@ -11,7 +11,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,7 +32,7 @@
 # Parameters
 # - --mapdir:     Directory where cosine files are stored
 #   		  Typical pattern:
-#   		  	cos_IA_{platform}_{tile}_{relobt}.tif
+#   		  	cos_IA_{tile}_{relobt}.tif
 #   		  Example:
 #   		  	cos_IA_s1a_31TCH_008.tif
 #
@@ -248,8 +248,8 @@ usage() {
     echo
     echo "Options:"
     echo "  --mapdir <dir>    Directory where sin/cos/tan maps are stored"
-    echo "                    Expected format: (sin|cos)_IA_{platform}_{tile}_{relobt}.tif"
-    echo "                    Example:         cos_IA_s1a_31TCH_008.tif"
+    echo "                    Expected format: (sin|cos)_IA_{tile}_{relobt}.tif"
+    echo "                    Example:         cos_IA_31TCH_008.tif"
     echo
     echo "  -c|--calibration  (beta|gamma)"
     # echo "  -v|--verbose      Verbose mode"
@@ -382,8 +382,8 @@ for sig_file in "${sigma_files[@]}"; do
     outfile="${dirname}/${info[prefix]}_${calibration}.${info[ext]}"
     # echo "outfile: ${outfile}"
 
-    info[iaregex]="${ia_map_kind[${calibration}]}_IA_s1?_${info[tilename]}_${info[relorbit]}"
-    # info[iaregex]="sin_IA_s1?_${info[tilename]}_${info[relorbit]}"
+    info[iaregex]="${ia_map_kind[${calibration}]}_IA_${info[tilename]}_${info[relorbit]}"
+    # info[iaregex]="sin_IA_${info[tilename]}_${info[relorbit]}"
     # printf "%s\n" "${info[@]@K}"
     IA_files=()
     iapattern="${ia_dir}/${info[iaregex]}"
