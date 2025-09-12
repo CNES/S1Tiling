@@ -25,6 +25,24 @@ v1.2.0 Breaking changes
 - The default Geoid file used is changed from :file:`egm96.grd` to
   :file:`egm96.gtx`
   (`#185 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/185>`_).
+- The `platform unit code` has been removed from the various correction maps
+  produced
+  (`#193 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/193>`_).
+  |br|
+  If you want to use maps you have previously produced, you can change their
+  :ref:`respective filename formats <Processing.fname_fmt>` to their previous
+  values
+
+  .. code:: ini
+
+    fname_fmt.ia_product         : {IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif
+    fname_fmt.lia_product        : {LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif
+    fname_fmt.gamma_area_product : GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif
+
+  Please note that various precision improvements have been made in
+  S1Tiling 1.2.0: like for instance `#151
+  <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_, and
+  that newly produced maps should have a better quality.
 
 v1.2.0 Improvements
 +++++++++++++++++++
