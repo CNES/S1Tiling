@@ -33,7 +33,14 @@ Module relate to :class:`Outcome` monad.
 
 from __future__ import annotations
 from collections.abc import Callable
-from typing import Dict, Generic, List, Optional, Self, Tuple, TypeVar, Union, cast
+from typing import Dict, Generic, List, Optional, Tuple, TypeVar, Union, cast
+
+try:
+    # python 3.11+
+    from typing import Self
+except:
+    from typing_extensions import Self
+    
 
 Value   = TypeVar("Value")
 File    = TypeVar('File')
