@@ -298,7 +298,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
                 logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                 # TODO: make it possible to detect missing products in the analysis
                 if (timeout := _is_a_timeout(result.error())):
-                    result.transform_error(timeout)
+                    result.change_error(timeout)
                     products_in_timeout.append(result)
                 else:
                     paths.append(result)

@@ -25,12 +25,15 @@
 # Authors: Thierry KOLECK (CNES)
 #          Luc HERMITTE (CS Group)
 # =========================================================================
+
+
 """
 Module relate to :class:`Outcome` monad.
 """
 
+from __future__ import annotations
 from collections.abc import Callable
-from typing import Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, Generic, List, Optional, Self, Tuple, TypeVar, Union, cast
 
 Value   = TypeVar("Value")
 File    = TypeVar('File')
@@ -72,8 +75,13 @@ class Outcome(Generic[Value]):
         Requires ``has_value()`` to be ``True``
         """
         assert self.has_value()
-        assert not isinstance(self.__value_or_error, BaseException)
-        return self.__value_or_error
+        return cast(Value, self.__value_or_error)
+
+    def value_or(self, default : Value) -> Value:
+        """
+        Returns the current value, or ``default`` if the instance holds an error.
+        """
+        return self.value() if self.has_value() else default
 
     def error(self) -> BaseException:
         """
@@ -82,15 +90,8 @@ class Outcome(Generic[Value]):
         Requires ``has_value()`` to be ``False``
         """
         assert not self.has_value()
-        assert isinstance(self.__value_or_error, BaseException)
-        return self.__value_or_error
-
-    def transform_error(self, error: BaseException) -> "Outcome[Value]":
-        """
-        Change the actual error
-        """
-        self.__value_or_error    = error
-        return self
+        # assert isinstance(self.__value_or_error, BaseException)
+        return cast(BaseException, self.__value_or_error)
 
     def __repr__(self) -> str:
         if self.has_value():
@@ -98,14 +99,30 @@ class Outcome(Generic[Value]):
         else:
             return f'Error: {self.error()}'
 
-    def transform(self, f : Callable[[Value], T]) -> "Outcome[T]":
+    def transform(self, f : Callable[[Value], T]) -> Outcome[T]:
         """
         Transforms the value, if any. Leave the error unchanged.
+
+        .. warning::
+            This method is not polymorphic. The result type will be Outcome[T] and not Self[T]
+            We would need Higher Kinded Types with
+            https://returns.readthedocs.io/en/latest/pages/hkt.html for instance (which requires
+            Python 3.10)
         """
         if self.has_value():
-            return Outcome(f(self.value()))
+            try:
+                return Outcome(f(self.value()))
+            except BaseException as e:  # pylint: disable=broad-exception-caught
+                return Outcome(e)
         else:
             return Outcome(self.error())
+
+    def change_error(self, error: BaseException) -> Self:
+        """
+        Change the actual error
+        """
+        self.__value_or_error    = error
+        return self
 
 
 class PipelineOutcome(Outcome[Value], Generic[Value, File]):
@@ -133,7 +150,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
         """
         return self.__related_filenames
 
-    def add_related_filename(self, filename: Union[File, List[File]]) -> "PipelineOutcome[Value, File]":
+    def add_related_filename(self, filename: Union[File, List[File]]) -> Self:
         """
         Register a filename(s) related to the result.
         """
@@ -146,7 +163,7 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
             self.__related_filenames.append(filename)
         return self
 
-    def set_pipeline_name(self, pipeline_name: str) -> "PipelineOutcome[Value, File]":
+    def set_pipeline_name(self, pipeline_name: str) -> Self:
         """
         Record the name of the pipeline in error
         """
