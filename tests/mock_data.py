@@ -94,9 +94,11 @@ class FileDB:
         'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
         'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
         # TODO: add fmt for orbit direction/number
-        'tasklia_on_s2'       : 'TaskLIA_s1a_{tile}_007{tmp}.tif',
-        'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
-        'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
+
+        # Local Incidence Angle maps
+        'tasklia_on_s2'       : 'TaskLIA_{tile}_007{tmp}.tif',
+        'deglia_on_s2'        : 'LIA_{tile}_007{tmp}.tif',
+        'sinlia_on_s2'        : 'sin_LIA_{tile}_007{tmp}.tif',
 
         # γ area maps
         'gamma_area_on_s2'    : 'GAMMA_AREA_{tile}_007{tmp}.tif',
