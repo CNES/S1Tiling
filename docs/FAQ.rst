@@ -114,6 +114,21 @@ If credentials are provided for both data providers, they will be interrogated
 in order: Copernicus Dataspace first, then EarthData if no connexion could be
 established to the former.
 
+Q: Can I concatenate inputs that have different obit numbers?
+-------------------------------------------------------------
+
+**TL; DR**: No
+
+**Long Answer**: This is not currently possible.
+
+Internally S1Tiling relies on exact relative orbit numbers to determine that
+two input Sentinel-1 products may contribute to a same output product.
+Unfortunately, around the ANX the orbit number changes. It may not even be
+exactly around the ANX but a little after.
+
+This Q/A is tracked in `S1Tiling issue #189
+<https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/189>`_.
+
 Q: How can I ask another question?
 ----------------------------------
 
