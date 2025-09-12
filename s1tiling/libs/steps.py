@@ -568,14 +568,14 @@ class StepFactory(ABC):
     When steps are analysed, their *output filename(s)* are deduced. This information is stored in
     the *meta* dictionary under the key ``out_filename`` (and it's meant to be extracted through
     :func:`out_filename`). It can be a single filename or a list of filenames. Internally it will be
-    used to :method:`commit_execution` -- i.e. to rename tempory files with their final exact
+    used to :meth:`commit_execution` -- i.e. to rename tempory files with their final exact
     filenames. ``out_filename`` computation is supposed to be automatically done by the
     :class:`OutputFilenameGenerator` passed to the constructor of some step factories.
 
     Also step results need to be precisely identified. This identifier is extracted with
     :func:`get_task_name`. By default its value is the same as ``out_filename``. In some cases, we
     need to override this *task name*. This is meant to be done in
-    :method:`_update_filename_meta_post_hook` exclusively. A typical use case is when a steps
+    :meth:`_update_filename_meta_post_hook` exclusively. A typical use case is when a steps
     produced several files. It's better in that case to have a single *task name*.
 
     At last, sometimes an (OTB) application produces several files, but it only takes a single ouput
@@ -584,7 +584,7 @@ class StepFactory(ABC):
     *metadata* key ``output_parameter`` this is retrieved by :func:`output_parameter` helper
     function -- if no ``output_parameter`` information is set, this accessor function falls back to
     ``out_filename`` value. This *metadata* is also meant to be set exclusively in
-    :method:`_update_filename_meta_post_hook`.
+    :meth:`_update_filename_meta_post_hook`.
 
     See: :ref:`Existing processings`
     """

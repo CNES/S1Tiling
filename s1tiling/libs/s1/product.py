@@ -333,7 +333,7 @@ class FileProductInformation(ProductInformation):
 
         :raise RuntimeError: if expected S1 information cannot be extracted from the manifest file.
 
-        See also: :method:`FileProductInformation.create`
+        See also: :meth:`FileProductInformation.create`
         """
         assert 'product' in ci
         product : os.DirEntry = ci['product']

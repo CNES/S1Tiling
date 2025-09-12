@@ -68,7 +68,7 @@ def isfile(filename, existing_files, original = None) -> bool:
 
     In some situations, a fallback to the real files is required -- as Python will check which
     Python files exists. Hence the `original` parameter, meant to receive a reference to the
-    original :method:`os.path.isfile`.
+    original :meth:`os.path.isfile`.
     """
     if original and original(filename):
         return True
