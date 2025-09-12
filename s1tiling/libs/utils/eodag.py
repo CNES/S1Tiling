@@ -37,7 +37,7 @@ import logging
 import logging.handlers
 import multiprocessing
 import os
-from typing import List, Optional, Protocol, Tuple
+from typing import List, Optional, Protocol, Tuple, cast
 
 from requests.exceptions    import ReadTimeout, Timeout
 from urllib3.exceptions     import ReadTimeoutError
@@ -232,8 +232,12 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
                     else:
                         logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                         # TODO: make it possible to detect missing products in the analysis
-                        if _is_a_timeout(result.error()):
+                        if (timeout := _is_a_timeout(result.error())):
+                            # Harmonize the exception type for all cases of download timeouts
+                            # NB: Here we know that timeout is one of the possible timeout exception type
+                            result.change_error(_as_timeout(cast(Exception, timeout)))
                             products_in_timeout.append(result)
+                            assert isinstance(result.error(), TimeOutError)
                         else:
                             paths.append(result)
                 products = []
@@ -241,6 +245,9 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
                     products = [r.related_product() for r in products_in_timeout]
                     logger.info("Attempting again to download %s products on timeout...", len(products))
                 elif len(products_in_timeout) > 0:
+                    logger.warning("No successful download since the first timeout observed => abort download")
+                    for pit in products_in_timeout:
+                        assert isinstance(pit.error(), TimeOutError)
                     paths.extend(products_in_timeout)
         finally:
             pool.close()
@@ -298,8 +305,11 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
                 logger.warning("Cannot download %s: %s", result.related_product(), result.error())
                 # TODO: make it possible to detect missing products in the analysis
                 if (timeout := _is_a_timeout(result.error())):
-                    result.change_error(timeout)
+                    # Harmonize the exception type for all cases of download timeouts
+                    # NB: Here we know that timeout is one of the possible timeout exception type
+                    result.change_error(_as_timeout(cast(Exception, timeout)))
                     products_in_timeout.append(result)
+                    assert isinstance(result.error(), TimeOutError)
                 else:
                     paths.append(result)
         indexed_products = []
@@ -308,6 +318,8 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
             logger.info("Attempting to download again %d products on timeout...", len(indexed_products))
         elif len(products_in_timeout) > 0:
             logger.warning("No successful download since the first timeout observed => abort download")
+            for pit in products_in_timeout:
+                assert isinstance(pit.error(), TimeOutError)
             paths.extend(products_in_timeout)
 
     # paths returns the list of .SAFE directories

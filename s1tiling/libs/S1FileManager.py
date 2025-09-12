@@ -46,7 +46,7 @@ from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
 from eodag.api.search_result import SearchResult
-from eodag.utils.exceptions  import NotAvailableError
+from eodag.utils.exceptions  import NotAvailableError, TimeOutError
 from eodag.utils.logging     import setup_logging
 
 
@@ -442,7 +442,7 @@ class S1FileManager:
         """
         Returns the list of download timeours as a list of :class:S1DownloadOutcome`
         """
-        return list(filter(lambda f: isinstance(f.error(), NotAvailableError), self.__download_failures))
+        return list(filter(lambda f: isinstance(f.error(), (NotAvailableError, TimeOutError)), self.__download_failures))
 
     def _ensure_workspaces_exist(self) -> None:
         """
@@ -724,6 +724,7 @@ class S1FileManager:
             dl_timeout=self.__dl_timeout,
         )
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
+        logger.debug("Problems observed during DL: %s", [p.error() for p in paths if not p.has_value()])
         return paths
 
     @timethis("Downloading images related to {tiles}", logging.INFO)
