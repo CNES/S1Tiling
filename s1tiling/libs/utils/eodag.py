@@ -119,12 +119,12 @@ def _as_timeout(exception: Exception) -> TimeOutError:
     return TimeOutError(exception)
 
 
-def _download_and_extract_one_product(
+def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     dag:           EODataAccessGateway,
     raw_directory: str,
     dl_wait:       int,
     dl_timeout:    int,
-    logger,
+    logger_,
     product:       EOProduct,
 ) -> S1DownloadOutcome[str, EOProduct]:
     """
@@ -132,7 +132,7 @@ def _download_and_extract_one_product(
 
     Some products are already unzipped on the fly by eodag.
     """
-    logger.debug("  Starting download of %s...", product)
+    logger_.debug("  Starting download of %s...", product)
     ok_msg = f"  Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
     zip_file = os.path.join(raw_directory, prod_id) + '.zip'
@@ -146,10 +146,10 @@ def _download_and_extract_one_product(
                 timeout=dl_timeout  # Maximum time in mins before stop retrying to download (default=20’)
             ),
             product)
-        logger.debug(ok_msg)
+        logger_.debug(ok_msg)
         if os.path.exists(zip_file) :
             try:
-                logger.debug('  Removing downloaded ZIP: %s', zip_file)
+                logger_.debug('  Removing downloaded ZIP: %s', zip_file)
                 os.remove(zip_file)
             except OSError:
                 pass
@@ -162,17 +162,17 @@ def _download_and_extract_one_product(
             # eodag3 product naming scheme
             manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
             if not os.path.exists(manifest):
-                logger.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
+                logger_.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
                 e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
                 path = S1DownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
-        logger.warning('  %s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
-        # logger.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
-        logger.debug('  Exception type is: %s', e.__class__.__name__)
+        logger_.warning('  %s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
+        # logger_.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
+        logger_.debug('  Exception type is: %s', e.__class__.__name__)
         ## ERROR - Product is OFFLINE
         ## ERROR - Exception type is: NotAvailableError
-        # logger.error('======================')
-        # logger.exception(e)
+        # logger_.error('======================')
+        # logger_.exception(e)
         ## Traceback (most recent call last):
         ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
         ##     path = S1DownloadOutcome(dag.download(
