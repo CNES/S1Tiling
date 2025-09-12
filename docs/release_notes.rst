@@ -68,6 +68,8 @@ v1.2.0 Improvements
   <s1tiling.libs.configuration.Configuration>` object can be injected domain
   specific checks. Introduced for
   (`#191 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/191>`_).
+- S1Tiling kernel has been improved for later extraction and exploitation in
+  other OTB based chains.
 
 v1.2.0 Bugs fixed
 +++++++++++++++++
@@ -79,6 +81,10 @@ v1.2.0 Bugs fixed
   |br|
   Yet it's still impossible to not download every possible Sentinel-1 input in
   the :ref:`γ-area map production scneario <scenario.S1GammaAreaMap>`
+- Parallel downloading has been inhibited to prevent subtle bugs when
+  forwarding the errors detected.
+  (`#190 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/190>`_).
+- Timeout detection has been updated for the latest version of eodag.
 
 Version 1.1.0
 -------------

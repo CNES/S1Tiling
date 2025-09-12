@@ -174,6 +174,12 @@ You can use this :download:`this template
   * - ``nb_parallel_downloads``
     - Number of parallel downloads (+ unzip) of source products.
 
+      .. admonition:: deprecated
+
+          This feature is currently disabled in current version of S1Tiling
+          See `#190
+          <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/190>`_.
+
       .. warning::
 
           Don't abuse this setting as the data provider may not support too

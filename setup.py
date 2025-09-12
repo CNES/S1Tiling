@@ -32,6 +32,7 @@ import subprocess
 
 from setuptools import setup, find_namespace_packages
 import re
+import sys
 
 
 # Import the library to make sure there is no side effect
@@ -59,6 +60,10 @@ with open(os.path.join(BASEDIR, "s1tiling", "__meta__.py"), "r") as f:
 
 with open(os.path.join(BASEDIR, "README.md"), "r") as f:
     readme = f.read()
+
+extra_packages = []
+if sys.version_info < (3,11,0):
+    extra_packages.append("typing_extensions")
 
 setup(
     name                          = normalize(metadata["__title__"]),
@@ -99,7 +104,7 @@ setup(
         # Any way to require OTB ?
         # "sentineleof>0.10.0",
         "sentineleof @ git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
-    ],
+    ] + extra_packages,
     extras_require={
         "dev": [
             # "nose",

@@ -530,14 +530,15 @@ def when_searching_VH(configuration, image_list) -> None:
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> S1DownloadOutcome:
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, logging, product) -> S1DownloadOutcome:
     logging.debug('mock: download1 -> %s', product)
     return S1DownloadOutcome(product, product)
 
 @when('Searching which S1 files to download', target_fixture='downloads')
 def when_searching_which_S1_to_download(configuration, mocker) -> list:
-    mocker.patch('s1tiling.libs.S1FileManager._download_and_extract_one_product',
-            mock_download_one_product)
+    mocker.patch(
+        's1tiling.libs.utils.eodag._download_and_extract_one_product',
+        mock_download_one_product)
 
     default_polarisation = 'VV VH'
     configuration.polarisation = configuration.polarisation or default_polarisation
@@ -968,7 +969,7 @@ def when_searching_which_S1_to_download2(
 
 
     mocker.patch(
-        's1tiling.libs.S1FileManager._download_and_extract_one_product',
+        's1tiling.libs.utils.eodag._download_and_extract_one_product',
         mock_download_one_product)
 
     manager = S1FileManager(configuration, None)
