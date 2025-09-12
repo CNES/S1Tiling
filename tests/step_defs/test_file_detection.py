@@ -530,7 +530,7 @@ def when_searching_VH(configuration, image_list) -> None:
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, product) -> S1DownloadOutcome:
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, logging, product) -> S1DownloadOutcome:
     logging.debug('mock: download1 -> %s', product)
     return S1DownloadOutcome(product, product)
 
