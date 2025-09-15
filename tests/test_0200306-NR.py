@@ -654,6 +654,9 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE'     : '33NWB',
                 'SPATIAL_RESOLUTION'             : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'       : 'Orthorectified LIA Sentinel-1A IW GRD',
+                'ORBIT_DIRECTION'                : 'DES',
+                'ORBIT_NUMBER'                   : '030704',
+                'RELATIVE_ORBIT_NUMBER'          : '007',
                 'AbsoluteCalibrationConstant'    : '',
                 'AcquisitionDate'                : '',
                 'AcquisitionStartTime'           : '',
@@ -709,6 +712,9 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
                 'S2_TILE_CORRESPONDING_CODE'     : '33NWB',
                 'SPATIAL_RESOLUTION'             : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'       : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
+                'ORBIT_DIRECTION'                : 'DES',
+                'ORBIT_NUMBER'                   : '030704',
+                'RELATIVE_ORBIT_NUMBER'          : '007',
                 'AbsoluteCalibrationConstant'    : '',
                 'AcquisitionDate'                : '',
                 'AcquisitionStartTime'           : '',
@@ -753,6 +759,10 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified LIA Sentinel-1A IW GRD',
+            # meta already set during orthorectification
+            # 'ORBIT_DIRECTION'          : 'DES',
+            # 'ORBIT_NUMBER'             : '030704',
+            # 'RELATIVE_ORBIT_NUMBER'    : '007',
         },
         {file_db.orthodegLIAfile(0, False), file_db.orthodegLIAfile(1, False)},
     )
@@ -772,6 +782,10 @@ def mock_LIA_v1_0(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified sin_LIA Sentinel-1A IW GRD',
+            # meta already set during orthorectification
+            # 'ORBIT_DIRECTION'          : 'DES',
+            # 'ORBIT_NUMBER'             : '030704',
+            # 'RELATIVE_ORBIT_NUMBER'    : '007',
         },
         {file_db.orthosinLIAfile(0, False), file_db.orthosinLIAfile(1, False)}
     )
@@ -1063,10 +1077,10 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
                 'out'                   : file_db.gamma_areafile(idx, True),
             }, None, {
                 'Polarization'                    : '',  # <=> removing the key
-                'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
-                'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
-                'PRJ.GAIN'                 : '',  # <=> removing the key
-                'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma area image estimation',
+                'PRJ.DIRECTIONTOSCANDEMC'         : '',  # <=> removing the key
+                'PRJ.DIRECTIONTOSCANDEML'         : '',  # <=> removing the key
+                'PRJ.GAIN'                        : '',  # <=> removing the key
+                'TIFFTAG_IMAGEDESCRIPTION'        : 'Gamma area image estimation',
                 'band.LLFracDistributedGammaArea' : '',   # <=> removing the key
                 'band.LRFracDistributedGammaArea' : '',   # <=> removing the key
                 'band.ULFracDistributedGammaArea' : '',   # <=> removing the key
@@ -1104,6 +1118,9 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
                 'S2_TILE_CORRESPONDING_CODE'     : '33NWB',
                 'SPATIAL_RESOLUTION'             : '10.0',
                 'TIFFTAG_IMAGEDESCRIPTION'       : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
+                'ORBIT_DIRECTION'                : 'DES',
+                # 'ORBIT_NUMBER'                   : '030704',
+                'RELATIVE_ORBIT_NUMBER'          : '007',
                 'AbsoluteCalibrationConstant'    : '',
                 'AcquisitionDate'                : '',
                 'AcquisitionStartTime'           : '',
@@ -1148,6 +1165,10 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
             'DEM_LIST'                 : '',  # <=> Removing the key
             'INPUT_S1_IMAGES'          : '%s, %s' % (file_db.product_name(0), file_db.product_name(1)),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Orthorectified GAMMA_AREA Sentinel-1A IW GRD',
+            # meta already set during orthorectification
+            # 'ORBIT_DIRECTION'          : 'DES',
+            # 'ORBIT_NUMBER'             : '030704',
+            # 'RELATIVE_ORBIT_NUMBER'    : '007',
         },
         {
             file_db.orthoGAMMA_AREAfile(0, False),

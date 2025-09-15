@@ -757,9 +757,10 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert 'PixelSpacing' in imd,     "PixelSpacing should have been registered for removal. Let's keep it!"
         assert 'LineSpacing' in imd,      "LineSpacing should have been registered for removal. Let's keep it!"
         assert imd['PixelSpacing'] == '', "PixelSpacing should have been registered for removal. Let's keep it!"
-        assert imd['LineSpacing'] == '',  "LineSpacing should have been registered for removal. Let's keep it!"
+        assert imd['LineSpacing']  == '', "LineSpacing should have been registered for removal. Let's keep it!"
         del imd['LineSpacing']
         del imd['PixelSpacing']
+        del imd['ORBIT_NUMBER'] # Absolute orbit number is pointless here
 
 
 class SelectGammaNaughtAreaBestCoverage(_SelectBestCoverage):

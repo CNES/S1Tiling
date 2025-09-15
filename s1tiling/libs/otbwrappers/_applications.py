@@ -349,6 +349,9 @@ class _OrthoRectifierFactory(OTBStepFactory):
         imd['S2_TILE_CORRESPONDING_CODE']      = meta['tile_name']
         imd['SPATIAL_RESOLUTION']              = str(self.__out_spatial_res)
         imd['DEM_INFO']                        = self.__dem_info
+        imd['RELATIVE_ORBIT_NUMBER']           = meta['orbit']
+        imd['ORBIT_NUMBER']                    = meta['absolute_orbit']
+        imd['ORBIT_DIRECTION']                 = meta['orbit_direction']
         # S1 -> S2 => remove all SAR specific metadata inserted by OTB
         meta_to_remove_in_s2 = (
             'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
