@@ -617,6 +617,20 @@ class SARGammaAreaImageEstimation(_PostSARDEMProjectionFamily):
         self.__innermarginratio = cfg.inner_margin_ratio
         self.__outermarginratio = cfg.outer_margin_ratio
 
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set SARCartesianMeanEstimation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        # Clear PRJ.* information: makes no sense anymore
+        imd['Polarization']                    = ''
+        imd['band.LLFracDistributedGammaArea'] = ''
+        imd['band.LRFracDistributedGammaArea'] = ''
+        imd['band.ULFracDistributedGammaArea'] = ''
+        imd['band.URFracDistributedGammaArea'] = ''
+
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`SARCartesianMeanEstimation OTB application

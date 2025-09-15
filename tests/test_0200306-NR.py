@@ -1062,10 +1062,15 @@ def mock_GAMMA_AREA_v1_2(application_mocker: OTBApplicationsMockContext, file_db
                 'outermarginratiostatus': True,
                 'out'                   : file_db.gamma_areafile(idx, True),
             }, None, {
+                'Polarization'                    : '',  # <=> removing the key
                 'PRJ.DIRECTIONTOSCANDEMC'  : '',  # <=> removing the key
                 'PRJ.DIRECTIONTOSCANDEML'  : '',  # <=> removing the key
                 'PRJ.GAIN'                 : '',  # <=> removing the key
                 'TIFFTAG_IMAGEDESCRIPTION' : 'Gamma area image estimation',
+                'band.LLFracDistributedGammaArea' : '',   # <=> removing the key
+                'band.LRFracDistributedGammaArea' : '',   # <=> removing the key
+                'band.ULFracDistributedGammaArea' : '',   # <=> removing the key
+                'band.URFracDistributedGammaArea' : '',   # <=> removing the key
             },
             {
                 exp_out_dem,
