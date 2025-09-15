@@ -60,9 +60,6 @@ from ..otbpipeline   import (
 from .helpers        import (
     depolarize_4_filename_pre_hook, does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
 )
-from .s1_to_s2       import (
-    _OrthoRectifierFactory,
-)
 from ..              import Utils
 from ..configuration import (
     Configuration,
@@ -77,6 +74,7 @@ from ..configuration import (
 )
 from ._applications import (
     _ConcatenatorFactoryForMaps,
+    _OrthoRectifierFactory,
     _PostSARDEMProjectionFamily,
     _ProjectGeoidTo,
     _SARDEMProjectionFamily,

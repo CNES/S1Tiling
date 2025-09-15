@@ -42,7 +42,7 @@ from typing import List
 
 
 from .lia              import _ComputeIncidenceAngle
-from .s1_to_s2         import s2_tile_extent
+from ._applications    import s2_tile_extent
 from ..configuration   import Configuration, dname_fmt_ia_product, extended_filename_hidden, nodata_XYZ
 from ..file_naming     import TemplateOutputFilenameGenerator
 from ..incidence_angle import IA_map, eia_map_fname_fmt

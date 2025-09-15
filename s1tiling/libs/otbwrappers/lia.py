@@ -76,19 +76,17 @@ from ..otbpipeline     import (
 )
 from ._applications import (
     _ConcatenatorFactoryForMaps,
+    _OrthoRectifierFactory,
     _PostSARDEMProjectionFamily,
     _ProjectGeoidTo,
     _SARDEMProjectionFamily,
     _SelectBestCoverage,
+    s2_tile_extent,
 )
 from .helpers          import (
     depolarize_4_filename_pre_hook,
     does_s2_data_match_s2_tile,
     does_sin_lia_match_s2_tile_for_orbit,
-)
-from .s1_to_s2         import (
-    s2_tile_extent,
-    _OrthoRectifierFactory,
 )
 from ..                 import Utils
 from ..utils.formatters import partial_format
