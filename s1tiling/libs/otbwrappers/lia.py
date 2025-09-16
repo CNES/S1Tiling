@@ -76,19 +76,17 @@ from ..otbpipeline     import (
 )
 from ._applications import (
     _ConcatenatorFactoryForMaps,
+    _OrthoRectifierFactory,
     _PostSARDEMProjectionFamily,
     _ProjectGeoidTo,
     _SARDEMProjectionFamily,
     _SelectBestCoverage,
+    s2_tile_extent,
 )
 from .helpers          import (
     depolarize_4_filename_pre_hook,
     does_s2_data_match_s2_tile,
     does_sin_lia_match_s2_tile_for_orbit,
-)
-from .s1_to_s2         import (
-    s2_tile_extent,
-    _OrthoRectifierFactory,
 )
 from ..                 import Utils
 from ..utils.formatters import partial_format
@@ -619,8 +617,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
         imd['EOF_FILE']                 = meta['inbasename']
-        imd['FLYING_UNIT_CODE']         = meta['flying_unit_code']
-        imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
+        # RELATIVE_ORBIT_NUMBER & ORBIT_DIRECTION are set by the application
+        # imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
         imd['IMAGE_TYPE']               = 'XYZ'
         imd['ORTHORECTIFIED']           = 'true'
 
@@ -1160,7 +1158,8 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     }
 
     def __init__(self, cfg: Configuration) -> None:
-        fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
+        # fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
+        fname_fmt0 = '{LIA_kind}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         tname_fmt     = partial_format(fname_fmt0, LIA_kind="TaskLIA")
         fname_fmt_deg = partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None

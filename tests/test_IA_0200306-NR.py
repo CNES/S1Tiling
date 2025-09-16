@@ -144,11 +144,13 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'S2_TILE_CORRESPONDING_CODE' : '33NWB',
         'SPATIAL_RESOLUTION'         : f"{spacing}",
         'EOF_FILE'                   : os.path.basename(file_db.eof_for_s2()),
-        'FLYING_UNIT_CODE'           : 's1a',
         'IMAGE_TYPE'                 : 'XYZ',
         'TIFFTAG_IMAGEDESCRIPTION'   : 'XYZ surface and satellite positions on S2 tile on ellipsoid',
         'ORTHORECTIFIED'             : 'true',
-        'RELATIVE_ORBIT_NUMBER'      : '{:0>3d}'.format(file_db.relorb_for_s2()),
+        # meta already set during orthorectification
+        # 'ORBIT_DIRECTION'          : 'DES',
+        # 'ORBIT_NUMBER'             : '030704',
+        # 'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(file_db.relorb_for_s2()),
     })
 
     # ExtractNormalVector
@@ -182,13 +184,9 @@ def mock_IA(application_mocker: OTBApplicationsMockContext, file_db: FileDB):
         'out.deg'         : file_db.degia_on_s2(True),
     }, {'out.deg': otb.ImagePixelType_uint16}, {
         'DATA_TYPE'                : ['sin(IA)', '100 * degrees(IA)'],
-        # 'FLYING_UNIT_CODE'         : 's1a',
         'IMAGE_TYPE'               : 'IA',
         'TIFFTAG_IMAGEDESCRIPTION' : ['sin(IA) on S2 grid', '100 * degrees(IA) on S2 grid'],
     })
-
-
-
 
 
 # ======================================================================

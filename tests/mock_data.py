@@ -94,18 +94,22 @@ class FileDB:
         'xyz_on_s2'           : 'XYZ_projected_on_{tile}_007{tmp}.tiff',
         'normals_on_s2'       : 'Normals_on_{tile}{tmp}.tiff',
         # TODO: add fmt for orbit direction/number
-        'tasklia_on_s2'       : 'TaskLIA_s1a_{tile}_007{tmp}.tif',
-        'deglia_on_s2'        : 'LIA_s1a_{tile}_007{tmp}.tif',
-        'sinlia_on_s2'        : 'sin_LIA_s1a_{tile}_007{tmp}.tif',
-        'gamma_area_on_s2'    : 'GAMMA_AREA_s1a_{tile}_DES_007{tmp}.tif',
 
-        # Ellipsoid Incidence Angle
+        # Local Incidence Angle maps
+        'tasklia_on_s2'       : 'TaskLIA_{tile}_007{tmp}.tif',
+        'deglia_on_s2'        : 'LIA_{tile}_007{tmp}.tif',
+        'sinlia_on_s2'        : 'sin_LIA_{tile}_007{tmp}.tif',
+
+        # γ area maps
+        'gamma_area_on_s2'    : 'GAMMA_AREA_{tile}_007{tmp}.tif',
+
+        # Ellipsoid Incidence Angle maps
         'xyz_ellipsoid_on_s2' : 'XYZ_projected_on_ellipsoid_{tile}_007{tmp}.tiff',
-        'taskia_on_s2'        : 'TaskIA_s1a_{tile}_007{tmp}.tif',
-        'degia_on_s2'         : 'IA_s1a_{tile}_007{tmp}.tif',
-        'cosia_on_s2'         : 'cos_IA_s1a_{tile}_007{tmp}.tif',
-        'sinia_on_s2'         : 'sin_IA_s1a_{tile}_007{tmp}.tif',
-        'tania_on_s2'         : 'tan_IA_s1a_{tile}_007{tmp}.tif',
+        'taskia_on_s2'        : 'TaskIA_{tile}_007{tmp}.tif',
+        'degia_on_s2'         : 'IA_{tile}_007{tmp}.tif',
+        'cosia_on_s2'         : 'cos_IA_{tile}_007{tmp}.tif',
+        'sinia_on_s2'         : 'sin_IA_{tile}_007{tmp}.tif',
+        'tania_on_s2'         : 'tan_IA_{tile}_007{tmp}.tif',
     }
     FILES = [
         # 08 jan 2020
@@ -767,7 +771,7 @@ class FileDB:
         return f'{self.__xia_dir}/LIA_s1a_33NWB_DES_007.tif'
 
     def selectedGAMMA_AREAfile(self) -> str:
-        return f'{self.gamma_area_dir()}/GAMMA_AREA_s1a_33NWB_DES_007.tif'
+        return f'{self.gamma_area_dir()}/GAMMA_AREA_33NWB_007.tif'
 
     def selectedsinLIAfile(self) -> str:
         return f'{self.__xia_dir}/sin_LIA_s1a_33NWB_DES_007.tif'

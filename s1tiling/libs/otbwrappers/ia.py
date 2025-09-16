@@ -42,7 +42,7 @@ from typing import List
 
 
 from .lia              import _ComputeIncidenceAngle
-from .s1_to_s2         import s2_tile_extent
+from ._applications    import s2_tile_extent
 from ..configuration   import Configuration, dname_fmt_ia_product, extended_filename_hidden, nodata_XYZ
 from ..file_naming     import TemplateOutputFilenameGenerator
 from ..incidence_angle import IA_map, eia_map_fname_fmt
@@ -141,7 +141,7 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
         Extracts S2 tile footprint to be used later to fill-in the application parameters.
         Also extracts the EOF name to store later in the image metadata.
         """
-        # logger.debug("ComputeGroundAndSatPositionsOnDEMFromEOF inputs are: %s", all_inputs)
+        # logger.debug("ComputeGroundAndSatPositionsOnEllipsoid inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
@@ -162,10 +162,10 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['EOF_FILE']                   = meta['inbasename']
-        imd['FLYING_UNIT_CODE']           = meta['flying_unit_code']
         imd['IMAGE_TYPE']                 = 'XYZ'
         imd['ORTHORECTIFIED']             = 'true'
-        imd['RELATIVE_ORBIT_NUMBER']      = meta['orbit']
+        # RELATIVE_ORBIT_NUMBER & ORBIT_DIRECTION are set by the application
+        # imd['RELATIVE_ORBIT_NUMBER']      = meta['orbit']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
 
@@ -342,7 +342,8 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
     """
     def __init__(self, cfg: Configuration) -> None:
         # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
+        # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
+        fname_fmt0 = '{IA_kind}_{tile_name}_{orbit}.tif'
         fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
         def fname_fmt(ia_map: IA_map):
             if ia_map.name in cfg.ia_maps_to_produce + [IA_map.tsk.name]:

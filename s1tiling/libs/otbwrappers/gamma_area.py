@@ -60,9 +60,6 @@ from ..otbpipeline   import (
 from .helpers        import (
     depolarize_4_filename_pre_hook, does_gamma_area_match_s2_tile_for_orbit, remove_polarization_marks,
 )
-from .s1_to_s2       import (
-    _OrthoRectifierFactory,
-)
 from ..              import Utils
 from ..configuration import (
     Configuration,
@@ -77,6 +74,7 @@ from ..configuration import (
 )
 from ._applications import (
     _ConcatenatorFactoryForMaps,
+    _OrthoRectifierFactory,
     _PostSARDEMProjectionFamily,
     _ProjectGeoidTo,
     _SARDEMProjectionFamily,
@@ -619,6 +617,20 @@ class SARGammaAreaImageEstimation(_PostSARDEMProjectionFamily):
         self.__innermarginratio = cfg.inner_margin_ratio
         self.__outermarginratio = cfg.outer_margin_ratio
 
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Set SARCartesianMeanEstimation related information that'll get carried around.
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        # Clear PRJ.* information: makes no sense anymore
+        imd['Polarization']                    = ''
+        imd['band.LLFracDistributedGammaArea'] = ''
+        imd['band.LRFracDistributedGammaArea'] = ''
+        imd['band.ULFracDistributedGammaArea'] = ''
+        imd['band.URFracDistributedGammaArea'] = ''
+
     def parameters(self, meta: Meta) -> OTBParameters:
         """
         Returns the parameters to use with :external:doc:`SARCartesianMeanEstimation OTB application
@@ -745,9 +757,10 @@ class OrthoRectifyGAMMA_AREA(_OrthoRectifierFactory):
         assert 'PixelSpacing' in imd,     "PixelSpacing should have been registered for removal. Let's keep it!"
         assert 'LineSpacing' in imd,      "LineSpacing should have been registered for removal. Let's keep it!"
         assert imd['PixelSpacing'] == '', "PixelSpacing should have been registered for removal. Let's keep it!"
-        assert imd['LineSpacing'] == '',  "LineSpacing should have been registered for removal. Let's keep it!"
+        assert imd['LineSpacing']  == '', "LineSpacing should have been registered for removal. Let's keep it!"
         del imd['LineSpacing']
         del imd['PixelSpacing']
+        del imd['ORBIT_NUMBER'] # Absolute orbit number is pointless here
 
 
 class SelectGammaNaughtAreaBestCoverage(_SelectBestCoverage):

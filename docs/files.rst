@@ -39,8 +39,8 @@ Orthorectified S2 tiles
 
 :File name:
 
-    - :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}txxxxxx.tif` when the tile has been assembled from the concatenation of two S1 images
-    - :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}.tif` when the tile has been produced from a single S1 image
+    - :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbit_direction}}_{{orbit}}_{{YYYYMMDD}}txxxxxx.tif` when the tile has been assembled from the concatenation of two S1 images
+    - :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbit_direction}}_{{orbit}}_{{YYYYMMDD}}t{{hhmmss}}.tif` when the tile has been produced from a single S1 image
 
     .. note::
         :math:`σ^0_{T}` calibrated files will have their name end in
@@ -259,12 +259,12 @@ Local Incidence Angle map files
 
 :File names:
 
-    - :samp:`sin_LIA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{LIM})`
-    - :samp:`LIA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`100 * Θ°_{LIM}`
+    - :samp:`sin_LIA_{{tilename}}_{{orbit}}.tif` -- :math:`sin(Θ_{LIM})`
+    - :samp:`LIA_{{tilename}}_{{orbit}}.tif` -- :math:`100 * Θ°_{LIM}`
 
 :File name format:
 
-    :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
+    :samp:`{{LIA_kind}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.lia_product <Processing.fname_fmt.lia_product>`
 
 :Product encoding:
 
@@ -300,17 +300,17 @@ Local Incidence Angle map files
         - :ref:`chosen DEM resampling method option <Processing.dem_warp_resampling_method>`
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
-      * - ``FLYING_UNIT_CODE``
-        - :samp:`s1{{a|b|c}}`
       * - ``GEOID_ORTHORECTIFICATION_INTERPOLATOR``
         - :ref:`chosen orthorectification interpolation_method option
           <Processing.orthorectification_interpolation_method>`
       * - ``IMAGE_TYPE``
         - :samp:`LIA`
-      * - ``RELATIVE_ORBIT_NUMBER``
-        - :samp:`{{orbitnumber}}`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbit_direction}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{orbit}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -358,14 +358,14 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
 
 :File names:
 
-    - :samp:`IA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`100 * Θ_{E}`
-    - :samp:`cos_IA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`cos(Θ_{E})`
-    - :samp:`sin_IA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`sin(Θ_{E})`
-    - :samp:`tan_IA_s1{{a|b|c}}_{{tilename}}_{{orbitnumber}}.tif` -- :math:`tan(Θ_{E})`
+    - :samp:`IA_{{tilename}}_{{orbit}}.tif` -- :math:`100 * Θ_{E}`
+    - :samp:`cos_IA_{{tilename}}_{{orbit}}.tif` -- :math:`cos(Θ_{E})`
+    - :samp:`sin_IA_{{tilename}}_{{orbit}}.tif` -- :math:`sin(Θ_{E})`
+    - :samp:`tan_IA_{{tilename}}_{{orbit}}.tif` -- :math:`tan(Θ_{E})`
 
 :File name format:
 
-    :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.ia_product <Processing.fname_fmt.ia_product>`
+    :samp:`{{IA_kind}}_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.ia_product <Processing.fname_fmt.ia_product>`
 
 :Product encoding:
 
@@ -394,14 +394,14 @@ tile <full-S2-tiles>` from one calibration (β°, σ°, γ°) to another.
           :samp:`tan(IA)`
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
-      * - ``FLYING_UNIT_CODE``
-        - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
         - :samp:`IA`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbit_direction}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -441,11 +441,11 @@ Gamma Area map file
 
 :File names:
 
-    - :samp:`GAMMA_AREA_s1{{a|b|c}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+    - :samp:`GAMMA_AREA_{{tilename}}_{{orbit}}.tif`
 
 :File name format:
 
-    :samp:`GAMMA_AREA_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.gamma_area_product <Processing.fname_fmt.gamma_area_product>`
+    :samp:`GAMMA_AREA_{{tile_name}}_{{orbit}}.tif`, see :ref:`[Processing].fname_fmt.gamma_area_product <Processing.fname_fmt.gamma_area_product>`
 
 :Product encoding:
 
@@ -472,18 +472,16 @@ Gamma Area map file
         - time of the second S1 image (in UTC format)
       * - ``DATA_TYPE``
         - :samp:`GAMMA_AREA`
-      * - ``FLYING_UNIT_CODE``
-        - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
         - :samp:`GRD`
       * - ``INPUT_S1_IMAGES``
         - List of the input Sentinel-1 images used to generate this product
-      * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbit_direction}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
+      * - ``RELATIVE_ORBIT_NUMBER``
+        - :samp:`{{orbit}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -558,9 +556,9 @@ Cut and calibrated S1 images ready for orthorectification
       * - ``NOISE_REMOVED``
         - :ref:`chosen noise removal option <Processing.remove_thermal_noise>`
       * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbit_direction}}`
       * - ``POLARIZATION``
         - :samp:`{{polarisation}}`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
@@ -588,7 +586,7 @@ Orthorectified S1 images
 
 :Directory:  :ref:`%(tmp) <paths.tmp>`:samp:`/S2/{{tilename}}/`
 
-:File name: :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbitdirection}}_{{orbitnumber}}_{{YYYYMMDD}}t{{hhmmss}}_{{calibration}}.tif`
+:File name: :samp:`s1{{a|b|c}}_{{tilename}}_{{polarity}}_{{orbit_direction}}_{{orbit}}_{{YYYYMMDD}}t{{hhmmss}}_{{calibration}}.tif`
 
 :File name format:
 
@@ -709,7 +707,7 @@ files <downloading_eof>`.
                    spatial reference.
 :Footprint:        Sentinel-2 MGRS tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitnumber}}.tif`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbit}}.tif`
 :File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit}}.tif`
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
@@ -732,14 +730,14 @@ files <downloading_eof>`.
         - List of DEM tiles used to generate the file
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
-      * - ``FLYING_UNIT_CODE``
-        - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
         - :samp:`XYZ`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbit_direction}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``TIFFTAG_IMAGEDESCRIPTION``
         - :samp:`XYZ ground and satellite positions on S2 tile`
 
@@ -760,7 +758,7 @@ These XYZ ECEF are produced from precise orbit files.
                    spatial reference.
 :Footprint:        Sentinel-2 MGRS tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_ellipsoid_{{tile_name}}_{{orbitnumber}}.tif`
+:File name:        :samp:`XYZ_projected_on_ellipsoid_{{tile_name}}_{{orbit}}.tif`
 :File name format: ``fname_fmt.ground_and_sat_s2_ellipsoid`` = :samp:`XYZ_projected_on_ellipsoid_{{tile_name}}_{{orbit}}.tif`
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
@@ -781,14 +779,14 @@ These XYZ ECEF are produced from precise orbit files.
         - Band numbers where satellite X, Y and Z coordinates are stored
       * - ``EOF_FILE``
         - Precise orbit file used to generate the file
-      * - ``FLYING_UNIT_CODE``
-        - :samp:`s1{{a|b|c}}`
       * - ``IMAGE_TYPE``
         - :samp:`XYZ`
+      * - ``ORBIT_DIRECTION``
+        - :samp:`{{orbit_direction}}`
       * - ``ORTHORECTIFIED``
         - :samp:`true`
       * - ``RELATIVE_ORBIT_NUMBER``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``S2_TILE_CORRESPONDING_CODE``
         - :samp:`{{tilename}}`
       * - ``SPATIAL_RESOLUTION``
@@ -940,9 +938,9 @@ S1 coordinates projected on DEM geometry
       * - ``INPUT_S1_IMAGES``
         - List of the input Sentinel-1 images used to generate this product
       * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbit_direction}}`
       * - ``PRJ.DIRECTIONTOSCANDEMC``
         - Range direction for DEM scan.
       * - ``PRJ.DIRECTIONTOSCANDEML``
@@ -1023,7 +1021,7 @@ Half γ area map files -- pre-concatenation
 
 :File names:
 
-    :samp:`GAMMA_AREA_s1{{a|b|c}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif`
+    :samp:`GAMMA_AREA_s1{{a|b|c}}_{{tilename}}_{{orbit_direction}}_{{orbit}}_{{start_stamp}}.tif`
 
 :File name format:
 
@@ -1182,8 +1180,8 @@ Half Local Incidence Angle map files -- pre-concatenation. (deprecated)
 
 :File names:
 
-    - :samp:`sin_LIA_s1{{a|b|c}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`sin(Θ_{LIM})`
-    - :samp:`LIA_s1{{a|b|c}}_{{tilename}}_{{orbitdirection}}_{{orbitnumber}}_{{start_stamp}}.tif` -- :math:`100 * Θ°_{LIM}`
+    - :samp:`sin_LIA_s1{{a|b|c}}_{{tilename}}_{{orbit_direction}}_{{orbit}}_{{start_stamp}}.tif` -- :math:`sin(Θ_{LIM})`
+    - :samp:`LIA_s1{{a|b|c}}_{{tilename}}_{{orbit_direction}}_{{orbit}}_{{start_stamp}}.tif` -- :math:`100 * Θ°_{LIM}`
 
 :File name format:
 
@@ -1233,7 +1231,7 @@ present in Sentinel-1 SAR input products.
                    spatial reference.
 :Footprint:        Sentinel-2 MGRS tile.
 :Directory:        :ref:`%(tmp) <paths.tmp>`:samp:`/S2/`
-:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbitdirection}}_{{orbitnumber}}.tif`
+:File name:        :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 :File name format: ``fname_fmt.ground_and_sat_s2`` = :samp:`XYZ_projected_on_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
 :Product encoding: Float64 GeoTIFF, 6 bands: XCartesian, YCartesian,
                    ZCartesian. SensorXCartesian, SensorXCartesian,
@@ -1263,9 +1261,9 @@ present in Sentinel-1 SAR input products.
       * - ``INPUT_S1_IMAGES``
         - List of the input Sentinel-1 images used to generate this product
       * - ``ORBIT``
-        - :samp:`{{orbitnumber}}`
+        - :samp:`{{orbit}}`
       * - ``ORBIT_DIRECTION``
-        - :samp:`{{orbitdirection}}`
+        - :samp:`{{orbit_direction}}`
       * - ``PRJ.DIRECTIONTOSCANDEMC``
         - Range direction for DEM scan.
       * - ``PRJ.DIRECTIONTOSCANDEML``

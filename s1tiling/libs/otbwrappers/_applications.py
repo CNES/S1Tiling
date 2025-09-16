@@ -32,6 +32,7 @@
 
 """Factorize :class:`StepFactory` definitions common to multiple leaf StepFactories"""
 
+from abc import abstractmethod
 import shutil
 from typing import Dict, List, Optional
 import logging
@@ -63,6 +64,38 @@ from ..steps         import (
 
 
 logger = logging.getLogger('s1tiling.wrappers.applications')
+
+
+def s2_tile_extent(tile_name: str, tile_origin: Utils.Polygon, in_epsg: int, spacing: float) -> Dict:
+    """
+    Helper function that computes and returns contant-sized extents of S2 tiles in the
+    S2 tile spatial reference.
+    """
+    out_utm_zone     = int(tile_name[0:2])
+    out_utm_northern = tile_name[2] >= 'N'
+    out_epsg         = 32600 + out_utm_zone
+    if not out_utm_northern:
+        out_epsg = out_epsg + 100
+    x_coord, y_coord, _ = Utils.convert_coord([tile_origin[0]], in_epsg, out_epsg)[0]
+    lrx, lry, _         = Utils.convert_coord([tile_origin[2]], in_epsg, out_epsg)[0]
+
+    if not out_utm_northern and y_coord < 0:
+        y_coord += 10000000.
+        lry     += 10000000.
+    sizex = int(round(abs(lrx - x_coord) / spacing))
+    sizey = int(round(abs(lry - y_coord) / spacing))
+    logger.debug("from %s, lrx=%s, x_coord=%s, spacing=%s", tile_name, lrx, x_coord, spacing)
+    return {
+            'xmin'        : x_coord,
+            'ymin'        : y_coord - sizey * spacing,
+            'xmax'        : x_coord + sizex * spacing,
+            'ymax'        : y_coord,
+            'xsize'       : sizex,
+            'ysize'       : sizey,
+            'epsg'        : out_epsg,
+            'utm_zone'    : out_utm_zone,
+            'utm_northern': out_utm_northern,
+    }
 
 
 class _ConcatenatorFactory(OTBStepFactory):
@@ -245,6 +278,131 @@ class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):
         meta['tile_coverage'] = coverage
 
 
+class _OrthoRectifierFactory(OTBStepFactory):
+    """
+    Abstract factory that prepares steps that run
+    :external+OTB:doc:`Applications/app_OrthoRectification` as described in
+    :ref:`OrthoRectification` documentation.
+
+    This factory will be specialized for calibrated S1 images
+    (:class:`OrthoRectify`), or LIA and sin-LIA maps (:class:`OrthoRectifyLIA`)
+
+    Requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `out_spatial_res`
+    - `GeoidFile`
+    - `grid_spacing`
+    - `tmp_dem_dir`
+
+    Requires the following information from the metadata dictionary
+
+    - base name -- to generate typical output filename
+    - input filename
+    - output filename
+    - `manifest`
+    - `tile_name`
+    - `tile_origin`
+    """
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        cfg              : Configuration,
+        *,
+        fname_fmt        : str,
+        image_description: str,
+        extended_filename: Optional[str] = None,
+        pixel_type       : Optional[int] = None,
+    ) -> None:
+        """
+        Constructor.
+        Extract and cache configuration options.
+        """
+        super().__init__(
+            cfg,
+            appname='OrthoRectification', name='OrthoRectification',
+            param_in='io.in', param_out='io.out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=None,  # Use gen_tmp_dir,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description=image_description,
+            extended_filename=extended_filename,
+            pixel_type=pixel_type,
+        )
+        self.__out_spatial_res      = cfg.out_spatial_res
+        self.__GeoidFile            = os.path.join(cfg.tmpdir, 'geoid', os.path.basename(cfg.GeoidFile))
+        assert os.path.isfile(self.__GeoidFile), f"geoid file {self.__GeoidFile!r} is not accessible"
+        self.__grid_spacing         = cfg.grid_spacing
+        self.__interpolation_method = cfg.interpolation_method
+        self.__tmp_dem_dir          = cfg.tmp_dem_dir
+        self.__dem_info             = cfg.dem_info
+        # self.__tmpdir               = cfg.tmpdir
+        ## # Some workaround when ortho is not sequenced along with calibration
+        ## # (and locally override calibration type in case of normlim calibration)
+        ## self.__calibration_type     = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta['image_metadata']
+        imd['ORTHORECTIFICATION_INTERPOLATOR'] = self.__interpolation_method
+        imd['ORTHORECTIFIED']                  = 'true'
+        imd['S2_TILE_CORRESPONDING_CODE']      = meta['tile_name']
+        imd['SPATIAL_RESOLUTION']              = str(self.__out_spatial_res)
+        imd['DEM_INFO']                        = self.__dem_info
+        imd['RELATIVE_ORBIT_NUMBER']           = meta['orbit']
+        imd['ORBIT_NUMBER']                    = meta['absolute_orbit']
+        imd['ORBIT_DIRECTION']                 = meta['orbit_direction']
+        # S1 -> S2 => remove all SAR specific metadata inserted by OTB
+        meta_to_remove_in_s2 = (
+            'SARCalib*', 'SAR', 'PRF', 'RadarFrequency', 'RedDisplayChannel',
+            'GreenDisplayChannel', 'BlueDisplayChannel', 'AbsoluteCalibrationConstant',
+            'AcquisitionStartTime', 'AcquisitionStopTime', 'AcquisitionDate',
+            'AverageSceneHeight', 'BeamMode', 'BeamSwath', 'Instrument', 'LineSpacing',
+            'Mission', 'Mode','OrbitDirection', 'OrbitNumber', 'PixelSpacing', 'SensorID',
+            'Swath', 'NumberOfLines', 'NumberOfColumns',
+        )
+        for kw in meta_to_remove_in_s2:
+            imd[kw] = ''
+
+    @abstractmethod
+    def _get_input_image(self, meta: Meta):
+        raise TypeError("_OrthoRectifierFactory does not know how to fetch input image")
+
+    def parameters(self, meta: Meta) -> OTBParameters:
+        """
+        Returns the parameters to use with :external+OTB:doc:`OrthoRectification OTB application
+        <Applications/app_OrthoRectification>`.
+        """
+        image       = self._get_input_image(meta)
+        tile_name   = meta['tile_name']
+        tile_origin = meta['tile_origin']
+        spacing     = self.__out_spatial_res
+
+        extent      = s2_tile_extent(tile_name, tile_origin, in_epsg=4326, spacing=spacing)
+        logger.debug("%s.parameters(%s) /// image: %s /// tile_name: %s",
+                self.__class__.__name__, meta, image, tile_name)
+
+        parameters = {
+                'opt.ram'          : ram(self.ram_per_process),
+                self.param_in      : image,
+                # self.param_out     : out_filename,
+                'interpolator'     : self.__interpolation_method,
+                'outputs.spacingx' : spacing,
+                'outputs.spacingy' : -spacing,
+                'outputs.sizex'    : extent['xsize'],
+                'outputs.sizey'    : extent['ysize'],
+                'opt.gridspacing'  : self.__grid_spacing,
+                'map'              : 'utm',
+                'map.utm.zone'     : extent['utm_zone'],
+                'map.utm.northhem' : extent['utm_northern'],
+                'outputs.ulx'      : extent['xmin'],
+                'outputs.uly'      : extent['ymax'],  # ymax, not ymin!!!
+                'elev.dem'         : self.__tmp_dem_dir,
+                'elev.geoid'       : self.__GeoidFile,
+        }
+        return parameters
+
+
 class _ProjectGeoidTo(OTBStepFactory):
     def __init__(
         self,
@@ -413,6 +571,7 @@ class _SARDEMProjectionFamily(OTBStepFactory):
         SARDEMProjection2 comes from normlim_sigma0.
         """
         return "Please install https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0."
+
 
 class _PostSARDEMProjectionFamily(OTBStepFactory):
 

@@ -64,7 +64,7 @@ def find(
     :param key:     key that identifies the tag name to search
     :param context: extra information used to report where search failures happen
     :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :param kwargs:  extra parameters forwarded to :meth:`ET.find`.
     :raise RuntimeError: If the requested ``key`` isn't found.
     :return: The non null node.
     """
@@ -96,7 +96,7 @@ def find_text(
     :param key:     key that identifies the tag name to search
     :param context: extra information used to report where search failures happen
     :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`.
+    :param kwargs:  extra parameters forwarded to :meth:`ET.find`.
     :raise RuntimeError: If the requested ``key`` isn't found.
     :raise RuntimeError: If the node has non value
     :return: The non empty text.
@@ -126,7 +126,7 @@ def find_as(
     :param key:     key that identifies the tag name to search
     :param context: extra information used to report where search failures happen
     :param keytext: text to use instead of ``key`` to report a missing key
-    :param kwargs:  extra parameters forwarded to :method:`ET.find`
+    :param kwargs:  extra parameters forwarded to :meth:`ET.find`
     :raise RuntimeError: If the requested ``key`` isn't found.
     :raise RuntimeError: If the node has non value.
     :raise RuntimeError: If the node text value cannot be converted to a ``to`` instance.
