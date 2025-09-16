@@ -9,8 +9,21 @@ Release notes
 =============
 
 Version 1.2.0
+-------------
 
-.. todo:: summary of the main improvments
+The main features of this version are:
+
+- S1Tiling can now produce :ref:`Gamma Area Maps <scenario.S1GammaAreaMap>`
+  over requested S2 MGRS tiles, and :ref:`generate S2 products
+  <scenario.S1ProcessorRTC>` calibrated with the :math:`γ^0_{T}` calibration
+  described in [Small2011]_.
+- S1Tiling can generate :ref:`maps of incidence angles to the WGS84 ellipsoid
+  <ia-files>`, over requested S2 MGRS tiles, from precise orbit files.
+- The computation of :ref:`Local Incidence Angle maps <lia-files>` has evolved
+  to use precise orbit files as well.
+- Sentinel-1C is now supported.
+
+
 
 v1.2.0 Breaking changes
 +++++++++++++++++++++++
@@ -49,7 +62,7 @@ v1.2.0 Improvements
 
 - This new version can produce :ref:`Gamma Area Maps <scenario.S1GammaAreaMap>`
   over requested S2 tiles thanks to :ref:`S1GammaAreaMap`, or :ref:`generate S2
-  products <scenario.S1ProcessorRTC>` calibrated with :math:`γ^0_{T}`
+  products <scenario.S1ProcessorRTC>` calibrated with the :math:`γ^0_{T}`
   calibration described in [Small2011]_.
   (`#90 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/90>`_).
 - Use precise orbit files, downloaded on-the-fly, to compute :ref:`Local
@@ -176,7 +189,7 @@ v1.0.0 Improvements
 +++++++++++++++++++
 
 - This new version can automatically produce :ref:`produce Local Incidence
-  Angle Maps <scenario.S1LIAMap>` over requested S2 tiles thanks to
+  Angle Maps <scenario.S1LIAMap>` over requested S2 MGRS tiles thanks to
   :ref:`S1LIAMap`, or :ref:`generate S2 products <scenario.S1ProcessorLIA>`
   calibrated with :math:`σ^0_{T}` NORMLIM calibration described in
   [Small2011]_.
