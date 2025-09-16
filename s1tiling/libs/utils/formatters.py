@@ -33,7 +33,7 @@
 """Collection of Format Helpers"""
 
 
-from typing import Optional
+from typing import LiteralString, Optional
 
 
 class _PartialFormatHelper(dict):
@@ -119,3 +119,56 @@ class ResilientFormater:
                 return outer.default
 
         return format_str.format_map(_Formatter(**kwargs))
+
+
+from string import Formatter
+import logging
+class ResilientFormatter2(Formatter):
+    """
+    Very similar to :class:`_PartialFormatHelper` or :class:`_FormatOrGlobHelper`, except we can
+    choose the replacement text.
+
+    >>> s = "{ab}_bla_{cd}"
+    >>> ResilientFormatter2().format(s, ab="tot")
+    'tot_bla_{cd}'
+
+    >>> ResilientFormatter2("*").format(s, ab="tot")
+    'tot_bla_*'
+
+    >>> ResilientFormatter2(".*").format(s, ab="tot")
+    'tot_bla_.*'
+
+    >>> ResilientFormatter2().format("{ab!u}_bla_{cd!l}_bli_{ef}", ab="tOt", cd='BaR')
+    'TOT_bla_bar_bli_{ef}'
+
+    >>> ResilientFormatter2(".*").format("{ab!u}_bla_{cd!l}_bli_{ef}", ab="tOt", cd='BaR')
+    'TOT_bla_bar_bli_.*'
+
+    >>> ResilientFormatter2(".*").format("{ab!u}_bla_{cd!l:.2}_bli_{ef}", ab="tOt", cd='BaR')
+    'TOT_bla_ba_bli_.*'
+    """
+    def __init__(self, default: Optional[str] = None):
+        """
+        constructor
+        """
+        self.__default = default
+
+    def default(self, key):
+        """
+        Getter to default replacement
+        """
+        return self.__default if self.__default is not None else "{" + key + "}"
+
+    def convert_field(self, value, conversion):
+        logging.debug(f"convert {value=} with: {conversion=}")
+        if conversion == 'u':
+            return value.upper()
+        elif conversion == 'l':
+            return value.lower()
+        return super(ResilientFormatter2, self).convert_field(value, conversion)
+
+    def get_value(self, key, args, kwargs):
+        if isinstance(key, int):
+            return args[key]
+        else:
+            return kwargs.get(key, self.default(key))
