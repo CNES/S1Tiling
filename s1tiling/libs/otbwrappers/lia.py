@@ -617,8 +617,8 @@ class ComputeGroundAndSatPositionsOnDEMFromEOF(OTBStepFactory):
         imd['band.DirectionToScanDEM*'] = ''
         imd['band.Gain']                = ''
         imd['EOF_FILE']                 = meta['inbasename']
-        imd['FLYING_UNIT_CODE']         = meta['flying_unit_code']
-        imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
+        # RELATIVE_ORBIT_NUMBER & ORBIT_DIRECTION are set by the application
+        # imd['RELATIVE_ORBIT_NUMBER']    = meta['orbit']
         imd['IMAGE_TYPE']               = 'XYZ'
         imd['ORTHORECTIFIED']           = 'true'
 

@@ -141,7 +141,7 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
         Extracts S2 tile footprint to be used later to fill-in the application parameters.
         Also extracts the EOF name to store later in the image metadata.
         """
-        # logger.debug("ComputeGroundAndSatPositionsOnDEMFromEOF inputs are: %s", all_inputs)
+        # logger.debug("ComputeGroundAndSatPositionsOnEllipsoid inputs are: %s", all_inputs)
         meta = super().complete_meta(meta, all_inputs)
         assert 'inputs' in meta, "Meta data shall have been filled with inputs"
 
@@ -162,10 +162,10 @@ class ComputeGroundAndSatPositionsOnEllipsoid(OTBStepFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['EOF_FILE']                   = meta['inbasename']
-        imd['FLYING_UNIT_CODE']           = meta['flying_unit_code']
         imd['IMAGE_TYPE']                 = 'XYZ'
         imd['ORTHORECTIFIED']             = 'true'
-        imd['RELATIVE_ORBIT_NUMBER']      = meta['orbit']
+        # RELATIVE_ORBIT_NUMBER & ORBIT_DIRECTION are set by the application
+        # imd['RELATIVE_ORBIT_NUMBER']      = meta['orbit']
         imd['S2_TILE_CORRESPONDING_CODE'] = meta['tile_name']
         imd['SPATIAL_RESOLUTION']         = str(self.__out_spatial_res)
 

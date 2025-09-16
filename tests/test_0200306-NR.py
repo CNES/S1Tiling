@@ -900,6 +900,10 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'POLARIZATION'             : '',
             'band.DirectionToScanDEM*' : '',
             'band.Gain'                : '',
+            # THE *ORBIT* meta data are set by the OTB application and can't be checked when mocking
+            # 'ORBIT_DIRECTION'          : 'DES',
+            # 'ORBIT_NUMBER'             : '030704',
+            # 'RELATIVE_ORBIT_NUMBER'    : '007',
         },
         {exp_out_height_s2},
     )
@@ -1283,14 +1287,17 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
             'DEM_INFO'                 : 'SRTM_30_hgt',
             'DEM_LIST'                 : ', '.join(exp_dem_names),
             'EOF_FILE'                 : os.path.basename(file_db.eof_for_s2()),
-            'FLYING_UNIT_CODE'         : 's1a',
+            # 'FLYING_UNIT_CODE'         : 's1a',
             'IMAGE_TYPE'               : 'XYZ',
             'TIFFTAG_IMAGEDESCRIPTION' : 'XYZ ground and satellite positions on S2 tile',
             'ORTHORECTIFIED'           : 'true',
             'POLARIZATION'             : '',
-            'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(file_db.relorb_for_s2()),
             'band.DirectionToScanDEM*' : '',
             'band.Gain'                : '',
+            # THE *ORBIT* meta data are set by the OTB application and can't be checked when mocking
+            # 'ORBIT_DIRECTION'          : 'DES',
+            # 'ORBIT_NUMBER'             : '030704',
+            # 'RELATIVE_ORBIT_NUMBER'    : '{:0>3d}'.format(file_db.relorb_for_s2()),
         },
         {exp_out_height_s2},
     )
