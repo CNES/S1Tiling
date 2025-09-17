@@ -25,7 +25,7 @@
 #
 # =========================================================================
 
-@complex
+@complex_download
 Feature: Test download request v2
     Test download requests given requirements and detected files
 
@@ -74,7 +74,7 @@ Feature: Test download request v2
 
         ### Usual cases: 2 inputs => expect txxxxxx
         #   Cases where tile is intersected by TWO S1 products
-        @complex_sigma_two_s1
+        @complex_download_sigma_two_s1
         Examples:
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
             ## Calibration is σ°
@@ -99,7 +99,7 @@ Feature: Test download request v2
         ## Request γ area files only
         #  Note: there is no way to know whether a γ area map has been made
         #  from one or two input S1
-        @complex_gamma_area_two_s1
+        @complex_download_gamma_area_two_s1
         Examples:
             # Target is here => DL nothing
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario           |
@@ -114,7 +114,7 @@ Feature: Test download request v2
             | d1t1, d1t2 |       d1t2 |            | d1t1       | compute gamma area |
 
         ## Calibration is γ°RTC
-        @complex_gamma_calibrated_two_s1
+        @complex_download_gamma_calibrated_two_s1
         Examples:
             | remote_s1  | local_s1   | local_s2               | dl_s1      | scenario                   |
             ## Calibration is γ° RTC
@@ -145,7 +145,7 @@ Feature: Test download request v2
 
         ### Cases w/ only one input => expect tdddddd
         #   Cases where tile is intersected by only ONE S1 product
-        @complex_sigma_one_s1
+        @complex_download_sigma_one_s1
         Examples:
             | remote_s1  | local_s1   | local_s2   | dl_s1      | scenario        |
             # Situations "IMPOSSIBLE", and not tested:
@@ -162,7 +162,7 @@ Feature: Test download request v2
 
         ## Request γ area files only
         #  Note: there is no way to know whether a γ area map has been made
-        @complex_gamma_area_one_s1
+        @complex_download_gamma_area_one_s1
         Examples:
             | remote_s1  | local_s1   | local_s2    | dl_s1      | scenario        |
             # Target is here => DL nothing
@@ -175,7 +175,7 @@ Feature: Test download request v2
 
         ### Cases of mismatching with other dates
         ## σ° calibration
-        @complex_mismatch_dates_sigma
+        @complex_download_mismatch_dates_sigma
         Examples:
             | remote_s1              | local_s1   | local_s2               | dl_s1      | scenario        |
             # d1 in local
@@ -217,7 +217,7 @@ Feature: Test download request v2
             | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t1 |                        | d1t1, d2t2 | sigma calibrate |
 
         ## γ-area map production
-        @complex_mismatch_dates_gamma_area
+        @complex_download_mismatch_dates_gamma_area
         Examples:
             | remote_s1              | local_s1   | local_s2   | dl_s1                  | scenario           |
             # γ-area map exist => never request a download
@@ -248,7 +248,7 @@ Feature: Test download request v2
             | d1t1, d1t2, d2t1, d2t2 | d1t2, d2t2 |            | d1t1,       d2t1       | compute gamma area |
 
         ## γ-area map production
-        @complex_mismatch_dates_gamma_calibration
+        @complex_download_mismatch_dates_gamma_calibration
         Examples:
             | remote_s1              | local_s1   | local_s2   | dl_s1                  | scenario                   |
             # γ-area map exist, but not the γ°RTC calibrated products
