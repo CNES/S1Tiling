@@ -884,6 +884,19 @@ class NameFormattingConfiguration(Protocol):
     fname_fmt: Dict
     dname_fmt: Dict
 
+DEFAULT_FNAME_FMTS = {
+    'concatenation'       : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
+    'concatenation_calib' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+    'filtered'            : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif',
+    'filtered_calib'      : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif',
+
+    'ia_product'          : '{IA_kind}_{tile_name}_{orbit}.tif',
+    'lia_product'         : '{LIA_kind}_{tile_name}_{orbit}.tif',
+    'lia_corrected'       : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif',
+
+    'gamma_area'          : 'GAMMA_AREA_{tile_name}_{orbit}.tif',
+    'gamma_area_corrected': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_GammaNaughtRTC.tif',
+}
 
 def fname_fmt_concatenation(cfg: NameFormattingConfiguration) -> str:
     """
@@ -894,11 +907,11 @@ def fname_fmt_concatenation(cfg: NameFormattingConfiguration) -> str:
     if calibration_is_done_in_S1:
         # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
         # Legacy mode: the default final filename won't contain the calibration_type
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif'
+        fname_fmt = DEFAULT_FNAME_FMTS['concatenation']
     else:
         # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
         # Let the default force the "beta" calibration_type in the filename
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+        fname_fmt = DEFAULT_FNAME_FMTS['concatenation_calib']
     fname_fmt = cfg.fname_fmt.get('concatenation', fname_fmt)
     return fname_fmt
 
@@ -912,11 +925,11 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     if calibration_is_done_in_S1:
         # logger.debug('Concatenation in legacy mode: fname_fmt without "_%s"', cfg.calibration_type)
         # Legacy mode: the default final filename won't contain the calibration_type
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif'
+        fname_fmt = DEFAULT_FNAME_FMTS['filtered']
     else:
         # logger.debug('Concatenation in NORMLIM mode: fname_fmt with "_beta" for %s', cfg.calibration_type)
         # Let the default force the "beta" calibration_type in the filename
-        fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif'
+        fname_fmt = DEFAULT_FNAME_FMTS['filtered_calib']
     fname_fmt = cfg.fname_fmt.get('filtered', fname_fmt)
     return fname_fmt
 
@@ -926,7 +939,7 @@ def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
     Helper function that returns the ``Processing.fname.s2_lia_corrected`` actual value, or its
     default value.
     """
-    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif'
+    fname_fmt = DEFAULT_FNAME_FMTS['lia_corrected']
     return cfg.fname_fmt.get('s2_lia_corrected', fname_fmt)
 
 
@@ -936,7 +949,7 @@ def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     or its default value.
     """
     # fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-    fname_fmt = 'GAMMA_AREA_{tile_name}_{orbit}.tif'
+    fname_fmt = DEFAULT_FNAME_FMTS['gamma_area']
     return cfg.fname_fmt.get('gamma_area', fname_fmt)
 
 
@@ -945,7 +958,7 @@ def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
     Helper function that returns the ``Processing.fname.s2_gamma_area_corrected`` actual value,
     or its default value.
     """
-    fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_GammaNaughtRTC.tif'
+    fname_fmt = DEFAULT_FNAME_FMTS['gamma_area_corrected']
     return cfg.fname_fmt.get('s2_gamma_area_corrected', fname_fmt)
 
 
@@ -1085,7 +1098,7 @@ def extended_filename_tiled(cfg: CreationOptionConfiguration) -> str:
 def extended_filename_filtered(cfg: CreationOptionConfiguration) -> str:
     """
     Helper function that returns GDAL creation options through
-    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filetered
+    :external+OTB:std:doc:`OTB Extended Filename <ExtendedFilenames>` for filtered
     products.
     """
     return _extended_filename(cfg, 'filtered', ['COMPRESS=DEFLATE', 'PREDICTOR=3'])

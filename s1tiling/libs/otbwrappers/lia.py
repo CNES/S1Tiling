@@ -91,6 +91,7 @@ from .helpers          import (
 from ..                 import Utils
 from ..utils.formatters import partial_format
 from ..configuration    import (
+    DEFAULT_FNAME_FMTS,
     Configuration,
     dname_fmt_lia_product,
     dname_fmt_tiled,
@@ -1158,8 +1159,7 @@ class ComputeLIAOnS2(_ComputeIncidenceAngle):
     }
 
     def __init__(self, cfg: Configuration) -> None:
-        # fname_fmt0 = '{LIA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
-        fname_fmt0 = '{LIA_kind}_{tile_name}_{orbit}.tif'
+        fname_fmt0 = DEFAULT_FNAME_FMTS['lia_product']
         fname_fmt0 = cfg.fname_fmt.get('lia_product', fname_fmt0)
         tname_fmt     = partial_format(fname_fmt0, LIA_kind="TaskLIA")
         fname_fmt_deg = partial_format(fname_fmt0, LIA_kind="LIA")     if cfg.produce_lia_map else None

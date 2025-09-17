@@ -591,51 +591,49 @@ You can use this :download:`this template
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
       for β°, σ° and γ° calibrations.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
+      Default value: {fname_fmt_concatenation}
 
       .. _Processing.fname_fmt.lia_corrected:
   * - ``fname_fmt.s2_lia_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when NORMLIM calibrated.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
+      Default value: {fname_fmt_lia_corrected}
 
       .. _Processing.fname_fmt.ia_product:
   * - ``fname_fmt.ia_product``
     - File format pattern for IA cos(IA), sin(IA) and tan(IA) files
 
-      Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
+      Default value: {fname_fmt_ia_product}
 
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
 
-      Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
+      Default value: {fname_fmt_lia_product}
 
       .. _Processing.fname_fmt.gamma_area_corrected:
   * - ``fname_fmt.s2_gamma_area_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when GammaNaughtRTC calibrated.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC.tif`
+      Default value: {fname_fmt_gamma_area_corrected}
 
       .. _Processing.fname_fmt.gamma_area_product:
   * - ``fname_fmt.gamma_area_product``
     - File format pattern for GAMMA_AREA files
 
-      Default value: :samp:`GAMMA_AREA_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+      Default value: {fname_fmt_gamma_area}
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
     - File format pattern for :ref:`filtered files <filtered-files>`
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
-      for β°, σ° and γ° calibrations,
-
       Default value:
 
-      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
-      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC_filtered.tif` when GammaNaughtRTC calibrated.
+      - {fname_fmt_filtered} for β°, σ° and γ° calibrations,
+      - {fname_fmt_filtered_lia} when NORMLIM calibrated.
+      - {fname_fmt_filtered_rtc} when GammaNaughtRTC calibrated.
 
       .. _Processing.dname_fmt:
   * - ``dname_fmt.*``

@@ -43,7 +43,7 @@ from typing import List
 
 from .lia              import _ComputeIncidenceAngle
 from ._applications    import s2_tile_extent
-from ..configuration   import Configuration, dname_fmt_ia_product, extended_filename_hidden, nodata_XYZ
+from ..configuration   import DEFAULT_FNAME_FMTS, Configuration, dname_fmt_ia_product, extended_filename_hidden, nodata_XYZ
 from ..file_naming     import TemplateOutputFilenameGenerator
 from ..incidence_angle import IA_map, eia_map_fname_fmt
 from ..meta            import Meta, out_filename
@@ -341,9 +341,7 @@ class ComputeIAOnS2(_ComputeIncidenceAngle):
     - output filename
     """
     def __init__(self, cfg: Configuration) -> None:
-        # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
-        # fname_fmt0 = '{IA_kind}_{flying_unit_code}_{tile_name}_{orbit}.tif'
-        fname_fmt0 = '{IA_kind}_{tile_name}_{orbit}.tif'
+        fname_fmt0 = DEFAULT_FNAME_FMTS['ia_product']
         fname_fmt0 = cfg.fname_fmt.get('ia_product', fname_fmt0)
         def fname_fmt(ia_map: IA_map):
             if ia_map.name in cfg.ia_maps_to_produce + [IA_map.tsk.name]:
