@@ -30,10 +30,14 @@
 #
 # =========================================================================
 
+from __future__ import annotations
+
 """Collection of Format Helpers"""
 
 
-from typing import LiteralString, Optional
+import logging
+from string import Formatter
+from typing import Optional
 
 
 class _PartialFormatHelper(dict):
@@ -81,10 +85,12 @@ def glob_format(format_str: str, **kwargs) -> str:
     return format_str.format_map(_FormatOrGlobHelper(**kwargs))
 
 
-class ResilientFormatter:
+class ResilientFormatter0:
     """
     Very similar to :class:`_PartialFormatHelper` or :class:`_FormatOrGlobHelper`, except we can
     choose the replacement text.
+
+    .. deprecated:: 1.2
 
     >>> s = "{ab}_bla_{cd}"
     >>> ResilientFormatter().format(s, ab="tot")
@@ -125,32 +131,118 @@ class ResilientFormatter:
         return format_str.format_map(_Formatter(**kwargs))
 
 
-from string import Formatter
-import logging
-class ResilientFormatter2(Formatter):
+class ExtendedFormatter(Formatter):
+    """
+    Extends :class:`string.Formatter` capabilities to interpret new conversion fields.
+
+    - ``!l`` -> change into lowercase
+    - ``!u`` -> change into uppercase
+    - ``!c`` -> change the first letter to uppercase, and the other letters to lowercase
+
+    .. todo::
+        We may want to support on-the-fly regex substitution as in bash ${var/pat/repl}
+        It could be done with: `!s/pattern/replacement`
+
+    # Change a key to uppercase, another to lowercase
+    >>> ExtendedFormatter().format("{ab!u}_bla_{cd!l}_bli", ab="tOt", cd='BaR')
+    'TOT_bla_bar_bli'
+
+    # Missing key raises a KeyError exception
+    >>> ExtendedFormatter().format("{ab!u}_bla_{cd!l}_bli_{ef}", ab="tOt", cd='BaR')
+    Traceback (most recent call last):
+        ...
+    KeyError: 'ef'
+
+    # Use format specifiers to reduce an expansion, and to pad with selected characters, right or left
+    >>> ExtendedFormatter().format("{ab:_<5}_bla_{cd:.2}_bli", ab="tOt", cd='BaR')
+    'tOt___bla_Ba_bli'
+    >>> ExtendedFormatter().format("{ab:X>5}_bla_{cd:.2}_bli", ab="tOt", cd='BaR')
+    'XXtOt_bla_Ba_bli'
+
+    # Mix in format specifier and case changing through conversion field
+    >>> ExtendedFormatter().format("{ab!u:_>5}_bla_{cd!l:.2}_bli", ab="tOt", cd='BaR')
+    '__TOT_bla_ba_bli'
+
+    """
+    def convert_field(self, value, conversion):
+        """
+        Override :meth:`string.Formatter.convert_field` to support ``!l``,``!u``, ``!c``.
+        """
+        # logging.debug(f"convert {value=} with: {conversion=}")
+        if conversion == 'u':
+            return value.upper()
+        elif conversion == 'l':
+            return value.lower()
+        elif conversion == 'c':
+            return value.capitalize()
+        return super().convert_field(value, conversion)
+
+
+class ResilientFormatter2(ExtendedFormatter):
     """
     Very similar to :class:`_PartialFormatHelper` or :class:`_FormatOrGlobHelper`, except we can
-    choose the replacement text.
+    choose the replacement text. Unlike other text formatters, it never throws :class:`KeyError`
+    exceptions.
 
+    It also support the new conversion fields.
+
+    # Basic test: replace one key, leave the other with "{keyname}"
     >>> s = "{ab}_bla_{cd}"
     >>> ResilientFormatter2().format(s, ab="tot")
     'tot_bla_{cd}'
 
+    # Basic test: replace one key, leave the other with the default glob pattern "*"
     >>> ResilientFormatter2("*").format(s, ab="tot")
     'tot_bla_*'
 
+    # Basic test: replace one key, leave the other with the default regex pattern ".*"
     >>> ResilientFormatter2(".*").format(s, ab="tot")
     'tot_bla_.*'
 
+    # Change a key to uppercase, another to lowercase, with default {unknownkey}
     >>> ResilientFormatter2().format("{ab!u}_bla_{cd!l}_bli_{ef}", ab="tOt", cd='BaR')
     'TOT_bla_bar_bli_{ef}'
 
+    # Change a key to uppercase, another to lowercase, with default regex pattern ".*"
     >>> ResilientFormatter2(".*").format("{ab!u}_bla_{cd!l}_bli_{ef}", ab="tOt", cd='BaR')
     'TOT_bla_bar_bli_.*'
 
-    >>> ResilientFormatter2(".*").format("{ab!u}_bla_{cd!l:.2}_bli_{ef}", ab="tOt", cd='BaR')
-    'TOT_bla_ba_bli_.*'
+    # Use format specifiers to reduce an expansion, and to pad with selected characters, right or left
+    >>> ResilientFormatter2(".*").format("{ab:_<5}_bla_{cd:.2}_bli_{ef}", ab="tOt", cd='BaR')
+    'tOt___bla_Ba_bli_.*'
+    >>> ResilientFormatter2(".*").format("{ab:X>5}_bla_{cd:.2}_bli_{ef}", ab="tOt", cd='BaR')
+    'XXtOt_bla_Ba_bli_.*'
+
+    # Mix in format specifier and case changing through conversion field
+    >>> ResilientFormatter2(".*").format("{ab!u:_>5}_bla_{cd!l:.2}_bli_{ef}", ab="tOt", cd='BaR')
+    '__TOT_bla_ba_bli_.*'
+
+    # This time there is no value associated to the key, and the default/{key}  text shall not be altered
+    >>> ResilientFormatter2().format("{ab!u}_bla_{cd!l:.2}_bli_{longkey!l:.3}", ab="tOt", cd='BaR')
+    'TOT_bla_ba_bli_{longkey}'
     """
+
+    class Missing:
+        """
+        Helper class to trick the formatter into passing around "values" that don't get reformatted
+        through :meth:`string.Formatter.format_field` or :meth:`string.Formatter.convert_field`.
+        """
+
+        def __init__(self, repl):
+            self._repl = repl
+
+        def __format__(self, format_spec: str, /) -> str:
+            return self._repl
+
+        def lower(self) -> Missing:
+            return self
+
+        def upper(self) -> Missing:
+            return self
+
+        def capitalize(self) -> Missing:
+            return self
+
     def __init__(self, default: Optional[str] = None):
         """
         constructor
@@ -159,20 +251,22 @@ class ResilientFormatter2(Formatter):
 
     def default(self, key):
         """
-        Getter to default replacement
+        Getter to default replacement or "{key}" string if `default` is unset.
         """
-        return self.__default if self.__default is not None else "{" + key + "}"
-
-    def convert_field(self, value, conversion):
-        logging.debug(f"convert {value=} with: {conversion=}")
-        if conversion == 'u':
-            return value.upper()
-        elif conversion == 'l':
-            return value.lower()
-        return super(ResilientFormatter2, self).convert_field(value, conversion)
+        return self.__default if self.__default is not None else f"{{{key}}}"
 
     def get_value(self, key, args, kwargs):
+        """
+        Replace :meth:`string.Formatter.get_value` to return an instance of :class:`Missing` when a
+        `key` is unknown.
+
+        In that case the :class:`Missing` instance will have a (default) string value that stays
+        unaffected by `conversion fields` and by `format specifiers`.
+        """
+        # logging.debug(f"convert {key=} with: {args=} -- {kwargs=}")
         if isinstance(key, int):
             return args[key]
         else:
-            return kwargs.get(key, self.default(key))
+            return kwargs.get(key, self.Missing(self.default(key)))
+
+ResilientFormatter = ResilientFormatter2
