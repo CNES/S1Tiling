@@ -52,6 +52,8 @@ Feature: Dependencies and Tasks
             | naming_policy    |builds        | a  |
             | with_calibration |doesn't build | no |
             | with_calibration |builds        | a  |
+            | theia            |builds        | a  |
+            | theia            |doesn't build | no |
 
 
     Scenario Outline: Orthorectify and concatenate a single S1 image
@@ -71,6 +73,8 @@ Feature: Dependencies and Tasks
             | naming_policy    |builds        | a  |
             | with_calibration |doesn't build | no |
             | with_calibration |builds        | a  |
+            | theia            |builds        | a  |
+            | theia            |doesn't build | no |
 
     Scenario Outline: Orthorectify a single S1 image and concatenate it to a tmp FullOrtho
         Given that <builds> masks
@@ -90,6 +94,8 @@ Feature: Dependencies and Tasks
             | naming_policy    |builds        | a  |
             | with_calibration |doesn't build | no |
             | with_calibration |builds        | a  |
+            | theia            |builds        | a  |
+            | theia            |doesn't build | no |
 
     Scenario Outline: concatenate two tmp FullOrtho
         Given that <builds> masks
@@ -108,6 +114,8 @@ Feature: Dependencies and Tasks
             | naming_policy    |builds        | a  |
             | with_calibration |doesn't build | no |
             | with_calibration |builds        | a  |
+            | theia            |builds        | a  |
+            | theia            |doesn't build | no |
 
     Scenario Outline: concatenate a single tmp FullOrtho
         Given that <builds> masks
@@ -126,6 +134,8 @@ Feature: Dependencies and Tasks
             | naming_policy    |builds        | a  |
             | with_calibration |doesn't build | no |
             | with_calibration |builds        | a  |
+            | theia            |builds        | a  |
+            | theia            |doesn't build | no |
 
     # Other alternate scenarios:
     # x2 for masks

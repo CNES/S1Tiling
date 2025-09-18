@@ -65,6 +65,11 @@ def to_datetime(s: str) -> datetime:
     return datetime.strptime(s, '%Y:%m:%d %H:%M:%S')
 
 
+@pytest.fixture
+def naming_policy() -> str:
+    return 'with_calibration'
+
+
 # ======================================================================
 # Full processing versions
 # ======================================================================
@@ -301,6 +306,7 @@ k_calib_convert = {
 def mock_upto_concat_S2(
         application_mocker: OTBApplicationsMockContext,
         file_db           : FileDB,
+        naming_policy     : str,
         calibration       : str,
         N                 : int,
         old_IPF           : bool=False
@@ -312,7 +318,7 @@ def mock_upto_concat_S2(
         input_file = file_db.input_file_vv(i)
         # expected_ortho_file = file_db.orthofile(i, False)
 
-        orthofile = file_db.orthofile(i, True, calibration=f'_{raw_calibration}')
+        orthofile = file_db.orthofile(i, True, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
         assert f'_{raw_calibration}' in orthofile
         assert '__' not in orthofile
 
@@ -450,14 +456,14 @@ def mock_upto_concat_S2(
             #     })
     else:
         for i in range((N+1)//2):
-            orthofile1 = file_db.orthofile(2*i,   False, calibration=f'_{raw_calibration}')
-            orthofile2 = file_db.orthofile(2*i+1, False, calibration=f'_{raw_calibration}')
+            orthofile1 = file_db.orthofile(2*i,   False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
+            orthofile2 = file_db.orthofile(2*i+1, False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
             application_mocker.set_expectations(
                 'Synthetize',
                 {
                     'ram'      : param_ram(2048),
                     'il'       : [orthofile1, orthofile2],
-                    'out'      : file_db.concatfile_from_two(i, True, calibration=f'_{calibration}'),
+                    'out'      : file_db.concatfile_from_two(i, True, naming_policy=naming_policy, calibration=f'_{calibration}'),
                 }, None,
                 {
                     'ACQUISITION_DATETIME'     : file_db.start_time_for_two(i),
@@ -471,28 +477,28 @@ def mock_upto_concat_S2(
             )
 
 
-def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibration, N):
+def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibration, N, naming_policy):
     k_calibration_table = {
         'normlim'          : 'NormLim',
         'gamma_naught_rtc':  'GammaNaughtRTC',
     }
     raw_calibration = k_calibration_table.get(calibration, calibration)
     if N >= 2:
-        outfile = lambda idx, tmp, calibration: file_db.maskfile_from_two(idx, tmp, calibration=calibration)
+        outfile = lambda idx, tmp, calibration: file_db.maskfile_from_two(idx, tmp, naming_policy=naming_policy, calibration=calibration)
         if calibration == 'normlim':
-            infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_two(idx, tmp)
+            infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_two(idx, tmp, naming_policy=naming_policy)
         elif calibration == 'gamma_naught_rtc':
-            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_two(idx, tmp)
+            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_two(idx, tmp, naming_policy=naming_policy)
         else:
-            infile = lambda idx, tmp: file_db.concatfile_from_two(idx, tmp)
+            infile = lambda idx, tmp: file_db.concatfile_from_two(idx, tmp, naming_policy=naming_policy)
     else:
-        outfile = lambda idx, tmp, calibration: file_db.maskfile_from_one(idx//2, tmp, calibration=calibration)
+        outfile = lambda idx, tmp, calibration: file_db.maskfile_from_one(idx//2, tmp, naming_policy=naming_policy, calibration=calibration)
         if calibration == 'normlim':
-            infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_one(idx//2, tmp)
+            infile = lambda idx, tmp: file_db.sigma0_normlim_file_from_one(idx//2, tmp, naming_policy=naming_policy)
         elif calibration == 'gamma_naught_rtc':
-            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_one(idx // 2, tmp)
+            infile = lambda idx, tmp: file_db.gamma0_rtc_file_from_one(idx // 2, tmp, naming_policy=naming_policy)
         else:
-            infile = lambda idx, tmp: file_db.concatfile_from_one(idx//2, tmp)
+            infile = lambda idx, tmp: file_db.concatfile_from_one(idx//2, tmp, naming_policy=naming_policy)
 
     for i in range((N+1) // 2):  # Make sure to iterate even with odd number of inputs
         assert raw_calibration
@@ -1333,7 +1339,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
     )
 
 
-def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 sigma0 calibrated images.
 
@@ -1393,8 +1399,8 @@ def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker):
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'sigma', 2, old_IPF=True)
-    mock_masking(application_mocker, file_db, 'sigma', 2)
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='sigma', N=2, old_IPF=True)
+    mock_masking(application_mocker, file_db, 'sigma', 2, naming_policy)
     s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
@@ -1402,7 +1408,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker):
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 sigma0 calibrated images.
     """
@@ -1448,8 +1454,8 @@ def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker):
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'sigma', 1)
-    mock_masking(application_mocker, file_db, 'sigma', 1)
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='sigma', N=1)
+    mock_masking(application_mocker, file_db, 'sigma', 1, naming_policy)
     s1_process(config_opt=configuration, searched_items_per_page=0,
             dryrun=False, debug_otb=True, watch_ram=False,
             debug_tasks=False, cache_before_ortho=False)
@@ -1530,7 +1536,7 @@ def test_33NWB_202001_lia_mocked(tmpdir, demdir, ram, mocker, register_expectati
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1590,9 +1596,9 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'normlim', 2)
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='normlim', N=2)
     mock_LIA_v1_0(application_mocker, file_db)
-    mock_masking(application_mocker, file_db, 'normlim', 2)
+    mock_masking(application_mocker, file_db, 'normlim', 2, naming_policy)
 
     is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
     is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
@@ -1601,11 +1607,11 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
         {
             'ram'      : param_ram(2048),
             'il'       : [
-                file_db.concatfile_from_two(0, False, calibration='_normlim'),
+                file_db.concatfile_from_two(0, False, naming_policy=naming_policy, calibration='_normlim'),
                 file_db.selectedsinLIAfile()
             ],
             'exp'      : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
-            'out'      : file_db.sigma0_normlim_file_from_two(0, True),
+            'out'      : file_db.sigma0_normlim_file_from_two(0, True, naming_policy=naming_policy),
         }, None,
         {
             'CALIBRATION'              : 'Normlim',
@@ -1613,7 +1619,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
             'LIA_FILE'                 : os.path.basename(file_db.selectedsinLIAfile()),
             'TIFFTAG_IMAGEDESCRIPTION' : 'Sigma0 Normlim Calibrated Sentinel-1A IW GRD',
         },
-        {file_db.concatfile_from_two(0, False, calibration='_normlim')},
+        {file_db.concatfile_from_two(0, False, naming_policy=naming_policy, calibration='_normlim')},
     )
 
     s1_process(
@@ -1625,7 +1631,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1690,14 +1696,14 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker)
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='normlim', N=number_dates*2)  # 2x2 inputs images
     mock_LIA_v1_0(application_mocker, file_db)  # always N=2
-    mock_masking(application_mocker, file_db, 'normlim', number_dates*2)  # 2x2 inputs images
+    mock_masking(application_mocker, file_db, 'normlim', number_dates*2, naming_policy)  # 2x2 inputs images
 
     is_nodata_SAR_bandmath = Utils.test_nodata_for_bandmath(bandname='im1b1', nodata=nodata_SAR)
     is_nodata_LIA_bandmath = Utils.test_nodata_for_bandmath(bandname='im2b1', nodata=nodata_LIA)
     for idx in range(number_dates):
-        s2_input = file_db.concatfile_from_two(idx, False, calibration='_normlim')
+        s2_input = file_db.concatfile_from_two(idx, False, naming_policy=naming_policy, calibration='_normlim')
         application_mocker.set_expectations(
             'BandMath',
             {
@@ -1707,7 +1713,7 @@ def test_33NWB_202001_normlim_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker)
                     file_db.selectedsinLIAfile()
                 ],
                 'exp' : f'({is_nodata_LIA_bandmath} || {is_nodata_SAR_bandmath}) ? {nodata_SAR} : max(1e-07, im1b1*im2b1)',
-                'out' : file_db.sigma0_normlim_file_from_two(idx, True),
+                'out' : file_db.sigma0_normlim_file_from_two(idx, True, naming_policy=naming_policy),
             }, None,
             {
                 'CALIBRATION'              : 'Normlim',
@@ -1790,7 +1796,7 @@ def test_33NWB_202001_gamma_area_mocked(
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1848,11 +1854,11 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', 2)
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='gamma_naught_rtc', N=2)
     mock_GAMMA_AREA_v1_2(application_mocker, file_db)
-    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', 2)
+    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', 2, naming_policy)
 
-    insigmanaught = file_db.concatfile_from_two(0, False, calibration='_gamma_naught_rtc')
+    insigmanaught = file_db.concatfile_from_two(0, False, naming_policy=naming_policy, calibration='_gamma_naught_rtc')
     application_mocker.set_expectations(
         'SARGammaAreaToGammaNaughtRTCImageEstimation',
         {
@@ -1864,7 +1870,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
             'streaming'     : 'enable',
             'outputnodata'  : False,
             'nodata'        : '0',
-            'out'           : file_db.gamma0_rtc_file_from_two(0, True),
+            'out'           : file_db.gamma0_rtc_file_from_two(0, True, naming_policy=naming_policy),
         }, None, {
             'CALIBRATION'              : 'GammaNaughtRTC',
             'GAMMA_AREA_FILE'          : os.path.basename(file_db.selectedGAMMA_AREAfile()),
@@ -1880,7 +1886,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_one_date(tmpdir, demdir, ram,
     application_mocker.assert_all_metadata_match()
 
 
-def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker):
+def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 normlim calibrated images.
     """
@@ -1943,12 +1949,12 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
         return meta
     mocker.patch('s1tiling.libs.otbwrappers.AnalyseBorders.complete_meta', mock__AnalyseBorders_complete_meta)
 
-    mock_upto_concat_S2(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
+    mock_upto_concat_S2(application_mocker, file_db, naming_policy=naming_policy, calibration='gamma_naught_rtc', N=number_dates*2)  # 2x2 inputs images
     mock_GAMMA_AREA_v1_2(application_mocker, file_db)  # always N=2
-    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2)  # 2x2 inputs images
+    mock_masking(application_mocker, file_db, 'gamma_naught_rtc', number_dates*2, naming_policy)  # 2x2 inputs images
 
     for idx in range(number_dates):
-        insigmanaught = file_db.concatfile_from_two(idx, False, calibration='_gamma_naught_rtc')
+        insigmanaught = file_db.concatfile_from_two(idx, False, naming_policy=naming_policy, calibration='_gamma_naught_rtc')
         application_mocker.set_expectations(
             'SARGammaAreaToGammaNaughtRTCImageEstimation',
             {
@@ -1960,7 +1966,7 @@ def test_33NWB_202001_gamma_naught_rtc_v1_0_mocked_all_dates(tmpdir, demdir, ram
                 'calibfactor'   : 1.0,
                 'outputnodata'  : False,
                 'nodata'        : '0',
-                'out'           : file_db.gamma0_rtc_file_from_two(idx, True),
+                'out'           : file_db.gamma0_rtc_file_from_two(idx, True, naming_policy=naming_policy),
             }, None, {
                 'CALIBRATION'             : 'GammaNaughtRTC',
                 'GAMMA_AREA_FILE'         : os.path.basename(file_db.selectedGAMMA_AREAfile()),
