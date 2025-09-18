@@ -276,8 +276,17 @@ def gamma_naught_rtc_concatfile(idx, polarity) -> str:
 
 resource_dir = Path(__file__).parent.parent.parent.absolute() / 's1tiling/resources'
 
+# Various naming policies
+CONCATENATION_NAMING = {
+    # Use "_beta" in mocked tests
+    'with_calibration': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+
+    # Theia fname_fmt: S1A_L1ORT_47PNR_VH_SIG_DES_135_20230112T122356
+    'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
+}
+
 class Configuration():
-    def __init__(self, tmpdir, outputdir, liadir, gamma_areadir, *argv) -> None:
+    def __init__(self, tmpdir, outputdir, liadir, gamma_areadir, naming_policy, *argv) -> None:
         """
         constructor
         """
@@ -319,8 +328,7 @@ class Configuration():
         self.lower_signal_value                = 1e-7
         self.nodatas                           = { 'SAR': 0, 'LIA': None }
         self.fname_fmt                         = {
-                # Use "_beta" in mocked tests
-                'concatenation' : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+            'concatenation' : CONCATENATION_NAMING[naming_policy],
         }
         self.dname_fmt                         = {}
         self.creation_options                  = {}
@@ -348,14 +356,25 @@ def known_files() -> List[str]:
     kf = []
     return kf
 
-@pytest.fixture()
+@pytest.fixture
 def expected_files_id() -> List[int]:
     ex = []
     return ex
 
 @pytest.fixture
-def configuration(known_files, mocker) -> Configuration:
-    config = Configuration(tmpdir=TMPDIR, outputdir=OUTPUT, liadir=LIADIR, gamma_areadir=GAMMA_AREADIR)
+def naming_policy() -> str:
+    return 'with_calibration'
+
+
+@pytest.fixture
+def configuration(known_files, mocker, naming_policy) -> Configuration:
+    config = Configuration(
+        tmpdir=TMPDIR,
+        outputdir=OUTPUT,
+        liadir=LIADIR,
+        gamma_areadir=GAMMA_AREADIR,
+        naming_policy=naming_policy,
+    )
     # Let's always register GeoidFile
     known_files.append(os.path.join(config.tmpdir, 'geoid', config.GeoidFile))
     mocker.patch('os.path.isfile', lambda f: isfile(f, known_files))
@@ -390,7 +409,19 @@ def tasks() -> Dict:
 # ======================================================================
 # Given steps
 
-@given(parsers.parse('A pipeline that {calibration_id} calibrates and orthorectifies'), target_fixture="calibration")
+@given(
+    parsers.parse('{policy} naming policy'),
+    target_fixture='naming_policy',
+)
+def given_naming_policy(policy) -> str:
+    assert policy in CONCATENATION_NAMING
+    return policy
+
+
+@given(
+    parsers.parse('A pipeline that {calibration_id} calibrates and orthorectifies'),
+    target_fixture="calibration"
+)
 def given_pipeline_ortho(pipelines, pipeline_ids, calibration_id) -> str:
     pipelines.register_inputs('basename', s1_raster_first_inputs_factory)
     pipeline = pipelines.register_pipeline(

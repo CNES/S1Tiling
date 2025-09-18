@@ -31,6 +31,7 @@ Feature: Dependencies and Tasks
     to deduce tasks to execute
 
     Background:
+        Given <naming_policy> naming policy
         Given A pipeline that sigma calibrates and orthorectifies
         And   that concatenates
 
@@ -48,9 +49,9 @@ Feature: Dependencies and Tasks
         And   two orthorectification tasks are registered
 
         Examples:
-            |builds        | a  |
-            |doesn't build | no |
-            |builds        | a  |
+            | naming_policy    |builds        | a  |
+            | with_calibration |doesn't build | no |
+            | with_calibration |builds        | a  |
 
 
     Scenario Outline: Orthorectify and concatenate a single S1 image
@@ -67,9 +68,9 @@ Feature: Dependencies and Tasks
         But   dont orthorectify the second product
 
         Examples:
-            |builds        | a  |
-            |doesn't build | no |
-            |builds        | a  |
+            | naming_policy    |builds        | a  |
+            | with_calibration |doesn't build | no |
+            | with_calibration |builds        | a  |
 
     Scenario Outline: Orthorectify a single S1 image and concatenate it to a tmp FullOrtho
         Given that <builds> masks
@@ -86,9 +87,9 @@ Feature: Dependencies and Tasks
         And   it depends on the existing FullOrtho tmp product
 
         Examples:
-            |builds        | a  |
-            |doesn't build | no |
-            |builds        | a  |
+            | naming_policy    |builds        | a  |
+            | with_calibration |doesn't build | no |
+            | with_calibration |builds        | a  |
 
     Scenario Outline: concatenate two tmp FullOrtho
         Given that <builds> masks
@@ -104,9 +105,9 @@ Feature: Dependencies and Tasks
         And   it depends on two existing FullOrtho tmp products
 
         Examples:
-            |builds        | a  |
-            |doesn't build | no |
-            |builds        | a  |
+            | naming_policy    |builds        | a  |
+            | with_calibration |doesn't build | no |
+            | with_calibration |builds        | a  |
 
     Scenario Outline: concatenate a single tmp FullOrtho
         Given that <builds> masks
@@ -122,9 +123,9 @@ Feature: Dependencies and Tasks
         And   it depends on the existing FullOrtho tmp product
 
         Examples:
-            |builds        | a  |
-            |doesn't build | no |
-            |builds        | a  |
+            | naming_policy    |builds        | a  |
+            | with_calibration |doesn't build | no |
+            | with_calibration |builds        | a  |
 
     # Other alternate scenarios:
     # x2 for masks
