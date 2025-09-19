@@ -584,7 +584,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
     return res
 
 
-def _update_out_filename(updated_meta, with_meta) -> None:
+def _update_out_filename(updated_meta, with_meta: TaskInputInfo) -> None:
     """
     Helper function to update the `out_filename` from metadata.
     Meant to be used metadata associated to products made of several inputs like Concatenate.

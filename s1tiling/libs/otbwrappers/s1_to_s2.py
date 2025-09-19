@@ -36,7 +36,7 @@ the pipeline for S1Tiling needs.
 import logging
 import os
 import re
-from typing import Dict, List, Union
+from typing import Dict, List, Protocol, Union, cast
 from packaging import version
 
 import numpy as np
@@ -49,7 +49,7 @@ from ..meta import (
         Meta, get_task_name, in_filename, out_filename,
 )
 from ..steps import (
-        InputList, OTBParameters,
+        FirstStep, InputList, MergeStep, OTBParameters,
         _check_input_step_type,
         AbstractStep, StepFactory,
         OTBStepFactory,
@@ -78,6 +78,12 @@ from ._applications import (
 from .helpers        import does_sin_lia_match_s2_tile_for_orbit
 
 logger = logging.getLogger('s1tiling.wrappers')
+
+
+class InputStep(Protocol):
+    @property
+    def input_metas(self) -> List[Meta]:
+        return []
 
 
 def has_too_many_NoData(image, threshold: int, nodata: Union[float, int]) -> bool:
@@ -652,9 +658,8 @@ class Concatenate(_ConcatenatorFactory):
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
         """
         This hook will be triggered everytime a new compatible input is added.
-        The effect is quite unique to :class:`Concatenate` as the name of the
-        output product depends on the number of inputs are their common
-        acquisition date.
+        The effect is quite unique to :class:`Concatenate` as the name of the output product depends
+        on the number of inputs are their common acquisition date.
         """
         # logger.debug('UPDATING %s from %s', meta['task_name'], meta)
         was = meta['out_filename']
@@ -662,20 +667,42 @@ class Concatenate(_ConcatenatorFactory):
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['basename']           = self._get_nominal_output_basename(meta)
-        logger.debug("concatenation.out_tmp_filename for %s updated to %s (previously: %s)", meta['task_name'], meta['out_filename'], was)
-        # Remove acquisition_time that no longer makes sense
+        meta['acquisition_start']  = min((m['acquisition_time'] for m in with_task_info.input_metas))
+        logger.debug(
+            "concatenation.out_tmp_filename for %s updated to %s (previously: %s) ; acquisition_start: %s",
+            meta['task_name'], meta['out_filename'], was, meta['acquisition_start'])
+        # Remove acquisition_time that no longer makes sense, use either acquisition_stamp or acquisition_start
         meta.pop('acquisition_time', None)
 
     def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
         in_file = out_filename(meta)
         if isinstance(in_file, list):
             meta['acquisition_stamp'] = meta['acquisition_day']
-            # Remove acquisition_time that no longer makes sense
+            # Remove acquisition_time that no longer makes sense, use either acquisition_stamp or acquisition_start
             meta.pop('acquisition_time', None)
-            # logger.debug("Concatenation result of %s goes into %s", in_file, meta['basename'])
+            logger.debug("Concatenation result of %s goes into %s", in_file, meta['basename'])
         else:
             meta['acquisition_stamp'] = meta['acquisition_time']
             logger.debug("Only one file to concatenate, just move it (%s)", in_file)
+
+        if 'inputs' in meta:
+            inputs : InputList = meta['inputs']
+            input_step = self._get_canonical_input(inputs)  # input_metas in FirstStep, MergeStep
+            assert isinstance(input_step, (FirstStep, MergeStep))
+            # for inp in inputs:
+            #     for key, step in inp.items():
+            #         logger.debug("input %r is %s -> %s", key, step.__class__.__name__, step)
+            #         assert isinstance(step, (FirstStep, MergeStep))
+            #         for sub_meta in step.input_metas:
+            #             logger.debug('input acq: %s', sub_meta['acquisition_time'])
+            meta['acquisition_start'] = min(
+                ( sub_meta['acquisition_time']
+                 for sub_meta in cast(InputStep, input_step).input_metas)
+            )
+        else:
+            meta['acquisition_start'] = meta['acquisition_time']
+        logger.debug('task for %s acquisition_start found at: %s', in_file, meta['acquisition_start'])
+
         return meta
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
@@ -708,6 +735,7 @@ class Concatenate(_ConcatenatorFactory):
         assert 'image_metadata' in meta
         imd = meta['image_metadata']
         imd['IMAGE_TYPE'] = 'BACKSCATTERING'
+        # imd['debug_acquisition_start'] = meta['acquisition_start']
 
 
 # ----------------------------------------------------------------------
