@@ -100,44 +100,12 @@ def s2_tile_extent(tile_name: str, tile_origin: Utils.Polygon, in_epsg: int, spa
     }
 
 
-class RenamerStep(AnyProducerStep):
-    def __init__(
-        self,
-        cfg: Configuration,
-        gen_output_filename: str,
-        *args,
-        **kwargs
-    ) -> None:
-        assert 'action' not in kwargs, f"Following action in meta: {kwargs['action']=}"
-        super().__init__(  # type: ignore # mypy issue 4335
-            # cfg,
-            gen_tmp_dir=os.path.join(cfg.tmpdir, cfg.tmp_dem_dir),
-            gen_output_dir=None,  # Use gen_tmp_dir,
-            gen_output_filename=gen_output_filename,
-            name="Rename",
-            action=RenamerStep.rename,
-            *args,
-            **kwargs,
-        )
-        # TODO: make sure that tmp_filename is input
-
-    def parameters(self, meta: Meta) -> ExeParameters:
-        # While it won't make much a difference here, we are still using tmp_filename.
-        return [in_filename(meta), out_filename(meta)]
-
-    @staticmethod
-    def rename(parameters: ExeParameters, dryrun: bool) -> None:
-        # Renaming shall be done in commit_execution!!!
-        src, dst = parameters
-        logger.critical('Renaming %r into %r', src, dst)
-        if not dryrun:
-            shutil.move(src, dst)
-
-
 class _ConcatenatorFactory(OTBStepFactory):
     """
     Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
     described in :ref:`Concatenation` documentation.
+
+    In the case no concatenation is required, the input file will be move to the expected product.
 
     Requires the following information from the configuration object:
 
@@ -165,14 +133,13 @@ class _ConcatenatorFactory(OTBStepFactory):
             pixel_type=pixel_type,
             *args, **kwargs
         )
-        self.__cfg = cfg
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
         Precompute output basename from the input file(s).
 
-        In concatenation case, the task_name needs to be overridden to stay
-        unique and common to all inputs.
+        In concatenation case, the task_name needs to be overridden to stay unique and common to all
+        inputs.
 
         Also, inject files to remove
         """
@@ -224,54 +191,43 @@ class _ConcatenatorFactory(OTBStepFactory):
         input_step: AbstractStep,
         meta: Meta
     ) -> AbstractStep:
-        # inputs = self._get_inputs(previous_steps)
-        # inp    = self._get_canonical_input(inputs)
-
+        """
+        Overrides default implementation of
+        :meth:`s1tiling.libs.steps.OTBStepFactory._do_create_actual_step` to return and execute an
+        :class:`s1tiling.libs.steps.AnyProducerStep` when there is only one orthorectified input
+        product, and thus when no actual concatenation is required.
+        """
+        # Nominal case: two products will be concatenated
         if not isinstance(input_step.out_filename, str):
             return super()._do_create_actual_step(execution_parameters, input_step, meta)
 
+        # Corner case: there is only product, it will be renamed
         concat_in_filename = input_step.out_filename
-        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        # meta = self.complete_meta(input_step.meta, inputs)
-        logger.critical('EXPECT to rename %s into %s', concat_in_filename, out_filename(meta))
-        res = RenamerStep(self.__cfg, out_filename(meta), **meta)
+        logger.debug('By-passing concatenation of %r as there is only a single orthorectified tile to concatenate.', concat_in_filename)
+        res = AnyProducerStep(action=_ConcatenatorFactory.rename, **meta)
+
+        # We do rename to temporary filename: it will be used later on in the update_image_metadata
+        # and the commit_execution phases
+        # While it may appear unnecessary, the `rename` action renames to the :meth:`tmp_filename`.
+        # - It simplifies the integration in the kernel,
+        # - It permits update image metadata
         parameters = [concat_in_filename, tmp_filename(meta)]
+
+        # Make sure the renaming is done now
         res.execute_and_write_output(parameters, execution_parameters)
         return res
 
-    ### def create_step(
-    ###         self,
-    ###         execution_parameters: Dict,
-    ###         previous_steps: List[InputList]
-    ### ) -> AbstractStep:
-    ###     """
-    ###     :func:`create_step` is overridden in :class:`Concatenate` case in
-    ###     order to by-pass Concatenation in case there is only a single file.
-    ###     """
-    ###     inputs = self._get_inputs(previous_steps)
-    ###     inp    = self._get_canonical_input(inputs)
-    ###     # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
-    ###     if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
-    ###         # This situation should not happen any more, we now a single string as inp.
-    ###         # The code is kept in case s1tiling kernel changes again.
-    ###         concat_in_filename = inp.out_filename[0]
-    ###     elif isinstance(inp.out_filename, str):
-    ###         concat_in_filename = inp.out_filename
-    ###     else:
-    ###         return super().create_step(execution_parameters, previous_steps)
-    ###     # Back to a single file inp case
-    ###     logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-    ###     meta = self.complete_meta(inp.meta, inputs)
-    ###     logger.critical('EXPECT to rename %s into %s', concat_in_filename, out_filename(meta))
-    ###     assert 'action' not in meta, f"Following action in meta: {meta['action']=}"
-    ###     return RenamerStep(self.__cfg, out_filename(meta), **meta)
-
-    ###     dryrun = is_running_dry(execution_parameters)
-    ###     res = AbstractStep(**meta)
-    ###     logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-    ###     if not dryrun:
-    ###         shutil.move(concat_in_filename, res.out_filename)
-    ###     return res
+    @staticmethod
+    def rename(parameters: ExeParameters, dryrun: bool) -> None:
+        """
+        ``action`` meant to be registered in an :class:`s1tiling.libs.steps.AnyProducerStep`.
+        It takes care of renaming a product when there is only orthorectified product and no need
+        for concatenation.
+        """
+        src, dst = parameters
+        logger.critical('Renaming %r into %r', src, dst)
+        if not dryrun:
+            shutil.move(src, dst)
 
 
 class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):
