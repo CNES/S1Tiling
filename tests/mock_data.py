@@ -637,7 +637,7 @@ class FileDB:
         )
 
     # ----------[ concat
-    def _concatfile_for_all(self, crt, tmp, naming_policy, polarity, calibration) -> str:
+    def _concatfile_for_all(self, crt, tmp, naming_policy, polarity, calibration, ext) -> str:
         if tmp or (calibration in k_calib_convert):
             calibration = k_calib_convert.get(calibration, calibration)
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> TMP', tmp, calibration)
@@ -646,7 +646,6 @@ class FileDB:
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT ==> %r', tmp, calibration, dir)
-        ext = self.extended_compress_predictor if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
         formatter = ExtendedFormatter()
         return formatter.format(
@@ -663,10 +662,11 @@ class FileDB:
         )
     def concatfile_from_one(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
-        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration)
+        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration, ext='')
     def concatfile_from_two(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.CONCATS[idx]
-        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration)
+        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration, ext=ext)
 
     def filtered_from_two(self, idx, tmp, extra, naming_policy, polarity, calibration, dir) -> str:
         crt = self.CONCATS[idx]
