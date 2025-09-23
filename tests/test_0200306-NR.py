@@ -58,7 +58,7 @@ from s1tiling.libs.api         import (
     s1_process_gamma_area, register_GAMMA_AREA_pipelines,
 )
 from s1tiling.libs.steps       import ram as param_ram
-from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders
+from s1tiling.libs.otbwrappers import AgglomerateDEMOnS1, AgglomerateDEMOnS2, AnalyseBorders, Concatenate
 
 
 def to_datetime(s: str) -> datetime:
@@ -445,15 +445,21 @@ def mock_upto_concat_S2(
             })
 
     if N == 1:
-        # If this case, there is not a Synthetize but a call to rename.
-        pass
-        # TODO: expect call of rename, and update of metadata!
-            # {
-            #     'ACQUISITION_DATETIME'     : file_db.start_time(0),
-            #     'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
-            #     'INPUT_S1_IMAGES'          : file_db.product_name(0),
-            #     'TIFFTAG_IMAGEDESCRIPTION' : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
-            #     })
+        # In this case, there is not a Synthetize but a call to rename.
+        orthofile = file_db.orthofile(0,   False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
+        out       = file_db.concatfile_from_one(0, True, naming_policy=naming_policy, calibration=f'_{calibration}')
+        application_mocker.set_expectations(
+            Concatenate.rename,
+            [orthofile, out],
+            None,
+            {
+                # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
+                # 'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
+                'IMAGE_TYPE'               : 'BACKSCATTERING',
+                'INPUT_S1_IMAGES'          : file_db.product_name(0),
+                'TIFFTAG_IMAGEDESCRIPTION' : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',
+            }
+        )
     else:
         for i in range((N+1)//2):
             orthofile1 = file_db.orthofile(2*i,   False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
