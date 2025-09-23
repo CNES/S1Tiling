@@ -173,6 +173,8 @@ class _ConcatenatorFactory(OTBStepFactory):
                 imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
         else:
             imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
+            acq_time = Utils.extract_product_start_time(os.path.basename(imd['INPUT_S1_IMAGES']))
+            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -180,9 +182,9 @@ class _ConcatenatorFactory(OTBStepFactory):
         <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : in_filename(meta),
-                # self.param_out     : out_filename(meta),
+            'ram'              : ram(self.ram_per_process),
+            self.param_in      : in_filename(meta),
+            # self.param_out     : out_filename(meta),
         }
 
     def _do_create_actual_step(

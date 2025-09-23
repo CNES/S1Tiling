@@ -453,7 +453,7 @@ def mock_upto_concat_S2(
             [orthofile, out],
             None,
             {
-                # 'ACQUISITION_DATETIME'     : file_db.start_time(0),
+                'ACQUISITION_DATETIME'     : file_db.start_time(0),
                 # 'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
                 'IMAGE_TYPE'               : 'BACKSCATTERING',
                 'INPUT_S1_IMAGES'          : file_db.product_name(0),
