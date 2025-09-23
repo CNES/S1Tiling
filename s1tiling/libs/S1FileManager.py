@@ -295,7 +295,7 @@ def _filter_s1_images_required_for_expected_s2_product(  # pylint: disable=too-m
     for dname_fmt, fname_fmt in name_formats:
         # NB replace unknown keys with ".*"
         output_product_pat = ResilientFormatter('.*').format(
-            regex_escape_dot(fname_fmt),
+            regex_escape_dot(fname_fmt),  # Need to escape dots, but not in keys!!!
             **fname_options,
         )
         existing_output_products.extend(

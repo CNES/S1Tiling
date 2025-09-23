@@ -620,20 +620,38 @@ def regex_filter(l: Sequence[str], re_pattern: Union[str, re.Pattern[str]], **kw
     """
     return [e for e in l if re.match(re_pattern, e, **kwargs)]
 
+# Using negative look-ahead to match any dot, not followed by a '}' (without any '{' in between).
+# Hence the "bug" on "toto.}tif", situation that shall not happen in our cases -- we could assert
+# that all pairs of {} are balanced...
+RE_DOT_NOT_IN_BRACES = re.compile(r'\.(?![^{]*\})')
+
 
 def regex_escape_dot(s: str) -> str:
     """
     Specialized version of :func:`re.escape()` that only escapes dot characters.
     Typical use case: when we need to build regex from filename formats. In input we have "{tags}"
     that shall stay unmodified, and in output we may have ".*" or "(DEX|ASC)" that shall not be
-    escaped. Yet, "." shall be escaped.
+    escaped. Yet, "." shall be escaped, when not in tags.
+
+    .. precondition:: All pairs of {} shall be balanced -- un-verified
 
     >>> regex_escape_dot("foo_bar")
     'foo_bar'
+
+    >>> regex_escape_dot("file.txt{format:.2f}autre.ext")
+    'file\\\\.txt{format:.2f}autre\\\\.ext'
+
+    >>> regex_escape_dot("{a.b}.{c.d}.txt")
+    '{a.b}\\\\.{c.d}\\\\.txt'
+
     >>> regex_escape_dot("foo.bar")
     'foo\\\\.bar'
+
+    # Buggy case that should not occur in our case
+    >>> regex_escape_dot("toto.}tif")
+    'toto.}tif'
     """
-    return s.replace(".", r"\.")
+    return re.sub(RE_DOT_NOT_IN_BRACES, r'\\.', s)
 
 
 def flatten_stringlist(itr) -> Generator[str, None, None]:
