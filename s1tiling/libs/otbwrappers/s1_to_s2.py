@@ -645,6 +645,7 @@ class Concatenate(_ConcatenatorFactory):
         fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
         self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
+        self.__tname_fmt = fname_fmt.replace('{acquisition_start}', '{acquisition_day}')
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),

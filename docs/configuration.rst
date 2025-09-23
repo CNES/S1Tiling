@@ -510,8 +510,9 @@ You can use this :download:`this template
       If you change any, make sure to not introduce ambiguity by removing a
       field that would be used to distinguish two unrelated products.
 
-      Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`. The main
-      ones of interest are:
+      Available fields come from :func:`internal metadata
+      <s1tiling.libs.steps.StepFactory.complete_meta>`. The main ones of
+      interest are:
 
       .. list-table::
         :widths: auto
@@ -554,6 +555,20 @@ You can use this :download:`this template
             (:samp:`{yymmdd}txxxxxx`)
           - S1/S2
 
+        * - acquisition_start
+          - the full timestamp (:samp:`{yymmdd}t{hhmmss}`) of the first
+            Sentinel-1 input image used in a :ref:`concatenation
+            <concatenation-proc>`
+
+            .. warning::
+
+                This key will never permit starting over the production of S2
+                images where missing a S1 input was not previously detected --
+                which could happen in :ref:`offline mode
+                <DataSource.download>`.
+
+          - S2
+
         * - IA_kind
           - ``IA``/``cos_IA``/``sin_IA``/``tan_IA``
           - S2
@@ -585,6 +600,26 @@ You can use this :download:`this template
             ``polarisation`` field. Used when the product only depends on the
             S1 image geometry and not its content.
           - S1
+
+      .. note::
+
+        :ref:`All Python standard format specifiers <formatspec>` plus extra
+        conversion fields are supported:
+
+        - ``!c`` will capitalize a field -- only the first letter will be in
+          uppercase
+        - ``!l`` will output the field in lowercase
+        - ``!u`` will output the field in uppercase
+
+        .. admonition:: example
+
+            Theia filename format (ex.
+            :file:`S1A_L1ORT_31TCH_VH_SIG_ASC_132_20250218t174708.tif`)
+            would be expressed in the following way:
+
+            .. code:: ini
+
+                fname_fmt.concatenation : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}.tif
 
       .. _Processing.fname_fmt.concatenation:
   * - ``fname_fmt.concatenation``
