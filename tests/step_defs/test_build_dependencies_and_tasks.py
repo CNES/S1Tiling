@@ -285,15 +285,6 @@ ORTHORECTIFICATION_NAMING = {
     'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_time}.tif',
 }
 
-CONCATENATION_NAMING = {
-    # Use "_beta" in mocked tests
-    'with_calibration': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
-
-    # Theia fname_fmt: S1A_L1ORT_47PNR_VH_SIG_DES_135_20230112T122356
-    'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
-}
-
-
 class Configuration():
     def __init__(self, tmpdir, outputdir, liadir, gamma_areadir, naming_policy, *argv) -> None:
         """
@@ -337,7 +328,7 @@ class Configuration():
         self.lower_signal_value                = 1e-7
         self.nodatas                           = { 'SAR': 0, 'LIA': None }
         self.fname_fmt                         = {
-            'concatenation' :      CONCATENATION_NAMING[naming_policy],
+            'concatenation' :      FileDB.CONCATENATION_NAMING[naming_policy],
             'orthorectification' : ORTHORECTIFICATION_NAMING[naming_policy],
         }
         self.dname_fmt                         = {}
@@ -424,7 +415,7 @@ def tasks() -> Dict:
     target_fixture='naming_policy',
 )
 def given_naming_policy(policy) -> str:
-    assert policy in CONCATENATION_NAMING
+    assert policy in FileDB.CONCATENATION_NAMING
     return policy
 
 

@@ -257,6 +257,19 @@ class FileDB:
         'theia'           : 'S1A_L1ORT_33NWB_{polarity!u}{calibration!u:.4}_{orbit_direction}_{orbit}_{time_stamp}',
     }
 
+    CALIBRATION_CONVERTER = {
+        'with_calibration': '{calibration}',
+        'theia'           : '{calibration!u:.3}',
+    }
+
+    CONCATENATION_NAMING = {
+        # Use "_beta" in mocked tests
+        'with_calibration': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+
+        # Theia fname_fmt: S1A_L1ORT_47PNR_VH_SIG_DES_135_20230112T122356
+        'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
+    }
+
     # TILE = '33NWB'
     TILE_DATA = {
         '33NWB': {
