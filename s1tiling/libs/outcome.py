@@ -56,6 +56,7 @@ class Outcome(Generic[Value]):
     - either the filename of task product,
     - or the error message that leads to the task failure.
     """
+
     def __init__(self, value_or_error : Union[Value, BaseException]) -> None:
         """
         constructor
@@ -84,7 +85,7 @@ class Outcome(Generic[Value]):
         assert self.has_value()
         return cast(Value, self.__value_or_error)
 
-    def value_or(self, default : Value) -> Value:
+    def value_or(self, default: Value) -> Value:
         """
         Returns the current value, or ``default`` if the instance holds an error.
         """
@@ -106,7 +107,7 @@ class Outcome(Generic[Value]):
         else:
             return f'Error: {self.error()}'
 
-    def transform(self, f : Callable[[Value], T]) -> Outcome[T]:
+    def transform(self, f: Callable[[Value], T]) -> Outcome[T]:
         """
         Transforms the value, if any. Leave the error unchanged.
 
@@ -128,7 +129,7 @@ class Outcome(Generic[Value]):
         """
         Change the actual error
         """
-        self.__value_or_error    = error
+        self.__value_or_error = error
         return self
 
 
@@ -143,7 +144,8 @@ class PipelineOutcome(Outcome[Value], Generic[Value, File]):
 
     Plus information about the related input files.
     """
-    def __init__(self, value_or_error : Union[Value, BaseException]) -> None:
+
+    def __init__(self, value_or_error: Union[Value, BaseException]) -> None:
         """
         constructor
         """
@@ -203,6 +205,7 @@ class DownloadOutcome(Outcome[Value]):
     - high-level information about the product downloaded,
     - or the error message that leads to the task failure.
     """
+
     pass
 
 
@@ -218,9 +221,9 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
     Plus information about the related eodag product.
     """
     def __init__(
-            self,
-            value_or_error : Union[Value, BaseException],
-            product: Product
+        self,
+        value_or_error : Union[Value, BaseException],
+        product: Product
     ) -> None:
         """
         constructor
