@@ -96,8 +96,17 @@ logger = logging.getLogger('s1tiling.wrappers')
 
 
 class InputStep(Protocol):
+    """
+    Protocol for all input stepts (:class:`FirstStep` and :class:`MergeStep`).
+
+    Their public interface is to expose :meth:`input_metas` that returns a list of :class:`Meta`
+    object for each input step.
+    """
     @property
     def input_metas(self) -> List[Meta]:
+        """
+        Return a list of the :class:`Meta` objects from each input step. 
+        """
         return []
 
 
@@ -683,7 +692,7 @@ class Concatenate(_ConcatenatorFactory):
             pixel_type=cfg_pixel_type(cfg, 'tiled'),
         )
 
-    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:  # pylint: disable=unused-argument
+    def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
         This hook will be triggered everytime a new compatible input is added.
         The effect is quite unique to :class:`Concatenate` as the name of the output product depends

@@ -62,10 +62,10 @@ from .node_queue        import node_queue
 from .outcome           import Outcome, PipelineOutcome, filter_outcome_dict
 from .steps             import (
         AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
-        files_exist,
 )
 # from ..__meta__         import __version__
 from .utils.timer       import timethis
+from .utils.path        import files_exist
 
 
 # Typing hints

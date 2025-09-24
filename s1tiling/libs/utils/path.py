@@ -38,7 +38,7 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import List, Union
+from typing import List, Sequence, Union
 
 
 
@@ -104,3 +104,16 @@ def list_dirs(directory: str, pattern: Union[None,str,re.Pattern] = None) -> Lis
         res = list(filter(filt, nodes))
         logger.debug("RES(%r)= %s", directory, res)
     return res
+
+
+def files_exist(files: Union[AnyPath, Sequence[AnyPath]]) -> bool:
+    """
+    Checks whether a single file, or all files from a list, exist.
+    """
+    if isinstance(files, (str, os.PathLike)):
+        return os.path.isfile(files)
+    else:
+        for file in files:
+            if not os.path.isfile(file):
+                return False
+        return True

@@ -30,12 +30,11 @@
 #
 # =========================================================================
 
-from __future__ import annotations
-
 """Collection of Format Helpers"""
 
+from __future__ import annotations
 
-import logging
+# import logging
 from string import Formatter
 from typing import Optional
 
@@ -234,13 +233,31 @@ class ResilientFormatter2(ExtendedFormatter):
         def __format__(self, format_spec: str, /) -> str:
             return self._repl
 
-        def lower(self) -> Missing:
+        def lower(self) -> ResilientFormatter2.Missing:
+            """
+            Disguises :class:`Missing` instances into :class:`str` instances that support
+            :meth:`str.lower` method.
+
+            In out case, the implementation is a no-op.
+            """
             return self
 
-        def upper(self) -> Missing:
+        def upper(self) -> ResilientFormatter2.Missing:
+            """
+            Disguises :class:`Missing` instances into :class:`str` instances that support
+            :meth:`str.upper` method.
+
+            In out case, the implementation is a no-op.
+            """
             return self
 
-        def capitalize(self) -> Missing:
+        def capitalize(self) -> ResilientFormatter2.Missing:
+            """
+            Disguises :class:`Missing` instances into :class:`str` instances that support
+            :meth:`str.capitalize` method.
+
+            In out case, the implementation is a no-op.
+            """
             return self
 
     def __init__(self, default: Optional[str] = None):

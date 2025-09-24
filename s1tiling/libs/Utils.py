@@ -602,23 +602,23 @@ def get_platform_from_s1_raster(path_to_raster: str) -> str:
 # ======================================================================
 ## Technical helpers
 
-def regex_join(l: Sequence, to_str: Callable[[Any], str] = str) -> str:
+def regex_join(seq: Sequence, to_str: Callable[[Any], str] = str) -> str:
     """
-    Transforms a list into a group pipe-separated elements.
+    Transforms a sequence into a group pipe-separated elements.
 
     >>> regex_join([1, 2, 3])
     '(1|2|3)'
     >>> regex_join([1, 2, 3], lambda e: f"{e:03}")
     '(001|002|003)'
     """
-    return f'({"|".join((to_str(e) for e in l))})'
+    return f'({"|".join((to_str(e) for e in seq))})'
 
 
-def regex_filter(l: Sequence[str], re_pattern: Union[str, re.Pattern[str]], **kwargs) -> List[str]:
+def regex_filter(seq: Sequence[str], re_pattern: Union[str, re.Pattern[str]], **kwargs) -> List[str]:
     """
-    Filters a list of strings with a regex.
+    Filters a sequence of strings with a regex.
     """
-    return [e for e in l if re.match(re_pattern, e, **kwargs)]
+    return [e for e in seq if re.match(re_pattern, e, **kwargs)]
 
 # Using negative look-ahead to match any dot, not followed by a '}' (without any '{' in between).
 # Hence the "bug" on "toto.}tif", situation that shall not happen in our cases -- we could assert
