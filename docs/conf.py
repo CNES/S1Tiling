@@ -122,7 +122,7 @@ reference_otb_version = '9.1.1'
 print(f'Reference OTB Version: {reference_otb_version} -- used in documentation')
 
 ## And the replacements to use with {KEY} instead of |KEY|
-RE_BRACKETS = r'{.*?}'
+RE_BRACKETS = re.compile(r'{.*?}|\(.*?\)')
 def as_sample_mustache(fmt: str) -> str:
     fmt = re.sub(RE_BRACKETS, r'{\g<0>}', fmt)
     fmt = f":samp:`{fmt}`"
@@ -131,6 +131,13 @@ def as_sample_mustache(fmt: str) -> str:
 from s1tiling.libs.configuration    import DEFAULT_FNAME_FMTS as fname_fmt
 from s1tiling.libs.utils.formatters import ResilientFormatter
 
+example_keys = {
+    'flying_unit_code' : 's1(a|b|c)',
+    'tile_name'        : '{tilename}',
+    'polarisation'     : '{polarity}',
+    'orbit_direction'  : '(ASC|DES)'
+}
+
 ultimate_replacements = {
     "{REF_OTB_VERSION}"                : reference_otb_version,
     "{VERSION}"                        : version,
@@ -138,6 +145,7 @@ ultimate_replacements = {
     "{fname_fmt_concatenation}"        : as_sample_mustache(fname_fmt['concatenation']),
 
     "{fname_fmt_filtered}"             : as_sample_mustache(fname_fmt['filtered']),
+    "{fname_fmt_filtered_calib}"       : as_sample_mustache(fname_fmt['filtered_calib']),
     "{fname_fmt_filtered_lia}"         : as_sample_mustache(ResilientFormatter().format(fname_fmt['filtered_calib'], calibration_type='NormLim')),
     "{fname_fmt_filtered_rtc}"         : as_sample_mustache(ResilientFormatter().format(fname_fmt['filtered_calib'], calibration_type='GammaNaughtRTC')),
 
@@ -148,6 +156,28 @@ ultimate_replacements = {
 
     "{fname_fmt_gamma_area}"           : as_sample_mustache(fname_fmt['gamma_area']),
     "{fname_fmt_gamma_area_corrected}" : as_sample_mustache(fname_fmt['gamma_area_corrected']),
+
+    "{fname_ex_concatenation_day}"     : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['concatenation'], **example_keys, acquisition_stamp='{YYYYMMDD}txxxxxx')),
+    "{fname_ex_concatenation_time}"    : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['concatenation'], **example_keys, acquisition_stamp='{YYYYMMDD}t{hhmmss}')),
+
+    "{fname_ex_deg_ia}"                : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['ia_product'], **example_keys, IA_kind='IA')),
+    "{fname_ex_cos_ia}"                : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['ia_product'], **example_keys, IA_kind='cos_IA')),
+    "{fname_ex_sin_ia}"                : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['ia_product'], **example_keys, IA_kind='sin_IA')),
+    "{fname_ex_tan_ia}"                : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['ia_product'], **example_keys, IA_kind='tan_IA')),
+
+    "{fname_ex_deg_lia}"               : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['lia_product'], **example_keys, LIA_kind='LIA')),
+    "{fname_ex_sin_lia}"               : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['lia_product'], **example_keys, LIA_kind='sin_LIA')),
+
+    "{fname_ex_gamma_area}"            : as_sample_mustache(
+        ResilientFormatter().format(fname_fmt['gamma_area'], **example_keys)),
 }
 
 # ######################################################################

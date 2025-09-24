@@ -539,7 +539,13 @@ You can use this :download:`this template
           - S1/S2
 
         * - orbit
-          - 5-digits number that identifies the S1 orbit
+          - 3-digits, 0-padded, number that identifies the S1 product relative
+            orbit
+          - S1/S2
+
+        * - absolute_orbit
+          - 5-digits, 0-padded, number that identifies the S1 product absolute
+            orbit
           - S1/S2
 
         * - acquisition_time
@@ -662,11 +668,20 @@ You can use this :download:`this template
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
-    - File format pattern for :ref:`filtered files <filtered-files>`
+    - File format pattern for :ref:`filtered files <filtered-files>` in
+      standard calibrations
 
       Default value:
 
       - {fname_fmt_filtered} for β°, σ° and γ° calibrations,
+
+  * - ``fname_fmt.filtered_calib``
+    - File format pattern for :ref:`filtered files <filtered-files>` in terrain
+      corrected calibrations
+
+      Default value:
+
+      - {fname_fmt_filtered_calib}, IOW: …
       - {fname_fmt_filtered_lia} when NORMLIM calibrated.
       - {fname_fmt_filtered_rtc} when GammaNaughtRTC calibrated.
 
