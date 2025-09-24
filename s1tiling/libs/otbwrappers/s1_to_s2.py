@@ -43,32 +43,47 @@ import numpy as np
 from osgeo import gdal
 
 from ..file_naming   import (
-        ReplaceOutputFilenameGenerator, TemplateOutputFilenameGenerator,
+    ReplaceOutputFilenameGenerator,
+    TemplateOutputFilenameGenerator,
 )
 from ..meta import (
-        Meta, get_task_name, in_filename, out_filename,
+    Meta,
+    get_task_name,
+    in_filename,
+    out_filename,
 )
 from ..steps import (
-        FirstStep, InputList, MergeStep, OTBParameters,
-        _check_input_step_type,
-        AbstractStep, StepFactory,
-        OTBStepFactory,
-        _OTBStep, SkippedStep,
-        manifest_to_product_name,
-        ram,
+    FirstStep,
+    InputList,
+    MergeStep,
+    OTBParameters,
+    _check_input_step_type,
+    AbstractStep,
+    StepFactory,
+    OTBStepFactory,
+    _OTBStep,
+    SkippedStep,
+    manifest_to_product_name,
+    ram,
 )
 from ..otbpipeline import (
-    TaskInputInfo, fetch_input_data,
+    TaskInputInfo,
+    fetch_input_data,
 )
 from ..otbtools      import otb_version
 from ..              import exceptions
 from ..              import Utils
 from ..configuration import (
-        Configuration,
-        dname_fmt_mask, dname_fmt_tiled, dname_fmt_filtered,
-        extended_filename_filtered,
-        extended_filename_hidden, extended_filename_mask, extended_filename_tiled,
-        fname_fmt_concatenation, fname_fmt_filtered,
+    Configuration,
+    dname_fmt_mask,
+    dname_fmt_tiled,
+    dname_fmt_filtered,
+    extended_filename_filtered,
+    extended_filename_hidden,
+    extended_filename_mask,
+    extended_filename_tiled,
+    fname_fmt_concatenation,
+    fname_fmt_filtered,
 )
 from ..configuration import pixel_type as cfg_pixel_type  # avoid name hiding
 from ._applications import (
@@ -120,6 +135,7 @@ class ExtractSentinel1Metadata(StepFactory):
     Note: At this moment it needs to be used on a separate pipeline to make
     sure the meta is updated when calling :func:`PipelineDescription.expected`.
     """
+
     def __init__(self, cfg: Configuration) -> None:  # pylint: disable=unused-argument
         super().__init__('ExtractSentinel1Metadata')
 
@@ -223,6 +239,7 @@ class AnalyseBorders(StepFactory):
     Found information will be stored into the `meta` dictionary for later use
     by :class:`CutBorders` step factory.
     """
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor
@@ -244,7 +261,7 @@ class AnalyseBorders(StepFactory):
         return self.build_step_output_filename(meta)
 
     def complete_meta(  # pylint: disable=too-many-locals
-            self, meta: Meta, all_inputs: InputList
+        self, meta: Meta, all_inputs: InputList
     ) -> Meta:
         """
         Complete meta information with Cutting thresholds.
@@ -266,7 +283,7 @@ class AnalyseBorders(StepFactory):
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
         ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE') # Ex: Sentinel-1 IPF 003.10
+        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')  # Ex: Sentinel-1 IPF 003.10
 
         # Starting from IPF 2.90+, no margin correction is done on the sides.
         # With prior versions, the cut margin (right and left) is done.
@@ -300,15 +317,15 @@ class AnalyseBorders(StepFactory):
         thr_y_e = cut_overlap_azimuth if crop2 else 0
 
         meta['cut'] = {
-                'threshold.x'      : thr_x,
-                'threshold.y.start': thr_y_s,
-                'threshold.y.end'  : thr_y_e,
-                'skip'             : thr_x == 0 and thr_y_s == 0 and thr_y_e == 0,
+            'threshold.x'      : thr_x,
+            'threshold.y.start': thr_y_s,
+            'threshold.y.end'  : thr_y_e,
+            'skip'             : thr_x == 0 and thr_y_s == 0 and thr_y_e == 0,
         }
         return meta
 
 
-k_calib_convert = {'normlim' : 'beta', 'gamma_naught_rtc' : 'sigma'}
+k_calib_convert = {'normlim': 'beta', 'gamma_naught_rtc': 'sigma'}
 
 
 class Calibrate(OTBStepFactory):
@@ -374,16 +391,16 @@ class Calibrate(OTBStepFactory):
         <Applications/app_SARCalibration>`.
         """
         params : OTBParameters = {
-                'ram'           : ram(self.ram_per_process),
-                self.param_in   : in_filename(meta),
-                # self.param_out  : out_filename(meta),
-                'lut'           : self.__calibration_type,
+            'ram'           : ram(self.ram_per_process),
+            self.param_in   : in_filename(meta),
+            # self.param_out  : out_filename(meta),
+            'lut'           : self.__calibration_type,
         }
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
         else:
             # Don't try to do anything, let's keep the noise
-            params['noise']       = True
+            params['noise'] = True
         return params
 
 
@@ -403,6 +420,7 @@ class CorrectDenoising(OTBStepFactory):
     - output filename
     - lower_signal_value
     """
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
@@ -411,7 +429,10 @@ class CorrectDenoising(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('correct_denoising', fname_fmt)
         super().__init__(
             cfg,
-            appname='BandMath', name='DenoisingCorrection', param_in='il', param_out='out',
+            appname='BandMath',
+            name='DenoisingCorrection',
+            param_in='il',
+            param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -431,9 +452,9 @@ class CorrectDenoising(OTBStepFactory):
         assert len(previous_steps) > 1
 
         # "in_sar" is expected at level -2, likelly named '__last'
-        in_sar  = fetch_input_data('__last', previous_steps[-2])
+        in_sar = fetch_input_data('__last', previous_steps[-2])
         # "in_cal" is expected at level -1, likelly named '__last'
-        in_cal  = fetch_input_data('__last', previous_steps[-1])
+        in_cal = fetch_input_data('__last', previous_steps[-1])
 
         inputs = [{'in_sar': in_sar, 'in_cal': in_cal}]
         _check_input_step_type(inputs)
@@ -506,6 +527,7 @@ class CutBorders(OTBStepFactory):
     - `cut`->`threshold.y.start` -- from :class:`AnalyseBorders`
     - `cut`->`threshold.y.end`   -- from :class:`AnalyseBorders`
     """
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
@@ -514,7 +536,8 @@ class CutBorders(OTBStepFactory):
         fname_fmt = cfg.fname_fmt.get('cut_borders', fname_fmt)
         super().__init__(
             cfg,
-            appname='ResetMargin', name='BorderCutting',
+            appname='ResetMargin',
+            name='BorderCutting',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S1'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -549,12 +572,12 @@ class CutBorders(OTBStepFactory):
         <Applications/app_ResetMargin>`.
         """
         params = {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : in_filename(meta),
-                # self.param_out     : out_filename(meta),
-                'threshold.x'      : meta['cut']['threshold.x'],
-                'threshold.y.start': meta['cut']['threshold.y.start'],
-                'threshold.y.end'  : meta['cut']['threshold.y.end']
+            'ram'              : ram(self.ram_per_process),
+            self.param_in      : in_filename(meta),
+            # self.param_out     : out_filename(meta),
+            'threshold.x'      : meta['cut']['threshold.x'],
+            'threshold.y.start': meta['cut']['threshold.y.start'],
+            'threshold.y.end'  : meta['cut']['threshold.y.end']
         }
         if otb_version() != '7.2.0':  # From 7.3.0 onward actually
             params['mode'] = 'threshold'
@@ -583,6 +606,7 @@ class OrthoRectify(_OrthoRectifierFactory):
     - `tile_name`
     - `tile_origin`
     """
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
@@ -590,7 +614,7 @@ class OrthoRectify(_OrthoRectifierFactory):
         """
         fname_fmt = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}_{calibration_type}.tif'
         fname_fmt = cfg.fname_fmt.get('orthorectification', fname_fmt)
-        extended_filename=extended_filename_tiled(cfg)
+        extended_filename = extended_filename_tiled(cfg)
         if otb_version() < '8.0.0':
             extended_filename += '&writegeom=false'
         super().__init__(
@@ -602,7 +626,7 @@ class OrthoRectify(_OrthoRectifierFactory):
         )
         # Some workaround when ortho is not sequenced along with calibration
         # (and locally override calibration type in case of normlim calibration)
-        self.__calibration_type     = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
+        self.__calibration_type = k_calib_convert.get(cfg.calibration_type, cfg.calibration_type)
 
     def complete_meta(self, meta: Meta, all_inputs: InputList) -> Meta:
         """
@@ -616,7 +640,7 @@ class OrthoRectify(_OrthoRectifierFactory):
         return meta
 
     def _get_input_image(self, meta: Meta) -> str:
-        return in_filename(meta)   # meta['in_filename']
+        return in_filename(meta)  # meta['in_filename']
 
 
 class Concatenate(_ConcatenatorFactory):
@@ -729,7 +753,8 @@ class Concatenate(_ConcatenatorFactory):
                         task_name, '∃' if exist_task_name else '∅',
                         filename,  '∃' if exist_file_name else '∅')
                 return exist_task_name or exist_file_name
-            meta['does_product_exist'] = lambda : check_product(meta)
+
+            meta['does_product_exist'] = lambda: check_product(meta)
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -745,6 +770,7 @@ class Concatenate(_ConcatenatorFactory):
 # ----------------------------------------------------------------------
 # Mask related applications
 
+
 class BuildBorderMask(OTBStepFactory):
     """
     Factory that prepares the first step that generates border maks as
@@ -759,13 +785,17 @@ class BuildBorderMask(OTBStepFactory):
     - input filename
     - output filename
     """
+
     def __init__(self, cfg: Configuration) -> None:
         """
         Constructor.
         """
         super().__init__(
             cfg,
-            appname='BandMath', name='BuildBorderMask', param_in='il', param_out='out',
+            appname='BandMath',
+            name='BuildBorderMask',
+            param_in='il',
+            param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=None,  # Use gen_tmp_dir
             gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask_TMP.tif']),
@@ -811,17 +841,21 @@ class SmoothBorderMask(OTBStepFactory):
     - input filename
     - output filename
     """
+
     def __init__(self, cfg: Configuration) -> None:
         dname_fmt = dname_fmt_mask(cfg)
-        super().__init__(cfg,
-                appname='BinaryMorphologicalOperation', name='SmoothBorderMask',
-                param_in='in', param_out='out',
-                gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
-                gen_output_dir=dname_fmt,
-                gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
-                extended_filename=extended_filename_mask(cfg),
-                pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
-                image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
+        super().__init__(
+            cfg,
+            appname='BinaryMorphologicalOperation',
+            name='SmoothBorderMask',
+            param_in='in',
+            param_out='out',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=dname_fmt,
+            gen_output_filename=ReplaceOutputFilenameGenerator(['.tif', '_BorderMask.tif']),
+            extended_filename=extended_filename_mask(cfg),
+            pixel_type=cfg_pixel_type(cfg, 'mask', 'uint8'),
+            image_description='Orthorectified Sentinel-{flying_unit_code_short} IW GRD smoothed border mask S2 tile',
         )
 
     def parameters(self, meta: Meta) -> OTBParameters:
@@ -830,13 +864,13 @@ class SmoothBorderMask(OTBStepFactory):
         application <Applications/app_BinaryMorphologicalOperation>` to smooth border masks.
         """
         return {
-                'ram'                   : ram(self.ram_per_process),
-                self.param_in           : in_filename(meta),
-                # self.param_out          : out_filename(meta),
-                'structype'             : 'ball',
-                'xradius'               : 5,
-                'yradius'               : 5 ,
-                'filter'                : 'opening'
+            'ram'          : ram(self.ram_per_process),
+            self.param_in  : in_filename(meta),
+            # self.param_out : out_filename(meta),
+            'structype'    : 'ball',
+            'xradius'      : 5,
+            'yradius'      : 5,
+            'filter'       : 'opening'
         }
 
 
@@ -880,8 +914,10 @@ class SpatialDespeckle(OTBStepFactory):
         dname_fmt = dname_fmt_filtered(cfg)
         super().__init__(
             cfg,
-            appname='Despeckle', name='Despeckle',
-            param_in='in', param_out='out',
+            appname='Despeckle',
+            name='Despeckle',
+            param_in='in',
+            param_out='out',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=dname_fmt,
             gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
@@ -896,12 +932,14 @@ class SpatialDespeckle(OTBStepFactory):
 
         assert self.__rad
         # filter in list => nblooks != 0 ~~~> filter not in list OR nblooks != 0
-        assert (self.__filter not in ['lee', 'gammamap', 'kuan']) or (self.__nblooks != 0) \
-                , f'Unexpected nblooks value ({self.__nblooks} for {self.__filter} despeckle filter'
+        assert (self.__filter not in ['lee', 'gammamap', 'kuan']) or (self.__nblooks != 0), (
+            f'Unexpected nblooks value ({self.__nblooks} for {self.__filter} despeckle filter'
+        )
         # filter in list => deramp != 0 ~~~> filter not in list OR deramp != 0
-        assert (self.__filter not in ['frost']) or (self.__deramp != 0.) \
-                , f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
-        assert (self.__nblooks != 0.) != (self.__deramp != 0.)
+        assert (self.__filter not in ['frost']) or (self.__deramp != 0.0), (
+            f'Unexpected deramp value ({self.__deramp} for {self.__filter} despeckle filter'
+        )
+        assert (self.__nblooks != 0.0) != (self.__deramp != 0.0)
 
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
@@ -912,7 +950,7 @@ class SpatialDespeckle(OTBStepFactory):
         the current S2 tile.
         """
         # TODO find a better way to reuse the hook from the previous step in case it's chained in memory!
-        meta['accept_as_compatible_input'] = lambda input_meta : does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
+        meta['accept_as_compatible_input'] = lambda input_meta: does_sin_lia_match_s2_tile_for_orbit(meta, input_meta)
 
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
@@ -937,12 +975,12 @@ class SpatialDespeckle(OTBStepFactory):
         """
         assert self.__rad
         params = {
-                'ram'                         : ram(self.ram_per_process),
-                self.param_in                 : in_filename(meta),
-                # self.param_out              : out_filename(meta),
-                'filter'                      : self.__filter,
-                f'filter.{self.__filter}.rad' : self.__rad,
-                }
+            'ram'                         : ram(self.ram_per_process),
+            self.param_in                 : in_filename(meta),
+            # self.param_out              : out_filename(meta),
+            'filter'                      : self.__filter,
+            f'filter.{self.__filter}.rad' : self.__rad,
+        }
         if self.__nblooks:
             params[f'filter.{self.__filter}.nblooks'] = self.__nblooks
         if self.__deramp:
