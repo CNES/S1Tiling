@@ -43,6 +43,7 @@ from s1tiling.libs import Utils
 
 from s1tiling.libs.otbtools import otb_version
 from s1tiling.libs.outcome import DownloadOutcome
+from s1tiling.libs.utils.formatters import ExtendedFormatter
 # from unittest.mock import patch
 
 # import pytest_check
@@ -303,6 +304,14 @@ k_calib_convert = {
 }
 
 
+def _expected_calibration(
+        file_db           : FileDB,
+    naming_policy: str,
+    calibration  : str,
+) -> str:
+    return ExtendedFormatter().format(file_db.CALIBRATION_CONVERTER[naming_policy], calibration=calibration)
+
+
 def mock_upto_concat_S2(
         application_mocker: OTBApplicationsMockContext,
         file_db           : FileDB,
@@ -318,8 +327,9 @@ def mock_upto_concat_S2(
         input_file = file_db.input_file_vv(i)
         # expected_ortho_file = file_db.orthofile(i, False)
 
-        orthofile = file_db.orthofile(i, True, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
-        assert f'_{raw_calibration}' in orthofile
+        orthofile = file_db.orthofile(i, True, naming_policy='with_calibration', calibration=f'_{raw_calibration}')
+        expected_calibration = _expected_calibration(file_db, 'with_calibration', raw_calibration)
+        assert f'_{expected_calibration}' in orthofile
         assert '__' not in orthofile
 
         # Workaround defect on skipping cut margins
@@ -446,7 +456,7 @@ def mock_upto_concat_S2(
 
     if N == 1:
         # In this case, there is not a Synthetize but a call to rename.
-        orthofile = file_db.orthofile(0,   False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
+        orthofile = file_db.orthofile(0,   False, naming_policy='with_calibration', calibration=f'_{raw_calibration}')
         out       = file_db.concatfile_from_one(0, True, naming_policy=naming_policy, calibration=f'_{calibration}')
         application_mocker.set_expectations(
             Concatenate.rename,
@@ -462,8 +472,8 @@ def mock_upto_concat_S2(
         )
     else:
         for i in range((N+1)//2):
-            orthofile1 = file_db.orthofile(2*i,   False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
-            orthofile2 = file_db.orthofile(2*i+1, False, naming_policy=naming_policy, calibration=f'_{raw_calibration}')
+            orthofile1 = file_db.orthofile(2*i,   False, naming_policy='with_calibration', calibration=f'_{raw_calibration}')
+            orthofile2 = file_db.orthofile(2*i+1, False, naming_policy='with_calibration', calibration=f'_{raw_calibration}')
             application_mocker.set_expectations(
                 'Synthetize',
                 {
@@ -509,7 +519,8 @@ def mock_masking(application_mocker: OTBApplicationsMockContext, file_db, calibr
     for i in range((N+1) // 2):  # Make sure to iterate even with odd number of inputs
         assert raw_calibration
         out_mask = outfile(i, True, calibration=f'_{raw_calibration}')
-        assert (f'_{raw_calibration}') in out_mask
+        expected_calibration = _expected_calibration(file_db, naming_policy, raw_calibration)
+        assert f'_{expected_calibration}' in out_mask
         application_mocker.set_expectations(
             'BandMath',
             {
@@ -1345,6 +1356,11 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
     )
 
 
+@pytest.mark.parametrize("naming_policy",
+                         [
+                             'with_calibration',
+                             'theia'
+                         ])
 def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 sigma0 calibrated images.
@@ -1368,7 +1384,7 @@ def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker, na
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
-    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+    configuration.fname_fmt['concatenation'] = FileDB.CONCATENATION_NAMING[naming_policy]
     configuration.dname_fmt['tiled']         = '{out_dir}/{tile_name}/tiled'
     configuration.show_configuration()
     logging.info("Full mocked test")
@@ -1414,6 +1430,11 @@ def test_33NWB_202001_NR_core_mocked_with_concat(tmpdir, demdir, ram, mocker, na
     application_mocker.assert_all_metadata_match()
 
 
+@pytest.mark.parametrize("naming_policy",
+                         [
+                             'with_calibration',
+                             'theia'
+                         ])
 def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker, naming_policy):
     """
     Mocked test of production of S2 sigma0 calibrated images.
@@ -1435,7 +1456,7 @@ def test_33NWB_202001_NR_core_mocked_no_concat(tmpdir, demdir, ram, mocker, nami
     test_file     = crt_dir / 'test_33NWB_202001.cfg'
     configuration = s1tiling.libs.configuration.Configuration(test_file, do_show_configuration=False)
     # Force the use of "_{calibration}" in mocked tests
-    configuration.fname_fmt['concatenation'] = '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif'
+    configuration.fname_fmt['concatenation'] = FileDB.CONCATENATION_NAMING[naming_policy]
     configuration.show_configuration()
     logging.info("Full mocked test")
 
