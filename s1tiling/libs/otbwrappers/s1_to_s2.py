@@ -633,6 +633,9 @@ class Concatenate(_ConcatenatorFactory):
     - input filename
     - output filename
     """
+
+    __RE_ACQ_STAMPS = re.compile(r'{acquisition_stamp}|{acquisition_start}')
+
     def __init__(self, cfg: Configuration) -> None:
         # TODO: factorise this recurring test!
         calibration_is_done_in_S1 = cfg.calibration_type in ['sigma', 'beta', 'gamma', 'dn']
@@ -644,8 +647,8 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = None  # use gen_tmp_dir
         fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
-        self.__tname_fmt = fname_fmt.replace('{acquisition_stamp}', '{acquisition_day}')
-        self.__tname_fmt = fname_fmt.replace('{acquisition_start}', '{acquisition_day}')
+        self.__tname_fmt = re.sub(self.__RE_ACQ_STAMPS, '{acquisition_day}', fname_fmt)
+
         super().__init__(
             cfg,
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
