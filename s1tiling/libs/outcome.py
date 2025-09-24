@@ -38,7 +38,7 @@ from typing import Dict, Generic, List, Optional, Tuple, TypeVar, Union, cast
 try:
     # python 3.11+
     from typing import Self
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     from typing_extensions import Self
 
 
