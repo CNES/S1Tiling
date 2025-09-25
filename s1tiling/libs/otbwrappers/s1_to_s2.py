@@ -950,6 +950,13 @@ class SpatialDespeckle(OTBStepFactory):
         )
         assert (self.__nblooks != 0.0) != (self.__deramp != 0.0)
 
+    def _update_filename_meta_pre_hook(self, meta: Meta) -> Meta:
+        """
+        Injects the ``filter_method`` in step metadata.
+        """
+        meta['filter_method'] = self.__filter
+        return meta
+
     def _update_filename_meta_post_hook(self, meta: Meta) -> None:
         """
         Register ``accept_as_compatible_input`` hook for

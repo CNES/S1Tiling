@@ -607,6 +607,12 @@ You can use this :download:`this template
             S1 image geometry and not its content.
           - S1
 
+        * - filter_method
+          - When spatial filtering is activated: ``lee``, ``frost``,
+            ``Gammamap``, or ``kuan``
+          - S2
+
+
       .. note::
 
         :ref:`All Python standard format specifiers <formatspec>` plus extra
