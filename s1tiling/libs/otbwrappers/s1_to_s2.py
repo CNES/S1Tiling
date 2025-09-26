@@ -701,10 +701,10 @@ class Concatenate(_ConcatenatorFactory):
         # logger.debug('UPDATING %s from %s', meta['task_name'], meta)
         was = meta['out_filename']
         meta['acquisition_stamp']  = meta['acquisition_day']
+        meta['acquisition_start']  = min((m['acquisition_time'] for m in with_task_info.input_metas))
         meta['out_filename']       = self.build_step_output_filename(meta)
         meta['out_tmp_filename']   = self.build_step_output_tmp_filename(meta)
         meta['basename']           = self._get_nominal_output_basename(meta)
-        meta['acquisition_start']  = min((m['acquisition_time'] for m in with_task_info.input_metas))
         logger.debug(
             "concatenation.out_tmp_filename for %s updated to %s (previously: %s) ; acquisition_start: %s",
             meta['task_name'], meta['out_filename'], was, meta['acquisition_start'])

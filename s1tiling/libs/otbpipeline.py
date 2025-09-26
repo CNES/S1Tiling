@@ -65,7 +65,7 @@ from .steps             import (
 )
 # from ..__meta__         import __version__
 from .utils.timer       import timethis
-from .utils.path        import files_exist
+from .utils.path        import AnyPath, files_exist
 
 
 # Typing hints
@@ -447,6 +447,12 @@ def register_task(tasks: Dict, key: str, value) -> None:
     Register a task named `key` in the right format.
     """
     tasks[key] = value
+
+
+def _basenames(paths: Union[AnyPath, List[AnyPath]]):
+    if isinstance(paths, list):
+        return [os.path.basename(p) for p in paths]
+    return os.path.basename(paths)
 
 
 class TaskInputInfo:
@@ -951,7 +957,7 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
         logger.debug('Building all tasks')
         required_tasks = node_queue(required)  # : Iterable[TaskName]
         for task_name in required_tasks:
-            logger.debug("* Checking if task '%s' needs to be executed", os.path.basename(task_name))
+            logger.debug("* Checking if task '%s' needs to be regsitered", os.path.basename(task_name))
             assert (task_name in previous) and previous[task_name], \
                     f"No previous task registered for {task_name}.\nOnly the following have previous tasks: {previous.keys()} "
             base_task_name = to_dask_key(task_name)
@@ -967,7 +973,10 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
             output_filename = task_names_to_output_files_table[task_name]
             pipeline_instance = pipeline_descr.instanciate(file=output_filename, do_measure=True, in_memory=True, do_watch_ram=do_watch_ram)
             pipeline_instance.set_inputs(task_inputs)
-            logger.debug(' ~~> TASKS[%s] += %s(keys=%s)', os.path.basename(base_task_name), pipeline_descr.name, [os.path.basename(tn) for tn in input_task_keys])
+            logger.debug(' ~~> TASKS[%s] += %s%s(keys=%s)',
+                         os.path.basename(base_task_name), pipeline_descr.name,
+                         f"[->{_basenames(output_filename)!r}]" if out_filename != task_name else "",
+                         _basenames(input_task_keys))
             register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
             logger.debug(" - Analysing whether its inputs needs to be registered for production...")
