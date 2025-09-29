@@ -34,7 +34,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 import os
 import pprint
@@ -282,7 +282,7 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
         logger.info('Execute %s', pipeline)
         res = pipeline.do_execute().add_related_filename(output)
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
-    # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
+    # except RuntimeError as ex:  # py lint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
         return PipelineOutcome(ex).add_related_filename(output).set_pipeline_name(pipeline.appname)  # type: ignore # mypy issue 16788
@@ -449,10 +449,10 @@ def register_task(tasks: Dict, key: str, value) -> None:
     tasks[key] = value
 
 
-def _basenames(paths: Union[AnyPath, List[AnyPath]]):
-    if isinstance(paths, list):
-        return [os.path.basename(p) for p in paths]
-    return os.path.basename(paths)
+def _basenames(paths: Union[AnyPath, Iterable[AnyPath]]):
+    if isinstance(paths, AnyPath):
+        return os.path.basename(paths)
+    return [os.path.basename(p) for p in paths]
 
 
 class TaskInputInfo:
@@ -975,7 +975,7 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
             pipeline_instance.set_inputs(task_inputs)
             logger.debug(' ~~> TASKS[%s] += %s%s(keys=%s)',
                          os.path.basename(base_task_name), pipeline_descr.name,
-                         f"[->{_basenames(output_filename)!r}]" if out_filename != task_name else "",
+                         f"[->{_basenames(output_filename)!r}]" if output_filename != task_name else "",
                          _basenames(input_task_keys))
             register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
