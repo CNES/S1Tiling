@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,6 +34,8 @@ This module provide filename generator classes
 import os
 from abc import ABC, abstractmethod
 from typing import Dict, List, Union
+
+from .utils.formatters import ExtendedFormatter
 
 
 class OutputFilenameGenerator(ABC):
@@ -89,10 +91,18 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     inject the metadata instead of the template keys.
 
     Most filename format templates can be fine tuned to end-user ideal filenames.
-    While the filenames used for intermediary products may be changed, it's not
-    recommended for data flow stability.
-    See :ref:`[Processing].fname_fmt.* <Processing.fname_fmt>` for the short list
-    of filenames meants to be adapted.
+    While the filenames used for intermediary products may be changed, it's not recommended for data
+    flow stability.
+
+    :ref:`All Python standard format specifiers <formatspec>` plus extra conversion fields are
+    supported:
+
+    - ``!c`` will capitalize a field -- only the first letter will be in uppercase
+    - ``!l`` will output the field in lowercase
+    - ``!u`` will output the field in uppercase
+
+    See :ref:`[Processing].fname_fmt.* <Processing.fname_fmt>` for the short list of filenames meant
+    to be adapted, and the list of available fields.
     """
     def __init__(self, template) -> None:
         assert isinstance(template, str)
@@ -101,7 +111,7 @@ class TemplateOutputFilenameGenerator(OutputFilenameGenerator):
     def generate(self, basename, keys: Dict) -> str:
         try:
             rootname = os.path.splitext(basename)[0]
-            filename = self.__template.format(**keys, rootname=rootname)
+            filename = ExtendedFormatter().format(self.__template, **keys, rootname=rootname)
             return filename
         except KeyError as e:
             raise CannotGenerateFilename(f'Impossible to generate a filename matching {self.__template} from {keys}') from e

@@ -39,7 +39,8 @@ You can use this :download:`this template
 
       .. _paths.s1_images:
   * - ``s1_images``
-    - Where S1 images are downloaded to, thanks to `EODAG
+    - Input directory where **unzipped** Sentinel-1 input products are
+      searched, and downloaded to thanks to `EODAG
       <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
@@ -49,27 +50,27 @@ You can use this :download:`this template
 
       .. _paths.output:
   * - ``output``
-    - Where products are generated.
+    - Root output directory where products are generated.
 
       .. _paths.ia:
   * - ``ia``
-    - Where (Ellipsoid) Incidence Maps and cos(IA)/sin(IA) products are
-      generated. Its default value is ``{output}/_IA``.
+    - Output directory for the generated (Ellipsoid) Incidence Maps and
+      cos(IA)/sin(IA) products. Its default value is ``{output}/_IA``.
 
       .. _paths.lia:
   * - ``lia``
-    - Where Local Incidence Maps and sin(LIA) products are generated. Its
-      default value is ``{output}/_LIA``.
+    - Output directory for the generated Local Incidence Maps and sin(LIA)
+      products. Its default value is ``{output}/_LIA``.
 
       .. _paths.gamma_area:
   * - ``gamma_area``
-    - Where γ Area products are generated. Its default value is
+    - Output directory for the generated γ Area products. Its default value is
       ``{output}/_GAMMA_AREA``.
 
       .. _paths.tmp:
   * - ``tmp``
-    - Where :ref:`intermediary files <temporary-files>` are produced, and
-      sometimes :ref:`cached <data-caches>` for longer periods.
+    - Directory where :ref:`intermediary files <temporary-files>` are produced,
+      and sometimes :ref:`cached <data-caches>` for longer periods.
 
       .. _paths.geoid_file:
   * - ``geoid_file``
@@ -500,7 +501,7 @@ You can use this :download:`this template
 
       .. _Processing.fname_fmt:
   * - ``fname_fmt.*``
-    - Set of filename format templates that permits to override the default
+    - Set of filename format templates that permit to override the default
       filename formats used to generate filenames.
 
       The filename formats can be overridden for both intermediary and final
@@ -510,8 +511,9 @@ You can use this :download:`this template
       If you change any, make sure to not introduce ambiguity by removing a
       field that would be used to distinguish two unrelated products.
 
-      Available fields come from :func:`internal metadata <s1tiling.libs.steps.StepFactory.complete_meta>`. The main
-      ones of interest are:
+      Available fields come from :func:`internal metadata
+      <s1tiling.libs.steps.StepFactory.complete_meta>`. The main ones of
+      interest are:
 
       .. list-table::
         :widths: auto
@@ -538,7 +540,13 @@ You can use this :download:`this template
           - S1/S2
 
         * - orbit
-          - 5-digits number that identifies the S1 orbit
+          - 3-digits, 0-padded, number that identifies the S1 product relative
+            orbit
+          - S1/S2
+
+        * - absolute_orbit
+          - 5-digits, 0-padded, number that identifies the S1 product absolute
+            orbit
           - S1/S2
 
         * - acquisition_time
@@ -554,6 +562,29 @@ You can use this :download:`this template
             (:samp:`{yymmdd}txxxxxx`)
           - S1/S2
 
+        * - acquisition_start
+          - the full timestamp (:samp:`{yymmdd}t{hhmmss}`) of the first
+            Sentinel-1 input image used in a :ref:`concatenation
+            <concatenation-proc>`
+
+            .. warning::
+
+                In start-over situations this key, unlike
+                :samp:`{{acquisition_day}}`, cannot permit to known whether an
+                existing S2 product has been generated from a single, or from
+                two, S1 input image(s).
+                |br|
+                While S1Tiling avoids generating a S2 output when a S1 input
+                has been detected missing in on-line mode, it has no way of
+                knowing in :ref:`offline mode <DataSource.download>`. In which
+                case partial S2 products could be generated, but then with a
+                name that'll make them impossible to distinguish from complete
+                S2 products if :samp:`{{acquisition_start}}` is used.
+                Starting S1Tiling again over already generated products, this
+                time in on-line mode, will not update partial S2 products.
+
+          - S2
+
         * - IA_kind
           - ``IA``/``cos_IA``/``sin_IA``/``tan_IA``
           - S2
@@ -567,7 +598,7 @@ You can use this :download:`this template
           - S1
 
         * - rootname
-          - ``basename`` without the file extension.
+          - :samp:`{{basename}}` without the file extension.
           - S1
 
         * - calibration_type
@@ -575,67 +606,101 @@ You can use this :download:`this template
           - S1/S2
 
         * - polarless_basename
-          - Same as ``basename`` (with file extension), but without
-            ``polarisation`` field. Used when the product only depends on the
-            S1 image geometry and not its content.
+          - Same as :samp:`{{basename}}` (with file extension), but without
+            :samp:`{{polarisation}}` field. Used when the product only depends
+            on the S1 image geometry and not its content.
           - S1
 
         * - polarless_rootname
-          - Same as ``rootname`` (without file extension), but without
-            ``polarisation`` field. Used when the product only depends on the
-            S1 image geometry and not its content.
+          - Same as :samp:`{{rootname}}` (without file extension), but without
+            :samp:`{{polarisation}}` field. Used when the product only depends
+            on the S1 image geometry and not its content.
           - S1
+
+        * - filter_method
+          - When spatial filtering is activated: ``lee``, ``frost``,
+            ``Gammamap``, or ``kuan``
+          - S2
+
+
+      .. note::
+
+        :ref:`All Python standard format specifiers <formatspec>` plus extra
+        conversion fields are supported:
+
+        - ``!c`` will capitalize a field -- only the first letter will be in
+          uppercase
+        - ``!l`` will output the field in lowercase
+        - ``!u`` will output the field in uppercase
+
+        .. admonition:: example
+
+            Theia filename format (ex.
+            :file:`S1A_L1ORT_31TCH_VH_SIG_ASC_132_20250218t174708.tif`)
+            would be expressed in the following way:
+
+            .. code:: ini
+
+                fname_fmt.concatenation : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}.tif
+                fname_fmt.filtered      : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}_filtered_{filter_method!u:.3}.tif
 
       .. _Processing.fname_fmt.concatenation:
   * - ``fname_fmt.concatenation``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`,
       for β°, σ° and γ° calibrations.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}.tif`
+      Default value: {fname_fmt_concatenation}
 
       .. _Processing.fname_fmt.lia_corrected:
   * - ``fname_fmt.s2_lia_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when NORMLIM calibrated.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim.tif`
+      Default value: {fname_fmt_lia_corrected}
 
       .. _Processing.fname_fmt.ia_product:
   * - ``fname_fmt.ia_product``
     - File format pattern for IA cos(IA), sin(IA) and tan(IA) files
 
-      Default value: :samp:`{{IA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
+      Default value: {fname_fmt_ia_product}
 
       .. _Processing.fname_fmt.lia_product:
   * - ``fname_fmt.lia_product``
     - File format pattern for LIA and sin(LIA) files
 
-      Default value: :samp:`{{LIA_kind}}_{{flying_unit_code}}_{{tile_name}}_{{orbit}}.tif`
+      Default value: {fname_fmt_lia_product}
 
       .. _Processing.fname_fmt.gamma_area_corrected:
   * - ``fname_fmt.s2_gamma_area_corrected``
     - File format pattern for :ref:`concatenation products <full-S2-tiles>`
       when GammaNaughtRTC calibrated.
 
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC.tif`
+      Default value: {fname_fmt_gamma_area_corrected}
 
       .. _Processing.fname_fmt.gamma_area_product:
   * - ``fname_fmt.gamma_area_product``
     - File format pattern for GAMMA_AREA files
 
-      Default value: :samp:`GAMMA_AREA_{{flying_unit_code}}_{{tile_name}}_{{orbit_direction}}_{{orbit}}.tif`
+      Default value: {fname_fmt_gamma_area}
 
       .. _Processing.fname_fmt.filtered:
   * - ``fname_fmt.filtered``
-    - File format pattern for :ref:`filtered files <filtered-files>`
-
-      Default value: :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_filtered.tif`
-      for β°, σ° and γ° calibrations,
+    - File format pattern for :ref:`filtered files <filtered-files>` in
+      standard calibrations
 
       Default value:
 
-      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_NormLim_filtered.tif` when NORMLIM calibrated.
-      - :samp:`{{flying_unit_code}}_{{tile_name}}_{{polarisation}}_{{orbit_direction}}_{{orbit}}_{{acquisition_stamp}}_GammaNaughtRTC_filtered.tif` when GammaNaughtRTC calibrated.
+      - {fname_fmt_filtered} for β°, σ° and γ° calibrations,
+
+  * - ``fname_fmt.filtered_calib``
+    - File format pattern for :ref:`filtered files <filtered-files>` in terrain
+      corrected calibrations
+
+      Default value:
+
+      - {fname_fmt_filtered_calib}, IOW: …
+      - {fname_fmt_filtered_lia} when NORMLIM calibrated.
+      - {fname_fmt_filtered_rtc} when GammaNaughtRTC calibrated.
 
       .. _Processing.dname_fmt:
   * - ``dname_fmt.*``

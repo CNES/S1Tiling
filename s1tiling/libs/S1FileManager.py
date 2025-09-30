@@ -72,7 +72,7 @@ from .s1.filters         import (
 )
 from .s1.product         import EOProductInformation, FileProductInformation, product_property
 from .utils.timer        import timethis
-from .utils.formatters   import ResilientFormater
+from .utils.formatters   import ResilientFormatter
 from .utils.layer        import footprint2extent
 from .utils.path         import AnyPath, list_dirs, list_files
 
@@ -151,10 +151,10 @@ def iterate_on_filename_formats(
             # Special case for polarisation: a same input may be used for several outputs
             for polarisation in polarizations:
                 # logger.debug('yielding format from %s <-- %s', fname_fmt, fname_options)
-                yield ResilientFormater(any_char).format(fname_fmt, polarisation=polarisation, **fname_options)
+                yield ResilientFormatter(any_char).format(fname_fmt, polarisation=polarisation, **fname_options)
         else:
             # logger.debug('yielding format from %s <-- %s', fname_fmt, fname_options)
-            yield ResilientFormater(any_char).format(fname_fmt, **fname_options)
+            yield ResilientFormatter(any_char).format(fname_fmt, **fname_options)
 
 
 def is_there_a_final_product_that_needs_to_be_generated_for_this_input(  # pylint: disable=too-many-arguments, too-many-locals
@@ -294,8 +294,8 @@ def _filter_s1_images_required_for_expected_s2_product(  # pylint: disable=too-m
     existing_output_products : List[str] = []
     for dname_fmt, fname_fmt in name_formats:
         # NB replace unknown keys with ".*"
-        output_product_pat = ResilientFormater('.*').format(
-            regex_escape_dot(fname_fmt),
+        output_product_pat = ResilientFormatter('.*').format(
+            regex_escape_dot(fname_fmt),  # Need to escape dots, but not in keys!!!
             **fname_options,
         )
         existing_output_products.extend(

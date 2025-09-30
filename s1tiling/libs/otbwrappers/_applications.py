@@ -47,9 +47,11 @@ from .. import Utils
 from .helpers        import depolarize_4_filename_pre_hook
 from ..configuration import Configuration, nodata_DEM, nodata_XYZ
 from ..file_naming   import TemplateOutputFilenameGenerator
-from ..meta          import Meta, append_to, in_filename, is_running_dry, out_filename
+from ..meta          import Meta, append_to, in_filename, is_running_dry, out_filename, tmp_filename
 from ..steps         import (
     AbstractStep,
+    AnyProducerStep,
+    ExeParameters,
     FirstStep,
     InputList,
     MergeStep,
@@ -103,6 +105,8 @@ class _ConcatenatorFactory(OTBStepFactory):
     Abstract factory that prepares steps that run :external+OTB:doc:`Applications/app_Synthetize` as
     described in :ref:`Concatenation` documentation.
 
+    In the case no concatenation is required, the input file will be move to the expected product.
+
     Requires the following information from the configuration object:
 
     - `ram_per_process`
@@ -134,8 +138,8 @@ class _ConcatenatorFactory(OTBStepFactory):
         """
         Precompute output basename from the input file(s).
 
-        In concatenation case, the task_name needs to be overridden to stay
-        unique and common to all inputs.
+        In concatenation case, the task_name needs to be overridden to stay unique and common to all
+        inputs.
 
         Also, inject files to remove
         """
@@ -159,16 +163,14 @@ class _ConcatenatorFactory(OTBStepFactory):
         imd = meta['image_metadata']
         inp = self._get_canonical_input(all_inputs)  # input_metas in FirstStep, MergeStep
         assert isinstance(inp, (FirstStep, MergeStep))
-        if len(inp.input_metas) >= 2:
-            product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
-            imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
-            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-            for idx, pn in enumerate(product_names, start=1):
-                acq_time = Utils.extract_product_start_time(os.path.basename(pn))
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-        else:
-            imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
+
+        product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
+        imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
+        acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
+        imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
+        for idx, pn in enumerate(product_names, start=1):
+            acq_time = Utils.extract_product_start_time(os.path.basename(pn))
+            imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
@@ -176,40 +178,54 @@ class _ConcatenatorFactory(OTBStepFactory):
         <Applications/app_Synthetize>`.
         """
         return {
-                'ram'              : ram(self.ram_per_process),
-                self.param_in      : in_filename(meta),
-                # self.param_out     : out_filename(meta),
+            'ram'              : ram(self.ram_per_process),
+            self.param_in      : in_filename(meta),
+            # self.param_out     : out_filename(meta),
         }
 
-    def create_step(
-            self,
-            execution_parameters: Dict,
-            previous_steps: List[InputList]
+    def _do_create_actual_step(
+        self,
+        execution_parameters: Dict,
+        input_step: AbstractStep,
+        meta: Meta
     ) -> AbstractStep:
         """
-        :func:`create_step` is overridden in :class:`Concatenate` case in
-        order to by-pass Concatenation in case there is only a single file.
+        Overrides default implementation of
+        :meth:`s1tiling.libs.steps.OTBStepFactory._do_create_actual_step` to return and execute an
+        :class:`s1tiling.libs.steps.AnyProducerStep` when there is only one orthorectified input
+        product, and thus when no actual concatenation is required.
         """
-        inputs = self._get_inputs(previous_steps)
-        inp    = self._get_canonical_input(inputs)
-        # logger.debug('CONCAT::create_step(%s) -> %s', inp.out_filename, len(inp.out_filename))
-        if isinstance(inp.out_filename, list) and len(inp.out_filename) == 1:
-            # This situation should not happen any more, we now a single string as inp.
-            # The code is kept in case s1tiling kernel changes again.
-            concat_in_filename = inp.out_filename[0]
-        elif isinstance(inp.out_filename, str):
-            concat_in_filename = inp.out_filename
-        else:
-            return super().create_step(execution_parameters, previous_steps)
-        # Back to a single file inp case
-        logger.debug('By-passing concatenation of %s as there is only a single orthorectified tile to concatenate.', concat_in_filename)
-        meta = self.complete_meta(inp.meta, inputs)
-        dryrun = is_running_dry(execution_parameters)
-        res = AbstractStep(**meta)
-        logger.debug('Renaming %s into %s', concat_in_filename, res.out_filename)
-        if not dryrun:
-            shutil.move(concat_in_filename, res.out_filename)
+        # Nominal case: two products will be concatenated
+        if not isinstance(input_step.out_filename, str):
+            return super()._do_create_actual_step(execution_parameters, input_step, meta)
+
+        # Corner case: there is only product, it will be renamed
+        concat_in_filename = input_step.out_filename
+        logger.debug('By-passing concatenation of %r as there is only a single orthorectified tile to concatenate.', concat_in_filename)
+        res = AnyProducerStep(action=_ConcatenatorFactory.rename, **meta)
+
+        # We do rename to temporary filename: it will be used later on in the update_image_metadata
+        # and the commit_execution phases
+        # While it may appear unnecessary, the `rename` action renames to the :meth:`tmp_filename`.
+        # - It simplifies the integration in the kernel,
+        # - It permits update image metadata
+        parameters = [concat_in_filename, tmp_filename(meta)]
+
+        # Make sure the renaming is done now
+        res.execute_and_write_output(parameters, execution_parameters)
         return res
+
+    @staticmethod
+    def rename(parameters: ExeParameters, dryrun: bool) -> None:
+        """
+        ``action`` meant to be registered in an :class:`s1tiling.libs.steps.AnyProducerStep`.
+        It takes care of renaming a product when there is only orthorectified product and no need
+        for concatenation.
+        """
+        src, dst = parameters
+        logger.critical('Renaming %r into %r', src, dst)
+        if not dryrun:
+            shutil.move(src, dst)
 
 
 class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):

@@ -40,11 +40,12 @@ from abc import ABC, abstractmethod
 import fnmatch
 import logging
 import subprocess
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import Callable, Dict, List, NoReturn, Optional, Set, Tuple, Union
 
 from osgeo import gdal
 import otbApplication as otb
+
 
 from .              import Utils
 from .configuration import FileProducingConfiguration
@@ -54,6 +55,7 @@ from .meta          import (
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
+from .utils.path    import files_exist
 
 from ..__meta__     import __version__
 
@@ -152,19 +154,6 @@ def commit_execution(tmp_fn, out_fn) -> None:
     logger.debug('-> %s renamed as %s', tmp_fn, out_fn)
     assert not os.path.isfile(tmp_fn)
     assert os.path.isfile(out_fn)
-
-
-def files_exist(files: Union[str, PosixPath, List[str]]) -> bool:
-    """
-    Checks whether a single file, or all files from a list, exist.
-    """
-    if isinstance(files, (str, PosixPath)):
-        return os.path.isfile(files)
-    else:
-        for file in files:
-            if not os.path.isfile(file):
-                return False
-        return True
 
 
 def execute(params: List[str], dryrun: bool) -> None:

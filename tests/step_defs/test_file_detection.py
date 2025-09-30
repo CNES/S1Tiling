@@ -106,6 +106,15 @@ def input_file_vh(idx) -> str:
 # ======================================================================
 # Mocks
 
+# Various naming policies
+ORTHORECTIFICATION_NAMING = {
+    # Use "_beta" in mocked tests
+    'with_calibration': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_time}_{calibration_type}.tif',
+
+    # Theia fname_fmt: S1A_L1ORT_47PNR_VH_SIG_DES_135_20230112T122356
+    'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_time}.tif',
+}
+
 class Configuration():
     def __init__(self, inputdir, tmpdir, outputdir, *argv) -> None:
         """
@@ -136,6 +145,7 @@ class Configuration():
         self.creation_options        : Dict[str, str] = {}
         self.disable_streaming       : Dict[str, bool] = {}
         self.filter                  = ''
+
 
 class MockDirEntry:
     def __init__(self, pathname) -> None:
@@ -199,12 +209,26 @@ def downloads() -> list[S1DownloadOutcome]:
     return dn
 
 @pytest.fixture
+def naming_policy() -> str:
+    return 'with_calibration'
+
+
+@pytest.fixture
 def configuration() -> Configuration:
     cfg = Configuration(INPUT, TMPDIR, OUTPUT)
     return cfg
 
 # ======================================================================
 # Given steps
+
+@given(
+    parsers.parse('{policy} naming policy'),
+    target_fixture='naming_policy',
+)
+def given_naming_policy(policy) -> str:
+    assert policy in FileDB.CONCATENATION_NAMING
+    return policy
+
 
 def _output_name_formats(configuration) -> List[Tuple[str,str]]:
     if configuration.calibration_type == 'gamma_area':
@@ -402,9 +426,9 @@ def given_all_products_are_available_for_download(mocker, configuration) -> None
 
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_S2_files(known_files, patterns, known_dirs) -> None:
+def _declare_known_S2_files(known_files, patterns, known_dirs, naming_policy) -> None:
     nb_products = file_db.nb_S2_products
-    all_S2 = [file_db.concatfile_from_two(idx, '', pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
+    all_S2 = [file_db.concatfile_from_two(idx, '', naming_policy=naming_policy, polarity=pol) for idx in range(nb_products) for pol in ['vh', 'vv']]
     files = []
     for pattern in patterns:
         files += [fn for fn in all_S2 if fnmatch.fnmatch(fn, '*'+pattern+'*')]
@@ -417,16 +441,16 @@ def _declare_known_S2_files(known_files, patterns, known_dirs) -> None:
     known_dirs.add(file_db.s2_product_dir())
 
 @given('All S2 files are known')
-def given_all_S2_files_are_known(known_files, known_dirs) -> None:
-    _declare_known_S2_files(known_files, ['vv', 'vh'], known_dirs)
+def given_all_S2_files_are_known(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_S2_files(known_files, ['vv', 'vh'], known_dirs, naming_policy)
 
 @given('All S2 VV files are known')
-def given_all_S2_VV_files_are_known(known_files, known_dirs) -> None:
-    _declare_known_S2_files(known_files, ['vv'], known_dirs)
+def given_all_S2_VV_files_are_known(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_S2_files(known_files, ['vv'], known_dirs, naming_policy)
 
 @given('All S2 VH files are known')
-def given_all_S2_VH_files_are_known(known_files, known_dirs) -> None:
-    _declare_known_S2_files(known_files, ['vh'], known_dirs)
+def given_all_S2_VH_files_are_known(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_S2_files(known_files, ['vh'], known_dirs, naming_policy)
 
 @given('No S2 files are known')
 def given_no_S2_files_are_known(known_dirs) -> None:
@@ -435,7 +459,7 @@ def given_no_S2_files_are_known(known_dirs) -> None:
     pass
 
 #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def _declare_known_filtered_S2_files(known_files, patterns, known_dirs, /, extra=None, outdir=None) -> None:
+def _declare_known_filtered_S2_files(known_files, patterns, known_dirs, naming_policy, /, extra=None, outdir=None) -> None:
     nb_products = file_db.nb_S2_products
     params = {
             'tmp'        : '',
@@ -446,7 +470,7 @@ def _declare_known_filtered_S2_files(known_files, patterns, known_dirs, /, extra
     }
     all_S2 = [
             file_db.filtered_from_two(
-                idx=idx, polarity=pol, **params,
+                idx=idx, naming_policy=naming_policy, polarity=pol, **params,
             ) for idx in range(nb_products) for pol in ['vh', 'vv']]
     files = []
     for pattern in patterns:
@@ -463,12 +487,12 @@ def given_no_filtered_S2_files_are_known() -> None:
     pass
 
 @given('All filtered S2 files are known under the default fname_fmt')
-def given_all_filteredS2_files_are_known_default_fname_fmt(known_files, known_dirs) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs)
+def given_all_filteredS2_files_are_known_default_fname_fmt(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, naming_policy)
 
 @given('All filtered S2 files are known with a different fname_fmt')
-def given_all_filteredS2_files_are_known_different_fname_fmt(known_files, known_dirs) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, extra='.FILTERED')
+def given_all_filteredS2_files_are_known_different_fname_fmt(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, naming_policy, extra='.FILTERED')
 
 @given("fname_fmt.filtered has the default value")
 def given_a_fname_fmt_filtered_has_the_default_value(configuration) -> None:
@@ -483,12 +507,12 @@ def given_a_fname_fmt_filtered_has_a_different_value(configuration) -> None:
 
 
 @given('All filtered S2 files are known in the default dname_fmt')
-def given_all_filteredS2_files_are_known_default_dname_fmt(known_files, known_dirs) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs)
+def given_all_filteredS2_files_are_known_default_dname_fmt(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, naming_policy)
 
 @given('All filtered S2 files are known in a different dname_fmt')
-def given_all_filteredS2_files_are_known_different_dname_fmt(known_files, known_dirs) -> None:
-    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, outdir=f'{file_db.outputdir}/33NWB/filters')
+def given_all_filteredS2_files_are_known_different_dname_fmt(known_files, known_dirs, naming_policy) -> None:
+    _declare_known_filtered_S2_files(known_files, ['vv', 'vh'], known_dirs, naming_policy, outdir=f'{file_db.outputdir}/33NWB/filters')
 
 @given("dname_fmt.filtered has the default value")
 def given_a_dname_fmt_filtered_has_the_default_value() -> None:
@@ -717,9 +741,9 @@ def _then_xx_product_idx_will_be_discarded(
         assert False, f"{os.path.basename(prod)} not in {skipped_product_names}"
 
 @then(parsers.parse('S2 product n° {idx} will be discarded'))
-def then_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int, configuration) -> None:
+def then_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int, configuration, naming_policy) -> None:
     calib = K_CALIBRATION_TO_SUFFIX[configuration.calibration_type]
-    product_name_generator = lambda idx : file_db.concatfile_from_two(idx, tmp=False, polarity='*', calibration=calib)
+    product_name_generator = lambda idx : file_db.concatfile_from_two(idx, tmp=False, naming_policy=naming_policy, polarity='*', calibration=calib)
     _then_xx_product_idx_will_be_discarded(product_name_generator, dl_skip, idx)
 
 @then(parsers.parse('Gamma Area S2 product n° {idx} will be discarded'))
@@ -920,16 +944,17 @@ def _declare_known_S2_files_from_ids(
     known_files,
     patterns,
     known_dirs,
-    configuration
+    configuration,
+    naming_policy,
 ) -> None:
     files = []
     calib = K_CALIBRATION_TO_SUFFIX[configuration.calibration_type]
 
     nb_products = file_db.nb_S2_products
     all_S2 = [
-        file_db.concatfile_from_two(idx, '', pol, calib) for idx in range(nb_products) for pol in ['vh', 'vv']
+        file_db.concatfile_from_two(idx, '', naming_policy=naming_policy, polarity=pol, calibration=calib) for idx in range(nb_products) for pol in ['vh', 'vv']
     ] + [
-        file_db.concatfile_from_one(idx, '', pol, calib) for idx in range(nb_products*2) for pol in ['vh', 'vv']
+        file_db.concatfile_from_one(idx, '', naming_policy=naming_policy, polarity=pol, calibration=calib) for idx in range(nb_products*2) for pol in ['vh', 'vv']
     ] + [
         file_db.selectedGAMMA_AREAfile()
     ]
@@ -953,6 +978,7 @@ def when_searching_which_S1_to_download2(
     mocker,
     known_files,
     known_dirs,
+    naming_policy,
 ) -> list:
     default_polarisation = 'VV VH'
     configuration.polarisation = configuration.polarisation or default_polarisation
@@ -962,7 +988,12 @@ def when_searching_which_S1_to_download2(
         for node in node_list:
             logging.debug("  - %r", node)
     _declare_known_S1_files(known_files, [file for file in known_local_s1], all_manifests=False)
-    _declare_known_S2_files_from_ids(known_files, [file for file in known_local_s2], known_dirs, configuration)
+    _declare_known_S2_files_from_ids(
+        known_files,
+        [file for file in known_local_s2],
+        known_dirs,
+        configuration,
+        naming_policy=naming_policy)
     _mock_S1Tiling_functions(mocker, known_files, known_dirs)
     list_mocked_nodes(known_dirs, "known dirs")
     list_mocked_nodes(known_files, "known files")

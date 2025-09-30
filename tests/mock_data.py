@@ -38,6 +38,7 @@ import numpy as np
 
 from s1tiling.libs.Utils import Polygon
 from s1tiling.libs.otbtools import otb_version
+from s1tiling.libs.utils.formatters import ExtendedFormatter
 
 # from .mock_otb import compute_coverage
 
@@ -62,11 +63,11 @@ class FileDB:
         's1file'              : '{s1_basename}.tiff',
         'cal_ok'              : '{s1_basename}{tmp}.tiff',
         'ortho_ready'         : '{s1_basename}_OrthoReady{tmp}.tiff',
-        'orthofile'           : '{s2_basename}{calibration}{tmp}',
-        'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',
-        'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',
-        'border_mask_tmp'     : '{s2_basename}{calibration}_BorderMaskTmp{tmp}.tif',
-        'border_mask'         : '{s2_basename}{calibration}_BorderMask{tmp}.tif',
+        'orthofile'           : '{s2_basename}{tmp}',
+        # 'sigma0_normlim_file' : '{s2_basename}_NormLim{tmp}',         # no longer needed
+        # 'gamma0_rtc_file'     : '{s2_basename}_GammaNaughtRTC{tmp}',  # no longer needed
+        'border_mask_tmp'     : '{s2_basename}_BorderMaskTmp{tmp}.tif',
+        'border_mask'         : '{s2_basename}_BorderMask{tmp}.tif',
 
         # Local Incidence Angle V1 & γ Area RTC
         'vrt'                 : 'DEM_{s1_polarless}{tmp}.vrt',
@@ -120,7 +121,6 @@ class FileDB:
             'orbit_stop'      : '2020:01:08 23:59:59',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044150_20200108T044215_030704_038506_C7F5',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044150-20200108t044215-030704-038506-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044150',
             's1_polarless'    : 's1a-iw-grd-20200108t044150-20200108t044215-030704-038506',
             's2_polarless'    : 's1a_33NWB_DES_007_20200108t044150',
             'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
@@ -130,6 +130,7 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 30704,
             'orbit'           : '007',
+            'time_stamp'      : '20200108t044150',
         },
         {
             'start_time'      : '2020:01:08 04:42:15',
@@ -138,7 +139,6 @@ class FileDB:
             'orbit_stop'      : '2020:01:08 23:59:59',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200108T044215_20200108T044240_030704_038506_D953',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200108t044215-20200108t044240-030704-038506-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200108t044215',
             's1_polarless'    : 's1a-iw-grd-20200108t044215-20200108t044240-030704-038506',
             's2_polarless'    : 's1a_33NWB_DES_007_20200108t044215',
             'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
@@ -148,6 +148,7 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 30704,
             'orbit'           : '007',
+            'time_stamp'      : '20200108t044215',
         },
         # 20 jan 2020
         {
@@ -157,7 +158,6 @@ class FileDB:
             'orbit_stop'      : '2020:01:20 23:59:59',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044149_20200120T044214_030879_038B2D_5671',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044149-20200120t044214-030879-038B2D-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044149',
             's1_polarless'    : 's1a-iw-grd-20200120t044149-20200120t044214-030879-038B2D',
             's2_polarless'    : 's1a_33NWB_DES_007_20200120t044149',
             'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
@@ -167,6 +167,7 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 30879,
             'orbit'           : '007',
+            'time_stamp'      : '20200120t044149',
         },
         {
             'start_time'      : '2020:01:20 04:42:14',
@@ -175,7 +176,6 @@ class FileDB:
             'orbit_stop'      : '2020:01:20 23:59:59',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200120T044214_20200120T044239_030879_038B2D_FDB0',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200120t044214-20200120t044239-030879-038B2D-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200120t044214',
             's1_polarless'    : 's1a-iw-grd-20200120t044214-20200120t044239-030879-038B2D',
             's2_polarless'    : 's1a_33NWB_DES_007_20200120t044214',
             'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
@@ -185,6 +185,7 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 30879,
             'orbit'           : '007',
+            'time_stamp'      : '20200120t044214',
         },
         # 02 feb 2020
         {
@@ -194,7 +195,6 @@ class FileDB:
             'orbit_stop'      : '2020:02:01 23:59:59',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044149_20200201T044214_031054_039149_ED12',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044149-20200201t044214-031054-039149-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044149',
             's1_polarless'    : 's1a-iw-grd-20200201t044149-20200201t044214-031054-039149',
             's2_polarless'    : 's1a_33NWB_DES_007_20200201t044149',
             'dem_coverage'    : ['N00E014', 'N00E015', 'N00E016', 'N01E014', 'N01E015', 'N01E016', 'N02E014', 'N02E015', 'N02E016'],
@@ -204,13 +204,13 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 31054,
             'orbit'           : '007',
+            'time_stamp'      : '20200201t044149',
         },
         {
             'start_time'      : '2020:02:01 04:42:14',
             'stop_time'       : '2020:02:01 04:42:39',
             's1dir'           : 'S1A_IW_GRDH_1SDV_20200201T044214_20200201T044239_031054_039149_CC58',
             's1_basename'     : 's1a-iw-grd-{polarity}-20200201t044214-20200201t044239-031054-039149-{nr}',
-            's2_basename'     : 's1a_33NWB_{polarity}_DES_007_20200201t044214',
             's1_polarless'    : 's1a-iw-grd-20200201t044214-20200201t044239-031054-039149',
             's2_polarless'    : 's1a_33NWB_DES_007_20200201t044214',
             'dem_coverage'    : ['N00E013', 'N00E014', 'N00E015', 'N00E016', 'N01E014', 'S01E013', 'S01E014', 'S01E015', 'S01E016'],
@@ -220,31 +220,55 @@ class FileDB:
             'relative_orbit'  : 7,
             'absolute_orbit'  : 31054,
             'orbit'           : '007',
+            'time_stamp'      : '20200201t044214',
         },
     ]
     CONCATS = [
         # 08 jan 2020
         {
-            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200108txxxxxx',
-            's2_polarless': 's1a_33NWB_DES_007_20200108txxxxxx',
-            'start_time'  : '2020:01:08 04:41:50',
-            'orbit'       : '007',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200108txxxxxx',
+            'start_time'      : '2020:01:08 04:41:50',
+            'orbit'           : '007',
+            'orbit_direction' : 'DES',
+            'time_stamp'      : '20200108txxxxxx',
         },
         # 20 jan 2020
         {
-            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200120txxxxxx',
-            's2_polarless': 's1a_33NWB_DES_007_20200120txxxxxx',
-            'start_time'  : '2020:01:20 04:41:49',
-            'orbit'       : '007',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200120txxxxxx',
+            'start_time'      : '2020:01:20 04:41:49',
+            'orbit'           : '007',
+            'orbit_direction' : 'DES',
+            'time_stamp'      : '20200120txxxxxx',
         },
         # 02 feb 2020
         {
-            's2_basename' : 's1a_33NWB_{polarity}_DES_007_20200201txxxxxx',
-            's2_polarless': 's1a_33NWB_DES_007_20200201txxxxxx',
-            'start_time'  : '2020:02:01 04:41:49',
-            'orbit'       : '007',
+            's2_polarless'    : 's1a_33NWB_DES_007_20200201txxxxxx',
+            'start_time'      : '2020:02:01 04:41:49',
+            'orbit'           : '007',
+            'orbit_direction' : 'DES',
+            'time_stamp'      : '20200201txxxxxx',
         },
     ]
+
+    S2_BASENAME = {
+        'with_calibration': 's1a_33NWB_{polarity}_{orbit_direction}_{orbit}_{time_stamp}{calibration}',
+
+        # here calibration is _sig/_NormLim -> hence :.4 instead of :.3
+        'theia'           : 'S1A_L1ORT_33NWB_{polarity!u}{calibration!u:.4}_{orbit_direction}_{orbit}_{time_stamp}',
+    }
+
+    CALIBRATION_CONVERTER = {
+        'with_calibration': '{calibration}',
+        'theia'           : '{calibration!u:.3}',
+    }
+
+    CONCATENATION_NAMING = {
+        # Use "_beta" in mocked tests
+        'with_calibration': '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}.tif',
+
+        # Theia fname_fmt: S1A_L1ORT_47PNR_VH_SIG_DES_135_20230112T122356
+        'theia' : '{flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_stamp}.tif',
+    }
 
     # TILE = '33NWB'
     TILE_DATA = {
@@ -362,40 +386,41 @@ class FileDB:
                 (self.tania_on_s2,                  NConcats),
         ]
         self.__tmp_to_out_map = {}
-        for func, nb in names_to_map:
-            for idx in range(nb):
-                tmp = func(idx, True)
-                assert tmp not in self.__tmp_to_out_map
+        for naming_policy in self.S2_BASENAME:
+            for func, nb in names_to_map:
+                for idx in range(nb):
+                    tmp = func(idx, True, naming_policy=naming_policy)
+                    # assert tmp not in self.__tmp_to_out_map
+                    assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                    self.__tmp_to_out_map[tmp] = func(idx, False, naming_policy=naming_policy)
+                    # logging.debug("func=%s, idx=%s => in=%s ==> ~out=%s", func.__name__, idx, tmp, func(idx, False))
+            # coded beta-calibration cases...
+            for func, nb in names_to_map_for_beta_calib:
+                for idx in range(nb):
+                    tmp = func(idx, True, naming_policy=naming_policy, calibration='_beta')
+                    assert tmp not in self.__tmp_to_out_map
+                    assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                    self.__tmp_to_out_map[tmp] = func(idx, False, naming_policy=naming_policy, calibration='_beta')
+            # coded σ° LIA-calibration cases...
+            for func, nb in names_to_map_for_lia_calib:
+                for idx in range(nb):
+                    tmp = func(idx, True, naming_policy=naming_policy, calibration='_normlim')
+                    assert tmp not in self.__tmp_to_out_map
+                    assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                    self.__tmp_to_out_map[tmp] = func(idx, False, naming_policy=naming_policy, calibration='_normlim')
+            # coded γ°RTC-calibration cases...
+            for func, nb in names_to_map_for_rtc_calib:
+                for idx in range(nb):
+                    tmp = func(idx, True, naming_policy=naming_policy, calibration='_gamma_naught_rtc')
+                    # assert tmp not in self.__tmp_to_out_map
+                    assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
+                    self.__tmp_to_out_map[tmp] = func(idx, False, naming_policy=naming_policy, calibration='_gamma_naught_rtc')
+            # mapping when there is no idx.
+            for func, nb in names_to_map_no_idx:
+                tmp = func(True)
+                # assert tmp not in self.__tmp_to_out_map
                 assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
-                self.__tmp_to_out_map[tmp] = func(idx, False)
-                # logging.debug("func=%s, idx=%s => in=%s ==> ~out=%s", func.__name__, idx, tmp, func(idx, False))
-        # coded beta-calibration cases...
-        for func, nb in names_to_map_for_beta_calib:
-            for idx in range(nb):
-                tmp = func(idx, True, calibration='_beta')
-                assert tmp not in self.__tmp_to_out_map
-                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
-                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_beta')
-        # coded σ° LIA-calibration cases...
-        for func, nb in names_to_map_for_lia_calib:
-            for idx in range(nb):
-                tmp = func(idx, True, calibration='_normlim')
-                assert tmp not in self.__tmp_to_out_map
-                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
-                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_normlim')
-        # coded γ°RTC-calibration cases...
-        for func, nb in names_to_map_for_rtc_calib:
-            for idx in range(nb):
-                tmp = func(idx, True, calibration='_gamma_naught_rtc')
-                assert tmp not in self.__tmp_to_out_map
-                assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
-                self.__tmp_to_out_map[tmp] = func(idx, False, calibration='_gamma_naught_rtc')
-        # mapping when there is no idx.
-        for func, nb in names_to_map_no_idx:
-            tmp = func(True)
-            assert tmp not in self.__tmp_to_out_map
-            assert '{' not in tmp, f"{func.__name__} has curly braces in tmp2out file: {tmp!r}"
-            self.__tmp_to_out_map[tmp] = func(False)
+                self.__tmp_to_out_map[tmp] = func(False)
 
         # # Trace the mappings
         # logging.debug("TMP to OUT mappings")
@@ -405,6 +430,9 @@ class FileDB:
         # for idx in range(NFiles):
         #     self.__tmp_to_out_map[self.orthofile(idx, True, calibration='_beta')] = self.orthofile(idx, False, calibration='_beta')
         #     self.__tmp_to_out_map[self.concatfile_from_one(idx, True, calibration='_beta')] = self.concatfile_from_one(idx, False, calibration='_beta')
+
+    def s2_basename(self, naming_policy) -> str:
+        return self.S2_BASENAME[naming_policy]
 
     @property
     def tmp_to_out_map(self):
@@ -605,17 +633,24 @@ class FileDB:
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["ortho_ready"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
     # ----------[ ortho
-    def orthofile(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+    def orthofile(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
-        return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+                **crt,
+                s2_basename=self.s2_basename(naming_policy),
+                tmp=tmp_suffix(tmp),
+                calibration=calibration
+            ),
             **crt,
-            tmp=tmp_suffix(tmp),
+            polarity=polarity,
             calibration=calibration
-        ).format(polarity=polarity)
+        )
 
     # ----------[ concat
-    def _concatfile_for_all(self, crt, tmp, polarity, calibration) -> str:
+    def _concatfile_for_all(self, crt, tmp, naming_policy, polarity, calibration, ext) -> str:
         if tmp or (calibration in k_calib_convert):
             calibration = k_calib_convert.get(calibration, calibration)
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> TMP', tmp, calibration)
@@ -624,69 +659,98 @@ class FileDB:
             # dir = f'{self.__output_dir}/{self.__tile}'
             dir = self.__dname_fmt_tiled or '{out_dir}/{tile_name}'
             # logging.error('concatfile_for_all(tmp=%s, calibration=%s) ==> OUT ==> %r', tmp, calibration, dir)
-        ext = self.extended_compress_predictor if tmp else ''
         assert 'orbit' in crt, f'"orbit" not in {crt.keys()}'
-        return f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
                 **crt,
+                s2_basename=self.s2_basename(naming_policy),
                 tmp=tmp_suffix(tmp),
-                calibration=calibration,
                 out_dir=self.__output_dir,
                 tile_name=self.__tile,
-        ).format(
-                polarity=polarity, nr="001" if polarity == "vv" else "002"
+            ),
+            **crt,
+            calibration=calibration,
+            polarity=polarity, nr="001" if polarity == "vv" else "002",
         )
-    def concatfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+    def concatfile_from_one(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
-        return self._concatfile_for_all(crt, tmp, polarity, calibration)
-    def concatfile_from_two(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration, ext='')
+    def concatfile_from_two(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
+        ext = self.extended_compress_predictor if tmp else ''
         crt = self.CONCATS[idx]
-        return self._concatfile_for_all(crt, tmp, polarity, calibration)
+        return self._concatfile_for_all(crt, tmp, naming_policy, polarity, calibration, ext=ext)
 
-    def filtered_from_two(self, idx, tmp, extra, polarity, calibration, dir) -> str:
+    def filtered_from_two(self, idx, tmp, extra, naming_policy, polarity, calibration, dir) -> str:
         crt = self.CONCATS[idx]
         ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthofile"]}{extra}.tif{ext}'.format(
-                **crt, tmp=tmp_suffix(tmp), calibration=calibration).format(
-                        polarity=polarity, nr="001" if polarity == "vv" else "002"
-                )
+            **crt,
+            s2_basename=self.s2_basename(naming_policy),
+            tmp=tmp_suffix(tmp),
+        ).format(
+            **crt,
+            calibration=calibration,
+            polarity=polarity, nr="001" if polarity == "vv" else "002",
+        )
 
-    def _masktmp_for_all(self, crt, tmp, polarity, calibration) -> str:
+    def _masktmp_for_all(self, crt, tmp, naming_policy, polarity, calibration) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
-        return f'{dir}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
-    def masktmp_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{dir}/{self.FILE_FMTS["border_mask_tmp"]}.tif'.format(
+                **crt,
+            s2_basename=self.s2_basename(naming_policy),
+                tmp=tmp_suffix(tmp),
+            ),
+            **crt,
+            calibration=calibration,
+            polarity=polarity,
+        )
+    def masktmp_from_one(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
-        return self._masktmp_for_all(crt, tmp, polarity, calibration)
-    def masktmp_from_two(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+        return self._masktmp_for_all(crt, tmp, naming_policy, polarity, calibration)
+    def masktmp_from_two(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.CONCATS[idx]
-        return self._masktmp_for_all(crt, tmp, polarity, calibration)
+        return self._masktmp_for_all(crt, tmp, naming_policy, polarity, calibration)
 
-    def _maskfile_for_all(self, crt, tmp, polarity, calibration) -> str:
+    def _maskfile_for_all(self, crt, tmp, naming_policy, polarity, calibration) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
             ext = self.extended_compress
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["border_mask"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp), calibration=calibration).format(polarity=polarity)
-    def maskfile_from_one(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{dir}/{self.FILE_FMTS["border_mask"]}{ext}'.format(
+                **crt,
+            s2_basename=self.s2_basename(naming_policy),
+                tmp=tmp_suffix(tmp),
+            ),
+            **crt,
+            calibration=calibration,
+            polarity=polarity
+        )
+    def maskfile_from_one(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.FILES[idx]
-        return self._maskfile_for_all(crt, tmp, polarity, calibration)
-    def maskfile_from_two(self, idx, tmp, polarity='vv', calibration='_sigma') -> str:
+        return self._maskfile_for_all(crt, tmp, naming_policy, polarity, calibration)
+    def maskfile_from_two(self, idx, tmp, naming_policy, polarity='vv', calibration='_sigma') -> str:
         crt = self.CONCATS[idx]
-        return self._maskfile_for_all(crt, tmp, polarity, calibration)
+        return self._maskfile_for_all(crt, tmp, naming_policy, polarity, calibration)
 
     def dem_file(self) -> str:
         return f'{self.__tmp_dir}/TMP_DEM'
 
-    def vrtfile(self, idx, tmp) -> str:
+    def vrtfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["vrt"]}'.format(**crt, tmp=tmp_suffix(tmp))
     def dem_coverage(self, idx) -> List[str]:
         return self.FILES[idx]['dem_coverage']
-    def resampleddemfile(self, idx, tmp) -> str:
+    def resampleddemfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["resampleddemfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def height_4rtc(self, idx, tmp: bool) -> str:
+    def height_4rtc(self, idx, tmp: bool, **_unused) -> str:
         crt = self.FILES[idx]
         if tmp:
             # default DEM nodata==-32768
@@ -694,76 +758,76 @@ class FileDB:
         else:
             ext = ''
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["height_4rtc"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def sardemprojfile(self, idx, tmp) -> str:
+    def sardemprojfile(self, idx, tmp, **_unused) -> str:
         ext = self.extended_tiled_compress if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sardemprojfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def xyzfile(self, idx, tmp) -> str:
+    def xyzfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["xyzfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def normalsfile(self, idx, tmp) -> str:
+    def normalsfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["normalsfile"]}'.format(**crt, tmp=tmp_suffix(tmp))
-    def LIAtask(self, idx, tmp) -> str:
+    def LIAtask(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.FILE_FMTS["LIAtask"]}'.format(**crt)
-    def degLIAfile(self, idx, tmp) -> str:
+    def degLIAfile(self, idx, tmp, **_unused) -> str:
         ext = self.extended_compress if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["degLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def sinLIAfile(self, idx, tmp) -> str:
+    def sinLIAfile(self, idx, tmp, **_unused) -> str:
         ext = self.extended_compress_predictor if tmp else ''
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["sinLIAfile"]}{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def gamma_areafile(self, idx, tmp) -> str:
+    def gamma_areafile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return f'{self.__tmp_dir}/S1/{self.FILE_FMTS["gamma_areafile"]}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthodegLIAfile(self, idx, tmp) -> str:
+    def orthodegLIAfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthosinLIAfile(self, idx, tmp) -> str:
+    def orthosinLIAfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress if tmp else ''
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def orthoGAMMA_AREAfile(self, idx, tmp) -> str:
+    def orthoGAMMA_AREAfile(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         ext = self.extended_geom_compress_nopr if tmp else ''
         return f'{self.__tmp_dir}/S2/{self.__tile}/{self.FILE_FMTS["orthoGAMMA_AREAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
 
-    def _concatLIAfile_for_all(self, crt, tmp) -> str:
+    def _concatLIAfile_for_all(self, crt, tmp, **_unused) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthodegLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def concatLIAfile_from_one(self, idx, tmp) -> str:
+    def concatLIAfile_from_one(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return self._concatLIAfile_for_all(crt, tmp)
-    def concatLIAfile_from_two(self, idx, tmp) -> str:
+    def concatLIAfile_from_two(self, idx, tmp, **_unused) -> str:
         crt = self.CONCATS[idx]
         return self._concatLIAfile_for_all(crt, tmp)
 
-    def _concatGAMMA_AREAfile_for_all(self, crt, tmp) -> str:
+    def _concatGAMMA_AREAfile_for_all(self, crt, tmp, **_unused) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthoGAMMA_AREAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def concatGAMMA_AREAfile_from_one(self, idx, tmp) -> str:
+    def concatGAMMA_AREAfile_from_one(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return self._concatGAMMA_AREAfile_for_all(crt, tmp)
-    def concatGAMMA_AREAfile_from_two(self, idx, tmp) -> str:
+    def concatGAMMA_AREAfile_from_two(self, idx, tmp, **_unused) -> str:
         crt = self.CONCATS[idx]
         return self._concatGAMMA_AREAfile_for_all(crt, tmp)
 
-    def _concatsinLIAfile_for_all(self, crt, tmp) -> str:
+    def _concatsinLIAfile_for_all(self, crt, tmp, **_unused) -> str:
         dir = f'{self.__tmp_dir}/S2/{self.__tile}'
         ext = self.extended_compress_predictor if tmp else ''
         return f'{dir}/{self.FILE_FMTS["orthosinLIAfile"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp))
-    def concatsinLIAfile_from_one(self, idx, tmp) -> str:
+    def concatsinLIAfile_from_one(self, idx, tmp, **_unused) -> str:
         crt = self.FILES[idx]
         return self._concatsinLIAfile_for_all(crt, tmp)
-    def concatsinLIAfile_from_two(self, idx, tmp) -> str:
+    def concatsinLIAfile_from_two(self, idx, tmp, **_unused) -> str:
         crt = self.CONCATS[idx]
         return self._concatsinLIAfile_for_all(crt, tmp)
 
@@ -779,7 +843,7 @@ class FileDB:
     def eof_for_s2(self) ->  str:
         return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
 
-    def relorb_for_s2(self) -> str:
+    def relorb_for_s2(self) -> int:
         return self.TILE_DATA[self.__tile]["relorb"]
 
     def dems_on_s2(self) -> List[str]:
@@ -862,37 +926,57 @@ class FileDB:
     def tania_on_s2(self, tmp: bool) -> str:
         return self._xia_map_on_s2(tmp, self.extended_compress_predictor, "tania_on_s2")
 
-    def _sigma0_normlim_file_for_all(self, crt, tmp, polarity) -> str:
+    def _sigma0_normlim_file_for_all(self, crt, tmp, naming_policy, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
             ext = self.extended_compress_predictor + self.extended_nodata.format(nodata='0')  # nodata_SAR=0
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["sigma0_normlim_file"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
-    def sigma0_normlim_file_from_one(self, idx, tmp, polarity='vv') -> str:
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+                **crt,
+                s2_basename=self.s2_basename(naming_policy),
+                tmp=tmp_suffix(tmp),
+            ),
+            **crt,
+            calibration='_NormLim',
+            polarity=polarity,
+        )
+    def sigma0_normlim_file_from_one(self, idx, tmp, naming_policy, polarity='vv') -> str:
         crt = self.FILES[idx]
-        return self._sigma0_normlim_file_for_all(crt, tmp, polarity)
+        return self._sigma0_normlim_file_for_all(crt, tmp, naming_policy, polarity)
 
-    def sigma0_normlim_file_from_two(self, idx, tmp, polarity='vv') -> str:
+    def sigma0_normlim_file_from_two(self, idx, tmp, naming_policy, polarity='vv') -> str:
         crt = self.CONCATS[idx]
-        return self._sigma0_normlim_file_for_all(crt, tmp, polarity)
+        return self._sigma0_normlim_file_for_all(crt, tmp, naming_policy, polarity)
 
-    def _gamma0_rtc_file_for_all(self, crt, tmp, polarity) -> str:
+    def _gamma0_rtc_file_for_all(self, crt, tmp, naming_policy, polarity) -> str:
         if tmp:
             dir = f'{self.__tmp_dir}/S2/{self.__tile}'
             ext=''#self.extended_compress_predictor
         else:
             dir = f'{self.__output_dir}/{self.__tile}'
             ext = ''
-        return f'{dir}/{self.FILE_FMTS["gamma0_rtc_file"]}.tif{ext}'.format(**crt, tmp=tmp_suffix(tmp)).format(polarity=polarity)
-    def gamma0_rtc_file_from_one(self, idx, tmp, polarity='vv') -> str:
+        formatter = ExtendedFormatter()
+        return formatter.format(
+            f'{dir}/{self.FILE_FMTS["orthofile"]}.tif{ext}'.format(
+                **crt,
+                s2_basename=self.s2_basename(naming_policy),
+                tmp=tmp_suffix(tmp),
+            ),
+            **crt,
+            calibration='_GammaNaughtRTC',
+            polarity=polarity,
+        )
+    def gamma0_rtc_file_from_one(self, idx, tmp, naming_policy, polarity='vv') -> str:
         crt = self.FILES[idx]
-        return self._gamma0_rtc_file_for_all(crt, tmp, polarity)
+        return self._gamma0_rtc_file_for_all(crt, tmp, naming_policy, polarity)
 
-    def gamma0_rtc_file_from_two(self, idx, tmp, polarity='vv') -> str:
+    def gamma0_rtc_file_from_two(self, idx, tmp, naming_policy, polarity='vv') -> str:
         crt = self.CONCATS[idx]
-        return self._gamma0_rtc_file_for_all(crt, tmp, polarity)
+        return self._gamma0_rtc_file_for_all(crt, tmp, naming_policy, polarity)
 
     def s2_product_dir(self):
         return f'{self.__output_dir}/{self.__tile}'

@@ -284,6 +284,15 @@ The :ref:`domain processings <processings>` are defined through
 turn will instantiate domain unaware subclasses of :class:`AbstractStep
 <s1tiling.libs.steps.AbstractStep>` for the actual processing.
 
+Common internal processings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: api
+
+   s1tiling.libs.otbwrappers._OrthoRectifierFactory
+   s1tiling.libs.otbwrappers._ConcatenatorFactory
+
 Main processings
 ~~~~~~~~~~~~~~~~
 

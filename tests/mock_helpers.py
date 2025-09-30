@@ -90,8 +90,10 @@ def declare_know_files(
     def mock_rename(fr, to):
         logging.debug('Renaming: %s --> %s', fr, to)
         known_files.append(to)
-        known_files.remove(fr)
+        if fr in known_files:
+            known_files.remove(fr)
     mocker.patch('os.rename',        lambda fr, to: mock_rename(fr, to))
+    mocker.patch('shutil.move',      lambda fr, to: mock_rename(fr, to))
     mocker.patch('os.path.getctime', lambda file : 0)
     # TODO: Test written meta data as well
     # mocker.patch('s1tiling.libs.otbwrappers.OrthoRectify.add_ortho_metadata',    lambda slf, mt, app : True)
@@ -107,7 +109,7 @@ def declare_know_files(
             assert isinstance(val, (str, list)), f'GDAL metadata shall be strings or lists of strings. "{kw}" is a {val.__class__.__name__} (="{val}")'
             logging.debug(' - %s -> %s', kw, val)
     mocker.patch('s1tiling.libs.steps._ProducerStep._write_image_metadata',  mock_write_image_metadata)
-    mocker.patch('s1tiling.libs.steps.commit_execution',             lambda tmp, out : True)
+    mocker.patch('s1tiling.libs.steps.commit_execution',             lambda tmp, out : mock_rename(tmp, out))
     mocker.patch('s1tiling.libs.Utils.get_origin',                   lambda manifest : file_db.get_origin(manifest))
     mocker.patch('s1tiling.libs.Utils.get_orbit_direction',          lambda manifest : file_db.get_orbit_direction(manifest))
     mocker.patch('s1tiling.libs.Utils.get_relative_orbit',           lambda manifest : file_db.get_relative_orbit(manifest))

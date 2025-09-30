@@ -34,7 +34,7 @@
 This module provides pipeline for chaining OTB applications, and a pool to execute them.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 import os
 import pprint
@@ -62,10 +62,10 @@ from .node_queue        import node_queue
 from .outcome           import Outcome, PipelineOutcome, filter_outcome_dict
 from .steps             import (
         AbstractStep, FirstStep, InputList, OTBStepFactory, StepFactory, MergeStep, Store,
-        files_exist,
 )
 # from ..__meta__         import __version__
 from .utils.timer       import timethis
+from .utils.path        import AnyPath, files_exist
 
 
 # Typing hints
@@ -282,7 +282,7 @@ def execute4dask(pipeline: Optional[Pipeline], *args, **unused_kwargs) -> Pipeli
         logger.info('Execute %s', pipeline)
         res = pipeline.do_execute().add_related_filename(output)
     except Exception as ex:  # pylint: disable=broad-except  # Use in nominal code
-    # except RuntimeError as ex:  # pylint: disable=broad-except  # Use when debugging...
+    # except RuntimeError as ex:  # py lint: disable=broad-except  # Use when debugging...
         logger.exception('Execution of %s failed', pipeline)
         logger.debug('(ERROR) %s has been executed with the following parameters: %s', pipeline, args)
         return PipelineOutcome(ex).add_related_filename(output).set_pipeline_name(pipeline.appname)  # type: ignore # mypy issue 16788
@@ -449,6 +449,12 @@ def register_task(tasks: Dict, key: str, value) -> None:
     tasks[key] = value
 
 
+def _basenames(paths: Union[AnyPath, Iterable[AnyPath]]):
+    if isinstance(paths, AnyPath):
+        return os.path.basename(paths)
+    return [os.path.basename(p) for p in paths]
+
+
 class TaskInputInfo:
     """
     Abstraction of the input(s) information associated to a particular task.
@@ -584,7 +590,7 @@ def fetch_input_data_all_inputs(keys: Set[str], all_inputs: List[InputList]) -> 
     return res
 
 
-def _update_out_filename(updated_meta, with_meta) -> None:
+def _update_out_filename(updated_meta, with_meta: TaskInputInfo) -> None:
     """
     Helper function to update the `out_filename` from metadata.
     Meant to be used metadata associated to products made of several inputs like Concatenate.
@@ -951,7 +957,7 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
         logger.debug('Building all tasks')
         required_tasks = node_queue(required)  # : Iterable[TaskName]
         for task_name in required_tasks:
-            logger.debug("* Checking if task '%s' needs to be executed", os.path.basename(task_name))
+            logger.debug("* Checking if task '%s' needs to be regsitered", os.path.basename(task_name))
             assert (task_name in previous) and previous[task_name], \
                     f"No previous task registered for {task_name}.\nOnly the following have previous tasks: {previous.keys()} "
             base_task_name = to_dask_key(task_name)
@@ -967,7 +973,10 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
             output_filename = task_names_to_output_files_table[task_name]
             pipeline_instance = pipeline_descr.instanciate(file=output_filename, do_measure=True, in_memory=True, do_watch_ram=do_watch_ram)
             pipeline_instance.set_inputs(task_inputs)
-            logger.debug(' ~~> TASKS[%s] += %s(keys=%s)', os.path.basename(base_task_name), pipeline_descr.name, [os.path.basename(tn) for tn in input_task_keys])
+            logger.debug(' ~~> TASKS[%s] += %s%s(keys=%s)',
+                         os.path.basename(base_task_name), pipeline_descr.name,
+                         f"[->{_basenames(output_filename)!r}]" if output_filename != task_name else "",
+                         _basenames(input_task_keys))
             register_task(tasks, base_task_name, (execute4dask, pipeline_instance, input_task_keys))
 
             logger.debug(" - Analysing whether its inputs needs to be registered for production...")
