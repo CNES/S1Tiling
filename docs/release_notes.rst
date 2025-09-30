@@ -101,6 +101,10 @@ v1.2.0 Improvements
   (`#191 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/191>`_).
 - S1Tiling kernel has been improved for later extraction and exploitation in
   other OTB based chains.
+- Filename formats can now use new conversion fields to convert keys in
+  uppercase or lowercase. A new time stamp is also defined to hold the first
+  time stamp among the ones from the input S1 images
+  (`#188 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/188>`_).
 
 v1.2.0 Bugs fixed
 +++++++++++++++++

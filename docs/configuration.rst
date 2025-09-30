@@ -39,8 +39,9 @@ You can use this :download:`this template
 
       .. _paths.s1_images:
   * - ``s1_images``
-    - Input directory where Sentinel-1 input products are searched, and
-      downloaded to thanks to `EODAG <https://github.com/CS-SI/eodag>`_.
+    - Input directory where **unzipped** Sentinel-1 input products are
+      searched, and downloaded to thanks to `EODAG
+      <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
       that directory -- the 1000 last products that have been downloaded.
