@@ -32,16 +32,16 @@
 
 """S1 product information"""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import logging
 import os
 from pathlib import Path
 import re
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 
-from eodag.api.product import EOProduct
 from eodag.utils       import get_geometry_from_various
-from osgeo.ogr         import Geometry
 
 try:
     from shapely.errors import TopologicalError
@@ -50,6 +50,10 @@ except ImportError:
 
 from .. import Utils
 from ..orbit._direction import Direction
+
+if TYPE_CHECKING:
+    from eodag.api.product import EOProduct
+    from osgeo.ogr         import Geometry
 
 
 logger = logging.getLogger('s1tiling.s1.product')
@@ -224,6 +228,14 @@ def product_property(prod: EOProduct, key: str, default=None):
 class EOProductInformation(ProductInformation):
     """
     Information on found EODag S1 :class:`EOProduct`.
+
+    ..note::
+
+        EODAG takes care of harmonizing the various properties, even if they are encoded differently
+        by the various providers.
+        - orbitDirection           ∈ {'ascending', 'descending'}
+        - platformSerialIdentifier ∈ {'S1A', 'S1B', 'S1C'...}
+        - polarizationChannels     ∈ {'VV+VH', 'HH+HV'}
     """
     def __init__(self, product: EOProduct):
         """
@@ -235,7 +247,7 @@ class EOProductInformation(ProductInformation):
             relative_orbit  = product_property(product, 'relativeOrbitNumber'),
             orbit_direction = product_property(product, "orbitDirection", ""),
             platform        = product_property(product, "platformSerialIdentifier", ""),
-            polarization    = product_property(product, "polarizationMode", ""),
+            polarization    = product_property(product, "polarizationChannels", ""),
             start_time      = product_property(product, "startTimeFromAscendingNode", ""),
             completion_time = product_property(product, "completionTimeFromAscendingNode", ""),
         )

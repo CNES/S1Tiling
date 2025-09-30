@@ -499,7 +499,7 @@ class S1FileManager:
         assert polarization in ['VV VH', 'VV', 'VH', 'HH HV', 'HH', 'HV']
         # In case only 'VV' or 'VH' is requested, we still need to
         # request 'VV VH' to the data provider through eodag.
-        dag_polarization_param  = 'VV VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH HV'
+        dag_polarization_param  = 'VV+VH' if polarization in ['VV VH', 'VV', 'VH'] else 'HH+HV'
         dag_orbit_dir_param     = k_dir_assoc.get(orbit_direction or "", None)  # None => all ; <<or "">> used to silence mypy
         dag_orbit_list_param    = relative_orbit_list[0] if len(relative_orbit_list) == 1 else None
         dag_platform_list_param = platform_list[0] if len(platform_list) == 1 else None
@@ -515,7 +515,7 @@ class S1FileManager:
                             start=first_date, end=last_date,
                             box=extent,
                             # If we have eodag v1.6+, we try to filter product during the search request
-                            polarizationMode=dag_polarization_param,
+                            polarizationChannels=dag_polarization_param,
                             sensorMode="IW",
                             orbitDirection=dag_orbit_dir_param,        # None => all
                             relativeOrbitNumber=dag_orbit_list_param,  # List doesn't work. Single number yes!
