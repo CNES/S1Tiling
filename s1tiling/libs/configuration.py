@@ -275,6 +275,14 @@ class _ConfigAccessor:
         """Helper function to report errors while extracting boolean configuration options"""
         return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
 
+    def getoptionalboolean(self, section: str, name: str, **kwargs) -> Optional[bool]:
+        """Helper function to report errors while extracting optional boolean configuration options"""
+        try:
+            return getboolean_opt(self.__config, self.config_file, section, name, **kwargs)
+        except Exception:  # pylint: disable=broad-except
+            # We cannot use "fallback=None" to handle ": None" w/ getboolean()
+            return None
+
     def get_items(self, section: str) -> Dict:
         """Helper function to return configuration items from a section"""
         res = {}
@@ -453,16 +461,13 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
             accessor.throw(f"Unexpected value for Processing.cache_dem_by option: '{self.cache_dem_by}' is neither 'copy' nor 'symlink'")
 
         # - - - - - - - - - -[ Cut margins
-        try:
-            self.override_azimuth_cut_threshold_to: Optional[bool] = accessor.getboolean('Processing', 'override_azimuth_cut_threshold_to')
-        except Exception:  # pylint: disable=broad-except
-            # We cannot use "fallback=None" to handle ": None" w/ getboolean()
-            #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
-            self.override_azimuth_cut_threshold_to = None
+        #: Internal to override analysing of top/bottom cutting: See :ref:`[Processing.override_azimuth_cut_threshold_to] <Processing.override_azimuth_cut_threshold_to>`
+        self.override_azimuth_cut_threshold_to: Optional[bool] = accessor.getoptionalboolean('Processing', 'override_azimuth_cut_threshold_to')
 
         # - - - - - - - - - -[ Calibration
         #: SAR Calibration applied: See :ref:`[Processing.calibration] <Processing.calibration>`
         self.calibration_type     = accessor.get('Processing', 'calibration')
+
         #: Shall we remove thermal noise: :ref:`[Processing.remove_thermal_noise] <Processing.remove_thermal_noise>`
         self.removethermalnoise   = accessor.getboolean('Processing', 'remove_thermal_noise')
         if self.removethermalnoise and otb_version() < '7.4.0':
@@ -477,27 +482,27 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Gamma area computation
         #: Resampling: See :ref:`[Processing.use_resampled_dem] <Processing.use_resampled_dem>`
-        self.use_resampled_dem                          = accessor.getboolean('Processing', 'use_resampled_dem', fallback=True)
-        no_use_resampled_dem                            = accessor.getboolean('Processing', 'no_use_resampled_dem', fallback=None)
+        self.use_resampled_dem            = accessor.getboolean('Processing', 'use_resampled_dem', fallback=True)
+        no_use_resampled_dem              = accessor.getboolean('Processing', 'no_use_resampled_dem', fallback=None)
         if no_use_resampled_dem is not None:
             accessor.throw("'no_use_resampled_dem' has be deprecated, please use the positive option: 'use_resampled_dem' instead")
 
         #: Resampling: See :ref:`[Processing.factor_x] <Processing.resample_dem_factor_x>`
-        self.resample_dem_factor_x :float               = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
+        self.resample_dem_factor_x :float = accessor.getfloat('Processing', 'resample_dem_factor_x', fallback=2.0)
         #: Resampling: See :ref:`[Processing.factor_y] <Processing.resample_dem_factor_y>`
-        self.resample_dem_factor_y :float               = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
+        self.resample_dem_factor_y :float = accessor.getfloat('Processing', 'resample_dem_factor_y', fallback=2.0)
 
         #: Gamma area: See :ref:`[Processing.distribute_area] <Processing.distribute_area>`
-        self.distribute_area :bool                      = accessor.getboolean('Processing', 'distribute_area', fallback=False)
+        self.distribute_area :bool        = accessor.getboolean('Processing', 'distribute_area', fallback=False)
         #: Gamma area: See :ref:`[Processing.inner_margin_ratio] <Processing.inner_margin_ratio>`
-        self.inner_margin_ratio :float                  = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
+        self.inner_margin_ratio :float    = accessor.getfloat('Processing', 'inner_margin_ratio', fallback=0.01)
         #: Gamma area: See :ref:`[Processing.outer_margin_ratio] <Processing.outer_margin_ratio>`
-        self.outer_margin_ratio :float                  = accessor.getfloat('Processing', 'outer_margin_ratio', fallback=0.04)
+        self.outer_margin_ratio :float    = accessor.getfloat('Processing', 'outer_margin_ratio', fallback=0.04)
 
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.min_gamma_area] <Processing.min_gamma_area>`
-        self.min_gamma_area :float                      = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
+        self.min_gamma_area :float        = accessor.getfloat('Processing', 'min_gamma_area', fallback=1.0)
         #: Gamma area to gamma naught rtc: See :ref:`[Processing.calibration_factor] <Processing.calibration_factor>`
-        self.calibration_factor :float                  = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
+        self.calibration_factor :float    = accessor.getfloat('Processing', 'calibration_factor', fallback=1.0)
 
         # - - - - - - - - - -[ Orthorectification
         #: Pixel size (in meters) of the output images: :ref:`[Processing.output_spatial_resolution] <Processing.output_spatial_resolution>`
@@ -514,21 +519,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
-        # IF tiles_list_in_file is set, use the option, and throw if there is an error
-        # ELSE: if unset, then use "tiles" option
-        tiles_file = accessor.get('Processing', 'tiles_list_in_file', fallback=None)
-        if tiles_file:
-            try:
-                with open(tiles_file, 'r', encoding='utf-8') as tiles_file_handle:
-                    tile_list = tiles_file_handle.readlines()
-                self.tile_list: List[str] = [s.rstrip() for s in tile_list]
-                logging.info("The following tiles will be processed: %s", self.tile_list)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
-        else:
-            tiles = accessor.get('Processing', 'tiles')
-            #: List of S2 tiles to process: See :ref:`[Processing.tiles] <Processing.tiles>`
-            self.tile_list = _split_option(tiles)
+        #: List of S2 tiles to process: See :ref:`[Processing.tiles] <Processing.tiles>`
+        self.tile_list : List[str] = self.__extract_tile_list_option(accessor)
+        # logging.info("The following tiles will be processed: %s", self.tile_list)
 
         # - - - - - - - - - -[ Parallelization & RAM
         #: Number of tasks executed in parallel: See :ref:`[Processing.nb_parallel_processes] <Processing.nb_parallel_processes>`
@@ -585,6 +578,25 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
                 self.filter_options['nblooks'] = accessor.getfloat('Filtering', 'nblooks')
             else:
                 accessor.throw(f"Invalid despeckling filter value '{self.filter}'. Select one among none/lee/frost/gammamap/kuan")
+
+    def __extract_tile_list_option(self, accessor: _ConfigAccessor) -> List[str]:  # pylint: disable=inconsistent-return-statements
+        # NB: pylint is unable to see accessor.throw() is NoReturn, hence the disable=inconsistent-return-statements
+        # It seems related to https://github.com/pylint-dev/pylint/issues/9692
+
+        # IF tiles_list_in_file is set, use the option, and throw if there is an error
+        # ELSE: if unset, then use "tiles" option
+        tiles_file = accessor.get('Processing', 'tiles_list_in_file', fallback=None)
+        if tiles_file:
+            try:
+                with open(tiles_file, 'r', encoding='utf-8') as tiles_file_handle:
+                    tile_list = tiles_file_handle.readlines()
+                    return [s.rstrip() for s in tile_list]
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                accessor.throw(f"Cannot read tile list file {tiles_file!r}", e)
+        else:
+            tiles = accessor.get('Processing', 'tiles')
+            return _split_option(tiles)
+
 
     # ----------------------------------------------------------------------
     def __init_fname_fmt(self, accessor: _ConfigAccessor) -> None:

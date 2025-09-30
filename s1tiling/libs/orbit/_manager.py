@@ -302,6 +302,7 @@ class EOFFileManager:
     def search_for(  # pylint: disable=too-many-arguments
             self,
             relative_orbits: List[int],
+            *,
             missions       : Iterable[str] = (),
             first_date     : Optional[datetime] = None,
             last_date      : Optional[datetime] = None,

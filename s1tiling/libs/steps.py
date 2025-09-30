@@ -51,7 +51,14 @@ from .              import Utils
 from .configuration import FileProducingConfiguration
 from .file_naming   import OutputFilenameGenerator
 from .meta          import (
-    Meta, check_several_products, is_debugging_caches, is_running_dry, output_parameter, tmp_filename, out_filename, out_extended_filename_complement
+    Meta,
+    check_several_products,
+    is_debugging_caches,
+    is_running_dry,
+    output_parameter,
+    tmp_filename,
+    out_filename,
+    out_extended_filename_complement,
 )
 from .otbtools      import otb_version
 from .utils.timer   import ExecutionTimer
@@ -184,14 +191,12 @@ class AbstractStep:
     - :class:`MergeStep` that operates a rendez-vous between several steps producing files of a same
       kind.
 
-    The step will contain information like the current input file, the current output file... and
+    The step will contain information like the current input file, the current output file… and
     variation points starting in ``_do_something()`` to specialize by overriding them in child
     classes.
     """
+
     def __init__(self, *unused_argv, **kwargs) -> None:
-        """
-        Constructor.
-        """
         meta = kwargs
         if 'basename' not in meta:
             logger.critical('no "basename" in meta == %s', meta)
@@ -201,30 +206,22 @@ class AbstractStep:
 
     @property
     def is_first_step(self) -> bool:
-        """
-        Tells whether this step is the first of a pipeline.
-        """
+        """Tells whether this step is the first of a pipeline."""
         return True
 
     @property
     def meta(self) -> Meta:
-        """
-        Step meta data property.
-        """
+        """Step meta data property."""
         return self._meta
 
     @property
     def basename(self) -> str:
-        """
-        Basename property will be used to generate all future output filenames.
-        """
+        """Basename property will be used to generate all future output filenames."""
         return self._meta['basename']
 
     @property
     def out_filename(self) -> str:
-        """
-        Property that returns the name of the file produced by the current step.
-        """
+        """Property that returns the name of the file produced by the current step."""
         assert 'out_filename' in self._meta
         return self._meta['out_filename']
 
@@ -250,6 +247,7 @@ class _ProducerStep(AbstractStep):
     """
     Root class for all Steps that produce files
     """
+
     @property
     def tmp_filename(self) -> str:
         """
@@ -269,8 +267,9 @@ class _ProducerStep(AbstractStep):
 
     @property
     def pipeline_name(self):
-        """ Generate a name for the associated pipeline """
-        return '%s > %s' % (' | '.join(str(e) for e in self.meta['pipe']), self.out_filename)
+        """Generate a name for the associated pipeline"""
+        pipe = ' | '.join(str(e) for e in self.meta['pipe'])
+        return f'{pipe} > {out_filename!r}'
 
     def execute_and_write_output(self, parameters, execution_parameters: Dict) -> None:
         """
@@ -285,9 +284,8 @@ class _ProducerStep(AbstractStep):
         do_measure = True  # TODO
         pipeline_name = self.pipeline_name
         if files_exist(self.out_filename):
-            # This is a dirty failsafe, instead of analysing at the last
-            # moment, it's be better to have a clear idea of all dependencies
-            # and of what needs to be done.
+            # This is a dirty failsafe, instead of analysing at the last moment, it's be better to
+            # have a clear idea of all dependencies and of what needs to be done.
             logger.info('%s already exists. Aborting << %s >>', self.out_filename, pipeline_name)
             return
         with ExecutionTimer(f'-> pipe << {pipeline_name} >>', do_measure, logging.DEBUG):
@@ -300,8 +298,8 @@ class _ProducerStep(AbstractStep):
         if 'post' in self.meta and not dryrun:
             for hook in self.meta['post']:
                 # Note: we can't extract and pass meta-data around from this hook
-                # Indeed the hook is executed at Store Factory level, while metadata
-                # are passed around between around Factories and Steps.
+                # Indeed the hook is executed at Store Factory level, while metadata are passed
+                # around between around Factories and Steps.
                 logger.debug("Execute post-hook for %s", self.out_filename)
                 self._do_call_hook(hook)
         self._clean_cache(dryrun, is_debugging_caches(execution_parameters))
@@ -419,10 +417,8 @@ class AnyProducerStep(_ProducerStep):
 
     Implicitly created by :class:`AnyProducerStepFactory`.
     """
+
     def __init__(self, action: Callable, *argv, **kwargs) -> None:
-        """
-        Constructor.
-        """
         super().__init__(None, *argv, **kwargs)
         self._action = action
         # logger.debug('AnyProducerStep %s constructed', self._exename)
@@ -442,10 +438,8 @@ class ExecutableStep(_ProducerStep):
 
     Implicitly created by :class:`ExecutableStepFactory`.
     """
+
     def __init__(self, exename: str, *argv, **kwargs) -> None:
-        """
-        Constructor.
-        """
         super().__init__(None, *argv, **kwargs)
         self._exename = exename
         # logger.debug('ExecutableStep %s constructed', self._exename)
@@ -468,10 +462,8 @@ class _OTBStep(AbstractStep):
     **Note**: Both child classes are virtually the same. Yet, different types are used in order to
     really distinguish what is registered and executed.
     """
+
     def __init__(self, app, *argv, **kwargs) -> None:
-        """
-        constructor
-        """
         # logger.debug("Create Step(%s, %s)", app, meta)
         super().__init__(app, *argv, **kwargs)
         self._app = app
@@ -485,9 +477,7 @@ class _OTBStep(AbstractStep):
 
     @property
     def app(self):
-        """
-        OTB Application property.
-        """
+        """OTB Application property."""
         return self._app
 
     @property
@@ -511,6 +501,7 @@ class Step(_OTBStep):
     The application binding is expected to be built by a dedicated :class:`StepFactory` and passed
     to the constructor.
     """
+
     # parent __init__ is perfect.
 
     def __del__(self) -> None:
@@ -526,10 +517,8 @@ class SkippedStep(_OTBStep):
     Kind of OTB Step that forwards the OTB application of the previous step in the
     pipeline.
     """
+
     def __init__(self, app, *argv, **kwargs) -> None:
-        """
-        constructor
-        """
         assert app, "SkippedStep needs a valid OTB application to forward from a previous Step"
         super().__init__(app, *argv, **kwargs)
 
@@ -577,18 +566,17 @@ class StepFactory(ABC):
 
     See: :ref:`Existing processings`
     """
+
     def __init__(self, name: str, *unused_argv, **kwargs) -> None:
         assert isinstance(name, str), f"{self.__class__.__name__} name is a {name.__class__.__name__}, not a string -> {name!r}"
         self._name               = name
-        self.__image_description = kwargs.get('image_description', None)
+        self.__image_description = kwargs.get('image_description', '')
         self.__extra_metadata    = kwargs.get('extra_metadata', {})
         # logger.debug("new StepFactory(%s)", name)
 
     @property
     def name(self) -> str:
-        """
-        Step Name property.
-        """
+        """Step Name property."""
         assert isinstance(self._name, str), f"Step name is a {self._name.__class__.__name__}, not a string -> {self._name!r}"
         return self._name
 
@@ -787,8 +775,8 @@ class StepFactory(ABC):
         if len(inputs) == 1:
             return list(inputs[0].values())[0]
         else:
-            # If this error is raised, this means the current step has several
-            # inputs, we need to tell explicitely how the "main" input is found.
+            # If this error is raised, this means the current step has several inputs, we need to
+            # tell explicitely how the "main" input is found.
             keys = set().union(*(input.keys() for input in inputs))
             raise TypeError(f"No way to handle a multiple-inputs ({keys}) step from StepFactory: {self.__class__.__name__}")
 
@@ -839,6 +827,7 @@ class StoreStep(_ProducerStep):
     """
     Artificial Step that takes care of executing the last OTB application in the pipeline.
     """
+
     def __init__(self, previous: _OTBStep) -> None:
         assert not previous.is_first_step
         super().__init__(*[], **previous.meta)
@@ -908,6 +897,7 @@ class FirstStep(AbstractStep):
 
     - no application executed
     """
+
     def __init__(self, *argv, **kwargs) -> None:
         super().__init__(*argv, **kwargs)
         if 'out_filename' not in self._meta:
@@ -940,11 +930,8 @@ class MergeStep(AbstractStep):
 
     - no application executed
     """
+
     def __init__(self, input_steps_metas: Dict, *argv, **kwargs) -> None:
-        """
-        Constructor.
-        """
-        # meta = {**(input_steps_metas[0]._meta), **kwargs}  # kwargs override step0.meta
         meta = {**(input_steps_metas[0]), **kwargs}  # kwargs override step0.meta
         super().__init__(*argv, **meta)
         self.__input_steps_metas = input_steps_metas
@@ -959,8 +946,8 @@ class MergeStep(AbstractStep):
     @property
     def input_metas(self) -> Dict:
         """
-        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the
-        metas from the inputs as a list.
+        Specific to :class:`MergeStep` and :class:`FirstStep`: returns the metas from the inputs as
+        a list.
         """
         return self.__input_steps_metas
 
@@ -972,12 +959,15 @@ class _FileProducingStepFactory(StepFactory):
 
     :func:`create_step` is kind of *abstract* at this point.
     """
+
     def __init__(
-        self, cfg          : FileProducingConfiguration,
+        self,
+        cfg                : FileProducingConfiguration,
         gen_tmp_dir        : str,
         gen_output_dir     : Optional[str],
         gen_output_filename: OutputFilenameGenerator,
-        *argv, **kwargs
+        *argv,
+        **kwargs,
     ) -> None:
         """
         Constructor
@@ -1047,6 +1037,7 @@ class _FileProducingStepFactory(StepFactory):
         def in_dir(fn: str) -> str:
             # in_dir = lambda fn : os.path.join(self.output_directory(meta), fn)
             return os.path.join(self.output_directory(meta), fn)
+
         if isinstance(filename, str):
             return in_dir(filename)
         else:
@@ -1074,6 +1065,7 @@ class _FileProducingStepFactory(StepFactory):
 
         def add_tmp(fn: str) -> str:
             return os.path.join(self.tmp_directory(meta), re.sub(re_any_ext, r'.tmp\g<0>', fn))
+
         if isinstance(filename, str):
             return add_tmp(filename)
         else:
@@ -1096,9 +1088,7 @@ class _FileProducingStepFactory(StepFactory):
 
     @property
     def ram_per_process(self):
-        """
-        Property ram_per_process
-        """
+        """Property ram_per_process"""
         return self.__ram_per_process
 
 
@@ -1108,6 +1098,7 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     All step factories that wrap OTB applications are meant to inherit from :class:`OTBStepFactory`.
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg                : FileProducingConfiguration,
@@ -1153,9 +1144,7 @@ class OTBStepFactory(_FileProducingStepFactory):
 
     @property
     def appname(self) -> str:
-        """
-        OTB Application property.
-        """
+        """OTB Application property."""
         return self._appname
 
     @abstractmethod
@@ -1201,6 +1190,7 @@ class OTBStepFactory(_FileProducingStepFactory):
         """
         Permits to have steps force the output pixel data.
         """
+
         def do_set(name: str, ptype: Optional[int]) -> None:
             if ptype is not None:
                 assert app
@@ -1344,6 +1334,7 @@ class ExecutableStepFactory(_FileProducingStepFactory):
     All step factories that wrap GDAL applications, or any other executable are meant to inherit
     from :class:`ExecutableStepFactory`.
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 FileProducingConfiguration,
@@ -1390,6 +1381,7 @@ class AnyProducerStepFactory(_FileProducingStepFactory):
     All step factories that wrap calls to Python code are meant to inherit from
     :class:`AnyProducerStepFactory`.
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         cfg:                 FileProducingConfiguration,
@@ -1437,6 +1429,7 @@ class Store(StepFactory):
     While it could be used manually, it's meant to be automatically appended at the end of a
     pipeline if any step is actually related to OTB.
     """
+
     def __init__(self, appname: str, *argv, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__('(StoreOnFile)', "(StoreOnFile)", *argv, **kwargs)
         # logger.debug('Creating Store Factory: %s', appname)
