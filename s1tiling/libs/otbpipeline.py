@@ -43,7 +43,6 @@ import copy
 from itertools import filterfalse
 import logging
 import logging.handlers
-import multiprocessing
 from typing import Dict, Generic, List, Optional, Protocol, Set, Tuple, Type, TypeVar, Union, runtime_checkable
 
 from distributed import get_worker
@@ -1061,8 +1060,6 @@ class PipelineDescriptionSequence(Generic[DomainConfiguration]):
         return tasks, final_products, []
 
 
-# ======================================================================
-# Multi processing related (old) code
 def mp_worker_config(queue):
     """
     Worker configuration function called by Pool().
@@ -1077,110 +1074,3 @@ def mp_worker_config(queue):
     global logger
     logger = logging.getLogger()
     logger.addHandler(qh)
-
-
-# TODO: try to make it static...
-def execute4mp(pipeline):
-    """
-    Internal worker function used by multiprocess to execute a pipeline.
-    """
-    return pipeline.do_execute()
-
-
-class PoolOfOTBExecutions:
-    """
-    Internal multiprocess Pool of OTB pipelines.
-    """
-    def __init__(self,
-            title,
-            do_measure,
-            nb_procs, nb_threads,
-            log_queue, log_queue_listener,
-            debug_otb) -> None:
-        """
-        constructor
-        """
-        self.__pool = []
-        self.__title              = title
-        self.__do_measure         = do_measure
-        self.__nb_procs           = nb_procs
-        self.__nb_threads         = nb_threads
-        self.__log_queue          = log_queue
-        self.__log_queue_listener = log_queue_listener
-        self.__debug_otb          = debug_otb
-
-    def new_pipeline(self, **kwargs):
-        """
-        Register a new pipeline.
-        """
-        in_memory    = kwargs.get('in_memory', True)
-        do_watch_ram = kwargs.get('do_watch_ram', False)
-        pipeline = Pipeline(self.__do_measure, in_memory, do_watch_ram)
-        self.__pool.append(pipeline)
-        return pipeline
-
-    def process(self):
-        """
-        Executes all the pipelines in parallel.
-        """
-        nb_cmd = len(self.__pool)
-
-        os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(self.__nb_threads)
-        os.environ["GDAL_NUM_THREADS"] = str(self.__nb_threads)
-        os.environ['OTB_LOGGER_LEVEL'] = 'DEBUG'
-        if self.__debug_otb:  # debug OTB applications with gdb => do not spawn process!
-            execute4mp(self.__pool[0])
-        else:
-            with multiprocessing.Pool(self.__nb_procs, mp_worker_config, [self.__log_queue]) as pool:
-                self.__log_queue_listener.start()
-                for count, result in enumerate(pool.imap_unordered(execute4mp, self.__pool), 1):
-                    logger.info("%s correctly finished", result)
-                    logger.info(' --> %s... %s%%', self.__title, count * 100. / nb_cmd)
-
-                pool.close()
-                pool.join()
-                self.__log_queue_listener.stop()
-
-
-class Processing:
-    """
-    Entry point for executing multiple instance of the same pipeline of
-    different inputs.
-
-    1. The object is initialized with a log queue and its listener
-    2. The pipeline is registered with a list of :class`StepFactory` s
-    3. The processing is done on a list of :class:`FirstStep` s
-    """
-    def __init__(self, cfg, debug_otb) -> None:
-        self.__log_queue          = cfg.log_queue
-        self.__log_queue_listener = cfg.log_queue_listener
-        self.__cfg                = cfg
-        self.__factory_steps      = []
-        self.__debug_otb          = debug_otb
-
-    def register_pipeline(self, factory_steps):
-        """
-        Register a list of :class:`StepFactory` s that describes a pipeline.
-        """
-        # Automatically append the final storing step
-        self.__factory_steps = factory_steps + [Store]
-
-    def process(self, startpoints):
-        """
-        Defines pipelines from the registered steps. Each pipeline is instanciated with a
-        startpoint. Then they registered into the PoolOfOTBExecutions.
-        The pool is finally executed.
-        """
-        assert self.__factory_steps
-        pool = PoolOfOTBExecutions("testpool", True,
-                self.__cfg.nb_procs, self.__cfg.OTBThreads,
-                self.__log_queue, self.__log_queue_listener, debug_otb=self.__debug_otb)
-        for startpoint in startpoints:
-            logger.info("register processing of %s", startpoint.basename)
-            pipeline = pool.new_pipeline(in_memory=True)
-            pipeline.set_inputs(startpoint)
-            for factory in self.__factory_steps:
-                pipeline.push(factory(self.__cfg))
-
-        logger.debug('Launch pipelines')
-        pool.process()

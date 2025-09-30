@@ -160,12 +160,12 @@ You can use this :download:`this template
       See :external+eodag:std:doc:`EODAG § on Configure EODAG
       <getting_started_guide/configure>`
 
-      For instance, given a PEPS account, :file:`$HOME/.config/eodag/eodag.yml`
+      For instance, given a geodes account, :file:`$HOME/.config/eodag/eodag.yml`
       could contain
 
       .. code-block:: yaml
 
-          peps:
+          geodes:
               auth:
                   credentials:
                       username: THEUSERNAME

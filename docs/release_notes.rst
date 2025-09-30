@@ -105,6 +105,9 @@ v1.2.0 Improvements
   uppercase or lowercase. A new time stamp is also defined to hold the first
   time stamp among the ones from the input S1 images
   (`#188 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/188>`_).
+- Product downloading has been fixed to work with all data providers supported
+  by EODAG v3.9.0+
+  (`#168 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/168>`_).
 
 v1.2.0 Bugs fixed
 +++++++++++++++++

@@ -62,7 +62,7 @@ This Q/A is tracked in `S1Tiling issue #70
 Q: How can I overcome timeouts when searching for online products?
 ------------------------------------------------------------------
 
-Some data providers like PEPS may fail to obtain in time the list of products
+Some data providers like Geodes may fail to obtain in time the list of products
 matching our criteria.
 
 Since `EODAG <https://github.com/CS-SI/eodag>`_ v2.11.0, we can override the

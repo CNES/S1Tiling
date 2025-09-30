@@ -40,14 +40,14 @@ existing CNES open source project `Orfeo Tool Box <https://www.orfeo-toolbox.org
 
 The resulting images are gridded to Sentinel-2 MGRS geographic reference grid (`S2 tiling system - kml file <https://sentinel.esa.int/documents/247904/1955685/S2A_OPER_GIP_TILPAR_MPC__20151209T095117_V20150622T000000_21000101T000000_B00.kml>`_).
 Thanks to `EODAG <https://eodag.readthedocs.io/>`_ , different Sentinel-1 data providers can be used
-like `PEPS <https://peps.cnes.fr/>`_ or `Copernicus Data Space <https://scihub.copernicus.eu>`_.
+like `Geodes <https://geodes-portal.cnes.fr/>`_ or `Copernicus Data Space <https://scihub.copernicus.eu>`_.
 It can be used on any type of platform, from a large computing cluster to a
 laptop (the fan will make some noise during processing). It is considerably
 faster than the ortho-rectification tool in ESA SNAP software with similar results and can be easily used in
 script form.
 
-S1Tiling is currently used for many applications, such deforestation detection
-in the Amazon, monitoring of rice crops in Southeast Asia or monitoring of
-water stocks in India. In addition, this software is accessible as an on-demand
-processing service on the French PEPS collaborative ground segment, in order to
-make it easier for users to use.
+S1Tiling is currently used as Sentinel-1 data pre-processing for many
+applications, such deforestation detection in the Amazon, monitoring of rice
+crops in Southeast Asia or monitoring of water stocks in India. In addition,
+this software will be implemented in GEODES, the French portal for Earth
+Observation data, in order to provide SAR Ready Analysis Data to users.

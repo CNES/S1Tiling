@@ -749,7 +749,7 @@ def then_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int, configur
 @then(parsers.parse('Gamma Area S2 product n° {idx} will be discarded'))
 def then_gamma_area_S2_product_idx_will_be_discarded(dl_skip: List[str], idx: int) -> None:
     # Note: the error tested and reported is partly incorrect.
-    # Yes, the γ area preduct cannot be generated from the pair of S1 input
+    # Yes, the γ area product cannot be generated from the pair of S1 input
     # but... it may be generated from a different pair
     product_name_generator = lambda idx : file_db.gamma_area_on_s2(tmp=False)
     _then_xx_product_idx_will_be_discarded(product_name_generator, dl_skip, idx)
