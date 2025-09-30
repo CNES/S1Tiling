@@ -39,8 +39,8 @@ You can use this :download:`this template
 
       .. _paths.s1_images:
   * - ``s1_images``
-    - Where S1 images are downloaded to, thanks to `EODAG
-      <https://github.com/CS-SI/eodag>`_.
+    - Input directory where Sentinel-1 input products are searched, and
+      downloaded to thanks to `EODAG <https://github.com/CS-SI/eodag>`_.
       |br|
       S1Tiling will automatically take care to keep at most 1000 products in
       that directory -- the 1000 last products that have been downloaded.
@@ -49,27 +49,27 @@ You can use this :download:`this template
 
       .. _paths.output:
   * - ``output``
-    - Where products are generated.
+    - Root output directory where products are generated.
 
       .. _paths.ia:
   * - ``ia``
-    - Where (Ellipsoid) Incidence Maps and cos(IA)/sin(IA) products are
-      generated. Its default value is ``{output}/_IA``.
+    - Output directory for the generated (Ellipsoid) Incidence Maps and
+      cos(IA)/sin(IA) products. Its default value is ``{output}/_IA``.
 
       .. _paths.lia:
   * - ``lia``
-    - Where Local Incidence Maps and sin(LIA) products are generated. Its
-      default value is ``{output}/_LIA``.
+    - Output directory for the generated Local Incidence Maps and sin(LIA)
+      products. Its default value is ``{output}/_LIA``.
 
       .. _paths.gamma_area:
   * - ``gamma_area``
-    - Where γ Area products are generated. Its default value is
+    - Output directory for the generated γ Area products. Its default value is
       ``{output}/_GAMMA_AREA``.
 
       .. _paths.tmp:
   * - ``tmp``
-    - Where :ref:`intermediary files <temporary-files>` are produced, and
-      sometimes :ref:`cached <data-caches>` for longer periods.
+    - Directory where :ref:`intermediary files <temporary-files>` are produced,
+      and sometimes :ref:`cached <data-caches>` for longer periods.
 
       .. _paths.geoid_file:
   * - ``geoid_file``
@@ -500,7 +500,7 @@ You can use this :download:`this template
 
       .. _Processing.fname_fmt:
   * - ``fname_fmt.*``
-    - Set of filename format templates that permits to override the default
+    - Set of filename format templates that permit to override the default
       filename formats used to generate filenames.
 
       The filename formats can be overridden for both intermediary and final
@@ -568,10 +568,19 @@ You can use this :download:`this template
 
             .. warning::
 
-                This key will never permit starting over the production of S2
-                images where missing a S1 input was not previously detected --
-                which could happen in :ref:`offline mode
-                <DataSource.download>`.
+                In start-over situations this key, unlike
+                :samp:`{{acquisition_day}}`, cannot permit to known whether an
+                existing S2 product has been generated from a single, or from
+                two, S1 input image(s).
+                |br|
+                While S1Tiling avoids generating a S2 output when a S1 input
+                has been detected missing in on-line mode, it has no way of
+                knowing in :ref:`offline mode <DataSource.download>`. In which
+                case partial S2 products could be generated, but then with a
+                name that'll make them impossible to distinguish from complete
+                S2 products if :samp:`{{acquisition_start}}` is used.
+                Starting S1Tiling again over already generated products, this
+                time in on-line mode, will not update partial S2 products.
 
           - S2
 
@@ -588,7 +597,7 @@ You can use this :download:`this template
           - S1
 
         * - rootname
-          - ``basename`` without the file extension.
+          - :samp:`{{basename}}` without the file extension.
           - S1
 
         * - calibration_type
@@ -596,15 +605,15 @@ You can use this :download:`this template
           - S1/S2
 
         * - polarless_basename
-          - Same as ``basename`` (with file extension), but without
-            ``polarisation`` field. Used when the product only depends on the
-            S1 image geometry and not its content.
+          - Same as :samp:`{{basename}}` (with file extension), but without
+            :samp:`{{polarisation}}` field. Used when the product only depends
+            on the S1 image geometry and not its content.
           - S1
 
         * - polarless_rootname
-          - Same as ``rootname`` (without file extension), but without
-            ``polarisation`` field. Used when the product only depends on the
-            S1 image geometry and not its content.
+          - Same as :samp:`{{rootname}}` (without file extension), but without
+            :samp:`{{polarisation}}` field. Used when the product only depends
+            on the S1 image geometry and not its content.
           - S1
 
         * - filter_method
@@ -632,6 +641,7 @@ You can use this :download:`this template
             .. code:: ini
 
                 fname_fmt.concatenation : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}.tif
+                fname_fmt.filtered      : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}_filtered_{filter_method!u:.3}.tif
 
       .. _Processing.fname_fmt.concatenation:
   * - ``fname_fmt.concatenation``
