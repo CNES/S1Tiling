@@ -464,7 +464,7 @@ def mock_upto_concat_S2(
             None,
             {
                 'ACQUISITION_DATETIME'     : file_db.start_time(0),
-                # 'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
+                'ACQUISITION_DATETIME_1'   : file_db.start_time(0),
                 'IMAGE_TYPE'               : 'BACKSCATTERING',
                 'INPUT_S1_IMAGES'          : file_db.product_name(0),
                 'TIFFTAG_IMAGEDESCRIPTION' : f'{raw_calibration} calibrated orthorectified Sentinel-1A IW GRD',

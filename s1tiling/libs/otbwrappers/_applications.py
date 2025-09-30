@@ -163,18 +163,14 @@ class _ConcatenatorFactory(OTBStepFactory):
         imd = meta['image_metadata']
         inp = self._get_canonical_input(all_inputs)  # input_metas in FirstStep, MergeStep
         assert isinstance(inp, (FirstStep, MergeStep))
-        if len(inp.input_metas) >= 2:
-            product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
-            imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
-            acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
-            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-            for idx, pn in enumerate(product_names, start=1):
-                acq_time = Utils.extract_product_start_time(os.path.basename(pn))
-                imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
-        else:
-            imd['INPUT_S1_IMAGES'] = manifest_to_product_name(meta['manifest'])
-            acq_time = Utils.extract_product_start_time(os.path.basename(imd['INPUT_S1_IMAGES']))
-            imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
+
+        product_names = sorted([manifest_to_product_name(m['manifest']) for m in inp.input_metas])
+        imd['INPUT_S1_IMAGES']       = ', '.join(product_names)
+        acq_time = Utils.extract_product_start_time(os.path.basename(product_names[0]))
+        imd['ACQUISITION_DATETIME'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
+        for idx, pn in enumerate(product_names, start=1):
+            acq_time = Utils.extract_product_start_time(os.path.basename(pn))
+            imd[f'ACQUISITION_DATETIME_{idx}'] = '{YYYY}:{MM}:{DD}T{hh}:{mm}:{ss}Z'.format_map(acq_time) if acq_time else '????'
 
     def parameters(self, meta: Meta) -> OTBParameters:
         """
