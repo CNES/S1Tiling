@@ -1,0 +1,69 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: S1Tiling
+version: 1.2.0
+doi: 10.5281/zenodo.17237358
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Thierry
+    family-names: Koleck
+    affiliation: CNES
+    orcid: 'https://orcid.org/0000-0002-8099-1021'
+  - given-names: Luc
+    family-names: Hermitte
+    affiliation: CS GROUP
+  - given-names: Fabien
+    family-names: Contival
+    affiliation: CS GROUP
+repository-code: 'https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling'
+url: 'https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest/'
+repository: 'https://github.com/CNES/S1Tiling'
+abstract: >-
+  Sentinel-1 is currently the only mission to provide long
+  time series of Synthetic Aperture Radar (SAR) data over
+  land. In order to generate “Analysis Ready Data” for
+  various related applications, CNES, in collaboration with
+  CESBIO, have created and developed since several years an
+  operational processor to generate calibrated and
+  ortho-rectified Sentinel-1 data on the Sentinel-2 grid:
+  S1Tiling.
+
+
+  With this Python software, users can easily use jointly
+  Sentinel-1 and Sentinel-2 time series.
+
+
+  S1Tiling was developed as an open source project by CNES
+  based on the existing CNES open source project Orfeo Tool
+  Box.
+
+
+  The resulting images are gridded to Sentinel-2 MGRS
+  geographic reference grid (S2 tiling system - kml file).
+  Thanks to EODAG , different Sentinel-1 data providers can
+  be used like PEPS or Copernicus Data Space. It can be used
+  on any type of platform, from a large computing cluster to
+  a laptop (the fan will make some noise during processing).
+  It is considerably faster than the ortho-rectification
+  tool in ESA SNAP software with similar results and can be
+  easily used in script form.
+
+
+  S1Tiling is currently used as Sentinel-1 data
+  pre-processing for many applications, such deforestation
+  detection in the Amazon, monitoring of rice crops in
+  Southeast Asia or monitoring of water stocks in India. In
+  addition, this software will be implemented in GEODES, the
+  French portal for Earth Observation data, in order to
+  provide SAR Ready Analysis Data to users.
+keywords:
+  - S1Tiling
+  - Sentinel-1
+  - SAR
+  - OTB
+license: Apache-2.0
