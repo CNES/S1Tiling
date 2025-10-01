@@ -9,7 +9,7 @@
 S1Tiling |release| -- documentation
 ====================================
 
-:raw-html:`<script type='text/javascript' src='https://www.openhub.net/p/S1Tiling/widgets/project_users_logo?format=js'></script>`
+:raw-html:`<script type='text/javascript' src='https://openhub.net/p/S1Tiling/widgets/project_users_logo?format=js'></script>`
 :raw-html:`<br>`
 |Badge Fury|
 |Badge doc|
@@ -17,6 +17,7 @@ S1Tiling |release| -- documentation
 :raw-html:`<br>`
 |License|
 |Python Versions|
+|DOI|
 
 .. |Badge Fury| image:: https://badge.fury.io/py/S1Tiling.svg
    :target: https://badge.fury.io/py/S1Tiling
@@ -29,6 +30,12 @@ S1Tiling |release| -- documentation
 
 .. |Python Versions| image:: https://img.shields.io/pypi/pyversions/s1tiling.svg
    :target: https://pypi.org/project/s1tiling/
+
+.. |DOI| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.17237358.svg
+  :target: https://doi.org/10.5281/zenodo.17237358
+
+.. |DOI-latest| image:: https://zenodo.org/badge/215026340.svg
+  :target: https://doi.org/10.5281/zenodo.17237358
 
 On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
