@@ -37,8 +37,8 @@ ml gcc/14.2.0
 # ==[ Constant parameters {{{2
 # s1tiling_version=1.1.0
 # otb_ver=7.4.2
-s1tiling_version=1.2.0rc1
-otb_ver=9.1.0
+s1tiling_version=1.2.0rc2
+otb_ver=9.1.1
 # otb_ver=8.1.2
 # git_node=develop
 git_RTC_gamma0_node=main
