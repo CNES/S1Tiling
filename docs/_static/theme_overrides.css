@@ -34,3 +34,20 @@
 section {
     text-align: justify;
 }
+
+/* Change the style of the shield table in the index */
+table.plainlooking {
+    border: none !important;
+    /* background: none !important; */
+    /* box-shadow: none !important; */
+}
+
+table.plainlooking th,
+table.plainlooking td {
+    border: none !important;
+    background-color: transparent !important;
+}
+
+table.plainlooking thead {
+    background-color: transparent !important;
+}
