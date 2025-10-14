@@ -129,6 +129,20 @@ exactly around the ANX but a little after.
 This Q/A is tracked in `S1Tiling issue #189
 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/189>`_.
 
+.. _FAQ.nb_rtc_bands:
+
+Q: Why the number of bands in γ-area maps varies?
+-------------------------------------------------
+
+Depending on how a :ref:`γ-area map <gamma_area_s2-files>` has been produced,
+it may contain one band (γ-area) or two bands (γ-area + *nodata* mask).
+It depends on whether one or two Sentinel-1 products have been used to produce
+the map. When two are used, the second band is lost during :ref:`concatenation
+<concat_gamma_area-proc>`.
+
+This issue is of no consequence as very small areas are handled as *nodata*,
+by final :ref:`normalization step <apply_gamma_area-proc>`.
+
 Q: How can I ask another question?
 ----------------------------------
 

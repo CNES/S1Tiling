@@ -193,15 +193,14 @@ class ApplyGammaNaughtRTCCalibration(OTBStepFactory):
         in_concat_S2  = fetch_input_data('concat_S2',  inputs).out_filename
         in_gamma_area = fetch_input_data('gamma_area', inputs).out_filename
         params : OTBParameters = {
-            'ram'          : ram(self.ram_per_process),
-            'ingammaarea'  : in_gamma_area,
-            'insigmanaught': in_concat_S2,
-            'mingammaarea' : self.__mingammaarea,
-            'calibfactor'  : self.__calibfactor,
-            'streaming'    : 'enable' if self.__streaming else 'disable',
-            'outputnodata' : self.__nodata is not None,
-            # TODO         : simplify nodata parameters in that application
-            'nodata'       : self.__nodata if self.__nodata else '0',
+            'ram'            : ram(self.ram_per_process),
+            'ingammaarea'    : in_gamma_area,
+            'insigmanaught'  : in_concat_S2,
+            'mingammaarea'   : self.__mingammaarea,
+            'calibfactor'    : self.__calibfactor,
+            'streaming'      : 'enable' if self.__streaming else 'disable',
+            'producedatamask': False,
+            'nodata'         : self.__nodata if self.__nodata else '0',
         }
         return params
 

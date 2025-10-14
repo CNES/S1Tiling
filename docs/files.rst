@@ -431,6 +431,9 @@ Gamma Area map file
     The values have been orthorectified on the Sentinel-2 tile from a pair of
     :ref:`GAMMA_AREA maps computed on S1 images <gamma_area_s1-files>`.
 
+    This product :ref:`may contain a second band <FAQ.nb_rtc_bands>`: a
+    *nodata* mask.
+
 :Footprint: Sentinel-2 MGRS tile.
 
 :Directory:  :ref:`%(output_gamma_area)/ <paths.gamma_area>` by default

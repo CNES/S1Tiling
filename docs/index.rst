@@ -9,15 +9,20 @@
 S1Tiling |release| -- documentation
 ====================================
 
-:raw-html:`<script type='text/javascript' src='https://openhub.net/p/S1Tiling/widgets/project_users_logo?format=js'></script>`
-:raw-html:`<br>`
-|Badge Fury|
-|Badge doc|
-|Badge discourse|
-:raw-html:`<br>`
-|License|
-|Python Versions|
-|DOI|
+.. list-table::
+  :widths: auto
+  :header-rows: 0
+  :stub-columns: 0
+  :class: plainlooking
+
+  * - |Badge Fury|
+      |Badge doc|
+      |Badge discourse|
+      :raw-html:`<br>`
+      |License|
+      |Python Versions|
+      |DOI|
+    - :raw-html:`<script type='text/javascript' src='https://openhub.net/p/S1Tiling/widgets/project_users?format=js&style=blue'></script>`
 
 .. |Badge Fury| image:: https://badge.fury.io/py/S1Tiling.svg
    :target: https://badge.fury.io/py/S1Tiling
