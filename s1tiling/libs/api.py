@@ -158,6 +158,7 @@ def main_output_name_formats(configuration: Configuration) -> List[Tuple[str,str
     return res
 
 
+@timethis("Sanitizing requested tiles", log_level=logging.INFO)
 def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
     """
     Deduce from the configuration all the tiles that need to be processed.

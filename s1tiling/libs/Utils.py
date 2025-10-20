@@ -476,6 +476,28 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
     raise ValueError("MGRS tile does not exist", mgrs_tile_name)
 
 
+@timethis("Extracting geometry of all tiles")
+def get_tile_geometries(tile_names: List[str], tile_db: Union[str, Layer]) -> Dict[str, ogr.Geometry]:
+    """
+    Returns the map of the OGRGeometry objects for the requested tile names. 
+
+    :param tile_names: Tile identifiers
+    :param tile_db:    Database (or its filename) storing the (MGRS) tile information.
+    :return:           The tile geometries as a dictionary of OGRGeometry or raise ValueError
+    """
+    layer = Layer(tile_db) if isinstance(tile_db, str) else tile_db
+    geometries : Dict[str, ogr.Geometry] = {}
+
+    for tile_info in layer:
+        if (tile_name := tile_info.GetField('NAME')) in tile_names:
+            geometries[tile_name] = tile_info.GetGeometryRef().Clone()
+
+    missing = set(tile_names) - geometries.keys()
+    if missing:
+        raise ValueError("The following MGRS tiles do not exist", missing)
+    return geometries
+
+
 def get_orbit_direction(manifest: AnyPath) -> Literal['DES', 'ASC']:
     """This function returns the orbit direction from a S1 manifest file.
 

@@ -36,7 +36,8 @@ from typing import Dict, List
 
 from osgeo.ogr import Geometry
 
-from ..Utils import Layer, Polygon, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name
+from .timer import timethis
+from ..Utils import Layer, Polygon, find_dem_intersecting_poly, get_tile_geometries
 
 logger = logging.getLogger('s1tiling.utils.layer')
 
@@ -86,6 +87,7 @@ def filter_existing_tiles(mgrs_grid_name: str, tile_names: List[str]) -> List[st
     return list(valid_tiles)
 
 
+@timethis("Extracting DEM coverage of requested tiles")
 def check_dem_coverage(
         mgrs_grid_name   : str,
         dem_db_filepath  : str,
@@ -109,10 +111,15 @@ def check_dem_coverage(
 
     needed_dem_tiles = {}
 
+    mgrs_footprints = get_tile_geometries(tiles_to_process, mgrs_layer)
+
     for tile in tiles_to_process:
         logger.debug("Check DEM tiles for %s", tile)
-        mgrs_footprint = get_mgrs_tile_geometry_by_name(tile, mgrs_layer)
+        mgrs_footprint = mgrs_footprints[tile]
         logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
+
+        # TODO: Shall we check all footprints at once in order to not iterate several time the DEM
+        # DB?
         dem_tiles = find_dem_intersecting_poly(
                 mgrs_footprint, dem_layer, dem_field_ids, dem_main_field_id)
         needed_dem_tiles[tile] = dem_tiles
