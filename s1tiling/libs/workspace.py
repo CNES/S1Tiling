@@ -95,7 +95,7 @@ def search_dems_covering_tiles(
 
     # For each MGRS tile to process
     for tile in tiles_to_process:
-        logger.info("Check DEM coverage for %s", tile)
+        # logger.debug("Check DEM coverage for %s", tile)
         # Get DEM tiles coverage statistics
         dem_tiles = dem_tiles_check[tile]
         current_coverage = 0
@@ -107,10 +107,9 @@ def search_dems_covering_tiles(
         # Round coverage at 3 digits as tile footprint has a very limited precision
         current_coverage = round(current_coverage, 3)
         if current_coverage < 1.:
-            logger.warning("Tile %s has insufficient DEM coverage (%s%%)",
-                    tile, 100 * current_coverage)
+            logger.warning("Tile %s has insufficient DEM coverage (%s%% - %s DEMs)", tile, 100 * current_coverage, len(dem_tiles))
         else:
-            logger.info("-> %s coverage = %s => OK", tile, current_coverage)
+            logger.info("Tile %s has a DEM coverage of %s%% => OK (%s DEMs)", tile, 100 * current_coverage, len(dem_tiles))
 
     # Remove duplicates
     return needed_dem_tiles, dem_tiles_check

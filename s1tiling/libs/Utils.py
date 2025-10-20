@@ -420,7 +420,7 @@ def find_dem_intersecting_poly(
             raise RuntimeError(
                     f"Cannot convert footprint from {orig_spatial_reference.GetName()!r} to {out_sr.GetName()!r}")
     area = poly.GetArea()
-    logger.debug("Searching for DEM intersecting %s/%s", poly, poly.GetSpatialReference().GetName())
+    logger.debug("Searching for DEM tiles intersecting %s/%s", poly, poly.GetSpatialReference().GetName())
 
     dem_layer.reset_reading()
     tested = 0
@@ -439,6 +439,76 @@ def find_dem_intersecting_poly(
             dem_info['_coverage'] = coverage
             dem_tiles[dem_info[main_id]] = dem_info
     logger.debug("Found %s DEM tiles among %s", found, tested)
+    return dem_tiles
+
+
+@timethis("Finding DEM tiles that intersect multiple polygons")
+def find_dem_intersecting_mulitiple_polygons(
+    footprints:    Dict[str, ogr.Geometry],
+    dem_layer:     Layer,
+    dem_field_ids: List[str],
+    main_id:       str
+) -> Dict[str, Any]:
+    """
+    Searches the DEM tiles that intersect the specifid polygon
+
+    precondition: Expect poly.GetSpatialReference() and dem_layer.get_spatial_reference() to be identical!
+    """
+    # main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, dem_field_ids))
+    # main_id = (main_ids or dem_field_ids)[0]
+    # logger.debug('Using %s as DEM tile main id for name', main_id)
+
+    referenced_footprints = {}
+    # Makes sure footprint polygons are expressed in the DEM Layer SpatialReference
+    out_sr = dem_layer.get_spatial_reference()
+    logger.debug("Searching for DEM tiles intersecting %s tiles:", len(footprints))
+    for tile, poly in footprints.items():
+        orig_spatial_reference = poly.GetSpatialReference()
+        # out_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        if orig_spatial_reference.GetName() != out_sr.GetName():
+            poly = poly.Clone()
+            res = poly.TransformTo(out_sr)
+            if res != 0:
+                raise RuntimeError(
+                    f"Cannot convert footprint from {orig_spatial_reference.GetName()!r} to {out_sr.GetName()!r}")
+        area = poly.GetArea()
+        referenced_footprints[tile] = {
+            'poly'     : poly,
+            'area'     : area,
+            'dem_tiles': {},
+        }
+        logger.debug(" - %s: %s/%s", tile, poly, poly.GetSpatialReference().GetName())
+
+    logger.debug("DEM tiles intersections:")
+    dem_layer.reset_reading()
+    nb_dems = 0
+    for dem_tile in dem_layer:
+        nb_dems += 1
+        intersected_tiles = []
+        dem_footprint = dem_tile.GetGeometryRef()
+
+        dem_info = {}
+        for field_id in dem_field_ids:
+            dem_info[field_id] = dem_tile.GetField(field_id)
+        dem_name = dem_info[main_id]
+
+        for tile, tile_data in referenced_footprints.items():
+            poly = tile_data['poly']
+            intersection = poly.Intersection(dem_footprint)
+            if intersection.GetArea() > 0.0:
+                intersected_tiles.append(tile)
+                intersection_info = dem_info.copy()
+                intersection_info['_coverage'] = intersection.GetArea() / tile_data['area']
+                tile_data['dem_tiles'][dem_name] = intersection_info
+        if len(intersected_tiles) > 0:
+            logger.debug(' - DEM tile %s covers %s S2 tiles: %s', dem_name, len(intersected_tiles), intersected_tiles)
+
+    dem_tiles = {}
+    for tile, tile_data in referenced_footprints.items():
+        dem_tiles[tile] = tile_data['dem_tiles']
+
+    # logger.debug("Found %s DEM tiles among %s", found, nb_dems)
+    logger.debug('%s DEM footprints analysed', nb_dems)
     return dem_tiles
 
 
@@ -479,7 +549,7 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
 @timethis("Extracting geometry of all tiles")
 def get_tile_geometries(tile_names: List[str], tile_db: Union[str, Layer]) -> Dict[str, ogr.Geometry]:
     """
-    Returns the map of the OGRGeometry objects for the requested tile names. 
+    Returns the map of the OGRGeometry objects for the requested tile names.
 
     :param tile_names: Tile identifiers
     :param tile_db:    Database (or its filename) storing the (MGRS) tile information.

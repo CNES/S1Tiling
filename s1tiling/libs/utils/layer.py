@@ -37,7 +37,7 @@ from typing import Dict, List
 from osgeo.ogr import Geometry
 
 from .timer import timethis
-from ..Utils import Layer, Polygon, find_dem_intersecting_poly, get_tile_geometries
+from ..Utils import Layer, Polygon, find_dem_intersecting_mulitiple_polygons, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name, get_tile_geometries
 
 logger = logging.getLogger('s1tiling.utils.layer')
 
@@ -113,17 +113,15 @@ def check_dem_coverage(
 
     mgrs_footprints = get_tile_geometries(tiles_to_process, mgrs_layer)
 
-    for tile in tiles_to_process:
-        logger.debug("Check DEM tiles for %s", tile)
-        mgrs_footprint = mgrs_footprints[tile]
-        logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
+    logger.debug("Check DEM files for all requested tiles")
+    needed_dem_tiles = find_dem_intersecting_mulitiple_polygons(
+        mgrs_footprints, dem_layer, dem_field_ids, dem_main_field_id)
 
-        # TODO: Shall we check all footprints at once in order to not iterate several time the DEM
-        # DB?
-        dem_tiles = find_dem_intersecting_poly(
-                mgrs_footprint, dem_layer, dem_field_ids, dem_main_field_id)
-        needed_dem_tiles[tile] = dem_tiles
-        logger.info("S2 tile %s is covered by %s DEM tiles", tile, len(dem_tiles))
+    logger.debug("Summary of S2 tiles intersection with DEM tiles")
+    for tile in tiles_to_process:
+        # mgrs_footprint = mgrs_footprints[tile]
+        # logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
+        logger.debug(" - S2 tile %s is covered by %s DEM tiles", tile, len(needed_dem_tiles[tile]))
     logger.info("DEM ok")
     return needed_dem_tiles
 
