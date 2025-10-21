@@ -7,6 +7,7 @@
 [![S1Tiling Discourse (status)](https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.orfeo-toolbox.org%2F)](https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11)
 [![Docker Image Version](https://img.shields.io/docker/v/s1-tiling/s1tiling)](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/container_registry/87)
 [![Issues](https://img.shields.io/badge/issues-here-informational)](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17237358.svg)](https://doi.org/10.5281/zenodo.17237358)
 
 (Warning, if you're reading this on github, please note that S1Tiling is
 maintained on [gitlab.orfeo-toolbox.org](https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling))

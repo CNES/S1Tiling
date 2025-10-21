@@ -1,0 +1,187 @@
+{
+  "access": {
+    "embargo": {
+      "active": false,
+      "reason": null
+    },
+    "files": "public",
+    "record": "public",
+    "status": "open"
+  },
+  "custom_fields": {
+    "code:codeRepository": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
+    "code:developmentStatus": {
+      "id": "active",
+      "title": {
+        "en": "Active"
+      }
+    },
+    "code:programmingLanguage": [
+      {
+        "id": "python",
+        "title": {
+          "en": "Python"
+        }
+      },
+      {
+        "id": "c++",
+        "title": {
+          "en": "C++"
+        }
+      }
+    ]
+  },
+  "links": {
+    "parent": "https://zenodo.org/api/records/17237358",
+    "parent_doi": "https://doi.org/10.5281/zenodo.17237358",
+    "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.17237358",
+    "parent_html": "https://zenodo.org/records/17237358"
+  },
+  "metadata": {
+    "additional_descriptions": [
+      {
+        "description": "If you use this software, please cite it using the metadata from this file.",
+        "type": {
+          "id": "notes",
+          "title": {
+            "de": "Anmerkungen",
+            "en": "Notes"
+          }
+        }
+      }
+    ],
+    "copyright": "Copyright 2017-2025 (c) CNES. Copyright 2022-2024 (c) CS GROUP France.",
+    "creators": [
+      {
+        "affiliations": [
+          {
+            "name": "CNES"
+          }
+        ],
+        "person_or_org": {
+          "family_name": "Koleck",
+          "given_name": "Thierry",
+          "identifiers": [
+            {
+              "identifier": "0000-0002-8099-1021",
+              "scheme": "orcid"
+            }
+          ],
+          "name": "Koleck, Thierry",
+          "type": "personal"
+        }
+      },
+      {
+        "affiliations": [
+          {
+            "name": "CS GROUP"
+          }
+        ],
+        "person_or_org": {
+          "family_name": "Hermitte",
+          "given_name": "Luc",
+          "name": "Hermitte, Luc",
+          "type": "personal"
+        }
+      },
+      {
+        "affiliations": [
+          {
+            "name": "CS GROUP"
+          }
+        ],
+        "person_or_org": {
+          "family_name": "Contival",
+          "given_name": "Fabien",
+          "name": "Contival, Fabien",
+          "type": "personal"
+        }
+      }
+    ],
+    "description": "<p>Sentinel-1 is currently the only mission to provide long time series of Synthetic Aperture Radar (SAR) data over land. In order to generate &ldquo;Analysis Ready Data&rdquo; for various related applications, CNES, in collaboration with CESBIO, have created and developed since several years an operational processor to generate calibrated and ortho-rectified Sentinel-1 data on the Sentinel-2 grid: S1Tiling.</p>\n<p>With this Python software, users can easily use jointly&nbsp;Sentinel-1 and Sentinel-2 time series.</p>\n<p>S1Tiling was developed as an open source project by CNES based on the existing CNES open source project Orfeo Tool&nbsp;Box.</p>\n<p>The resulting images are gridded to Sentinel-2 MGRS geographic reference grid (S2 tiling system - kml file). Thanks to EODAG , different Sentinel-1 data providers can be used like PEPS or Copernicus Data Space. It can be used on any type of platform, from a large computing cluster to a laptop (the fan will make some noise during processing). It is considerably faster than the ortho-rectification tool in ESA SNAP software with similar results and can be&nbsp;easily used in script form.</p>\n<p>S1Tiling is currently used as Sentinel-1 data pre-processing for many applications, such deforestation detection in the Amazon, monitoring of rice crops in Southeast Asia or monitoring of water stocks in India. In addition, this software will be implemented in GEODES, the French portal for Earth Observation data, in order to provide SAR Ready Analysis Data to users.</p>",
+    "languages": [
+      {
+        "id": "eng",
+        "title": {
+          "en": "English"
+        }
+      }
+    ],
+    "related_identifiers": [
+      {
+        "identifier": "10.5281/zenodo.3522154",
+        "relation_type": {
+          "id": "requires",
+          "title": {
+            "de": "Setzt voraus",
+            "en": "Requires"
+          }
+        },
+        "resource_type": {
+          "id": "software",
+          "title": {
+            "de": "Software",
+            "en": "Software"
+          }
+        },
+        "scheme": "doi"
+      },
+      {
+        "identifier": "https://github.com/CS-SI/eodag/",
+        "relation_type": {
+          "id": "requires",
+          "title": {
+            "de": "Setzt voraus",
+            "en": "Requires"
+          }
+        },
+        "resource_type": {
+          "id": "software",
+          "title": {
+            "de": "Software",
+            "en": "Software"
+          }
+        },
+        "scheme": "url"
+      }
+    ],
+    "resource_type": {
+      "id": "software",
+      "title": {
+        "de": "Software",
+        "en": "Software"
+      }
+    },
+    "rights": [
+      {
+        "description": {
+          "en": "A permissive license whose main conditions require preservation of copyright and license notices. Contributors provide an express grant of patent rights. Licensed works, modifications, and larger works may be distributed under different terms and without source code."
+        },
+        "id": "apache-2.0",
+        "props": {
+          "scheme": "spdx",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        "title": {
+          "en": "Apache License 2.0"
+        }
+      }
+    ],
+    "subjects": [
+      {
+        "subject": "S1Tiling"
+      },
+      {
+        "subject": "Sentinel-1"
+      },
+      {
+        "subject": "SAR"
+      },
+      {
+        "subject": "OTB"
+      }
+    ],
+    "title": "S1Tiling",
+    "version": "1.2.0rc2"
+  }
+}
