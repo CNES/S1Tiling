@@ -211,7 +211,7 @@ documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION}
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION}
 
 or even directly used with
 
@@ -221,7 +221,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION} \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         /data/MyS1ToS2.cfg
 
 .. note::
@@ -268,7 +268,7 @@ In other words, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         --lia                             \
         /data/MyS1ToS2.cfg
 
@@ -293,7 +293,7 @@ In other words, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         --gamma_area                      \
         /data/MyS1ToS2.cfg
 
