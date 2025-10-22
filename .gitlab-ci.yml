@@ -122,11 +122,25 @@ package9:
     # - find baseline/expected -type f -exec md5sum {} \;
     - (cd baseline && find . -type f -exec md5sum {} \;)
     - bash s1tiling/resources/force_credentials_for_ci.sh
-    - python3 -m pytest --baselinedir=$(readlink -f baseline) --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml --record-mode=none
+    - python3 -m pytest
+              --cov-report=term
+              --cov-report=xml:coverage/coverage.xml
+              --cov=s1tiling
+              --baselinedir=$(readlink -f baseline)
+              --demdir=$(readlink
+              -f baseline/MNT/SRTM_30_hgt)
+              --ram=2048
+              -o log_cli_level=info -o log_cli=true
+              --junitxml=report.xml
+              --record-mode=none
     artifacts:
         when: always
         reports:
             junit: report.xml
+            coverage_report:
+                coverage_format: cobertura
+                path: 'coverage/coverage.xml'
+    coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
 
 # Test the documentation compiles
 # TODO: Reuse installation done in .common-doc
