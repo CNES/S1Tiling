@@ -139,13 +139,15 @@ package9:
               --record-mode=none
     artifacts:
         when: always
+        archives:
+          coverage:
+            untracked: true
+            paths: coverage/html
         reports:
             junit: report.xml
             coverage_report:
                 coverage_format: cobertura
                 path: 'coverage/coverage.xml'
-            coverage_html:
-                path: 'coverage/html'
     coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
 
 # Test the documentation compiles
