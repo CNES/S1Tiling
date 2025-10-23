@@ -114,8 +114,12 @@ rst_prolog = """
    :alt: Documentation
    :target: https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/{release}/
 
-.. |CI| image:: https://img.shields.io/gitlab/pipeline-status/s1-tiling%2Fs1tiling?gitlab_url=https%3A%2F%2Fgitlab.orfeo-toolbox.org&branch={git_version}&label=CI%20{git_version}&logo=gitlab
-   :alt: Gitlab Pipeline Status
+.. |Badge CI| image:: https://img.shields.io/gitlab/pipeline-status/s1-tiling%2Fs1tiling?gitlab_url=https%3A%2F%2Fgitlab.orfeo-toolbox.org&branch={git_version}&label=CI%20{git_version}&logo=gitlab
+   :alt: {git_version} pipeline Status
+   :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/pipelines?page=1&scope=branches&ref={git_version}
+
+.. |Badge coverage| image:: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/badges/{git_version}/coverage.svg?logo=gitlab&?key_text=CI2
+   :alt: {git_version} branch coverage
    :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/pipelines?page=1&scope=branches&ref={git_version}
 
 """.format(release=release, release_badge=release_badge, git_version=git_version)

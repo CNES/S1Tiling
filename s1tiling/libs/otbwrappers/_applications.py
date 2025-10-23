@@ -557,7 +557,7 @@ class _SARDEMProjectionFamily(OTBStepFactory):
         imd['DEM_INFO']     = self.__dem_info
         imd['DEM_LIST']     = ', '.join(meta['dems'])
 
-    def add_image_metadata(self, meta: Meta, app) -> None:
+    def add_image_metadata(self, meta: Meta, app) -> None:  # pragma: no cover
         """
         Post-application hook used to complete GDAL metadata.
 
@@ -645,7 +645,7 @@ class _PostSARDEMProjectionFamily(OTBStepFactory):
         imd['PRJ.DIRECTIONTOSCANDEMC'] = ""
         imd['PRJ.GAIN']                = ""
 
-    def fetch_direction(self, inputpath, meta: Meta) -> None:
+    def fetch_direction(self, inputpath, meta: Meta) -> None:  # pragma: no cover
         """
         Extract back direction to scan DEM from SARDEMProjected image metadata.
         """

@@ -1,0 +1,106 @@
+[run]
+omit =
+    vis.py
+    eodag.py
+    xml.py
+    cli.py
+
+    ; debug_otb is set to True
+    dask.py
+
+; Required to analyse Dask subprocesses
+patch = subprocess
+
+
+[report]
+; Regexes for lines to exclude from consideration
+exclude_also =
+    ; Don't complain about missing debug-only code:
+    def __repr__
+    if watch_ram:
+    if debug_caches:
+    if debug_tasks:
+    if is_running_dry
+    if dryrun:
+    def requirement_context\(
+    def check_requirements\(self\)
+    if req_ctx:
+
+    ; Ignore deprecated things
+    @deprecated
+    mp_worker_config
+    def otb_version\(\)
+    if otb_version\(\) < '8.0.0'
+    if os.path.isfile\(tmp_geom\):
+    if self.__override_azimuth_cut_threshold_to is None:
+    def ram\(
+
+    ; Ignore CLI entry points
+    if __name__ == .__main__.:
+    cli_main\(
+
+    ; Don't complain if tests don't hit defensive assertion code:
+    if 'basename' not in meta:
+    if not tile_path_hgt.exists\(\):
+    if len\(safefile_list\) > threshold:
+    if not match:
+    if orbit_direction not in k_direction_map:
+    raise AssertionError
+    raise NotImplementedError
+    raise TypeError
+    raise ValueError
+    accessor.throw\(
+
+    raise (exceptions\.)?ConfigurationError
+    raise (exceptions\.)?CorruptedDataSAFEError
+    raise (exceptions\.)?DownloadEOFFileError
+    raise (exceptions\.)?DownloadS1FileError
+    raise (exceptions\.)?InvalidOTBVersionError
+    raise (exceptions\.)?MissingApplication
+    raise (exceptions\.)?MissingDEMError
+    raise (exceptions\.)?MissingGeoidError
+    raise (exceptions\.)?NoS1ImageError
+    raise (exceptions\.)?NoS2TileError
+    raise (exceptions\.)?NotCompatibleInput
+
+    except (exceptions\.)?NotCompatibleInput
+    except KeyError
+    except MisconfiguredError
+    except TypeError
+    except ValueError
+    except configparser.NoOptionError
+
+    class ConfigurationError
+    class CorruptedDataSAFEError
+    class DownloadEOFFileError
+    class DownloadS1FileError
+    class InvalidOTBVersionError
+    class MissingApplication
+    class MissingDEMError
+    class MissingGeoidError
+    class NoS1ImageError
+    class NoS2TileError
+
+    ; Don't complain about abstract methods, they aren't run:
+    @(abc\.)?abstractmethod
+    class .*\bProtocol\):
+
+    ; Ignore mocked functions
+    def fetch_nodata_value
+    def get_orbit_direction
+    def get_relative_orbit
+    def get_s1image_orbit_time_range
+    def get_spacing
+    def get_tile_origin_intersect_by_s1
+    def set_nodata_value
+    def ellipsoid_normal_compatible
+
+    ; def commit_execution
+    def execute\(
+    def download_images\(
+    def list_files\(
+
+    ; Extra toolbox, unused
+    def change_error\(
+    def value_or\(
+    def tile_exists\(

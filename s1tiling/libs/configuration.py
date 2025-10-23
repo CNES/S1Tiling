@@ -219,7 +219,7 @@ def _init_logger(mode, paths: List[Path]) -> Tuple[Optional[Dict], Optional[Path
                 cfg['filename'] = cfg['filename'].format(kind="main")
         logging.config.dictConfig(main_config)
         return config, cfgpaths[0]
-    else:
+    else:  # pragma: no cover
         # This situation should not happen
         if verbose:
             logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

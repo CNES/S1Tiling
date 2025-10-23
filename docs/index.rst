@@ -22,8 +22,11 @@ S1Tiling |release| -- documentation
       |Badge Fury|
       |Python Versions|
       :raw-html:`<br>`
-      |CI|
+      |Badge CI|
+      |Badge coverage|
       |Bugs|
+      :raw-html:`<br>`
+      |Home|
       |License|
     - :raw-html:`<script type='text/javascript' src='https://openhub.net/p/S1Tiling/widgets/project_users?format=js&style=blue'></script>`
 
@@ -34,10 +37,6 @@ S1Tiling |release| -- documentation
 .. |Badge discourse| image:: https://img.shields.io/discourse/status?server=https%3A%2F%2Fforum.orfeo-toolbox.org%2F&logo=discourse
    :target: https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11
    :alt: Discourse forum
-
-.. |License| image:: https://img.shields.io/pypi/l/s1tiling.svg
-   :target: https://pypi.org/project/s1tiling/
-   :alt: license
 
 .. |Python Versions| image:: https://img.shields.io/pypi/pyversions/s1tiling.svg?logo=python
    :target: https://pypi.org/project/s1tiling/
@@ -51,9 +50,17 @@ S1Tiling |release| -- documentation
    :alt: DOI
    :target: https://doi.org/10.5281/zenodo.17237358
 
-.. |Bugs| image:: https://img.shields.io/gitlab/issues/open/s1-tiling%2Fs1tiling?gitlab_url=https%3A%2F%2Fgitlab.orfeo-toolbox.org&labels=Bug&logo=gitlab
+.. |Bugs| image:: https://img.shields.io/gitlab/issues/open/s1-tiling/s1tiling?gitlab_url=https%3A%2F%2Fgitlab.orfeo-toolbox.org&labels=Bug&logo=gitlab
    :alt: GitLab Issues
    :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues
+
+.. |Home| image:: https://img.shields.io/badge/code%20repository-gitlab.OTB-informational
+   :alt: Main repository
+   :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
+
+.. |License| image:: https://img.shields.io/pypi/l/s1tiling.svg
+   :target: https://pypi.org/project/s1tiling/
+   :alt: license
 
 On demand Ortho-rectification of Sentinel-1 data on Sentinel-2 grid.
 
