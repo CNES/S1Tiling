@@ -140,7 +140,8 @@ package9:
     artifacts:
         when: always
         name: coverage-html
-        paths: coverage/html
+        paths: 
+        - coverage/html
         reports:
             junit: report.xml
             coverage_report:
