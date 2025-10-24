@@ -35,8 +35,6 @@ variables:
     S1TD_VERSION: "1.4.12"  # S1Tiling Dockers version
     OTB9_VERSION: "9.1.1"
     OS: "ubuntu"
-    DOCKERHUB_USER: cnes
-    DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_USER/s1-tiling
 
 #
 # Tests and documentation
@@ -234,9 +232,7 @@ pages:  # Job name need to be pages, in deploy stage!
 # Docker generation
 #
 .prepare-docker-config: &prepare-docker-config
-  - printf '{"auths":{"%s":{"username":"%s","password":"%s"},"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" "https://index.docker.io/v1/" "$(printf "%s:%s" "$DOCKERHUB_USER", "$DOCKERHUB_WRITE_TOKEN" | base64 | tr -d '\n')"
-           > /kaniko/.docker/config.json
-  # - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
+  - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
 
 .common-docker-build:
   image:
@@ -257,7 +253,6 @@ pages:  # Job name need to be pages, in deploy stage!
                        --context "${CI_PROJECT_DIR}/"
                        --dockerfile "${CI_PROJECT_DIR}/docker/Dockerfile"
                        --destination "${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
-                       --destination "cnes/s1tiling:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
                        --build-arg BASE_FULL_VERSION
                        --build-arg CI_COMMIT_SHA
                        --build-arg CREATION_DATE="$(date -u '+%Y-%m-%dT%T%z')"
@@ -294,6 +289,5 @@ ubuntu-user9:
   rules:
     # only for tags
     - if: $CI_COMMIT_TAG != null
-    - if: $CI_COMMIT_BRANCH == "173-publish-docker-images-on-docker-hub"
 
 # vim: set sw=2:
