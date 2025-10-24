@@ -128,11 +128,10 @@ package9:
               --cov-report=term
               --cov-report=xml:coverage/coverage.xml
               --cov-report=html:coverage/html
-              --cov=s1tiling
+              --cov
               --cov-config=tests/.coveragerc
               --baselinedir=$(readlink -f baseline)
-              --demdir=$(readlink
-              -f baseline/MNT/SRTM_30_hgt)
+              --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt)
               --ram=2048
               -o log_cli_level=info -o log_cli=true
               --junitxml=report.xml
@@ -140,7 +139,7 @@ package9:
     artifacts:
         when: always
         name: coverage-html
-        paths: 
+        paths:
         - coverage/html
         reports:
             junit: report.xml

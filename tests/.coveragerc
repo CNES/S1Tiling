@@ -10,7 +10,16 @@ omit =
 
 ; Required to analyse Dask subprocesses
 patch = subprocess
+parallel = True
+sigterm = True
 
+dynamic_context = test_function
+
+source_pkgs = s1tiling
+
+[paths]
+source =
+    s1tiling/
 
 [report]
 ; Regexes for lines to exclude from consideration
@@ -104,3 +113,6 @@ exclude_also =
     def change_error\(
     def value_or\(
     def tile_exists\(
+
+[html]
+show_contexts = True
