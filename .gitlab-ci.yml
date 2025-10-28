@@ -27,6 +27,8 @@
 
 variables:
     BUILD_IMAGE_REGISTRY: $CI_REGISTRY/s1-tiling
+    DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_SANDBOX/s1tiling
+
     LC_ALL: C.UTF-8
     # Set pip's cache inside the project directory since we can only cache local items
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -232,7 +234,11 @@ pages:  # Job name need to be pages, in deploy stage!
 # Docker generation
 #
 .prepare-docker-config: &prepare-docker-config
-  - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
+  # - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
+  - printf '{"auths":{"%s":{"username":"%s","password":"%s"},"%s":{"auth":"%s"}}}'
+    "$CI_REGISTRY" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" "https://index.docker.io/v1/"
+    "$(printf "%s:%s" "$DOCKERHUB_USER_SANDBOX", "$DOCKERHUB_WRITE_TOKEN_SANDBOX" | base64 | tr -d '\n')"
+           > /kaniko/.docker/config.json
 
 .common-docker-build:
   image:
@@ -253,6 +259,7 @@ pages:  # Job name need to be pages, in deploy stage!
                        --context "${CI_PROJECT_DIR}/"
                        --dockerfile "${CI_PROJECT_DIR}/docker/Dockerfile"
                        --destination "${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
+                       --destination "${DOCKERHUB_IMAGE_REGISTRY}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
                        --build-arg BASE_FULL_VERSION
                        --build-arg CI_COMMIT_SHA
                        --build-arg CREATION_DATE="$(date -u '+%Y-%m-%dT%T%z')"
@@ -289,5 +296,6 @@ ubuntu-user9:
   rules:
     # only for tags
     - if: $CI_COMMIT_TAG != null
+    - if: $CI_COMMIT_BRANCH == "173-publish-docker-images-on-docker-hub"
 
 # vim: set sw=2:
