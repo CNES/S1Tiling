@@ -13,13 +13,12 @@ patch = subprocess
 ; parallel = True
 ; sigterm = True
 
-dynamic_context = test_function
+; dynamic_context = test_function
+; source_pkgs = s1tiling
 
-source_pkgs = s1tiling
-
-[paths]
-source =
-    s1tiling/
+; [paths]
+; source =
+;     s1tiling/
 
 [report]
 ; Regexes for lines to exclude from consideration

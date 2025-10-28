@@ -126,7 +126,7 @@ package9:
               --cov-report=term
               --cov-report=xml:coverage/coverage.xml
               --cov-report=html:coverage/html
-              --cov
+              --cov=s1tiling
               --cov-config=tests/.coveragerc
               --baselinedir=$(readlink -f baseline)
               --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt)
