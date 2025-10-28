@@ -10,8 +10,8 @@ omit =
 
 ; Required to analyse Dask subprocesses
 patch = subprocess
-parallel = True
-sigterm = True
+; parallel = True
+; sigterm = True
 
 dynamic_context = test_function
 
