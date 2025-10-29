@@ -26,8 +26,18 @@
 # =========================================================================
 
 variables:
+    # Publication in orfeotoolbox registry
     BUILD_IMAGE_REGISTRY: $CI_REGISTRY/s1-tiling
-    DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_SANDBOX/s1tiling
+
+    # To test publication on dockerhub, use $DOCKERHUB_USER_SANDBOX,
+    # $DOCKERHUB_WRITE_TOKEN_SANDBOX and $DOCKERHUB_ORGANIZATION_SANDBOX
+    #
+    DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_CNES/s1tiling
+    DOCKERHUB_USER:           $DOCKERHUB_USER_CNES
+    DOCKERHUB_WRITE_TOKEN:    $DOCKERHUB_WRITE_TOKEN_CNES
+    # DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_SANDBOX/s1tiling
+    # DOCKERHUB_USER:           $DOCKERHUB_USER_SANDBOX
+    # DOCKERHUB_WRITE_TOKEN:    $DOCKERHUB_WRITE_TOKEN_SANDBOX
 
     LC_ALL: C.UTF-8
     # Set pip's cache inside the project directory since we can only cache local items
@@ -234,10 +244,9 @@ pages:  # Job name need to be pages, in deploy stage!
 # Docker generation
 #
 .prepare-docker-config: &prepare-docker-config
-  # - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
   - printf '{"auths":{"%s":{"username":"%s","password":"%s"},"%s":{"auth":"%s"}}}'
     "$CI_REGISTRY" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD"
-    "https://index.docker.io/v1/" "$(printf "%s:%s" "$DOCKERHUB_USER_SANDBOX" "$DOCKERHUB_WRITE_TOKEN_SANDBOX" | base64 | tr -d '\n')"
+    "https://index.docker.io/v1/" "$(printf "%s:%s" "$DOCKERHUB_USER" "$DOCKERHUB_WRITE_TOKEN" | base64 | tr -d '\n')"
            > /kaniko/.docker/config.json
 
 .common-docker-build:
