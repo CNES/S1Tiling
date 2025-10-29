@@ -108,6 +108,10 @@ v1.2.0 Improvements
 - Product downloading has been fixed to work with all data providers supported
   by EODAG v3.9.0+
   (`#168 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/168>`_).
+- S1Tiling dockers will also be published on `DockerHub
+  <https://hub.docker.com/r/cnes/s1tiling>`_
+  (`#173 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/173>`_).
+
 
 v1.2.0 Bugs fixed
 +++++++++++++++++
