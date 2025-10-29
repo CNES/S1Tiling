@@ -19,6 +19,7 @@ S1Tiling |release| -- documentation
       |Badge discourse|
       |DOI|
       :raw-html:`<br>`
+      |Badge docker|
       |Badge Fury|
       |Python Versions|
       :raw-html:`<br>`

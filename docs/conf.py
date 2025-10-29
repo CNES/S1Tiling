@@ -122,7 +122,10 @@ rst_prolog = """
    :alt: {git_version} branch coverage
    :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/pipelines?page=1&scope=branches&ref={git_version}
 
-""".format(release=release, release_badge=release_badge, git_version=git_version)
+.. |Badge docker| image:: https://img.shields.io/docker/v/cnes/s1tiling/{docker_version}?logo=docker
+   :alt: Dockerhub
+   :target: https://hub.docker.com/r/cnes/s1tiling
+""".format(release=release, release_badge=release_badge, git_version=git_version, docker_version=docker_version)
 
 
 ## Enable replacements in code-block and other places
