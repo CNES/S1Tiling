@@ -56,6 +56,8 @@ v1.2.0 Breaking changes
   S1Tiling 1.2.0: like for instance `#151
   <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_, and
   that newly produced maps should have a better quality.
+- PyPi wheel production has been momentarily disabled
+  (`#203 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/203>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
