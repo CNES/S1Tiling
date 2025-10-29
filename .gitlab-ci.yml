@@ -202,8 +202,12 @@ pypi9:
     dependencies:
       - package9
     rules:
-      # only for tags
-      - if: $CI_COMMIT_TAG != null
+      #------- <Momentarily disabled>
+      # See #203
+      ## # only for tags
+      ## - if: $CI_COMMIT_TAG != null
+      - when: never
+      #------- </Momentarily disabled>
 
 # Upload latest documentation when develop/master branches are updated
 pages:  # Job name need to be pages, in deploy stage!
