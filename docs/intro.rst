@@ -7,7 +7,7 @@ Introduction
 
 
 `Sentinel-1
-<https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1>`_ is
+<https://sentinels.copernicus.eu/web/sentinel/copernicus/sentinel-1>`_ is
 currently the only mission to provide long time series of Synthetic Aperture
 Radar (SAR) data over land. In order to generate *"Analysis Ready Data"* for
 various related applications, CNES, in collaboration with CESBIO, have created
