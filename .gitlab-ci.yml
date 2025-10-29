@@ -26,7 +26,19 @@
 # =========================================================================
 
 variables:
+    # Publication in orfeotoolbox registry
     BUILD_IMAGE_REGISTRY: $CI_REGISTRY/s1-tiling
+
+    # To test publication on dockerhub, use $DOCKERHUB_USER_SANDBOX,
+    # $DOCKERHUB_WRITE_TOKEN_SANDBOX and $DOCKERHUB_ORGANIZATION_SANDBOX
+    #
+    DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_CNES/s1tiling
+    DOCKERHUB_USER:           $DOCKERHUB_USER_CNES
+    DOCKERHUB_WRITE_TOKEN:    $DOCKERHUB_WRITE_TOKEN_CNES
+    # DOCKERHUB_IMAGE_REGISTRY: $DOCKERHUB_ORGANIZATION_SANDBOX/s1tiling
+    # DOCKERHUB_USER:           $DOCKERHUB_USER_SANDBOX
+    # DOCKERHUB_WRITE_TOKEN:    $DOCKERHUB_WRITE_TOKEN_SANDBOX
+
     LC_ALL: C.UTF-8
     # Set pip's cache inside the project directory since we can only cache local items
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -122,11 +134,29 @@ package9:
     # - find baseline/expected -type f -exec md5sum {} \;
     - (cd baseline && find . -type f -exec md5sum {} \;)
     - bash s1tiling/resources/force_credentials_for_ci.sh
-    - python3 -m pytest --baselinedir=$(readlink -f baseline) --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt) --ram=2048 -o log_cli_level=info -o log_cli=true --junitxml=report.xml --record-mode=none
+    - python3 -m pytest
+              --cov-report=term
+              --cov-report=xml:coverage/coverage.xml
+              --cov-report=html:coverage/html
+              --cov=s1tiling
+              --cov-config=tests/.coveragerc
+              --baselinedir=$(readlink -f baseline)
+              --demdir=$(readlink -f baseline/MNT/SRTM_30_hgt)
+              --ram=2048
+              -o log_cli_level=info -o log_cli=true
+              --junitxml=report.xml
+              --record-mode=none
     artifacts:
         when: always
+        name: coverage-html
+        paths:
+        - coverage/html
         reports:
             junit: report.xml
+            coverage_report:
+                coverage_format: cobertura
+                path: 'coverage/coverage.xml'
+    coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
 
 # Test the documentation compiles
 # TODO: Reuse installation done in .common-doc
@@ -214,7 +244,9 @@ pages:  # Job name need to be pages, in deploy stage!
 # Docker generation
 #
 .prepare-docker-config: &prepare-docker-config
-  - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}"
+  - printf '{"auths":{"%s":{"username":"%s","password":"%s"},"%s":{"auth":"%s"}}}'
+    "$CI_REGISTRY" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD"
+    "https://index.docker.io/v1/" "$(printf "%s:%s" "$DOCKERHUB_USER" "$DOCKERHUB_WRITE_TOKEN" | base64 | tr -d '\n')"
            > /kaniko/.docker/config.json
 
 .common-docker-build:
@@ -236,6 +268,7 @@ pages:  # Job name need to be pages, in deploy stage!
                        --context "${CI_PROJECT_DIR}/"
                        --dockerfile "${CI_PROJECT_DIR}/docker/Dockerfile"
                        --destination "${CI_REGISTRY_IMAGE}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
+                       --destination "${DOCKERHUB_IMAGE_REGISTRY}:$(sh ${CI_PROJECT_DIR}/docker/version_name.sh)-${OS}-otb${OTB_VERSION}"
                        --build-arg BASE_FULL_VERSION
                        --build-arg CI_COMMIT_SHA
                        --build-arg CREATION_DATE="$(date -u '+%Y-%m-%dT%T%z')"

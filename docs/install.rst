@@ -1,3 +1,8 @@
+.. # define a hard line break for HTML
+.. |br| raw:: html
+
+   <br />
+
 .. _install:
 
 .. index:: installation
@@ -206,12 +211,22 @@ Their naming scheme is
 with the version being either ``develop``, ``latest`` or the version number of
 a recent release.
 
+.. note::
+
+    S1Tiling dockers are mirrored on `DockerHub
+    <https://hub.docker.com/r/cnes/s1tiling>`_ as well. |br|
+    In that case, the naming scheme is
+    :samp:`cnes/s1tiling:{{version}}-ubuntu-otb{{otbversion}}`
+
 The docker, containing the version of S1Tiling of which you're reading the
-documentation (i.e. version :samp:`{VERSION}`), could be fetched with:
+documentation (i.e., version :samp:`{VERSION}`), could be fetched with:
 
 .. code-block:: bash
 
-    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION}
+    # either
+    docker pull registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION}
+    # or
+    docker pull cnes/s1-tiling/s1tiling:{DOCKER_VERSION}
 
 or even directly used with
 
@@ -221,7 +236,7 @@ or even directly used with
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb{REF_OTB_VERSION} \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         /data/MyS1ToS2.cfg
 
 .. note::
@@ -268,7 +283,7 @@ In other words, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb9.0.0 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         --lia                             \
         /data/MyS1ToS2.cfg
 
@@ -293,7 +308,7 @@ In other words, run the docker with something like the following
         -v /localpath/to/MNT:/MNT         \
         -v "$(pwd)":/data                 \
         -v $HOME/.config/eodag:/eo_config \
-        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{VERSION}-ubuntu-otb7.4.2 \
+        --rm -it registry.orfeo-toolbox.org/s1-tiling/s1tiling:{DOCKER_VERSION} \
         --gamma_area                      \
         /data/MyS1ToS2.cfg
 

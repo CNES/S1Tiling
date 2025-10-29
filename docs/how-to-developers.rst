@@ -133,7 +133,6 @@ Here is a short list of the actions to do for each new release.
 
        git checkout master && git push
 
-
 6 Create a git tag matching the version number
 
    .. code::
@@ -162,6 +161,22 @@ Here is a short list of the actions to do for each new release.
            # Push to PyPi
            python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
+8. For major and minor versions, create a branch named after this version. It
+   will help to track issues patching of that version independently of work
+   done on the next version, tracked in ``develop``.
 
-8. Update :file:`__meta__.py` version to the next expected version.
-    Do not use the `rcX` suffix for the moment.
+   .. code::
+
+       git checkout -b release-${version}
+       git push
+
+9. Go to `github mirror <https://github.com/CNES/S1Tiling>`_, once the
+   repository has been mirrored, to create a new release. This will
+   automatically generate a new DOI on zenodo.
+
+10. Go to the new `zenodo release <https://doi.org/10.5281/zenodo.17237358>`_
+    and update project metadata that cannot be set in :file:`CITATION.cff`
+    file.
+
+11. Eventually, update :file:`__meta__.py` version to the next expected
+    version. Do not use the `rcX` suffix for the moment.

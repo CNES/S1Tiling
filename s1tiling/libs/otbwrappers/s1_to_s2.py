@@ -105,7 +105,7 @@ class InputStep(Protocol):
     @property
     def input_metas(self) -> List[Meta]:
         """
-        Return a list of the :class:`Meta` objects from each input step. 
+        Return a list of the :class:`Meta` objects from each input step.
         """
         return []
 
@@ -407,7 +407,7 @@ class Calibrate(OTBStepFactory):
         }
         if otb_version() >= '7.4.0':
             params['removenoise'] = self.__removethermalnoise
-        else:
+        else:  # pragma: no cover
             # Don't try to do anything, let's keep the noise
             params['noise'] = True
         return params

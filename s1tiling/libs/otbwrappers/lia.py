@@ -141,7 +141,7 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
         self.__dem_filename_format = cfg.dem_filename_format
 
     @staticmethod
-    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:
+    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:  # pragma: no cover
         """
         The function that calls :func:`gdal.BuildVRT()`.
         """
@@ -413,7 +413,7 @@ class _SumAllHeights(OTBStepFactory):
         assert self.__ingeoid in keys
         return [input[self.__ingeoid] for input in inputs if self.__ingeoid in input.keys()][0]
 
-    def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):
+    def fetch_upstream_dem_resampling_method(self, inputpath: str, meta: Meta):  # pragma: no cover
         """
         Extracts DEM_RESAMPLING_METHOD from from input image metadata.
         """

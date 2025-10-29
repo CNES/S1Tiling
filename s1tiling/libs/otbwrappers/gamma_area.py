@@ -252,7 +252,7 @@ class AgglomerateDEMOnS1(AnyProducerStepFactory):
         self.__dem_main_field_id   = cfg.dem_main_field_id
 
     @staticmethod
-    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:
+    def agglomerate(parameters: ExeParameters, dryrun: bool) -> None:  # pragma: no cover
         """
         The function that calls :func:`gdal.BuildVRT()`.
         """

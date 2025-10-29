@@ -37,6 +37,7 @@ from __future__ import annotations
 # import logging
 from string import Formatter
 from typing import Optional
+from typing_extensions import deprecated
 
 
 class _PartialFormatHelper(dict):
@@ -84,6 +85,7 @@ def glob_format(format_str: str, **kwargs) -> str:
     return format_str.format_map(_FormatOrGlobHelper(**kwargs))
 
 
+@deprecated("Since v1.2")
 class ResilientFormatter0:
     """
     Very similar to :class:`_PartialFormatHelper` or :class:`_FormatOrGlobHelper`, except we can
