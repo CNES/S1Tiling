@@ -113,34 +113,40 @@ Here is a short list of the actions to do for each new release.
       version="$(awk '/version/ {print $3}' s1tiling/__meta__.py | xargs )"
       echo "version: ${version}"
 
-3. Handle all the issues associated for the related milestone.
+3. Make sure version number is up-to-date in :file:`CITATION.cff` and
+   :file:`.zenodo.json` files.
 
-4. Push ``develop`` branch.
+4. Handle all the issues associated for the related milestone, and close it.
+
+5. Push ``develop`` branch.
 
    .. code::
 
        git checkout develop && git push
 
-4. Merge ``develop`` branch into ``master``
+6. Wait for its pipeline to succeed. Go back and fix what needs fixeing
+   otherwise.
+
+7. Merge ``develop`` branch into ``master``
 
    .. code::
 
-       git checkout master && git merge develop
+       git checkout master && git pull && git merge develop
 
-5. Push ``master`` branch.
+8. Push ``master`` branch.
 
    .. code::
 
-       git checkout master && git push
+       git push
 
-6 Create a git tag matching the version number
+9 Create a git tag matching the version number
 
    .. code::
 
        git tag -a "${version}"
        # And fill in version information
 
-7. Push the tag
+10. Push the tag
 
    .. code::
 
@@ -161,22 +167,24 @@ Here is a short list of the actions to do for each new release.
            # Push to PyPi
            python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
-8. For major and minor versions, create a branch named after this version. It
+11. For major and minor versions, create a branch named after this version. It
    will help to track issues patching of that version independently of work
    done on the next version, tracked in ``develop``.
 
    .. code::
 
        git checkout -b release-${version}
-       git push
+       git push --set-upstream origin release-${version}
 
-9. Go to `github mirror <https://github.com/CNES/S1Tiling>`_, once the
+12. Go to `github mirror <https://github.com/CNES/S1Tiling>`_, once the
    repository has been mirrored, to create a new release. This will
    automatically generate a new DOI on zenodo.
 
-10. Go to the new `zenodo release <https://doi.org/10.5281/zenodo.17237358>`_
+13. Go to the new `zenodo release <https://doi.org/10.5281/zenodo.17237358>`_
     and update project metadata that cannot be set in :file:`CITATION.cff`
     file.
 
-11. Eventually, update :file:`__meta__.py` version to the next expected
+14. Eventually, update :file:`__meta__.py` version to the next expected
     version. Do not use the `rcX` suffix for the moment.
+
+15. Announce the new release to the World.
