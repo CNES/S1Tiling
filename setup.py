@@ -121,6 +121,7 @@ setup(
             "pytest < 9",
             "pytest-bdd < 9",
             "pytest-check",
+            "pytest-cov",
             "pytest-icdiff",
             "pytest-mock",
             "pytest_recording",

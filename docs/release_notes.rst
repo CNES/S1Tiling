@@ -56,6 +56,8 @@ v1.2.0 Breaking changes
   S1Tiling 1.2.0: like for instance `#151
   <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/151>`_, and
   that newly produced maps should have a better quality.
+- PyPi wheel production has been momentarily disabled
+  (`#203 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/203>`_).
 
 v1.2.0 Improvements
 +++++++++++++++++++
@@ -108,6 +110,10 @@ v1.2.0 Improvements
 - Product downloading has been fixed to work with all data providers supported
   by EODAG v3.9.0+
   (`#168 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/168>`_).
+- S1Tiling dockers will also be published on `DockerHub
+  <https://hub.docker.com/r/cnes/s1tiling>`_
+  (`#173 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/173>`_).
+
 
 v1.2.0 Bugs fixed
 +++++++++++++++++

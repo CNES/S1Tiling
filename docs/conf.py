@@ -21,6 +21,8 @@ import re
 import sys
 import subprocess
 
+from s1tiling.libs.otbtools import otb_version
+
 # import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -98,15 +100,32 @@ else:
     print(f'This is a branch: {git_version}')
     release = version+'-'+git_version
     version_type = 'heads'
-version = git_version
-release_badge = release.replace('-', '--')
+
+docker_version = f"{version}-ubuntu-otb{otb_version()}"  # Before overriding version!!
+lmod_version   = f"{version}-otb{otb_version()}"  # Before overriding version!!
+version        = git_version
+release_badge  = release.replace('-', '--')
 
 print(f'Using {git_version=}')
+print(f"{docker_version=}")
 
 rst_prolog = """
-.. |Badge doc| image:: https://img.shields.io/badge/docs-{release_badge}-brightgreen
+.. |Badge doc| image:: https://img.shields.io/badge/docs-{release_badge}-brightgreen?logo=readthedocs
+   :alt: Documentation
    :target: https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/{release}/
-""".format(release=release, release_badge=release_badge)
+
+.. |Badge CI| image:: https://img.shields.io/gitlab/pipeline-status/s1-tiling%2Fs1tiling?gitlab_url=https%3A%2F%2Fgitlab.orfeo-toolbox.org&branch={git_version}&label=CI%20{git_version}&logo=gitlab
+   :alt: {git_version} pipeline Status
+   :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/pipelines?page=1&scope=branches&ref={git_version}
+
+.. |Badge coverage| image:: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/badges/{git_version}/coverage.svg
+   :alt: {git_version} branch coverage
+   :target: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/pipelines?page=1&scope=branches&ref={git_version}
+
+.. |Badge docker| image:: https://img.shields.io/docker/v/cnes/s1tiling/{docker_version}?logo=docker
+   :alt: Dockerhub
+   :target: https://hub.docker.com/r/cnes/s1tiling
+""".format(release=release, release_badge=release_badge, git_version=git_version, docker_version=docker_version)
 
 
 ## Enable replacements in code-block and other places
@@ -142,6 +161,8 @@ ultimate_replacements = {
     "{REF_OTB_VERSION}"                : reference_otb_version,
     "{VERSION}"                        : version,
     "{VERSION_TYPE}"                   : version_type,
+    "{DOCKER_VERSION}"                 : docker_version,
+    "{LMOD_VERSION}"                   : lmod_version,
     "{fname_fmt_concatenation}"        : as_sample_mustache(fname_fmt['concatenation']),
 
     "{fname_fmt_filtered}"             : as_sample_mustache(fname_fmt['filtered']),

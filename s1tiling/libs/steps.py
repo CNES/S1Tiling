@@ -356,7 +356,7 @@ class _ProducerStep(AbstractStep):
             logger.debug('No metadata to update in %s', fullpath)
             return
 
-        def do_log(fullpath, img_meta: Dict[str, Union[str, List[str]]], idx: int = -1) -> None:
+        def do_log(fullpath, img_meta: Dict[str, Union[str, List[str]]], idx: int = -1) -> None:  # pragma: no cover
             logger.debug('(dryrun) Set metadata in %s', fullpath)
             for kw, val in img_meta.items():
                 if isinstance(val, list):
@@ -1247,7 +1247,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                 raise RuntimeError("Cannot create OTB application '" + self.appname + "'")
             left_over_parameters : Set[str] = set()
             if input_step.is_first_step:
-                if not files_exist(input_step.out_filename):
+                if not files_exist(input_step.out_filename):  # pragma: no cover
                     logger.critical(
                         "Cannot create OTB pipeline starting with %s as some input files don't exist (%s)", self.appname, input_step.out_filename
                     )
@@ -1294,7 +1294,7 @@ class OTBStepFactory(_FileProducingStepFactory):
                     logger.debug(" - register leftover list parameter '%s': %s", self.param_in, input_param)
                     app.AddParameterStringList(self.param_in, input_param)
                 self.set_output_pixel_type(app, meta)
-            except Exception:
+            except Exception:  # pragma: no cover
                 logger.exception(
                     "Cannot set parameters to %s (from %s) %s", self.appname, lg_from, ' '.join(f'-{k} {v!r}' for k, v in parameters.items())
                 )

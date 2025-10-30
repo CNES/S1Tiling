@@ -42,7 +42,7 @@
 import sys
 from typing import NoReturn
 from osgeo import ogr
-
+import os
 
 def _die(message: str) -> NoReturn:
     print(message, file=sys.stderr)
@@ -108,9 +108,13 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
             print(CellID)
             latitudeID  = CellID[0:3]
             longitudeID = CellID[3:]
+            fileID=f"Copernicus_DSM_10_{latitudeID}_00_{longitudeID}_00/DEM/Copernicus_DSM_10_{latitudeID}_00_{longitudeID}_00_DEM.tif"
+            if not os.path.exists(os.path.join(pathDEM,fileID)):
+                _die(f"{fileID!r} does not exist")
+            
             output_feature.SetField(
                     "FileID",
-                    f"{longitudeID}/Copernicus_DSM_10_{latitudeID}_00_{longitudeID}_00/DEM/Copernicus_DSM_10_{latitudeID}_00_{longitudeID}_00_DEM.tif"
+                    fileID
             )
 
             output_feature.SetGeometry(feature.GetGeometryRef())
@@ -125,10 +129,13 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
 
 
 # Chemin vers le fichier GPKG d'entrée
-input_file = "/work/scratch/data/koleckt/s1tiling-dev/s1tiling/s1tiling/resources/generate-gpkg/GEO1988-CopernicusDEM-RP-002_GridFile_I4.0_ESA.gpkg"
+input_file = "/home/il/koleckt/s1tiling/s1tiling/resources/generate-gpkg/GEO1988-CopernicusDEM-RP-002_GridFile_I6.0_ESA.gpkg"
 
 # Chemin vers le fichier GPKG de sortie
-output_file = "/work/scratch/data/koleckt/s1tiling-dev/s1tiling/s1tiling/resources/generate-gpkg/CopernicusDEM-CNES.gpkg"
+output_file = "/home/il/koleckt/s1tiling/s1tiling/resources/shapefile/CopernicusDEM2023-CNES.gpkg"
+
+# Chemin du DEM
+pathDEM="/work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_2023_1"
 
 # List of fields/columns to keep from the input dataset
 columns_to_keep = {"GeoCellID"}
