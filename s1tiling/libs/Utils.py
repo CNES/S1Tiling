@@ -39,7 +39,7 @@ import logging
 import os
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 # from numpy.lib import math
 import math
@@ -397,11 +397,14 @@ def find_dem_intersecting_poly(
     dem_layer:     Layer,
     dem_field_ids: List[str],
     main_id:       str
-) -> Dict[str, Any]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Searches the DEM tiles that intersect the specifid polygon
 
     precondition: Expect poly.GetSpatialReference() and dem_layer.get_spatial_reference() to be identical!
+
+    :return: A DEM-id indexed dictionary of dictionary of field information + coverage. The field
+             information will mainly be used to generate DEM filenames.
     """
     # main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, dem_field_ids))
     # main_id = (main_ids or dem_field_ids)[0]
@@ -440,6 +443,32 @@ def find_dem_intersecting_poly(
             dem_tiles[dem_info[main_id]] = dem_info
     logger.debug("Found %s DEM tiles among %s", found, tested)
     return dem_tiles
+
+
+@timethis("Loading DEM tile footprints")
+def load_dem_tiles_information(
+    dem_layer:     Layer,
+    dem_field_ids: List[str],
+    main_id:       str
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Extracts dem information and footprint for each DEM tile.
+    """
+    dem_information = {}
+
+    dem_layer.reset_reading()
+    for dem_tile in dem_layer:
+        dem_footprint = dem_tile.GetGeometryRef().Clone()
+
+        tile_info = {}
+        for field_id in dem_field_ids:
+            tile_info[field_id] = dem_tile.GetField(field_id)
+        dem_name = tile_info[main_id]
+        tile_info['footprint'] = dem_footprint
+
+        dem_information[dem_name] = tile_info
+
+    return dem_information
 
 
 @timethis("Finding DEM tiles that intersect multiple polygons")
@@ -547,7 +576,7 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
 
 
 @timethis("Extracting geometry of all tiles")
-def get_tile_geometries(tile_names: List[str], tile_db: Union[str, Layer]) -> Dict[str, ogr.Geometry]:
+def get_tile_geometries(tile_names: Collection[str], tile_db: Union[str, Layer]) -> Dict[str, ogr.Geometry]:
     """
     Returns the map of the OGRGeometry objects for the requested tile names.
 
@@ -560,6 +589,7 @@ def get_tile_geometries(tile_names: List[str], tile_db: Union[str, Layer]) -> Di
 
     for tile_info in layer:
         if (tile_name := tile_info.GetField('NAME')) in tile_names:
+            assert isinstance(tile_name, str)
             geometries[tile_name] = tile_info.GetGeometryRef().Clone()
 
     missing = set(tile_names) - geometries.keys()

@@ -31,13 +31,15 @@
 
 """Layer and OGR related toolbox"""
 
+from collections.abc import Collection
 import logging
 from typing import Dict, List
 
 from osgeo.ogr import Geometry
 
+from .path import AnyPath
 from .timer import timethis
-from ..Utils import Layer, Polygon, find_dem_intersecting_mulitiple_polygons, find_dem_intersecting_poly, get_mgrs_tile_geometry_by_name, get_tile_geometries
+from ..Utils import Layer, Polygon, find_dem_intersecting_mulitiple_polygons, get_tile_geometries
 
 logger = logging.getLogger('s1tiling.utils.layer')
 
@@ -89,11 +91,11 @@ def filter_existing_tiles(mgrs_grid_name: str, tile_names: List[str]) -> List[st
 
 @timethis("Extracting DEM coverage of requested tiles")
 def check_dem_coverage(
-        mgrs_grid_name   : str,
-        dem_db_filepath  : str,
-        tiles_to_process : List[str],
-        dem_field_ids    : List[str],
-        dem_main_field_id: str,
+    mgrs_grid_name   : AnyPath,
+    dem_db_filepath  : AnyPath,
+    tiles_to_process : Collection[str],
+    dem_field_ids    : List[str],
+    dem_main_field_id: str,
 ) -> Dict[str, Dict]:
     """
     Given a set of MGRS tiles to process, this method
@@ -119,9 +121,8 @@ def check_dem_coverage(
 
     logger.debug("Summary of S2 tiles intersection with DEM tiles")
     for tile in tiles_to_process:
-        # mgrs_footprint = mgrs_footprints[tile]
-        # logger.debug("%s original %s footprint is %s", tile, mgrs_footprint.GetSpatialReference().GetName(), mgrs_footprint)
-        logger.debug(" - S2 tile %s is covered by %s DEM tiles", tile, len(needed_dem_tiles[tile]))
+        # logger.debug(" - S2 tile %s is covered by %s DEM tiles", tile, len(needed_dem_tiles[tile]))
+        logger.debug(" - S2 tile %s is covered by %s DEM tiles: %s", tile, len(needed_dem_tiles[tile]), list(needed_dem_tiles[tile].keys()))
     logger.info("DEM ok")
     return needed_dem_tiles
 
