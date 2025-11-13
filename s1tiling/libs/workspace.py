@@ -40,14 +40,13 @@ import shutil
 import tempfile
 from typing import Dict, List, Optional, Protocol, Tuple, Union
 
-from s1tiling.libs.Utils import fetch_nodata_value, set_nodata_value
 
 from . import exceptions
 from .configuration import (
     Configuration, dname_fmt_filtered, dname_fmt_gamma_area_product, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
 )
-from .utils.layer import check_dem_coverage
-
+from .Utils     import fetch_nodata_value, set_nodata_value
+from .utils.dem import check_dem_coverage
 
 logger = logging.getLogger('s1tiling.workspace')
 

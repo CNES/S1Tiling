@@ -48,9 +48,8 @@ from rtree import index
 
 from s1tiling.libs.Utils import get_tile_geometries
 from s1tiling.libs.utils import dem
-from s1tiling.libs.utils.dem import DEMInformation, load_dem_tiles_information
+from s1tiling.libs.utils.dem import DEMInformation, check_dem_coverage, load_dem_tiles_information
 from s1tiling.libs.utils.layer import Layer
-from s1tiling.libs.utils.timer import timethis
 
 # Disable the log warning about exception and GDAL.
 gdal.UseExceptions()
@@ -188,7 +187,6 @@ def find_dem_intersecting_mulitiple_polygons_v2(
 
 @pytest.mark.slow
 @pytest.mark.bench_aternatives
-@timethis("DEM ∩ MGRS: O(N²)")
 def test_check_dem_coverage_v2(reference_s2_to_dem_map: Dict[str, List[str]]):
     s2_tiles = reference_s2_to_dem_map.keys()
 
@@ -205,7 +203,6 @@ def test_check_dem_coverage_v2(reference_s2_to_dem_map: Dict[str, List[str]]):
 
 # ======================================================================
 @pytest.mark.bench_aternatives
-@timethis("DEM ∩ gdal.quad(MGRS)")
 def test_search_dems_in_mgrs_quadtree_gdal(reference_s2_to_dem_map: Dict[str, List[str]]):
     mgrs_footprints : Dict[str, ogr.Geometry]
     dem_information, mgrs_footprints = _load_footprints(reference_s2_to_dem_map)
@@ -274,7 +271,6 @@ def test_search_dems_in_mgrs_quadtree_gdal(reference_s2_to_dem_map: Dict[str, Li
 
 # ======================================================================
 @pytest.mark.bench_aternatives
-@timethis("DEM ∩ rtree.quad(MGRS)")
 def test_search_dems_in_mgrs_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, List[str]]):
     mgrs_footprints : Dict[str, ogr.Geometry]
     dem_information, mgrs_footprints = _load_footprints(reference_s2_to_dem_map)
@@ -333,7 +329,6 @@ def test_search_dems_in_mgrs_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
 
 # ======================================================================
 @pytest.mark.bench_aternatives
-@timethis("MGRS ∩ rtree.quad(DEM)")
 def test_search_mgrs_in_dems_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, List[str]]):
     mgrs_footprints : Dict[str, ogr.Geometry]
     dem_information, mgrs_footprints = _load_footprints(reference_s2_to_dem_map)
@@ -377,12 +372,11 @@ def test_search_mgrs_in_dems_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
 
 
 # ======================================================================
-@timethis("MGRS ∩ s1tiling.index(DEM)")
-def test_search_mgrs_in_dems_implemented(reference_s2_to_dem_map: Dict[str, List[str]]):
+def test_search_mgrs_in_dems_implemented_v1(reference_s2_to_dem_map: Dict[str, List[str]]):
     dem_layer = Layer(DEM_FILE)
     mgrs_footprints = _load_mgrs_footprints(dem_layer, reference_s2_to_dem_map)
 
-    dem_index = dem.Index(dem_layer, dem_field_ids=DEM_FIELD_IDS, main_id=DEM_MAIN_ID)
+    dem_index = dem.Index(dem_layer, field_ids=DEM_FIELD_IDS, main_id=DEM_MAIN_ID)
 
     dem_tiles = {}
     for tile_name, mgrs_footprint in mgrs_footprints.items():
@@ -391,6 +385,19 @@ def test_search_mgrs_in_dems_implemented(reference_s2_to_dem_map: Dict[str, List
 
     # logging.debug("Found %s DEM tiles among %s", found, nb_dems)
     coverage_map = dem_tiles
+
+    computed_s2_to_dem_map = {s2: _keep_ids(dems) for s2, dems in coverage_map.items()}
+    assert reference_s2_to_dem_map.keys() == computed_s2_to_dem_map.keys()
+    assert reference_s2_to_dem_map['10TDP'] == computed_s2_to_dem_map['10TDP']
+    assert reference_s2_to_dem_map == computed_s2_to_dem_map
+
+
+def test_search_mgrs_in_dems_implemented(reference_s2_to_dem_map: Dict[str, List[str]]):
+    coverage_map = check_dem_coverage(
+        MGRS_FILE, DEM_FILE,
+        reference_s2_to_dem_map.keys(),
+        DEM_FIELD_IDS, DEM_MAIN_ID,
+    )
 
     computed_s2_to_dem_map = {s2: _keep_ids(dems) for s2, dems in coverage_map.items()}
     assert reference_s2_to_dem_map.keys() == computed_s2_to_dem_map.keys()

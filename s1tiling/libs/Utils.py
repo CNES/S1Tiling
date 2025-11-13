@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any, Collection, Dict, List, Literal, Optional
 
 # from numpy.lib import math
 import math
+from typing_extensions import deprecated
 from osgeo import gdal, ogr, osr
 import osgeo  # To test __version__
 import numpy as np
@@ -73,17 +74,17 @@ class Layer:
     """
     Thin wrapper that requests GDAL Layers and keep a living reference to intermediary objects.
     """
-    def __init__(self, grid, driver_name: Optional[str] = None) -> None:
+    def __init__(self, grid: AnyPath, driver_name: Optional[str] = None) -> None:
         if not driver_name:
             _, ext = os.path.splitext(grid)
-            driver_name = EXTENSION_TO_DRIVER_MAP.get(ext, "ESRI Shapefile")
+            driver_name = EXTENSION_TO_DRIVER_MAP.get(str(ext), "ESRI Shapefile")
             logging.debug("'%s' database extension: '%s'; using '%s' driver", grid, ext, driver_name)
 
         self.__grid        = grid
         self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
         if not self.__data_source:
-            raise RuntimeError(f"Cannot open {grid} with {driver_name} driver")
+            raise RuntimeError(f"Cannot open {str(grid)!r} with {str(driver_name)!r} driver")
         self.__layer       = self.__data_source.GetLayer()
 
     def __iter__(self) -> Iterator[ogr.Feature]:
@@ -364,7 +365,7 @@ def get_s1image_orbit_time_range(
     return start_time, stop_time, azimuth_times[0], azimuth_times[-1]
 
 
-def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) -> List:
+def get_tile_origin_intersect_by_s1(grid_path: AnyPath, image: S1DateAcquisition) -> List:
     """
     Retrieve the list of MGRS tiles interesected by S1 product.
 
@@ -392,6 +393,7 @@ def get_tile_origin_intersect_by_s1(grid_path: str, image: S1DateAcquisition) ->
     return intersect_tile
 
 
+@deprecated("Since v1.3")
 def find_dem_intersecting_poly(
     poly:          ogr.Geometry,
     dem_layer:     Layer,
@@ -445,105 +447,9 @@ def find_dem_intersecting_poly(
     return dem_tiles
 
 
-@timethis("Loading DEM tile footprints")
-def load_dem_tiles_information(
-    dem_layer:     Layer,
-    dem_field_ids: List[str],
-    main_id:       str
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Extracts dem information and footprint for each DEM tile.
-    """
-    dem_information = {}
-
-    dem_layer.reset_reading()
-    for dem_tile in dem_layer:
-        dem_footprint = dem_tile.GetGeometryRef().Clone()
-
-        tile_info = {}
-        for field_id in dem_field_ids:
-            tile_info[field_id] = dem_tile.GetField(field_id)
-        dem_name = tile_info[main_id]
-        tile_info['footprint'] = dem_footprint
-
-        dem_information[dem_name] = tile_info
-
-    return dem_information
-
-
-@timethis("Finding DEM tiles that intersect multiple polygons")
-def find_dem_intersecting_mulitiple_polygons(
-    footprints:    Dict[str, ogr.Geometry],
-    dem_layer:     Layer,
-    dem_field_ids: List[str],
-    main_id:       str
-) -> Dict[str, Any]:
-    """
-    Searches the DEM tiles that intersect the specifid polygon
-
-    precondition: Expect poly.GetSpatialReference() and dem_layer.get_spatial_reference() to be identical!
-    """
-    # main_ids = list(filter(lambda f: 'id' in f or 'ID' in f, dem_field_ids))
-    # main_id = (main_ids or dem_field_ids)[0]
-    # logger.debug('Using %s as DEM tile main id for name', main_id)
-
-    referenced_footprints = {}
-    # Makes sure footprint polygons are expressed in the DEM Layer SpatialReference
-    out_sr = dem_layer.get_spatial_reference()
-    logger.debug("Searching for DEM tiles intersecting %s tiles:", len(footprints))
-    for tile, poly in footprints.items():
-        orig_spatial_reference = poly.GetSpatialReference()
-        # out_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-        if orig_spatial_reference.GetName() != out_sr.GetName():
-            poly = poly.Clone()
-            res = poly.TransformTo(out_sr)
-            if res != 0:
-                raise RuntimeError(
-                    f"Cannot convert footprint from {orig_spatial_reference.GetName()!r} to {out_sr.GetName()!r}")
-        area = poly.GetArea()
-        referenced_footprints[tile] = {
-            'poly'     : poly,
-            'area'     : area,
-            'dem_tiles': {},
-        }
-        logger.debug(" - %s: %s/%s", tile, poly, poly.GetSpatialReference().GetName())
-
-    logger.debug("DEM tiles intersections:")
-    dem_layer.reset_reading()
-    nb_dems = 0
-    for dem_tile in dem_layer:
-        nb_dems += 1
-        intersected_tiles = []
-        dem_footprint = dem_tile.GetGeometryRef()
-
-        dem_info = {}
-        for field_id in dem_field_ids:
-            dem_info[field_id] = dem_tile.GetField(field_id)
-        dem_name = dem_info[main_id]
-
-        for tile, tile_data in referenced_footprints.items():
-            poly = tile_data['poly']
-            intersection = poly.Intersection(dem_footprint)
-            if intersection.GetArea() > 0.0:
-                intersected_tiles.append(tile)
-                intersection_info = dem_info.copy()
-                intersection_info['_coverage'] = intersection.GetArea() / tile_data['area']
-                tile_data['dem_tiles'][dem_name] = intersection_info
-        if len(intersected_tiles) > 0:
-            logger.debug(' - DEM tile %s covers %s S2 tiles: %s', dem_name, len(intersected_tiles), intersected_tiles)
-
-    dem_tiles = {}
-    for tile, tile_data in referenced_footprints.items():
-        dem_tiles[tile] = tile_data['dem_tiles']
-
-    # logger.debug("Found %s DEM tiles among %s", found, nb_dems)
-    logger.debug('%s DEM footprints analysed', nb_dems)
-    return dem_tiles
-
-
 def find_dem_intersecting_raster(
     s1image:         str,
-    dem_db_filepath: str,
+    dem_db_filepath: AnyPath,
     dem_field_ids:   List[str],
     main_id:         str
 ) -> Dict[str, Any]:
@@ -559,7 +465,7 @@ def find_dem_intersecting_raster(
     return find_dem_intersecting_poly(poly, dem_layer, dem_field_ids, main_id)
 
 
-def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Layer]) -> ogr.Geometry:
+def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[AnyPath, Layer]) -> ogr.Geometry:
     """
     This method returns the MGRS tile geometry as OGRGeometry given its identifier
 
@@ -567,7 +473,7 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
     :param mgrs_db:        Database (or its filename) storing the MGRS tile information.
     :return:  The MGRS tile geometry as OGRGeometry or raise ValueError
     """
-    mgrs_layer = Layer(mgrs_db) if isinstance(mgrs_db, str) else mgrs_db
+    mgrs_layer = mgrs_db if isinstance(mgrs_db, Layer) else Layer(mgrs_db)
 
     for mgrs_tile in mgrs_layer:
         if mgrs_tile.GetField('NAME') == mgrs_tile_name:
@@ -576,7 +482,7 @@ def get_mgrs_tile_geometry_by_name(mgrs_tile_name: str, mgrs_db: Union[str, Laye
 
 
 @timethis("Extracting geometry of all tiles")
-def get_tile_geometries(tile_names: Collection[str], tile_db: Union[str, Layer]) -> Dict[str, ogr.Geometry]:
+def get_tile_geometries(tile_names: Collection[str], tile_db: Union[AnyPath, Layer]) -> Dict[str, ogr.Geometry]:
     """
     Returns the map of the OGRGeometry objects for the requested tile names.
 
@@ -584,7 +490,7 @@ def get_tile_geometries(tile_names: Collection[str], tile_db: Union[str, Layer])
     :param tile_db:    Database (or its filename) storing the (MGRS) tile information.
     :return:           The tile geometries as a dictionary of OGRGeometry or raise ValueError
     """
-    layer = Layer(tile_db) if isinstance(tile_db, str) else tile_db
+    layer = tile_db if isinstance(tile_db, Layer) else Layer(tile_db)
     geometries : Dict[str, ogr.Geometry] = {}
 
     for tile_info in layer:
@@ -597,6 +503,19 @@ def get_tile_geometries(tile_names: Collection[str], tile_db: Union[str, Layer])
         raise ValueError("The following MGRS tiles do not exist", missing)
     return geometries
 
+
+def change_geometry_spatial_reference_to(footprint: ogr.Geometry, sr: osr.SpatialReference) -> ogr.Geometry:
+    """
+    Change the SpatialReference of the input geometry to the chosen one
+    """
+    current_spatial_reference = footprint.GetSpatialReference()
+    if current_spatial_reference != sr:
+        footprint = footprint.Clone()
+        res = footprint.TransformTo(sr)
+        if res != 0:
+            raise RuntimeError(
+                f"Cannot convert footprint from {current_spatial_reference.GetName()!r} to {sr.GetName()!r}")
+    return footprint
 
 def get_orbit_direction(manifest: AnyPath) -> Literal['DES', 'ASC']:
     """This function returns the orbit direction from a S1 manifest file.

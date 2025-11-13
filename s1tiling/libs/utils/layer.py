@@ -31,20 +31,18 @@
 
 """Layer and OGR related toolbox"""
 
-from collections.abc import Collection
 import logging
 from typing import Dict, List
 
 from osgeo.ogr import Geometry
 
 from .path import AnyPath
-from .timer import timethis
-from ..Utils import Layer, Polygon, find_dem_intersecting_mulitiple_polygons, get_tile_geometries
+from ..Utils import Layer, Polygon
 
 logger = logging.getLogger('s1tiling.utils.layer')
 
 
-def tile_exists(mgrs_grid_name: str, tile_name_field: str) -> bool:
+def tile_exists(mgrs_grid_name: AnyPath, tile_name_field: str) -> bool:
     """
     This function checks if a given MGRS tile exists in the database
 
@@ -64,7 +62,7 @@ def tile_exists(mgrs_grid_name: str, tile_name_field: str) -> bool:
     return False
 
 
-def filter_existing_tiles(mgrs_grid_name: str, tile_names: List[str]) -> List[str]:
+def filter_existing_tiles(mgrs_grid_name: AnyPath, tile_names: List[str]) -> List[str]:
     """
     Sanitize tile name list.
 
@@ -87,44 +85,6 @@ def filter_existing_tiles(mgrs_grid_name: str, tile_names: List[str]) -> List[st
         logger.warning("Tile '%s' does not exist, skipping ...", tile_name)
 
     return list(valid_tiles)
-
-
-@timethis("Extracting DEM coverage of requested tiles")
-def check_dem_coverage(
-    mgrs_grid_name   : AnyPath,
-    dem_db_filepath  : AnyPath,
-    tiles_to_process : Collection[str],
-    dem_field_ids    : List[str],
-    dem_main_field_id: str,
-) -> Dict[str, Dict]:
-    """
-    Given a set of MGRS tiles to process, this method
-    returns the needed DEM tiles and the corresponding coverage.
-
-    Args:
-      tile_to_process: The list of MGRS tiles identifiers to process
-
-    Return:
-      A list of tuples (DEM tile id, coverage of MGRS tiles).
-      Coverage range is [0,1]
-    """
-    dem_layer  = Layer(dem_db_filepath)
-    mgrs_layer = Layer(mgrs_grid_name)
-
-    needed_dem_tiles = {}
-
-    mgrs_footprints = get_tile_geometries(tiles_to_process, mgrs_layer)
-
-    logger.debug("Check DEM files for all requested tiles")
-    needed_dem_tiles = find_dem_intersecting_mulitiple_polygons(
-        mgrs_footprints, dem_layer, dem_field_ids, dem_main_field_id)
-
-    logger.debug("Summary of S2 tiles intersection with DEM tiles")
-    for tile in tiles_to_process:
-        # logger.debug(" - S2 tile %s is covered by %s DEM tiles", tile, len(needed_dem_tiles[tile]))
-        logger.debug(" - S2 tile %s is covered by %s DEM tiles: %s", tile, len(needed_dem_tiles[tile]), list(needed_dem_tiles[tile].keys()))
-    logger.info("DEM ok")
-    return needed_dem_tiles
 
 
 def polygon2extent(polygon: Polygon) -> Dict[str, float]:

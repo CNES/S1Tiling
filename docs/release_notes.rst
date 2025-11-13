@@ -8,6 +8,24 @@
 Release notes
 =============
 
+Version 1.3.0
+-------------
+
+The main features of this version are:
+
+- TBC
+
+v1.3.0 Improvements
++++++++++++++++++++
+
+- Searching performances of the DEM tiles that intersect the requested S2 MGRS
+  tiles has been greatly improved
+  (`#201 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/201>`_).
+
+
+Release notes
+=============
+
 Version 1.2.0
 -------------
 
@@ -22,8 +40,6 @@ The main features of this version are:
 - The computation of :ref:`Local Incidence Angle maps <lia-files>` has evolved
   to use precise orbit files as well.
 - Sentinel-1C is now supported.
-
-
 
 v1.2.0 Breaking changes
 +++++++++++++++++++++++
