@@ -109,6 +109,7 @@ def process(tmpdir, outputdir, liadir, gamma_areadir, baseline_reference_outputs
     return subprocess.call(args, cwd=crt_dir)
 
 
+@pytest.mark.slow
 def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
@@ -190,6 +191,7 @@ def test_33NWB_202001_NR_execute_OTB(baselinedir, outputdir, liadir, gamma_aread
         # assert otb_compare(baseline_path+images[0], result_path+images[1]) == 0
 
 
+@pytest.mark.slow
 def test_33NWB_202001_NR_masks_only_execute_OTB(baselinedir, outputdir, liadir, gamma_areadir, tmpdir, demdir, ram, download, watch_ram):
     crt_dir       = pathlib.Path(__file__).parent.absolute()
     logging.info("Baseline expected in '%s'", baselinedir)
