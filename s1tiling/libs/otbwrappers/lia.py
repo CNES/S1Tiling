@@ -165,7 +165,8 @@ class AgglomerateDEMOnS2(AnyProducerStepFactory):
                     os.path.basename(  # => Strip any dirname from the input dem_filename_format
                         self.__dem_filename_format.format_map(meta['dem_infos'][s]))),
                 meta['dem_infos']))
-        meta['dem_files'] = dem_files
+        # Sort the parameters to have reproductible tests
+        meta['dem_files'] = sorted(dem_files)
         missing_dems = list(filter(lambda f: not os.path.isfile(f), dem_files))
         if len(missing_dems) > 0:
             raise RuntimeError(f"Cannot create DEM vrt for {meta['tile_name']}: the following DEM files are missing: {', '.join(missing_dems)}")
