@@ -46,7 +46,9 @@ import pytest
 
 from rtree import index
 
-from s1tiling.libs.Utils import get_tile_geometries, load_dem_tiles_information
+from s1tiling.libs.Utils import get_tile_geometries
+from s1tiling.libs.utils import dem
+from s1tiling.libs.utils.dem import DEMInformation, load_dem_tiles_information
 from s1tiling.libs.utils.layer import Layer
 from s1tiling.libs.utils.timer import timethis
 
@@ -79,14 +81,13 @@ def _keep_ids(d: Dict[str, Any]) -> Set[str]:
 
 
 # ======================================================================
-def _load_footprints(
+def _load_mgrs_footprints(
+    dem_layer: Layer,
     reference_s2_to_dem_map: Dict[str, List[str]]
-) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, ogr.Geometry]]:
-    dem_layer = Layer(DEM_FILE)
-    out_sr = dem_layer.get_spatial_reference()
-    dem_information = load_dem_tiles_information(dem_layer, DEM_FIELD_IDS, DEM_MAIN_ID)
-
+) -> Dict[str, ogr.Geometry]:
     mgrs_layer = Layer(MGRS_FILE)
+    out_sr = dem_layer.get_spatial_reference()
+
     tiles_to_process = reference_s2_to_dem_map.keys()
     mgrs_footprints = get_tile_geometries(tiles_to_process, mgrs_layer)
 
@@ -101,7 +102,15 @@ def _load_footprints(
                     f"Cannot convert footprint from {orig_spatial_reference.GetName()!r} to {out_sr.GetName()!r}")
             mgrs_footprints[tile_name] = poly
 
-    return dem_information, mgrs_footprints
+    return mgrs_footprints
+
+
+def _load_footprints(
+    reference_s2_to_dem_map: Dict[str, List[str]]
+) -> Tuple[Dict[str, DEMInformation], Dict[str, ogr.Geometry]]:
+    dem_layer = Layer(DEM_FILE)
+    dem_information = load_dem_tiles_information(dem_layer, DEM_FIELD_IDS, DEM_MAIN_ID)
+    return dem_information, _load_mgrs_footprints(dem_layer, reference_s2_to_dem_map)
 
 
 # ======================================================================
@@ -177,6 +186,7 @@ def find_dem_intersecting_mulitiple_polygons_v2(
     return dem_tiles
 
 
+@pytest.mark.slow
 @pytest.mark.bench_aternatives
 @timethis("DEM ∩ MGRS: O(N²)")
 def test_check_dem_coverage_v2(reference_s2_to_dem_map: Dict[str, List[str]]):
@@ -226,7 +236,7 @@ def test_search_dems_in_mgrs_quadtree_gdal(reference_s2_to_dem_map: Dict[str, Li
         # intersected_tiles = []
         nb_dems += 1
 
-        dem_footprint : ogr.Geometry = dem_info['footprint']
+        dem_footprint : ogr.Geometry = dem_info.footprint
         assert isinstance(dem_footprint, ogr.Geometry)
         layer.SetSpatialFilter(dem_footprint)
         for feature in layer:
@@ -240,7 +250,7 @@ def test_search_dems_in_mgrs_quadtree_gdal(reference_s2_to_dem_map: Dict[str, Li
                     mgrs_tile_data = referenced_mgrs_footprints[mgrs_tile_fid]
 
                     # intersected_tiles.append(mgrs_tile_data['tilename'])
-                    intersection_info = dem_info.copy()
+                    intersection_info = dem_info.tile_info.copy()
                     intersection_info['_coverage'] = intersection_area / mgrs_tile_data['area']
                     mgrs_tile_data['dem_tiles'][dem_tile_name] = intersection_info
                     logging.debug("%s ∩ %s => %6.02f%%", dem_tile_name, mgrs_tile_data['tilename'], 100 * intersection_info['_coverage'])
@@ -288,7 +298,7 @@ def test_search_dems_in_mgrs_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
         # intersected_tiles = []
         nb_dems += 1
 
-        dem_footprint : ogr.Geometry = dem_info['footprint']
+        dem_footprint : ogr.Geometry = dem_info.footprint
         assert isinstance(dem_footprint, ogr.Geometry)
         bbox = dem_footprint.GetEnvelope()
         candidates = list(mgrs_index.intersection((bbox[0], bbox[2], bbox[1], bbox[3])))
@@ -300,7 +310,7 @@ def test_search_dems_in_mgrs_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
                 mgrs_tile_data = referenced_mgrs_footprints[i]
 
                 # intersected_tiles.append(mgrs_tile_data['tilename'])
-                intersection_info = dem_info.copy()
+                intersection_info = dem_info.tile_info.copy()
                 intersection_info['_coverage'] = intersection_area / mgrs_tile_data['area']
                 mgrs_tile_data['dem_tiles'][dem_tile_name] = intersection_info
                 logging.debug("%s ∩ %s => %6.02f%%", dem_tile_name, mgrs_tile_data['tilename'], 100 * intersection_info['_coverage'])
@@ -331,15 +341,11 @@ def test_search_mgrs_in_dems_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
     referenced_dem_footprints = {}
     dem_index = index.Index()
     for i, dem_tile_name in enumerate(dem_information):
-        footprint = dem_information[dem_tile_name]['footprint']
+        footprint = dem_information[dem_tile_name].footprint
         bbox = footprint.GetEnvelope()  # (minX, maxX, minY, maxY)
         dem_index.insert(i, (bbox[0], bbox[2], bbox[1], bbox[3]))  # (minX, minY, maxX, maxY)
 
-        referenced_dem_footprints[i] = {
-            'tilename' : dem_tile_name,
-            'footprint': footprint,
-            'info'     : dem_information[dem_tile_name],
-        }
+        referenced_dem_footprints[i] = dem_information[dem_tile_name]
 
     dem_tiles = {}
     for tile_name, mgrs_footprint in mgrs_footprints.items():
@@ -347,19 +353,41 @@ def test_search_mgrs_in_dems_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
         mgrs_area = mgrs_footprint.GetArea()
 
         bbox = mgrs_footprint.GetEnvelope()
-        candidates = list(dem_index.intersection((bbox[0], bbox[2], bbox[1], bbox[3])))
+        candidates = dem_index.intersection((bbox[0], bbox[2], bbox[1], bbox[3]))
         for i in candidates:  # DEM candidates
-            intersection = referenced_dem_footprints[i]['footprint'].Intersection(mgrs_footprint)
+            intersection = referenced_dem_footprints[i].footprint.Intersection(mgrs_footprint)
             intersection_area = intersection.GetArea()
 
             if intersection_area > 0.0:
-                dem_tile_name = referenced_dem_footprints[i]['tilename']
+                dem_tile_name = referenced_dem_footprints[i].tile_name
                 dem_tiles[tile_name][dem_tile_name] = {
                     '_coverage': intersection_area / mgrs_area,
-                    **referenced_dem_footprints[i]['info'].copy()
+                    **referenced_dem_footprints[i].tile_info
                 }
 
                 logging.debug("%s ∩ %s => %6.02f%%", dem_tile_name, tile_name, 100 * dem_tiles[tile_name][dem_tile_name]['_coverage'])
+
+    # logging.debug("Found %s DEM tiles among %s", found, nb_dems)
+    coverage_map = dem_tiles
+
+    computed_s2_to_dem_map = {s2: _keep_ids(dems) for s2, dems in coverage_map.items()}
+    assert reference_s2_to_dem_map.keys() == computed_s2_to_dem_map.keys()
+    assert reference_s2_to_dem_map['10TDP'] == computed_s2_to_dem_map['10TDP']
+    assert reference_s2_to_dem_map == computed_s2_to_dem_map
+
+
+# ======================================================================
+@timethis("MGRS ∩ s1tiling.index(DEM)")
+def test_search_mgrs_in_dems_implemented(reference_s2_to_dem_map: Dict[str, List[str]]):
+    dem_layer = Layer(DEM_FILE)
+    mgrs_footprints = _load_mgrs_footprints(dem_layer, reference_s2_to_dem_map)
+
+    dem_index = dem.Index(dem_layer, dem_field_ids=DEM_FIELD_IDS, main_id=DEM_MAIN_ID)
+
+    dem_tiles = {}
+    for tile_name, mgrs_footprint in mgrs_footprints.items():
+        dem_tiles[tile_name] = dem_index.intersection(mgrs_footprint, tile_name)
+
 
     # logging.debug("Found %s DEM tiles among %s", found, nb_dems)
     coverage_map = dem_tiles
