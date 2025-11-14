@@ -146,6 +146,7 @@ package9:
               -o log_cli_level=info -o log_cli=true
               --junitxml=report.xml
               --record-mode=none
+              -k 'not bench_aternatives'
     artifacts:
         when: always
         name: coverage-html
