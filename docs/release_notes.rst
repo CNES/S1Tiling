@@ -21,6 +21,8 @@ v1.3.0 Improvements
 - Searching performances of the DEM tiles that intersect the requested S2 MGRS
   tiles has been greatly improved
   (`#201 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/201>`_).
+- Project packaging is migrated to :file:`pyproject.toml`
+  (`#198 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/198>`_).
 
 
 Release notes

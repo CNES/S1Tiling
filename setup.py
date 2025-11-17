@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 # =========================================================================
-#   Program:   S1Tiling
+#   Program:   S1Processor
 #
-#   Copyright 2017-2025 (c) CNES. All rights reserved.
+#   All rights reserved.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -12,7 +14,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,21 +24,17 @@
 #
 # =========================================================================
 #
-# Authors: Thierry KOLECK (CNES)
-#          Luc HERMITTE (CS Group)
+# Authors:
+# - Thierry KOLECK (CNES)
+# - Luc HERMITTE (CSGROUP)
 #
 # =========================================================================
 
-import os
 import subprocess
-
-from setuptools import setup, find_namespace_packages
-import re
 import sys
 
+from setuptools import setup
 
-# Import the library to make sure there is no side effect
-import s1tiling
 
 def request_gdal_version() -> str:
     try:
@@ -45,49 +43,17 @@ def request_gdal_version() -> str:
         print("GDAL %s detected on the system, using 'gdal==%s'" % (version, version))
         return version
     except Exception:  # pylint: disable=broad-except
-        return '3.1.0'
-
-
-def normalize(name):
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-BASEDIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-
-metadata = {}
-with open(os.path.join(BASEDIR, "s1tiling", "__meta__.py"), "r") as f:
-    exec(f.read(), metadata)
-
-with open(os.path.join(BASEDIR, "README.md"), "r") as f:
-    readme = f.read()
+        return '3.9.0'
 
 extra_packages = []
 if sys.version_info < (3,11,0):
     extra_packages.append("typing_extensions")
 
+
+# Hybrid dependencies configuration in order to have a dynamic version detection for GDAL python
+# bindings.
+# See https://johnscolaro.xyz/blog/dynamically-specify-dependencies-with-pyproject-toml
 setup(
-    name                          = normalize(metadata["__title__"]),
-    version                       = metadata["__version__"],
-    description                   = metadata["__description__"],
-    long_description              = readme,
-    long_description_content_type = "text/markdown",
-    author                        = metadata["__author__"],
-    author_email                  = metadata["__author_email__"],
-    url                           = metadata["__url__"],
-    license                       = metadata["__license__"],
-    keywords                      = "Sentinel-1, Sentinel-2, orthorectification",
-
-    # Liste les packages à insérer dans la distribution
-    # plutôt que de le faire à la main, on utilise la fonction
-    # find_packages() de setuptools qui va chercher tous les packages
-    # python recursivement dans le dossier courant.
-    # C'est pour cette raison que l'on a tout mis dans un seul dossier:
-    # on peut ainsi utiliser cette fonction facilement
-    packages=find_namespace_packages(exclude=("*.tests", "*.tests.*", "tests.*", "tests")),
-    package_data={"": ["LICENSE", "NOTICE"]},
-    include_package_data=True, # Take MANIFEST.in into account
-
-    python_requires='>=3.9, <4',
     install_requires=[
         "click",
         "dask[distributed]>=2022.8.1",
@@ -95,7 +61,7 @@ setup(
         "gdal=="+request_gdal_version(),
         "graphviz",
         "lxml",     # already used by eodag actually
-        "numpy",
+        "numpy<2",
         "objgraph", # leaks
         # "packaging", # version
         "portion",  # intervals
@@ -106,78 +72,4 @@ setup(
         # "sentineleof>0.10.0",
         "sentineleof @ git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
     ] + extra_packages,
-    extras_require={
-        "dev": [
-            # "nose",
-            # "tox",
-            # "faker",
-            # 'mock; python_version < "3.5" ',
-            # "coverage",
-            # "moto==1.3.6",
-            # "twine",
-            "wheel",
-            "flake8",
-            "mypy",
-            "pre-commit",
-            "pytest < 9",
-            "pytest-bdd < 9",
-            "pytest-check",
-            "pytest-cov",
-            "pytest-icdiff",
-            "pytest-mock",
-            "pytest_recording",
-            "pylint",
-            # Type hints:
-            "types-python-dateutil",
-            "types-PyYAML",
-            "types-requests",
-        ],
-        "docs": [
-            "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
-            "jinja2",
-            "m2r2",
-            "natsort",
-            "nbsphinx==0.9.3",
-            "nbsphinx-link==1.3.0",
-            "sphinx~=7.1",
-            "sphinx_rtd_theme~=1.3.0",
-            "sphinx-carousel",
-            "sphinx-click",
-        ],
-    },
-
-    # https://pypi.python.org/pypi?%3Aaction=list_classifiers.
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Natural Language :: English",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
-        "Topic :: Scientific/Engineering :: GIS",
-    ],
-
-    project_urls={
-            "Bug Tracker": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues",
-            "Documentation": "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest",
-            "Source Code": "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling",
-            "Community": "https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11",
-    },
-
-    scripts = ['s1tiling/S1Processor.py'],
-    entry_points = {
-        'console_scripts': [
-            'S1Processor    = s1tiling.S1Processor:run',
-            'S1LIAMap       = s1tiling.S1LIAMap:run_lia',
-            'S1IAMap        = s1tiling.S1IAMap:run_ia',
-            'S1GammaAreaMap = s1tiling.S1GammaAreaMap:run_gamma_area'
-        ],
-    },
 )
