@@ -162,5 +162,16 @@ addopts = [
     "--ignore-glob=s1tiling/resources",
 ]
 
+[tool.ruff]
+line-length = 150
+
+[tool.ruff.lint]
+ignore = ['E731']
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true
+
 [tool.bdist_wheel]
 universal = true
