@@ -70,7 +70,7 @@ py_ver_for_otb[9.1.1]="3.12"
 # if HAL:
 # python_ml_dep=python3.8.4-gcc8.2
 # if TREX:
-python_ml_dep=python3.12
+python_ml_dep=python3.13
 
 repo_url=https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling.git
 project_name=s1tiling
@@ -386,12 +386,18 @@ fi
 project_src_dir="${args[0]}"
 
 
-[ -d "${project_src_dir}" ]          || usage "Non existant S1Tiling source directory (${project_src_dir})"
-[ -d "${project_src_dir}/s1tiling" ] || usage "Invalid S1Tiling source directory (${project_src_dir})"
-[ -f "${project_src_dir}/setup.py" ] || usage "Invalid S1Tiling source directory (${project_src_dir})"
+[ -d "${project_src_dir}" ]                || usage "Non existant S1Tiling source directory (${project_src_dir})"
+[ -d "${project_src_dir}/s1tiling" ]       || usage "Invalid S1Tiling source directory (${project_src_dir})"
+[ -f "${project_src_dir}/pyproject.toml" ] || usage "Invalid S1Tiling source directory (${project_src_dir})"
 
 project_fulldir="$(readlink -f "${project_src_dir}" )"
 module_paths=($(_split_path "${MODULEPATH}"))
+module_roots=($(_search_array "${HOME}" "${module_paths[@]}"))
+if [ ${#module_roots[@]} -gt 1 ] ; then
+    echo "Too many module paths ${#module_roots[@]} under home please clear \$MODULEPATH. Please remove unrequired ones"
+    printf " -> %s\n" "${module_roots[@]}"
+    exit 127
+fi
 module_root="$(_search_array "${HOME}" "${module_paths[@]}")"
 
 otb_ver2=$(_version_Mm "${otb_version}" ".")
@@ -482,12 +488,22 @@ _execute python -m pip --no-cache-dir install "numpy<2"     || _die "Can't insta
     || {
     if _is_set run_script ; then
         _execute bash "${run_script_name}.run" --nox11 --target "${otb_basename_prefix}"
+        _execute cd "${otb_basename_prefix}" || _die "Cannot cd to ${otb_basename_prefix}"
     else
         for archive in "${archives[@]}" ; do
             _execute tar xf "${archive}" --one-top-level="${otb_prefix}"
         done
+        # OTB 9.1.1 otbenv profile tries to download gdal bindings, and if it fails,
+        # sourcing will return KO, and the install_done file is never set.
+        # So, let's manually override gdal python bindings detection, as we
+        # will always manually install them
+        _execute cd "${otb_basename_prefix}" || _die "Cannot cd to ${otb_basename_prefix}"
+        _execute sed -i 's#gdal_python_found=".*#gdal_python_found=1#' tools/post_install.sh \
+            || _die "Cannot patch tools/post_install.sh"
+        export OTB_INSTALL_DIR="${otb_prefix}"
+        _execute tools/post_install.sh || _die "Cannot finish OTB installation"
+        unset OTB_INSTALL_DIR
     fi
-    _execute cd "${otb_basename_prefix}" || _die "Cannot cd to ${otb_basename_prefix}"
     # gvim otbenv.profile
     # _ask_Yes_no "Let's wait..."
     # # Inject ${CMAKE_PREFIX_PATH}/lib into LD_LIBRARY_PATH
@@ -511,6 +527,15 @@ _execute cp "${project_fulldir}/s1tiling/resources/gdal-config" "${otb_prefix}/b
 _execute chmod +x "${otb_prefix}/bin/gdal-config" \
     || _die "Cannot make gdal-config executable"
 
+# In some case, GDAL is listed by pip, but incorrectly installed
+# => clear it installation
+[ "${noexec:-0}" = "1" ] || python -m pip show gdal  >/dev/null 2>&1 && {
+    _verbose "Check whether GDAL python bindings are incorrectly installed, and need removal."
+    _execute python -c "import gdal" && _verbose "It seem OK; Let's continue with them" \
+    || _execute python -m pip uninstall -y gdal \
+    || _die "Cannot clear incorrectly install GDAL Python bindings"
+}
+
 _execute python -m pip --no-cache-dir install "gdal==$(gdal-config --version)" --no-binary :all: \
     || _die "Cannot install GDAL python bindings"
 
@@ -533,7 +558,7 @@ function _test_gdal_gpkg
 # ==[ Install S1Tiling
 _execute cd "${project_fulldir}"
 # TODO: add options for dev/docs
-_execute python -m pip install -e .[dev,docs]
+_execute python -m pip install -e .[dev,docs] || _die "S1Tiling Installation failed"
 
 # ==[ And create the modulefile!
 if _has_executable module ; then
