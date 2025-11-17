@@ -4,7 +4,7 @@
 #   Program: generate-DEM-gpkg.py
 #
 #   All rights reserved.
-#   Copyright 2017-2023 (c) CNES.
+#   Copyright 2017-2025 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -33,15 +33,15 @@
 # It should be adapted to fit with the organisation of the tiles in the user context.
 #
 # Starting from the SHAPEFILE provide by Copernicus, we need first to convert it to a gpkg file
-# Ex: ogr2ogr GEO1988-CopernicusDEM-RP-002_GridFile_I4.0_ESA.gpkg GEO1988-CopernicusDEM-RP-002_GridFile_I4.0_ESA.shp
+# Ex: ogr2ogr GEO1988-CopernicusDEM-RP-002_GridFile_I4.0.gpkg GEO1988-CopernicusDEM-RP-002_GridFile_I4.0.shp
 #
 # The SHAPEFILE is available here:
-# https://spacedata.copernicus.eu/documents/20123/122407/GEO1988-CopernicusDEM-RP-002_GridFile_I4.0_ESA.zip/590bb3da-1123-042b-d4d3-021549aabb17?t=1674484982606
+# https://s3.waw3-1.cloudferro.com/swift/v1/portal_uploads_prod/GEO1988-CopernicusDEM-RP-002_GridFile_I6.0.shp_08.2024.zip
 #
 
 import sys
 from typing import NoReturn
-from osgeo import ogr
+from osgeo import ogr,osr
 import os
 
 def _die(message: str) -> NoReturn:
@@ -61,6 +61,10 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
     if output_ds is None:
         _die(f"Cannot create new GPKG file {output_path!r}!")
 
+    # Créer le CRS du DEM Copernicus
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+
     # Parcourir chaque couche du fichier d'entrée
     nb_layers = input_ds.GetLayerCount()
     print(f"{nb_layers} layers will be converted")
@@ -71,6 +75,7 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
         output_layer = output_ds.CreateLayer(
             input_layer.GetName(),
             geom_type=input_layer.GetGeomType(),
+            srs=srs,
             options=["SPATIAL_INDEX=YES"]
         )
 
@@ -129,7 +134,7 @@ def select_columns(input_path, output_path, columns_to_keep) -> None:
 
 
 # Chemin vers le fichier GPKG d'entrée
-input_file = "/home/il/koleckt/s1tiling/s1tiling/resources/generate-gpkg/GEO1988-CopernicusDEM-RP-002_GridFile_I6.0_ESA.gpkg"
+input_file = "/home/il/koleckt/s1tiling/s1tiling/resources/generate-gpkg/GEO1988-CopernicusDEM-RP-002_GridFile_I6.0.gpkg"
 
 # Chemin vers le fichier GPKG de sortie
 output_file = "/home/il/koleckt/s1tiling/s1tiling/resources/shapefile/CopernicusDEM2023-CNES.gpkg"
