@@ -1,0 +1,166 @@
+[build-system]
+requires = ["setuptools >= 64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "s1tiling"
+dynamic         = ["version", "dependencies"]
+description     = "S1Tiling project for Sentinel-1 orthorectification"
+readme          = "README.md"
+requires-python = ">=3.9, <4"
+license         = {text = "Apache-2.0"}
+keywords        = ["Sentinel-1", "Sentinel-2", "orthorectification"]
+
+authors         = [
+    {name = "Thierry KOLECK", email = "Thierry.Koleck@cnes.fr"},
+    {name = "Luc HERMITTE"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    # "Programming Language :: Python :: 3.14",  # Not yet...
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+[project.optional-dependencies]
+dev = [
+    "wheel",
+    "flake8",
+    "mypy",
+    "pre-commit",
+    "pytest < 9",
+    "pytest-bdd < 9",
+    "pytest-check",
+    "pytest-cov",
+    "pytest-icdiff",
+    "pytest-mock",
+    "pytest_recording",
+    "pylint",
+    # Type hints:
+    "types-python-dateutil",
+    "types-PyYAML",
+    "types-requests",
+]
+docs = [
+    "docutils<0.19.0", # reminder of sphinx_rtd_theme 1.3.0
+    "jinja2",
+    "m2r2",
+    "natsort",
+    "nbsphinx==0.9.3",
+    "nbsphinx-link==1.3.0",
+    "sphinx~=7.1",
+    "sphinx_rtd_theme~=1.3.0",
+    "sphinx-carousel",
+    "sphinx-click",
+]
+
+[project.urls]
+Homepage      = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
+"Bug Tracker" = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues"
+Documentation = "https://s1-tiling.pages.orfeo-toolbox.org/s1tiling/latest"
+"Source Code" = "https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling"
+Community     = "https://forum.orfeo-toolbox.org/c/otb-chains/s1-tiling/11"
+
+[project.scripts]
+S1Processor    = "s1tiling.S1Processor:run"
+S1LIAMap       = "s1tiling.S1LIAMap:run_lia"
+S1IAMap        = "s1tiling.S1IAMap:run_ia"
+S1GammaAreaMap = "s1tiling.S1GammaAreaMap:run_gamma_area"
+
+# ======================================================================
+# Tooling
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
+
+[tool.setuptools.package-data]
+"*" = ["LICENSE", "NOTICE"]
+
+[tool.setuptools.dynamic]
+version = {attr = "s1tiling.__meta__.__version__"}
+
+[tool.flake8]
+ignore = ["E501", "E221", "E123", "E124", "E126", "E127", "E128", "E201", "E203", "E241", "E266", "E271", "E272", "E731", "W503"]
+max-line-length = 100
+exclude = [
+    ".git",
+    "__pycache__",
+    ".tox",
+    "build",
+    "dist",
+    "docs/conf.py",
+    "tests/context.py",
+]
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+known_first_party = ["s1tiling", "tests"]
+known_third_party = ["concurrent.futures"]
+default_section = "THIRDPARTY"
+skip = [
+    ".git",
+    "__pycache__",
+    ".tox",
+    "build",
+    "dist",
+    "docs/conf.py",
+]
+
+[tool.pydocstyle]
+select = ["D1"]
+add_ignore = ["D107", "D100", "D105"]
+match = "(?!test|setup).*\\.py"
+
+[tool.mypy]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = "s1tiling/resources/run.py"
+
+[tool.pytest.ini_options]
+markers = [
+    "dem",
+    "intersection",
+    "lambert93",
+    "wgs84",
+    "tasks",
+    "download",
+    "complex_download",
+    "complex_download_sigma_two_s1",
+    "complex_download_gamma_area_two_s1",
+    "complex_download_gamma_calibrated_two_s1",
+    "complex_download_sigma_one_s1",
+    "complex_download_gamma_area_one_s1",
+    "complex_download_mismatch_dates_sigma",
+    "complex_download_mismatch_dates_gamma_area",
+    "complex_download_mismatch_dates_gamma_calibration",
+    "bench_aternatives",
+    "slow",
+]
+addopts = [
+    "--doctest-modules",
+    "--ignore-glob=deprecated",
+    "--ignore-glob=s1tiling/resources",
+]
+
+[tool.bdist_wheel]
+universal = true
