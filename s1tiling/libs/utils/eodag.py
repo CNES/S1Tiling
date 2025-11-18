@@ -32,11 +32,13 @@
 
 """Centralizes EODAG heper functions"""
 
+from collections.abc import Callable
 from functools import partial
 import logging
 import logging.handlers
 import multiprocessing
 import os
+from types import ModuleType
 from typing import List, Optional, Protocol, Tuple, cast
 
 from requests.exceptions    import ReadTimeout, Timeout
@@ -48,6 +50,9 @@ from eodag.utils.exceptions import TimeOutError
 from ..             import exceptions
 from ..outcome      import ProductDownloadOutcome
 from ..otbpipeline  import mp_worker_config
+
+
+Sanatizer = Callable[[str, EOProduct, logging.Logger], Optional[Exception]]
 
 
 logger = logging.getLogger('s1tiling.utils.eodag')
@@ -124,7 +129,8 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
     raw_directory: str,
     dl_wait:       int,
     dl_timeout:    int,
-    logger_,
+                                      logger_:       logging.Logger|ModuleType,  # todo: pass the right global logger
+    sanatize:      Optional[Sanatizer],
     product:       EOProduct,
 ) -> ProductDownloadOutcome[str, EOProduct]:
     """
@@ -155,16 +161,9 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
                 pass
         # eodag may say the product is correctly downloaded while it failed to do so
         # => let's do a quick sanity check
+        if sanatize and (error := sanatize(raw_directory, product, logger_)):
+            path = ProductDownloadOutcome(error, product)
 
-        # eodag2 product naming scheme
-        manifest = os.path.join(raw_directory, prod_id, f'{prod_id}.SAFE', 'manifest.safe')
-        if not os.path.exists(manifest):
-            # eodag3 product naming scheme
-            manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
-            if not os.path.exists(manifest):
-                logger_.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
-                e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
-                path = ProductDownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger_.warning('  %s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
         # logger_.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -199,6 +198,7 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
     context:       str,
     dl_wait:       int,
     dl_timeout:    int,
+    sanatize:      Optional[Sanatizer],
 ) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
@@ -210,7 +210,7 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
     paths     : List[ProductDownloadOutcome] = []
     log_queue : multiprocessing.Queue   = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logging)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logging, sanatize)
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
@@ -267,6 +267,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
     context:       str,
     dl_wait:       int,
     dl_timeout:    int,
+    sanatize:      Optional[Sanatizer],
 ) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
@@ -278,7 +279,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
 
     nb_products = len(products)
     paths     : List[ProductDownloadOutcome] = []
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logger)
+    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logger, sanatize)
 
     # In case timeout happens, we try again if and only if we have been able to download
     # other products after the timeout.
@@ -293,6 +294,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
         nb_successes_since_timeout = 0
         for idx, product in indexed_products:
             # logger.info("Starting download of product #%d/%d: %s...", idx, nb_products, product)
+            assert product
             result = dl_work(product)
             # logger.debug('DL -> %s', result)
             if result:

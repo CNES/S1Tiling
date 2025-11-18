@@ -51,7 +51,7 @@ from eodag.utils.logging     import setup_logging
 
 
 from .                   import exceptions
-from .utils.eodag        import download_and_extract_products
+from .utils.eodag        import download_and_extract_products, sanatize_S1_product
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -353,13 +353,36 @@ def _keep_products_with_enough_coverage(
         cover = ci.compute_relative_cover_of(tile_footprint)
         if cover:
             # If no intersection at all => we ignore!
-            content_info_with_intersection.append(ci)
+            content_info_with_intersection.append(ci
 
     return filter_images_providing_enough_cover_by_pair(
             content_info_with_intersection,
             target_cover,
             get_cover=lambda ci: ci.get_current_tile_coverage() or 0
     )
+
+
+def sanatize_S1_product(
+    raw_directory: str,
+    product:       EOProduct,
+    logger_:       logging.Logger,
+) -> Optional[Exception]:
+    """
+    Sanitize check for downloaded S1 products
+
+    :return: an exception instance if an error has been detected, None otherwise
+    """
+    # eodag2 product naming scheme
+    prod_id = product.as_dict()['id']
+    manifest = os.path.join(raw_directory, prod_id, f'{prod_id}.SAFE', 'manifest.safe')
+    if not os.path.exists(manifest):
+        # eodag3 product naming scheme
+        manifest = os.path.join(raw_directory, prod_id, 'manifest.safe')
+        if not os.path.exists(manifest):
+            logger_.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
+            e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
+            return e
+    return None
 
 
 class S1FileManager:
@@ -722,6 +745,7 @@ class S1FileManager:
             context=f" for {tile_name}",
             dl_wait=self.__dl_wait,
             dl_timeout=self.__dl_timeout,
+            sanatize=sanatize_S1_product,
         )
         logger.info("Remote S1 products saved into %s", [p.value() for p in paths if p.has_value()])
         logger.debug("Problems observed during DL: %s", [p.error() for p in paths if not p.has_value()])
