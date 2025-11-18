@@ -209,7 +209,7 @@ class DownloadOutcome(Outcome[Value]):
     pass
 
 
-class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
+class ProductDownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
     Sentinel-1 downloaded products for better error messages.
@@ -218,7 +218,7 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
     - either the path to the downloaded product,
     - or the error message that leads to the task failure.
 
-    Plus information about the related eodag product.
+    Plus information about the related (eodag) product.
     """
     def __init__(
         self,
@@ -242,6 +242,9 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
             return f'{self.value()} has been successfully downloaded'
         else:
             return f'Failed to download {self.__related_product}: {self.error()}'
+
+
+S1DownloadOutcome = ProductDownloadOutcome[Value, Product]
 
 
 # Let's workaround mypy/Pyright...

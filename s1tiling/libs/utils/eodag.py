@@ -46,7 +46,7 @@ from eodag.api.product      import EOProduct
 from eodag.utils.exceptions import TimeOutError
 
 from ..             import exceptions
-from ..outcome      import S1DownloadOutcome
+from ..outcome      import ProductDownloadOutcome
 from ..otbpipeline  import mp_worker_config
 
 
@@ -126,7 +126,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
     dl_timeout:    int,
     logger_,
     product:       EOProduct,
-) -> S1DownloadOutcome[str, EOProduct]:
+) -> ProductDownloadOutcome[str, EOProduct]:
     """
     Takes care of downloading exactly one remote product and unzipping it, if required.
 
@@ -136,9 +136,9 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
     ok_msg = f"  Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
     zip_file = os.path.join(raw_directory, prod_id) + '.zip'
-    path: S1DownloadOutcome[str, EOProduct]
+    path: ProductDownloadOutcome[str, EOProduct]
     try:
-        path = S1DownloadOutcome(
+        path = ProductDownloadOutcome(
             dag.download(
                 product,            # EODAG will clear this variable
                 extract=True,       # Let's eodag do the job
@@ -164,7 +164,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
             if not os.path.exists(manifest):
                 logger_.error('  Actually download of %s failed, the expected manifest could not be found in the product (%s)', prod_id, manifest)
                 e = exceptions.CorruptedDataSAFEError(prod_id, f"no manifest file named {manifest!r} found")
-                path = S1DownloadOutcome(e, product)
+                path = ProductDownloadOutcome(e, product)
     except BaseException as e:  # pylint: disable=broad-except
         logger_.warning('  %s while attempting download of %s', e, prod_id)  # EODAG error message is good and precise enough, just use it!
         # logger_.error('Product is %s', product_property(product, 'storageStatus', 'online?'))
@@ -175,7 +175,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
         # logger_.exception(e)
         ## Traceback (most recent call last):
         ##   File "s1tiling/libs/S1FileManager.py", line 350, in _download_and_extract_one_product
-        ##     path = S1DownloadOutcome(dag.download(
+        ##     path = ProductDownloadOutcome(dag.download(
         ##   File "site-packages/eodag/api/core.py", line 1487, in download
         ##     path = product.download(
         ##   File "site-packages/eodag/api/product/_product.py", line 288, in download
@@ -185,7 +185,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
         ## eodag.utils.exceptions.NotAvailableError: S1A_IW_GRDH_1SDV_20200401T044214_20200401T044239_031929_03AFBC_0C9E
         ##                                           is not available (OFFLINE) and could not be downloaded, timeout reached
 
-        path = S1DownloadOutcome(e, product)
+        path = ProductDownloadOutcome(e, product)
 
     return path
 
@@ -199,15 +199,15 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
     context:       str,
     dl_wait:       int,
     dl_timeout:    int,
-) -> List[S1DownloadOutcome]:
+) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
 
-    Returns :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
+    Returns :class:`ProductDownloadOutcome` of :class:`EOProduct` or Exception.
     """
     nb_products = len(products)
-    paths     : List[S1DownloadOutcome] = []
+    paths     : List[ProductDownloadOutcome] = []
     log_queue : multiprocessing.Queue   = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
     dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logging)
@@ -219,7 +219,7 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
             # -> IOW, downloading instability justifies trying again.
             # /> On the contrary, on a complete network failure, we should not try again and again...
             while len(products) > 0:
-                products_in_timeout : List[S1DownloadOutcome] = []
+                products_in_timeout : List[ProductDownloadOutcome] = []
                 nb_successes_since_timeout = 0
                 for count, result in enumerate(pool.imap_unordered(dl_work, products), 1):
                     # logger.debug('DL -> %s', result)
@@ -267,17 +267,17 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
     context:       str,
     dl_wait:       int,
     dl_timeout:    int,
-) -> List[S1DownloadOutcome]:
+) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
     if required, in parallel.
 
-    Returns :class:`S1DownloadOutcome` of :class:`EOProduct` or Exception.
+    Returns :class:`ProductDownloadOutcome` of :class:`EOProduct` or Exception.
     """
     nb_procs = 1  # Force nb of simultaneous DL to 1
 
     nb_products = len(products)
-    paths     : List[S1DownloadOutcome] = []
+    paths     : List[ProductDownloadOutcome] = []
     dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logger)
 
     # In case timeout happens, we try again if and only if we have been able to download
@@ -289,7 +289,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
 
     logger.info("Starting download of %d products...", nb_products)
     while len(indexed_products) > 0:
-        products_in_timeout : List[S1DownloadOutcome] = []
+        products_in_timeout : List[ProductDownloadOutcome] = []
         nb_successes_since_timeout = 0
         for idx, product in indexed_products:
             # logger.info("Starting download of product #%d/%d: %s...", idx, nb_products, product)
