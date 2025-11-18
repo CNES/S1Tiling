@@ -32,13 +32,16 @@
 """This sub-module defines access clients to EOF Providers"""
 
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Collection
 from datetime import datetime
 import logging
 from pathlib import Path
 import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, TypeVar, Union
+
+from eodag import EOProduct
 from eodag.api.core import EODataAccessGateway
+from eodag.api.search_result import SearchResult
 from eodag.plugins.authentication.base import Authentication
 from eodag.plugins.authentication.openid_connect import CodeAuthorizedAuth
 from eodag.utils.exceptions import MisconfiguredError
@@ -47,10 +50,22 @@ from eof._auth import get_netrc_credentials
 from eof.client import Client, Filename
 from eof.download import ASFClient, DataspaceClient
 
-from ..exceptions import ConfigurationError
+
+from ..exceptions  import ConfigurationError
+from ..outcome     import ProductDownloadOutcome
+from ..utils.eodag import download_and_extract_products
+from ..utils.path  import AnyPath
 
 
 logger = logging.getLogger("s1tiling.orbit")
+
+Value   = TypeVar("Value")
+File    = TypeVar('File')
+Product = TypeVar('Product')
+T       = TypeVar("T")
+
+
+EOFDownloadOutcome = ProductDownloadOutcome[Value, Product]
 
 
 class Provider:
@@ -73,7 +88,7 @@ class Provider:
             self,
             first_date: datetime,
             last_date:  datetime,
-            missions:   Iterable[str] = ()
+            missions:   Collection[str] = ()
     ) -> List:
         """
         Search for precise orbit files in the specified time range in the actual provider.
@@ -132,6 +147,79 @@ class Provider:
         Internal variation point that'll instanciate a :class:`eof.client.Client` matching the actual provider.
         """
         pass
+
+
+class EodagProvider:
+    def __init__(
+        self,
+        dag         : EODataAccessGateway,
+        dl_wait     : int,
+        dl_timeout  : int,
+        access_token: Optional[str] = None
+    ):
+        self.__dag        = dag
+        self.__dl_wait    = dl_wait
+        self.__dl_timeout = dl_timeout
+
+    def search(
+            self,
+            first_date: datetime,
+            last_date:  datetime,
+            missions:   Collection[str] = (),
+    ) -> SearchResult:
+        """
+        Search for precise orbit files in the specified time range in the actual provider.
+
+        :param datetime first_date: Start of the search time range
+        :param datetime last_date:  End of the search time range
+        :param sequence missions:   Set of "S1A", "S1B", "S1C" missions to retrict search.
+                                    If empty, to filering is done.
+        :return: a list of EOF file specifications that match the search request parameters.
+
+        .. warning: This list can only be used with the :meth:`download_all` method of the provider of the same type.
+        """
+        assert isinstance(missions, (list, tuple)), f"{missions=!r} is a {missions.__class__.__name__}"
+        dag_platform_list_param = missions[0] if len(missions) == 1 else None
+        # logger.debug('mission filter: %s -> %s', list(missions), dag_platform_list_param)
+        eofs = self.__dag.search_all(
+            provider="cop_dataspace",
+            collection="SENTINEL-1",
+            productType="AUX_POEORB",
+            start=first_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            end=last_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            raise_errors=True,
+            platformSerialIdentifier=dag_platform_list_param,
+        )
+
+        # Filter platform -- if it could not be done earlier in the search() request.
+        if len(missions) > 1:
+            filtered_products = SearchResult([])
+            for platform in missions:
+                # There is a bug in eodag 3.10: #1930 -> Hence explicitly using the last char from platform
+                filtered_products.extend(eofs.filter_property(platformSerialIdentifier=platform[-1]))
+            eofs = filtered_products
+
+        logger.debug("%s EOFs found:", len(eofs))
+        for eof in eofs:
+            logger.debug("- %s", eof)
+        return eofs
+
+    def download(
+        self,
+        eofs            : List[EOProduct],
+        destination_dir : AnyPath,
+        context         : str,
+    ) -> List[EOFDownloadOutcome]:
+        return download_and_extract_products(
+            dag=self.__dag,
+            raw_directory=str(destination_dir),
+            products=eofs,
+            nb_procs=1,
+            context=context,
+            dl_wait=self.__dl_wait,
+            dl_timeout=self.__dl_timeout,
+            sanatize=None,
+        )
 
 
 class DataspaceProvider(Provider):
