@@ -315,9 +315,8 @@ class CommandLine:
         constructor
         """
         self.__exename    = exename
-        self.__parameters : Union[List[str], Dict[str, str]]
+        self.__parameters : Union[list, Dict[str, str]]
         if isinstance(parameters, list):
-            assert isinstance(exename, str)
             self.__parameters = [exename] + parameters
         else:
             self.__parameters = parameters
