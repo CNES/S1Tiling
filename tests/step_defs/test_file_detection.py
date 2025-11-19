@@ -34,7 +34,7 @@ import fnmatch
 import logging
 import os
 # from pathlib import Path
-from typing import Callable, Dict, List, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Sequence, Set, Tuple, cast
 from eodag.api.search_result import SearchResult
 
 from eof.products import re
@@ -205,7 +205,7 @@ def image_list():
 
 @pytest.fixture
 def downloads() -> list[S1DownloadOutcome]:
-    dn = []
+    dn : list[S1DownloadOutcome] = []
     return dn
 
 @pytest.fixture
@@ -636,18 +636,18 @@ def dl_successes():
     return l
 
 @pytest.fixture
-def dl_failures() -> List[S1DownloadOutcome]:
-    l = []
+def dl_failures() -> list[S1DownloadOutcome]:
+    l : list[S1DownloadOutcome] = []
     return l
 
 @pytest.fixture
 def dl_kepts() -> Sequence[FileProductInformation]:
-    l = []
+    l : Sequence[FileProductInformation] = []
     return l
 
 @pytest.fixture
-def dl_skip() -> List[str]:
-    l = []
+def dl_skip() -> list[str]:
+    l : list[str] = []
     return l
 
 @given(parsers.parse('S1 product {idx} has been downloaded'))
@@ -904,8 +904,8 @@ def given_retroactive_set_time_range_from_inputs(
     actual_products = [
         file_db._find_image(product) for product in known_remote_s1
     ]
-    first_start_time = min([to_datetime(file_db.FILES[idx]['start_time']) for idx in actual_products])
-    last_stop_time   = max([to_datetime(file_db.FILES[idx]['stop_time'])  for idx in actual_products])
+    first_start_time = min([to_datetime(cast(str, file_db.FILES[idx]['start_time'])) for idx in actual_products])
+    last_stop_time   = max([to_datetime(cast(str, file_db.FILES[idx]['stop_time']))  for idx in actual_products])
     configuration.first_date = (first_start_time - timedelta(1)).strftime('%Y-%m-%d')
     configuration.last_date  = (last_stop_time   + timedelta(1)).strftime('%Y-%m-%d')
     logging.debug("Request time range forged to %s .. %s (from known remote S1 products)", configuration.first_date, configuration.last_date)

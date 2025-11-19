@@ -32,7 +32,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 from s1tiling.libs.api import s1_raster_first_inputs_factory, s1_raster_first_inputs_factory_from_rasters, tilename_first_inputs_factory
@@ -331,10 +331,10 @@ class Configuration():
             'concatenation' :      FileDB.CONCATENATION_NAMING[naming_policy],
             'orthorectification' : ORTHORECTIFICATION_NAMING[naming_policy],
         }
-        self.dname_fmt                         = {}
-        self.creation_options                  = {}
-        self.disable_streaming                 = {'normals_on_s2': False}
-        self.extra_metadata                    = {}
+        self.dname_fmt                         : dict[str, str] = {}
+        self.creation_options                  : dict[str, Any] = {}
+        self.disable_streaming                 : dict[str, bool] = {'normals_on_s2': False}
+        self.extra_metadata                    : dict[str, str] = {}
         self.dem_info                          = ''
 
 
@@ -348,18 +348,18 @@ def isfile(filename, existing_files) -> bool:
 # Fixtures
 
 @pytest.fixture
-def known_file_ids() -> List[Tuple[int, str]]:
-    fn = []
+def known_file_ids() -> list[tuple[int, str]]:
+    fn : list[tuple[int, str]] = []
     return fn
 
 @pytest.fixture
-def known_files() -> List[str]:
-    kf = []
+def known_files() -> list[str]:
+    kf : list[str] = []
     return kf
 
 @pytest.fixture
-def expected_files_id() -> List[int]:
-    ex = []
+def expected_files_id() -> list[int]:
+    ex : list[int] = []
     return ex
 
 @pytest.fixture
@@ -393,18 +393,18 @@ def pipeline_ids() -> Dict[str, Pipeline]:
     return ids
 
 @pytest.fixture
-def raster_list() -> List[Dict]:
-    rl = []
+def raster_list() -> list[dict]:
+    rl : list[dict] = []
     return rl
 
 @pytest.fixture
-def dependencies() -> List:
-    deps = []
+def dependencies() -> list:
+    deps : list = []
     return deps
 
 @pytest.fixture
-def tasks() -> Dict:
-    t = {}
+def tasks() -> dict:
+    t : dict = {}
     return t
 
 # ======================================================================
