@@ -47,7 +47,7 @@ from eodag.plugins.authentication.openid_connect import CodeAuthorizedAuth
 from eodag.utils.exceptions import MisconfiguredError
 
 from eof._auth import get_netrc_credentials
-from eof.client import Client, Filename
+from eof.client import Client
 from eof.download import ASFClient, DataspaceClient
 
 
@@ -110,7 +110,7 @@ class Provider:
             logger.debug("- %s", eof)
         return eofs
 
-    def download(self, eofs, destination_dir : Filename) -> Union[List[Path], List[Filename]]:
+    def download(self, eofs, destination_dir : AnyPath) -> Union[List[Path], List[AnyPath]]:
         """
         Download the precise orbit files specified.
 
