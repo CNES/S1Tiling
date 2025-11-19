@@ -31,24 +31,124 @@
 
 """This sub-module defines the Sentinel1 Orbit file class"""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
-from datetime import datetime
+from dataclasses     import asdict, dataclass
+from datetime        import datetime
+from enum import Enum
 import glob
 import logging
 import os
-from typing import Dict, Iterable, List, Optional, Tuple
+import re
+from typing import Dict, Iterable, List, Literal, Optional, Tuple, TypedDict, cast
 
-from eof.client import Filename
-from eof.download import SentinelOrbit
 
 from ._conversions import ORBIT_CONVERTERS
 from ..utils import lxml as xml
+from ..utils.path import AnyPath
 
 
-#: List of all possible missions. Even the yet to be launched S1C is listed
-ALL_MISSIONS = ("S1A", "S1B", "S1C")
+#: List of all possible missions. Even the yet to be launched S1D is listed
+ALL_MISSIONS = ("S1A", "S1B", "S1C", "S1D")
 
 logger = logging.getLogger("s1tiling.orbit")
+
+
+_k_POEORB  : Literal['POEORB']  = "POEORB"
+_k_RESORB  : Literal['RESORB']  = "RESORB"
+
+
+class OrbitType(Enum):
+    """
+    Strong (enum) type to modelize orbit types
+    """
+    POEORB = _k_POEORB
+    RESORB = _k_RESORB  # Ignored for now
+
+    def __str__(self) -> str:
+        return self.name
+
+
+def to_datetime(s: str) -> datetime:
+    return datetime.strptime(s, '%Y%m%dT%H%M%S')
+
+
+@dataclass(frozen=True, eq=False)
+class SentinelOrbit:
+    mission:       str
+    start_time:    datetime
+    stop_time:     datetime
+    orbit_type:    OrbitType
+    creation_time: datetime
+
+    @classmethod
+    def create(
+        cls,
+        mission:       str,
+        start_time:    str,
+        stop_time:     str,
+        orbit_type:    str,
+        creation_time: str,
+    ) -> SentinelOrbit:
+        """
+        Factory method
+
+        >>> f='_EOF/S1A_OPER_AUX_POEORB_OPOD_20250302T070634_V20250209T225942_20250211T005942.EOF'
+        >>> SentinelOrbit.create(**decode(f))
+        SentinelOrbit(mission='S1A', start_time=datetime.datetime(2025, 2, 9, 22, 59, 42), stop_time=datetime.datetime(2025, 2, 11, 0, 59, 42), orbit_type=<OrbitType.POEORB: 'POEORB'>, creation_time=datetime.datetime(2025, 3, 2, 7, 6, 34))
+        """
+        return SentinelOrbit(
+            mission=mission,
+            start_time=to_datetime(start_time),
+            stop_time=to_datetime(stop_time),
+            creation_time=to_datetime(creation_time),
+            orbit_type=OrbitType(orbit_type),
+        )
+
+    def __eq__(self, rhs) -> bool:
+        # compare as_tuple, but ignoring the creation_time
+        # TODO: remove creation time from the field list
+        return (
+            self.mission, self.start_time, self.stop_time, self.orbit_type,
+        ) == (
+            rhs.mission, rhs.start_time, rhs.stop_time, rhs.orbit_type,
+        )
+
+    def __contains__(self, dt: datetime) -> bool:
+        return self.start_time <= dt <= self.stop_time
+
+    def __lt__(self, rhs):
+        return (self.start_time, self.stop_time) < (rhs.start_time, rhs.stop_time)
+
+
+
+RE_EOF = re.compile(
+    r"(?P<mission>S1A|S1B|S1C|S1D)_OPER_AUX_"
+    r"(?P<orbit_type>[\w_]{6})_OPOD_"
+    r"(?P<creation_time>[T\d]{15})_"
+    r"V(?P<start_time>[T\d]{15})_"
+    r"(?P<stop_time>[T\d]{15})"
+)
+
+
+EOFFields = TypedDict(
+    'EOFFields',
+    {
+        'mission':str, 'orbit_type': str, 'creation_time': str, 'start_time': str, 'stop_time': str
+    }
+)
+
+# Unfortunately, it seems we cannot generate one from the other. But as least, we can check they are
+# consistent
+assert EOFFields.__annotations__.keys() == SentinelOrbit.__annotations__.keys()
+
+
+def decode(filename: AnyPath) -> EOFFields:
+    match = RE_EOF.match(os.path.basename(filename))
+    if not match:
+        raise ValueError(f"Invalid EOF filename: {filename!r}")
+    return cast(EOFFields, match.groupdict())
 
 
 class SentinelOrbitFile(SentinelOrbit):
@@ -56,23 +156,29 @@ class SentinelOrbitFile(SentinelOrbit):
     Extends :class:`eof.SentinelOrbit` with min-max absolute orbit info
     """
 
-    def __init__(self, filename: Filename, **kwargs) -> None:
+    def __init__(self, filename: AnyPath, **kwargs) -> None:
         """
         constructor
         """
-        super().__init__(filename, **kwargs)
+        super().__init__(**asdict(SentinelOrbit.create(**decode(filename))))
         assert (
             self.mission in ORBIT_CONVERTERS
         ), f"Unexpected mission ID {self.mission!r}. Only {ORBIT_CONVERTERS.keys()} are supported."
 
         self.first_abs_orbit, self.last_abs_orbit = extract_min_max_abs_orbit_numbers(filename)
 
+        self.__filename : AnyPath = filename
         self.__orbit_converter = ORBIT_CONVERTERS[self.mission]
         self.first_rel_orbit = self.__orbit_converter.to_relative(self.first_abs_orbit)
         self.last_rel_orbit  = self.__orbit_converter.to_relative(self.last_abs_orbit)
         # logger.debug("ABS[%s, %s] -> REL[%s, %s] for %s", self.first_abs_orbit, self.last_abs_orbit, self.first_rel_orbit, self.last_rel_orbit, filename)
         assert 1 <= self.first_rel_orbit <= 175
         assert 1 <= self.last_rel_orbit <= 175
+
+    @property
+    def filename(self) -> AnyPath:
+        """ Filename accessor """
+        return self.__filename
 
     @property
     def nb_orbits_in_mission(self):
@@ -118,7 +224,7 @@ class SentinelOrbitFile(SentinelOrbit):
 
 # ===============[ "Internal" functions used to implement the public service
 # This organisation eases the writing of unit tests
-def extract_min_max_abs_orbit_numbers(filename: Filename) -> Tuple[int, int]:
+def extract_min_max_abs_orbit_numbers(filename: AnyPath) -> Tuple[int, int]:
     """
     Extract the first and the last absolute orbit numbers found in the EOF file.
 
@@ -149,7 +255,7 @@ def extract_min_max_abs_orbit_numbers(filename: Filename) -> Tuple[int, int]:
     return int(min_obt), int(max_obt)
 
 
-def glob_eof_files(dirname: Filename) -> List[SentinelOrbitFile]:
+def glob_eof_files(dirname: AnyPath) -> List[SentinelOrbitFile]:
     """
     Glob precise orbit files in ``dirname``
     """
