@@ -31,7 +31,7 @@
 
 """This sub-module defines the EOFFileManager"""
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
@@ -57,7 +57,7 @@ from ..outcome   import DownloadOutcome
 from ..utils     import AnyPath, partition
 
 
-EOFDownloadOutcome = DownloadOutcome[SentinelOrbitFile]
+EOFDownloadOutcome0 = DownloadOutcome[SentinelOrbitFile]
 EOFOutcome         = DownloadOutcome[Dict[int, SentinelOrbitFile]]
 
 
@@ -147,9 +147,9 @@ class EOFFileManager:
 
     def do_download_eof_files(
             self,
-            missions  : Iterable[str] = (),
+            missions  : Collection[str] = (),
             dryrun    : bool          = False,
-    ) -> List[EOFDownloadOutcome]:
+    ) -> List[EOFDownloadOutcome0]:
         """
         Raw function to search and download remote EOF precise orbit files, independently of the
         requested orbit numbers.
@@ -170,7 +170,7 @@ class EOFFileManager:
         self._ensure_workspaces_exist()
 
         request = f"between {self.__first_date} and {self.__last_date}"
-        errors : List[EOFDownloadOutcome] = []
+        errors : List[EOFDownloadOutcome0] = []
 
         provider_kinds = [
             p
@@ -179,7 +179,7 @@ class EOFFileManager:
         ]
         if len(provider_kinds) == 0:
             logger.warning("No data provider has been configured for EOF files")
-            return [EOFDownloadOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"))]
+            return [EOFDownloadOutcome0(RuntimeError(f"No data provider has been configured for EOF files {request}"))]
         logger.debug(
                 "EOF files will be searched on %s between %s and %s",
                 " and ".join((str(p) for p in provider_kinds)),
@@ -192,18 +192,18 @@ class EOFFileManager:
                 provider = self._instanciate_provider(provider_kind)
                 eofs = provider.search(self.__first_date, self.__last_date, missions)
                 files = provider.download(eofs, self.__dest_dir)
-                return [EOFDownloadOutcome(SentinelOrbitFile(f)) for f in files]
+                return [EOFDownloadOutcome0(SentinelOrbitFile(f)) for f in files]
             except BaseException as e:  # pylint: disable=broad-except
                 logger.warning(e, exc_info=False)
                 # logger.debug(e, exc_info=True)
-                errors.append(EOFDownloadOutcome(e))
+                errors.append(EOFDownloadOutcome0(e))
         assert len(errors) > 0, "This situation shouldn't happen: either we return a result, or an exception has been caught and converted..."
         return errors
 
     def _search_on_disk(
         self,
         relative_orbits: List[int],
-        missions       : Iterable[str],
+        missions       : Collection[str],
         first_date     : datetime,
         last_date      : datetime,
     ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int], Optional[bool]]:
@@ -245,7 +245,7 @@ class EOFFileManager:
     def _fetch_eof_files(  # pylint: disable=too-many-arguments
         self,
         relative_orbits   : List[int],
-        missions          : Iterable[str],
+        missions          : Collection[str],
         known_obt2eof_map : Dict[int, SentinelOrbitFile],
         first_date        : datetime,
         last_date         : datetime,
@@ -286,7 +286,7 @@ class EOFFileManager:
                 known_obt2eof_map,
             )
 
-        # Convert errors from EOFDownloadOutcome to EOFOutcome
+        # Convert errors from EOFDownloadOutcome0 to EOFOutcome
         errors : List[EOFOutcome] = [EOFOutcome(e.error()) for e in eof_errors]
 
         # # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
@@ -303,7 +303,7 @@ class EOFFileManager:
             self,
             relative_orbits: List[int],
             *,
-            missions       : Iterable[str] = (),
+            missions       : Collection[str] = (),
             first_date     : Optional[datetime] = None,
             last_date      : Optional[datetime] = None,
             dryrun         : bool          = False,
