@@ -51,7 +51,7 @@ from eodag.utils.logging     import setup_logging
 
 
 from .                   import exceptions
-from .utils.eodag        import download_and_extract_products, sanatize_S1_product
+from .utils.eodag        import download_and_extract_products
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -353,7 +353,7 @@ def _keep_products_with_enough_coverage(
         cover = ci.compute_relative_cover_of(tile_footprint)
         if cover:
             # If no intersection at all => we ignore!
-            content_info_with_intersection.append(ci
+            content_info_with_intersection.append(ci)
 
     return filter_images_providing_enough_cover_by_pair(
             content_info_with_intersection,
