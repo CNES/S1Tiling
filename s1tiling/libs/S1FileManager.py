@@ -39,6 +39,7 @@ import logging
 import os
 import re
 import shutil
+from types import ModuleType
 from typing import Dict, List, Optional, Protocol, Tuple
 
 from osgeo import ogr
@@ -365,7 +366,7 @@ def _keep_products_with_enough_coverage(
 def sanatize_S1_product(
     raw_directory: str,
     product:       EOProduct,
-    logger_:       logging.Logger,
+    logger_:       logging.Logger|ModuleType,
 ) -> Optional[Exception]:
     """
     Sanitize check for downloaded S1 products

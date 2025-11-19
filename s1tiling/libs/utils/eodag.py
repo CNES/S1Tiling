@@ -47,12 +47,11 @@ from eodag.api.core         import EODataAccessGateway
 from eodag.api.product      import EOProduct
 from eodag.utils.exceptions import TimeOutError
 
-from ..             import exceptions
 from ..outcome      import ProductDownloadOutcome
 from ..otbpipeline  import mp_worker_config
 
 
-Sanatizer = Callable[[str, EOProduct, logging.Logger], Optional[Exception]]
+Sanatizer = Callable[[str, EOProduct, logging.Logger|ModuleType], Optional[Exception]]
 
 
 logger = logging.getLogger('s1tiling.utils.eodag')
@@ -129,7 +128,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
     raw_directory: str,
     dl_wait:       int,
     dl_timeout:    int,
-                                      logger_:       logging.Logger|ModuleType,  # todo: pass the right global logger
+    logger_:       logging.Logger|ModuleType,  # todo: pass the right global logger
     sanatize:      Optional[Sanatizer],
     product:       EOProduct,
 ) -> ProductDownloadOutcome[str, EOProduct]:
