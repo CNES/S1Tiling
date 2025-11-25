@@ -38,6 +38,7 @@ from collections.abc import Callable, Generator, Iterator, KeysView, Set
 import logging
 import os
 import re
+import shutil
 import sys
 from typing import TYPE_CHECKING, Any, Collection, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -854,3 +855,11 @@ def tsort(dag: Dict, start_nodes: Union[List, Set, KeysView], fetch_successor_fu
     """
     ts = TopologicalSorter(dag, fetch_successor_function)
     return ts.depth(start_nodes)
+
+
+def rename(orig: AnyPath, dest: AnyPath) -> None:
+    """
+    Renames (logs) files and directories.
+    """
+    logger.debug('Renaming: mv %s %s', orig, dest)
+    shutil.move(orig, dest)
