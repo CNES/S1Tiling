@@ -116,6 +116,8 @@ class Outcome(Generic[Value]):
             We would need Higher Kinded Types with
             https://returns.readthedocs.io/en/latest/pages/hkt.html for instance (which requires
             Python 3.10)
+
+            In the mean time, use :meth:`Outcome.inplace_transform`
         """
         if self.has_value():
             try:
@@ -124,6 +126,16 @@ class Outcome(Generic[Value]):
                 return Outcome(e)
         else:
             return Outcome(self.error())
+
+    def inplace_transform(self, f: Callable[[Value], Value]) -> None:
+        """
+        Transforms the value, if any, inplace. Leave the error unchanged.
+        """
+        if self.has_value():
+            try:
+                self.__value_or_error = f(self.value())
+            except BaseException as e:  # pylint: disable=broad-exception-caught
+                self.__value_or_error = e
 
     def change_error(self, error: BaseException) -> Self:
         """
