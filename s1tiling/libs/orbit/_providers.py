@@ -235,15 +235,15 @@ class EodagProvider:
             prod_name =  eof.as_dict()['id']
             return os.path.join(destination_dir, f"{prod_name}.EOF")
 
-        logger.debug("Requested EOFs: %s in %s", eofs, destination_dir)
-        for eof in eofs:
-            logger.debug("- prod: %s ∃ %s -> %r ",
-                         eof,
-                         os.path.isfile(eof_filename(eof)),
-                         eof_filename(eof))
+        # logger.debug("Requested EOFs: %s in %s", eofs, destination_dir)
+        # for eof in eofs:
+        #     logger.debug("- prod: %s ∃ %s -> %r ",
+        #                  eof,
+        #                  os.path.isfile(eof_filename(eof)),
+        #                  eof_filename(eof))
 
         on_disk, to_download = partition(lambda eof : os.path.isfile(eof_filename(eof)), eofs)
-        logger.debug("Downloaded EOFs: %s", to_download)
+        logger.debug("EOFs that will be downloaded: %s", to_download)
 
         # Do download
         products = download_and_extract_products(
