@@ -13,7 +13,7 @@
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#       https://www.apache.org/licenses/LICENSE-2.0
 #
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
@@ -71,11 +71,17 @@ class OrbitType(Enum):
 
 
 def to_datetime(s: str) -> datetime:
+    """
+    Build a :class:`datatime` from a timestamp in ISO format
+    """
     return datetime.strptime(s, '%Y%m%dT%H%M%S')
 
 
 @dataclass(frozen=True, eq=False)
 class SentinelOrbit:
+    """
+    Aggregates data related to a Sentinel-1 Orbit File.
+    """
     mission:       str
     start_time:    datetime
     stop_time:     datetime
@@ -85,6 +91,7 @@ class SentinelOrbit:
     @classmethod
     def create(
         cls,
+        *,
         mission:       str,
         start_time:    str,
         stop_time:     str,
@@ -95,7 +102,7 @@ class SentinelOrbit:
         Factory method
 
         >>> f='_EOF/S1A_OPER_AUX_POEORB_OPOD_20250302T070634_V20250209T225942_20250211T005942.EOF'
-        >>> SentinelOrbit.create(**decode(f))
+        >>> SentinelOrbit.create(**decode_filename(f))
         SentinelOrbit(mission='S1A', start_time=datetime.datetime(2025, 2, 9, 22, 59, 42), stop_time=datetime.datetime(2025, 2, 11, 0, 59, 42), orbit_type=<OrbitType.POEORB: 'POEORB'>, creation_time=datetime.datetime(2025, 3, 2, 7, 6, 34))
         """
         return SentinelOrbit(
@@ -144,7 +151,10 @@ EOFFields = TypedDict(
 assert EOFFields.__annotations__.keys() == SentinelOrbit.__annotations__.keys()
 
 
-def decode(filename: AnyPath) -> EOFFields:
+def decode_filename(filename: AnyPath) -> EOFFields:
+    """
+    Extract components from Sentinel-1 orbit filenames.
+    """
     match = RE_EOF.match(os.path.basename(filename))
     if not match:
         raise ValueError(f"Invalid EOF filename: {filename!r}")
@@ -160,7 +170,7 @@ class SentinelOrbitFile(SentinelOrbit):
         """
         constructor
         """
-        super().__init__(**asdict(SentinelOrbit.create(**decode(filename))))
+        super().__init__(**asdict(SentinelOrbit.create(**decode_filename(filename))))
         assert (
             self.mission in ORBIT_CONVERTERS
         ), f"Unexpected mission ID {self.mission!r}. Only {ORBIT_CONVERTERS.keys()} are supported."
