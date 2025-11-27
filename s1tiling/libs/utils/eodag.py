@@ -73,28 +73,18 @@ class EODAGConfiguration(Protocol):
     construction.
     """
     download     : bool
-    raw_directory: str
     eodag_config : str
 
 
 def create(cfg: EODAGConfiguration) -> Optional[EODataAccessGateway]:
     """
-    :class:`EODataAccessGateway` factory from S1Tiling configuration obejct.
+    :class:`EODataAccessGateway` factory from S1Tiling configuration object.
     """
     if not cfg.download:
         return None
 
     logger.debug('Using %s EODAG configuration file', cfg.eodag_config or 'user default')
     dag = EODataAccessGateway(cfg.eodag_config)
-    # TODO: update once eodag directly offers "DL directory setting" feature v1.7? +?
-    dest_dir = os.path.abspath(cfg.raw_directory)
-    logger.debug('Override EODAG output directory to %s', dest_dir)
-    for provider in dag.providers_config.keys():
-        if hasattr(dag.providers_config[provider], 'download'):
-            dag.providers_config[provider].download.update({'output_dir': dest_dir})
-            logger.debug(' - for %s', provider)
-        else:
-            logger.debug(' - NOT for %s', provider)
     return dag
 
 
@@ -131,28 +121,29 @@ def _as_timeout(exception: Exception) -> TimeOutError:
 
 
 def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-    dag:           EODataAccessGateway,
-    raw_directory: str,
-    dl_wait:       int,
-    dl_timeout:    int,
-    logger_:       logging.Logger|ModuleType,  # todo: pass the right global logger
-    sanatize:      Optional[Sanatizer],
-    product:       EOProduct,
+    dag:        EODataAccessGateway,
+    output_dir: str,
+    dl_wait:    int,
+    dl_timeout: int,
+    logger_:    logging.Logger|ModuleType,  # todo: pass the right global logger
+    sanatize:   Optional[Sanatizer],
+    product:    EOProduct,
 ) -> ProductDownloadOutcome[str, EOProduct]:
     """
     Takes care of downloading exactly one remote product and unzipping it, if required.
 
     Some products are already unzipped on the fly by eodag.
     """
-    logger_.debug("  Starting download of %s...", product)
+    logger_.debug("  Starting download of %s... into %s", product, output_dir)
     ok_msg = f"  Successful download (and extraction) of {product}"  # because eodag'll clear product
     prod_id = product.as_dict()['id']
-    zip_file = os.path.join(raw_directory, prod_id) + '.zip'
+    zip_file = os.path.join(output_dir, f'{prod_id}.zip')
     path: ProductDownloadOutcome[str, EOProduct]
     try:
         path = ProductDownloadOutcome(
             dag.download(
                 product,            # EODAG will clear this variable
+                output_dir=output_dir,
                 extract=True,       # Let's eodag do the job
                 wait=dl_wait,       # Wait time in minutes between two download tries
                 timeout=dl_timeout  # Maximum time in mins before stop retrying to download (default=20’)
@@ -167,7 +158,7 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
                 pass
         # eodag may say the product is correctly downloaded while it failed to do so
         # => let's do a quick sanity check
-        if sanatize and (error := sanatize(raw_directory, product, logger_)):
+        if sanatize and (error := sanatize(output_dir, product, logger_)):
             path = ProductDownloadOutcome(error, product)
 
     except BaseException as e:  # pylint: disable=broad-except
@@ -197,14 +188,14 @@ def _download_and_extract_one_product(  # pylint: disable=too-many-arguments,too
 
 def download_and_extract_products_parallel(  # pylint: disable=too-many-arguments, too-many-locals
     *,
-    dag:           EODataAccessGateway,
-    raw_directory: str,
-    products:      List[EOProduct],
-    nb_procs:      int,
-    context:       str,
-    dl_wait:       int,
-    dl_timeout:    int,
-    sanatize:      Optional[Sanatizer],
+    dag:        EODataAccessGateway,
+    output_dir: str,
+    products:   List[EOProduct],
+    nb_procs:   int,
+    context:    str,
+    dl_wait:    int,
+    dl_timeout: int,
+    sanatize:   Optional[Sanatizer],
 ) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
@@ -216,7 +207,7 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
     paths     : List[ProductDownloadOutcome] = []
     log_queue : multiprocessing.Queue   = multiprocessing.Queue()
     log_queue_listener = logging.handlers.QueueListener(log_queue)
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logging, sanatize)
+    dl_work = partial(_download_and_extract_one_product, dag, output_dir, dl_wait, dl_timeout, logging, sanatize)
     with multiprocessing.Pool(nb_procs, mp_worker_config, [log_queue]) as pool:
         log_queue_listener.start()
         try:
@@ -266,14 +257,14 @@ def download_and_extract_products_parallel(  # pylint: disable=too-many-argument
 
 def download_and_extract_products_sequential(  # pylint: disable=too-many-arguments, too-many-locals
     *,
-    dag:           EODataAccessGateway,
-    raw_directory: str,
-    products:      List[EOProduct],
-    nb_procs:      int,
-    context:       str,
-    dl_wait:       int,
-    dl_timeout:    int,
-    sanatize:      Optional[Sanatizer],
+    dag:        EODataAccessGateway,
+    output_dir: str,
+    products:   List[EOProduct],
+    nb_procs:   int,
+    context:    str,
+    dl_wait:    int,
+    dl_timeout: int,
+    sanatize:   Optional[Sanatizer],
 ) -> List[ProductDownloadOutcome]:
     """
     Takes care of downloading exactly all remote products and unzipping them,
@@ -285,7 +276,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
 
     nb_products = len(products)
     paths     : List[ProductDownloadOutcome] = []
-    dl_work = partial(_download_and_extract_one_product, dag, raw_directory, dl_wait, dl_timeout, logger, sanatize)
+    dl_work = partial(_download_and_extract_one_product, dag, output_dir, dl_wait, dl_timeout, logger, sanatize)
 
     # In case timeout happens, we try again if and only if we have been able to download
     # other products after the timeout.

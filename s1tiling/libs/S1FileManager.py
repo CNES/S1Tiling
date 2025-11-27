@@ -739,7 +739,7 @@ class S1FileManager:
         eo_products = [p.product for p in products]
         paths = download_and_extract_products(
             dag=dag,
-            raw_directory=self.cfg.raw_directory,
+            output_dir=self.cfg.raw_directory,
             products=eo_products,
             nb_procs=self.cfg.nb_download_processes,
             context=f" for {tile_name}",
