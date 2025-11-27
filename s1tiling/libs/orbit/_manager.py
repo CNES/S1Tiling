@@ -44,6 +44,9 @@ from eodag.api.core import EODataAccessGateway
 from portion import Interval, closed as closed_interval
 from portion import empty as empty_interval
 
+from ..utils.eodag        import (
+    EODAG_DEFAULT_DOWNLOAD_TIMEOUT, EODAG_DEFAULT_DOWNLOAD_WAIT,
+)
 from ._providers import ASFProvider, DataspaceProvider, Provider
 from ._file      import (
     ALL_MISSIONS,
@@ -109,6 +112,8 @@ class EOFFileManager:
         self.__last_date     = parse(cfg.last_date) + timedelta(days=1) - timedelta(seconds=1)
         self.__dest_dir      = cfg.extra_directories['eof_dir']
         self.__missions      = cfg.platform_list
+        self.__dl_wait       = getattr(cfg, 'dl_wait',    EODAG_DEFAULT_DOWNLOAD_WAIT)
+        self.__dl_timeout    = getattr(cfg, 'dl_timeout', EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
         self.__build_options : Dict[ProviderKind, Dict] = {
                 ProviderKind.COP_DATASPACE : {
                     "class":   DataspaceProvider,

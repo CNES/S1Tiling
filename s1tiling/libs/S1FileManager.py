@@ -52,7 +52,13 @@ from eodag.utils.logging     import setup_logging
 
 
 from .                   import exceptions
-from .utils.eodag        import download_and_extract_products
+from .utils.eodag        import (
+    EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
+    EODAG_DEFAULT_DOWNLOAD_WAIT,
+    EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE,
+    EODAG_DEFAULT_SEARCH_MAX_RETRIES,
+    download_and_extract_products,
+)
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -80,13 +86,6 @@ from .utils.path         import AnyPath, list_dirs, list_files
 setup_logging(verbose=1)
 
 logger = logging.getLogger('s1tiling.filemanager')
-
-
-# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
-EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
-EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
-EODAG_DEFAULT_SEARCH_MAX_RETRIES    = 5   #: If search fails on timeout, number of retries attempted
-EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
 
 
 class S1FileManagerConfiguration(Protocol):

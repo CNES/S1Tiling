@@ -54,6 +54,13 @@ from ..otbpipeline  import mp_worker_config
 Sanatizer = Callable[[str, EOProduct, logging.Logger|ModuleType], Optional[Exception]]
 
 
+# Default configuration value for people using S1Tiling API functions s1_process, and s1_process_lia.
+EODAG_DEFAULT_DOWNLOAD_WAIT         = 2   #: If download fails, wait time in minutes between two download tries
+EODAG_DEFAULT_DOWNLOAD_TIMEOUT      = 20  #: If download fails, maximum time in minutes before stop retrying to download
+EODAG_DEFAULT_SEARCH_MAX_RETRIES    = 5   #: If search fails on timeout, number of retries attempted
+EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE = 20  #: Number of items returns by each page search
+
+
 logger = logging.getLogger('s1tiling.utils.eodag')
 
 

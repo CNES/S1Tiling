@@ -53,7 +53,7 @@ from eof.download import ASFClient, DataspaceClient
 
 from ..exceptions  import ConfigurationError
 from ..outcome     import ProductDownloadOutcome
-from ..utils.eodag import download_and_extract_products
+from ..utils.eodag import EODAG_DEFAULT_DOWNLOAD_TIMEOUT, EODAG_DEFAULT_DOWNLOAD_WAIT, download_and_extract_products
 from ..utils.path  import AnyPath
 
 
@@ -153,8 +153,8 @@ class EodagProvider:
     def __init__(
         self,
         dag         : EODataAccessGateway,
-        dl_wait     : int,
-        dl_timeout  : int,
+        dl_wait     : int = EODAG_DEFAULT_DOWNLOAD_WAIT,
+        dl_timeout  : int = EODAG_DEFAULT_DOWNLOAD_TIMEOUT,
         access_token: Optional[str] = None
     ):
         self.__dag        = dag
