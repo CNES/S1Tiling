@@ -39,6 +39,8 @@ dev = [
     "wheel",
     "flake8",
     "mypy",
+    "refurb",
+    "ruff",
     "pre-commit",
     "pytest < 9",
     "pytest-bdd < 9",
