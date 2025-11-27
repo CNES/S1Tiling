@@ -88,17 +88,10 @@ EOF files will be downloaded either:
 
   .. note::
       If your account is configured for `Two Factor Authentivcation` (2FA), then
-      you can either:
-
-      * set :envvar:`$EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP` and
-        quickly run :ref:`LIA map production scenario <scenario.s1liamap>`
-        while your `One Time Password` is still valid (< 30sec)
-
-      * request an access token with one of the `methods described on Copernicus
-        Dataspace web site
-        <https://documentation.dataspace.copernicus.eu/APIs/Token.html#by-query-with-curl>`_,
-        and use it in :envvar:`$EODAG__COP_DATASPACE__AUTH__TOKEN`. It should be
-        valid a bit longer.
+      you need to
+      set :envvar:`$EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP` and quickly
+      run :ref:`LIA map production scenario <scenario.s1liamap>` while your
+      `One Time Password` is still valid (< 30sec)
 
 * or on EarthData. In that case add your Earthdata credentials in your
   :file:`~/.netrc` file (default location can be overridden with
