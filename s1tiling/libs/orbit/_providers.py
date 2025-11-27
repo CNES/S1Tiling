@@ -67,6 +67,9 @@ EOFProductDownloadOutcome = ProductDownloadOutcome[Value, Product]
 
 
 class Provider(Protocol):
+    """
+    Protocol that describes expected interface to search and download EOF files from data providers.
+    """
     def search(
         self,
         first_date: datetime,

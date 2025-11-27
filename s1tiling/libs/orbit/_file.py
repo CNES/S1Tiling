@@ -89,7 +89,7 @@ class SentinelOrbit:
     creation_time: datetime
 
     @classmethod
-    def create(
+    def create(  # pylint: disable=too-many-arguments
         cls,
         *,
         mission:       str,

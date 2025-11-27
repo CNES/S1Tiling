@@ -632,23 +632,23 @@ def then_all_are_requested_for_download(downloads, configuration) -> None:
 
 @pytest.fixture
 def dl_successes():
-    l = []
-    return l
+    successes = []
+    return successes
 
 @pytest.fixture
 def dl_failures() -> list[S1DownloadOutcome]:
-    l : list[S1DownloadOutcome] = []
-    return l
+    failures : list[S1DownloadOutcome] = []
+    return failures
 
 @pytest.fixture
 def dl_kepts() -> Sequence[FileProductInformation]:
-    l : Sequence[FileProductInformation] = []
-    return l
+    kept : Sequence[FileProductInformation] = []
+    return kept
 
 @pytest.fixture
 def dl_skip() -> list[str]:
-    l : list[str] = []
-    return l
+    skip : list[str] = []
+    return skip
 
 @given(parsers.parse('S1 product {idx} has been downloaded'))
 def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, idx) -> None:

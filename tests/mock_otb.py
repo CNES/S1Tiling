@@ -578,7 +578,7 @@ class OTBApplicationsMockContext:
             assert exp['cmdline'].is_dict()
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
-                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
+                exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
             exp['cmdline'].assert_have_same_keys(params)
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:

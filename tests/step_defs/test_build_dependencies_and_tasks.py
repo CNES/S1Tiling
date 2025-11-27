@@ -32,7 +32,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 from s1tiling.libs.api import s1_raster_first_inputs_factory, s1_raster_first_inputs_factory_from_rasters, tilename_first_inputs_factory
