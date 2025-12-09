@@ -66,7 +66,6 @@ from _pytest.fixtures import SubRequest
 import pprint
 
 from eodag.api.core import EODataAccessGateway
-from eof.client import Filename
 
 from s1tiling.libs.orbit._providers   import EodagProvider
 from s1tiling.libs.orbit._manager     import EOFFileManager
