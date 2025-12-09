@@ -80,6 +80,7 @@ from s1tiling.libs.orbit._file        import (
     keep_one_eof_per_orbit,
     orbit_range,
 )
+from s1tiling.libs.utils.path import AnyPath
 
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("vcr").setLevel(logging.WARNING)
@@ -242,7 +243,7 @@ class MockConfiguration:
         self,
         first_date    : str,
         last_date     : str,
-        eof_directory : Filename,
+        eof_directory : AnyPath,
         platform_list : List[str],
         eodag_config  : Optional[str],
     ):
@@ -655,9 +656,9 @@ def test_manager_analysis_of_cache(
         assert len(files_found) == 1
         assert files_found[0].has_value()
         obt_found, eof_found = list(files_found[0].value().items())[0]
-        # file_found    : Filename = files[0].value()
-        file_found    : Filename = eof_found.filename
-        file_expected : Filename = eof_files[file_id].filename
+        # file_found    : AnyPath = files[0].value()
+        file_found    : AnyPath = eof_found.filename
+        file_expected : AnyPath = eof_files[file_id].filename
         logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
         logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
         assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files_found[0]!r}"
@@ -710,9 +711,9 @@ def test_manager_eof_retrieval(
             assert len(files_found) >= 1
             assert files_found[0].has_value()
             obt_found, eof_found = list(files_found[0].value().items())[0]
-            # file_found    : Filename = files_found[0].value()
-            file_found    : Filename = eof_found.filename
-            file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
+            # file_found    : AnyPath = files_found[0].value()
+            file_found    : AnyPath = eof_found.filename
+            file_expected : AnyPath = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
             logging.debug(f"{file_found=}")
             logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
             logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
