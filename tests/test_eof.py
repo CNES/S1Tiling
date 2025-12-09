@@ -129,6 +129,7 @@ def vcr_config():
         "filter_query_parameters"    : ["username", "password", "totp", "token"],
         "filter_post_data_parameters": ["username", "password", "totp"],
         "before_record_response"     : [filter_response],
+        "allow_playback_repeats"     : True,
     }
 
 
@@ -174,6 +175,8 @@ def eodag_provider(
             slf.access_token = "REDACTED_access_token"
             return slf.access_token
         module_mocker.patch("eodag.plugins.authentication.keycloak.KeycloakOIDCPasswordAuth._get_access_token", no_op)
+        os.environ['EODAG__COP_DATASPACE__AUTH__CREDENTIALS__USERNAME'] = 'dummy-user'
+        os.environ['EODAG__COP_DATASPACE__AUTH__CREDENTIALS__PASSWORD'] = 'dummy-password'
     with use_cassette('cop_access_token', vcr_cassette_dir, record_mode, [], vcr_config, pytestconfig):
         dag = EODataAccessGateway()
         provider = EodagProvider(dag)
@@ -209,7 +212,10 @@ DT2 = datetime(2020, 1, 2, 23, 59, 59)   # 00:00:00
 EXPECTED_NB = 4  # 1th, 2nd + 2 extra days before and after
 
 
-@pytest.mark.vcr
+# @pytest.mark.vcr
+@pytest.mark.vcr(
+    "cop_access_token.yaml", "test_cop_dataspace_eodag.yaml",
+)
 def test_cop_dataspace_eodag(
     dag: EODataAccessGateway,
     tmp_path_factory,
@@ -274,6 +280,8 @@ def configuration(
 
 # cassettes names needs to be filenames; relative filenames are OK; => extension are required!!
 NO_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
+logging.debug("eodag config file: %s", NO_EODAG)
+assert os.path.isfile(NO_EODAG)
 
 
 @pytest.mark.vcr(
