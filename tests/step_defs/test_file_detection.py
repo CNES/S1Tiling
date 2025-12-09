@@ -33,11 +33,11 @@ from datetime import datetime, timedelta
 import fnmatch
 import logging
 import os
+import re
 # from pathlib import Path
 from typing import Callable, Dict, List, Sequence, Set, Tuple, cast
 from eodag.api.search_result import SearchResult
 
-from eof.products import re
 from shapely import geometry
 
 import pytest
