@@ -304,16 +304,22 @@ class EOFFileManager:
 
         # 2. if eof files appear to be missing, download files in the time range for each mission
         # unless the time period is fully covered
-        if self.__cfg.download and missing_orbits:
+        extra_log = ''
+        if missing_orbits:
             if period_is_fully_covered:
                 logger.info(
                     "Time period [%s..%s] is fully covered by cached EOF files on disk. "
                     "No download attempt is made for the missing orbits %s",
                     first_date, last_date, missing_orbits
                 )
-            else:
+            elif self.__cfg.download:
                 obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, first_date, last_date, dryrun)
                 res = eof_errors
+            else:
+                logger.warning(
+                    "No EOF files found for the requested time period and orbits, "
+                    "but no download attempt will be made as it has been disabled per configuration.")
+                extra_log = ", nor download,"
 
         # 3. Analyse EOF product quality
         analyse_obt2eof_map_quality_according_to_request(obt2eof_map, first_date, last_date, missions or ALL_MISSIONS,)
@@ -324,7 +330,7 @@ class EOFFileManager:
             for relorb, prod in obt2eof_map.items()
         ])
         res.extend([
-            EOFOutcome(RuntimeError(f"Cannot find precise orbit file for orbit {ro:>03d} between {first_date} and {last_date}"))
+            EOFOutcome(RuntimeError(f"Cannot find{extra_log} precise orbit file for orbit {ro:>03d} between {first_date} and {last_date}"))
             for ro in missing_orbits
         ])
         return res
