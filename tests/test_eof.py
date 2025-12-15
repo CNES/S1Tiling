@@ -50,8 +50,10 @@
 #   - 2020-01-02  : 091..107
 #   - 2020-01-03  : 106..121
 
+from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timedelta
+from math import prod
 from urllib.parse import parse_qs, urlencode, urlparse
 from dateutil.parser import parse
 import json
@@ -64,6 +66,7 @@ import pytest
 from pytest_recording._vcr import use_cassette
 from _pytest.fixtures import SubRequest
 import pprint
+from unittest import mock
 
 from eodag.api.core import EODataAccessGateway
 
@@ -149,7 +152,15 @@ def vcr_cassette_dir(request: SubRequest) -> str:
     return os.path.join(baseline, "cassettes", module.purebasename)
 
 
-@pytest.fixture(scope="module")
+def is_replaying_cop_access_token(vcr_cassette_dir: str) -> bool:
+    # Let's assume that replaying <=> the token file exists.
+    cop_access_token_k7 = os.path.join(vcr_cassette_dir, "cop_access_token.yaml")
+    logging.debug(f"REPLAY? {cop_access_token_k7=!r} {os.path.exists(cop_access_token_k7)=}")
+    return os.path.exists(cop_access_token_k7)
+
+
+# @pytest.fixture(scope="module")
+@pytest.fixture
 def eodag_provider(
     # request: SubRequest,
     vcr_cassette_dir: str,
@@ -157,6 +168,7 @@ def eodag_provider(
     vcr_config: dict,
     pytestconfig: pytest.Config,
     module_mocker,
+    eodag_whitelist,
 ) -> EodagProvider:
     # Hook used to generate cassettes with Copernicus when 2FA is used
     # In that case set $EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP before calling pytest, e.g.:
@@ -167,16 +179,12 @@ def eodag_provider(
     # only in replay cases.
     # We can assume that when the cassette file exists, then the access token request is already
     # stored.
-    cop_access_token_k7 = os.path.join(vcr_cassette_dir, "cop_access_token.yaml")
-    logging.debug(f"REPLAY? {cop_access_token_k7=!r} {os.path.exists(cop_access_token_k7)=}")
-    if os.path.exists(cop_access_token_k7):
+    if is_replaying_cop_access_token(vcr_cassette_dir):
         def no_op(slf):
             logging.info("Replaying K7, disabling cop_access_token verification!")
             slf.access_token = "REDACTED_access_token"
             return slf.access_token
         module_mocker.patch("eodag.plugins.authentication.keycloak.KeycloakOIDCPasswordAuth._get_access_token", no_op)
-        os.environ['EODAG__COP_DATASPACE__AUTH__CREDENTIALS__USERNAME'] = 'dummy-user'
-        os.environ['EODAG__COP_DATASPACE__AUTH__CREDENTIALS__PASSWORD'] = 'dummy-password'
     with use_cassette('cop_access_token', vcr_cassette_dir, record_mode, [], vcr_config, pytestconfig):
         dag = EODataAccessGateway()
         provider = EodagProvider(dag)
@@ -185,24 +193,55 @@ def eodag_provider(
 
 # =====[ Global Fixtures
 @pytest.fixture
-def eodag_config(request) -> Optional[str]:
+def eodag_config(request, vcr_cassette_dir: str) -> Optional[str]:
     # This fixture permits to configure the returned result for eodag_config name
-    return getattr(request, 'param', None)
+    config_file = getattr(request, 'param', None)
+    if config_file:
+        logging.debug("Using specified eodag.yml: %r", config_file)
+        return config_file
+    if is_replaying_cop_access_token(vcr_cassette_dir):
+        logging.debug("Using redacted eodag.yml file for replay: %r", DUMMY_EODAG)
+        return DUMMY_EODAG
+    logging.debug("Using actual eodag.yml file, if any")
+    return None  # Using actual configuration file: this mode will be use to regenerate cassettes
+
 
 @pytest.fixture
-def dag(eodag_config: Optional[str]) -> EODataAccessGateway:
+def eodag_whitelist(eodag_config: Optional[str]) -> Generator:
+    # This fixture sets EODAG_PROVIDERS_WHITELIST appropriately for the duration of the test
+    # It's almost redundant to eodag_config. Unfortunately, we cannot say "use only the providers
+    # declared in the eodag.yml config file", hence this "duplication".
+    if eodag_config == NO_EODAG:
+        whitelist = ""
+    else:
+        whitelist = "cop_dataspace"
+    with mock.patch.dict(os.environ, {"EODAG_PROVIDERS_WHITELIST": whitelist}):
+        yield
+
+
+@pytest.fixture
+def dag(eodag_config: Optional[str], eodag_whitelist, request, record_mode: str) -> EODataAccessGateway:
     # logging.debug("dag(%s)", eodag_config)
     res = EODataAccessGateway(eodag_config)
-    # logging.debug("=> dag                  = %s", res)
+    logging.debug("==========[ %s ]==================================================", request.node.originalname)
+    logging.debug("=> Exact test            = %s", request.node.name)
+    # logging.debug("=> record_mode           = %s", record_mode)
+    # logging.debug("=> dag                   = %s <-- %s", res, eodag_config)
+    provider_config = getattr(dag, 'providers_config', {})
+    if provider_config:
+        logging.debug("=> username?             = %s", getattr(providers_config["cop_dataspace"].auth, 'credentials', {})).get("username", "???")
+    else:
+        logging.debug("=> cop_dataspace UNKONWN")
     # logging.debug("=> dag._plugins_manager = %s", res._plugins_manager)
 
     # Clean any cached token information
     # | I'm not sure why/how several distinct (they have different ids) instances of
     # | plugins_manager.get_auth_plugin('cop_dataspace') may share a same token_info instance
     # | (they all have the same id)
-    search_plugins = res._plugins_manager.get_search_plugins(provider='cop_dataspace')
-    if search_plugins:
-        res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
+    # search_plugins = res._plugins_manager.get_search_plugins(provider='cop_dataspace')
+    # if search_plugins:
+    #     logging.debug("=> token                 = %s", res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info)
+    #     res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
     return res
 
 
@@ -219,12 +258,8 @@ EXPECTED_NB = 4  # 1th, 2nd + 2 extra days before and after
 def test_cop_dataspace_eodag(
     dag: EODataAccessGateway,
     tmp_path_factory,
-    # cop_access_token,
     eodag_provider: EodagProvider,
 ):
-    # dag.providers_config["cop_dataspace"].auth.credentials["totp"] = '999999'
-    # EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP
-    # eodag_provider = EodagProvider(dag)
     assert eodag_provider.is_configured(dag)
     eofs = eodag_provider.search(DT1, DT2, ("S1A",))
     dest = tmp_path_factory.mktemp("s1tiling-cdse")
@@ -279,7 +314,9 @@ def configuration(
     return make_configuration(tmp_path_factory, eodag_config)
 
 # cassettes names needs to be filenames; relative filenames are OK; => extension are required!!
-NO_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
+NO_EODAG    = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
+DUMMY_EODAG = os.path.join(DATA_DIR, 'dummy-redacted-eodag.yml')
+
 logging.debug("eodag config file: %s", NO_EODAG)
 assert os.path.isfile(NO_EODAG)
 
@@ -300,7 +337,7 @@ def test_manager_with_provider(eodag_config, configuration, dag, baseline_dir, e
     logging.debug('test_manager_with_provider(%s)', eodag_config)
     # dummy-empty => Copernicus not configured
     # Otherwise, we expect the eodag.yaml config file of testing-user is configured for Copernicus Dataspace.
-    is_configured_for_dataspace = eodag_config is None
+    is_configured_for_dataspace = eodag_config != NO_EODAG
 
     assert is_configured_for_dataspace == EodagProvider.is_configured(dag)
     assert is_configured_for_dataspace
@@ -311,9 +348,9 @@ def test_manager_with_provider(eodag_config, configuration, dag, baseline_dir, e
     assert len(res) == EXPECTED_NB
 
 
-@pytest.mark.vcr(
-    "cop_access_token.yaml",
-)
+# @pytest.mark.vcr(
+#     "cop_access_token.yaml",
+# )
 @pytest.mark.parametrize(
     "eodag_config",
     [
@@ -321,10 +358,11 @@ def test_manager_with_provider(eodag_config, configuration, dag, baseline_dir, e
     ],
     indirect=["eodag_config"],
 )
-def test_manager_no_provider(eodag_config, configuration, dag):
+def test_manager_no_provider(eodag_config, eodag_whitelist, configuration, dag):
     logging.debug('test_manager_no_provider(%s)', eodag_config)
     # dummy-empty => Copernicus not configured
     # Otherwise, we expect the eodag.yaml config file of testing-user is configured for Copernicus Dataspace.
+    assert os.getenv('EODAG_PROVIDERS_WHITELIST', None) == ""
 
     assert not EodagProvider.is_configured(dag)
 
@@ -459,7 +497,7 @@ def test_manager_dir_analysis_simple_filter(
             assert len(filtered_eofs) == 1
 
             assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
-                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+                f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
 
     dt1 = datetime(2023, 11, 1)   # 00:00:00
@@ -473,7 +511,7 @@ def test_manager_dir_analysis_simple_filter(
             filtered_eofs = filter_eof_files_according_to_orbit_and_mission(eof_files, [orbit], 0)
 
             assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
-                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+                f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
             uniq_eofs = keep_one_eof_per_orbit(filtered_eofs, dt1, dt2, ("S1A", "S1B"))
             assert len(uniq_eofs) == 1
@@ -638,18 +676,18 @@ def test_manager_analysis_of_cache(
 
     # Wider range, but we're looking for files already in cache
     cfg = MockConfiguration(
-            "2023-11-01", "2023-11-10",
-            tmp_eof_dir,
-            [],
-            None,
+        "2023-11-01", "2023-11-10",
+        tmp_eof_dir,
+        [],
+        None,
     )
     eof_manager = EOFFileManager(cfg, dag)
 
     obt_file_expectations = [
-            (118, 1),
-            (120, 1),
-            (122, 2),
-            (130, 2),
+        (118, 1),
+        (120, 1),
+        (122, 2),
+        (130, 2),
     ]
     for obt, file_id in obt_file_expectations:
         files_found = eof_manager.search_for([obt])
@@ -683,7 +721,7 @@ def test_manager_eof_retrieval(
     configuration,
     dag,
 ):
-    assert configuration.eodag_config is None
+    assert configuration.eodag_config != NO_EODAG
     assert len(eof_ids) == 4
 
     tmp_eof_dir = configuration.extra_directories['eof_dir']
@@ -693,15 +731,15 @@ def test_manager_eof_retrieval(
     eof_manager = EOFFileManager(configuration, dag)
 
     obt_file_expectations = [
-            ( 65, 0),
-            ( 76, 0),
-            ( 78, 1),
-            ( 91, 1),
-            ( 92, 2),
-            (106, 2),
-            (107, 3),
-            (110, 3),
-            (121, None)
+        ( 65, 0),
+        ( 76, 0),
+        ( 78, 1),
+        ( 91, 1),
+        ( 92, 2),
+        (106, 2),
+        (107, 3),
+        (110, 3),
+        (121, None)
     ]
     for obt, file_id in obt_file_expectations:
         files_found = eof_manager.search_for([obt])
