@@ -1144,7 +1144,9 @@ class S1FileManager:
         for image in self.get_raster_list():
             logger.debug('- Manifest: %s', image.get_manifest())
             logger.debug('  Image list: %s', image.get_images_list())
-            assert len(image.get_images_list()) > 0
+            if len(image.get_images_list()) == 0:
+                logger.debug("Skipping product %s: no matching image in the requested polarities has been found", image.product_info.product.name)
+                continue
             assert image.product_info.get_current_tile_coverage() is not None
             intersect_raster.append( {
                 'raster'         : image,
