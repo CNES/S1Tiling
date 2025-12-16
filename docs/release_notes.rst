@@ -31,6 +31,13 @@ v1.3.0 Breaking changes
   and other providers supported by EODAG
   (`#197 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/197>`_).
 
+v1.2.0 Bugs fixed
++++++++++++++++++
+
+- Report (and don't crash) when no image with the expected polarities in found
+  in time compatible S1 products
+  (`#208 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/208>`_).
+
 
 Release notes
 =============
