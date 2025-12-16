@@ -33,9 +33,6 @@ import logging
 from pathlib import Path
 from typing import List, Set
 
-
-# import shapely
-
 import pytest
 from pytest_bdd import scenarios, given, when, then
 
@@ -47,8 +44,8 @@ from s1tiling.libs.configuration import resource_dir
 # ======================================================================
 # Scenarios
 scenarios(
-        '../features/test_DEM_tile_search.feature',
-        )
+    '../features/test_DEM_tile_search.feature',
+)
 
 # ======================================================================
 # Test Data
@@ -86,7 +83,7 @@ def _declare_known_S1_files(known_files, patterns) -> None:
 
 @pytest.fixture
 def known_files() -> List[str]:
-    kf = []
+    kf : list[str] = []
     return kf
 
 

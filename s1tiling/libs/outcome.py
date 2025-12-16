@@ -116,6 +116,8 @@ class Outcome(Generic[Value]):
             We would need Higher Kinded Types with
             https://returns.readthedocs.io/en/latest/pages/hkt.html for instance (which requires
             Python 3.10)
+
+            In the mean time, use :meth:`Outcome.inplace_transform`
         """
         if self.has_value():
             try:
@@ -124,6 +126,16 @@ class Outcome(Generic[Value]):
                 return Outcome(e)
         else:
             return Outcome(self.error())
+
+    def inplace_transform(self, f: Callable[[Value], Value]) -> None:
+        """
+        Transforms the value, if any, inplace. Leave the error unchanged.
+        """
+        if self.has_value():
+            try:
+                self.__value_or_error = f(self.value())
+            except BaseException as e:  # pylint: disable=broad-exception-caught
+                self.__value_or_error = e
 
     def change_error(self, error: BaseException) -> Self:
         """
@@ -209,7 +221,7 @@ class DownloadOutcome(Outcome[Value]):
     pass
 
 
-class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
+class ProductDownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
     """
     Kind of monad à la C++ ``std::expected<>``, ``boost::Outcome`` that is specialized for
     Sentinel-1 downloaded products for better error messages.
@@ -218,7 +230,7 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
     - either the path to the downloaded product,
     - or the error message that leads to the task failure.
 
-    Plus information about the related eodag product.
+    Plus information about the related (eodag) product.
     """
     def __init__(
         self,
@@ -242,6 +254,9 @@ class S1DownloadOutcome(DownloadOutcome[Value], Generic[Value, Product]):
             return f'{self.value()} has been successfully downloaded'
         else:
             return f'Failed to download {self.__related_product}: {self.error()}'
+
+
+S1DownloadOutcome = ProductDownloadOutcome[Value, Product]
 
 
 # Let's workaround mypy/Pyright...

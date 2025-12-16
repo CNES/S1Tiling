@@ -32,12 +32,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Set
 import fnmatch
 import logging
 import os
 import re
-from typing import Callable, Dict, List, Literal, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union, cast
 from s1tiling.libs.Utils import get_shape_from_polygon
 from unittest import TestCase
 
@@ -103,10 +103,10 @@ class MockDirEntry:
         """
         constructor
         """
-        self.path = pathname
-        # `name`: relative to scandir...
-        self.name = os.path.relpath(pathname, inputdir)
-        self.inputdir = inputdir
+        self.path     : str = pathname
+        # `name` : relative to scandir...
+        self.name     : str = os.path.relpath(pathname, inputdir)
+        self.inputdir : str = inputdir
 
     def __str__(self) -> str:
         return self.name
@@ -133,15 +133,16 @@ def list_dirs(dir, pattern, known_dirs, inputdir) -> List[MockDirEntry]:
     return res
 
 
-def list_files(dir, pattern, known_files, inputdir) -> List[MockDirEntry]:
+def list_files(directory: str, pattern: Union[None,str,re.Pattern], known_files, inputdir) -> List[MockDirEntry]:
     """
     Mock-replacement for :func:`utils.path.list_files`
     """
-    logging.debug('mock.list_files(%r, %r) ---> %s', dir, pattern, known_files)
+    logging.debug('mock.list_files(%r, %r) ---> %s', directory, pattern, known_files)
+    filt : Callable[[MockDirEntry], bool]
     if not pattern:
         filt = lambda path: '/' not in path.name
     elif isinstance(pattern, re.Pattern):
-        filt = lambda path: '/' not in path.name and re.match(pattern, path.name)
+        filt = lambda path: bool('/' not in path.name and re.match(pattern, path.name))
     else:
         filt = lambda path: '/' not in path.name and fnmatch.fnmatch(path.name, pattern)
     dir_entries = [MockDirEntry(kd, inputdir) for kd in known_files]
@@ -199,7 +200,7 @@ class MockOTBApplication:
         self.__pixel_types  : Dict = {}
         # self.__metadata     : Dict = {}
         # self.__expectations : Dict = {}
-        self.__mock_ctx     = mock_ctx
+        self.__mock_ctx     : Optional[OTBApplicationsMockContext] = mock_ctx
 
     def __del__(self) -> None:
         """
@@ -309,11 +310,12 @@ class CommandLine:
     - a dictionary of "-paramname value"
     - or a sequenced list of parameters
     """
-    def __init__(self, exename: Union[Callable, str], parameters: Union[List, Dict]) -> None:
+    def __init__(self, exename: Union[Callable, str], parameters: Union[List[str], Dict[str, str]]) -> None:
         """
         constructor
         """
         self.__exename    = exename
+        self.__parameters : Union[list, Dict[str, str]]
         if isinstance(parameters, list):
             self.__parameters = [exename] + parameters
         else:
@@ -341,6 +343,7 @@ class CommandLine:
 
     def assert_have_same_keys(self, actual_parameters: Dict) -> None:
         assert isinstance(actual_parameters, dict) and self.is_dict()
+        assert isinstance(self.__parameters, dict) and self.is_dict()
         actual_keys   = actual_parameters.keys()
         expected_keys = self.__parameters.keys()
         assert actual_keys == expected_keys, f'actual={actual_keys} != expected={expected_keys}'
@@ -377,10 +380,10 @@ class OTBApplicationsMockContext:
         # Cached data to help detect mismatching between actual and expected image_metadata,
         # files_removed, etc.
         self.__current_step                                      = ""
-        self.__last_expected_metadata                            = {}
-        self.__mismatching_metadata                              = []
-        self.__last_expected_files_to_remove                     = set()
-        self.__mismatching_removed_files                         = []
+        self.__last_expected_metadata        : Dict[str, str]    = {}
+        self.__mismatching_metadata       : List[Dict[str, Any]] = []
+        self.__last_expected_files_to_remove : Set[str]          = set()
+        self.__mismatching_removed_files  : List[Dict[str, Any]] = []
 
         # Register a few known_files & dirs
         self.__known_files.append(cfg.dem_db_filepath)
@@ -449,7 +452,7 @@ class OTBApplicationsMockContext:
         metadata,
         files_to_remove : Iterable[str]=(),
     ) -> None:
-        expectation = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
+        expectation : Dict[str, Any] = {'appname': appname, 'cmdline': CommandLine(appname, cmdline)}
         logging.debug("Register expectation: %s", expectation)
         if pixel_types:
             expectation['pixel_types'] = pixel_types
@@ -497,7 +500,7 @@ class OTBApplicationsMockContext:
                 for p in params[kv]:
                     logging.debug("    %s is MockOTBApplication: %s // %s", kv, isinstance(p, MockOTBApplication), p)
                     if isinstance(p, MockOTBApplication):
-                        p = self._update_input_to_root_filename(p.parameters) + '|>'+p.appname
+                        p = cast(str, self._update_input_to_root_filename(p.parameters)) + '|>' + p.appname
                     ps.append(p)
                     assert isinstance(p, str)
                 params[kv] = ps
@@ -538,7 +541,7 @@ class OTBApplicationsMockContext:
                 removed_files_mismatch["expected"],
                 removed_files_mismatch.get("context", "")+" (ACTUAL <-> EXPECTED)",
             )
-        self.__last_expected_files_to_remove = {}  # Make sure to clear before existing
+        self.__last_expected_files_to_remove = set()  # Make sure to clear before existing
 
     def mock_remove_files(self, files: list) -> None:
         """
@@ -575,7 +578,7 @@ class OTBApplicationsMockContext:
             assert exp['cmdline'].is_dict()
             if 'elev.dem' in exp['cmdline']:
                 # Override the value w/ S1FileManager's one that wasn't known at the beginning
-                    exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
+                exp['cmdline']['elev.dem'] = self.__configuration.tmp_dem_dir
             exp['cmdline'].assert_have_same_keys(params)
             # logging.debug('TEST: %s <- %s == %s', params == exp['cmdline'], params, exp['cmdline'])
             if params == exp['cmdline']:

@@ -35,6 +35,7 @@ import logging
 import os
 import pathlib
 import subprocess
+from typing import cast
 
 import otbApplication as otb
 
@@ -836,7 +837,7 @@ def mock_LIA_v1_1(application_mocker: OTBApplicationsMockContext, file_db: FileD
 
     # ProjectDEMToS2Tile
     spacing=10.0
-    extent = file_db.TILE_DATA['33NWB']['extent']
+    extent = cast(dict[str, float], file_db.TILE_DATA['33NWB']['extent'])
     application_mocker.set_expectations(
         'gdalwarp', [
             "-wm", f'{2048*1024*1024}',
@@ -1227,7 +1228,7 @@ def mock_LIA_v1_2(application_mocker: OTBApplicationsMockContext, file_db: FileD
 
     # ProjectDEMToS2Tile
     spacing=10.0
-    extent = file_db.TILE_DATA['33NWB']['extent']
+    extent = cast(dict[str, float], file_db.TILE_DATA['33NWB']['extent'])
     application_mocker.set_expectations(
         'gdalwarp', [
             "-wm", f'{2048*1024*1024}',

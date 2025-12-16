@@ -1,0 +1,5 @@
+cop_dataspace:
+  auth:
+    credentials:
+      username: dummy-user
+      password: dummy-password

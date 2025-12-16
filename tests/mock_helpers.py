@@ -37,7 +37,7 @@ import logging
 import fnmatch
 import os
 import shutil
-from typing import List
+from typing import List, cast
 
 from .mock_data import FileDB
 from .mock_otb  import OTBApplicationsMockContext, isfile, isdir, list_dirs, glob, dirname, makedirs
@@ -71,7 +71,7 @@ def declare_know_files(
     known_files.extend(files)
     demtmpdir = f"{file_db.tmpdir}/TMP_DEM"
     known_files.extend(
-            map(lambda dem: f"{demtmpdir}/{dem}.hgt", file_db.TILE_DATA[tile]['dems'])
+            map(lambda dem: f"{demtmpdir}/{dem}.hgt", cast(str, file_db.TILE_DATA[tile]['dems']))
     )
     known_dirs.update([dirname(fn, 3) for fn in known_files])
     known_dirs.update([dirname(fn, 2) for fn in known_files])

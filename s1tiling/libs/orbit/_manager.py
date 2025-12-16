@@ -31,9 +31,8 @@
 
 """This sub-module defines the EOFFileManager"""
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from enum import Enum
 import logging
 import os
 from typing import Dict, List, Optional, Protocol, Tuple
@@ -44,7 +43,9 @@ from eodag.api.core import EODataAccessGateway
 from portion import Interval, closed as closed_interval
 from portion import empty as empty_interval
 
-from ._providers import ASFProvider, DataspaceProvider, Provider
+from ..utils.eodag        import (
+    EODAG_DEFAULT_DOWNLOAD_TIMEOUT, EODAG_DEFAULT_DOWNLOAD_WAIT,
+)
 from ._file      import (
     ALL_MISSIONS,
     SentinelOrbitFile,
@@ -53,11 +54,15 @@ from ._file      import (
     filter_uniq_eofs,
     glob_eof_files,
 )
+from ._providers import EodagProvider, Provider
 from ..outcome   import DownloadOutcome
 from ..utils     import AnyPath, partition
 
 
+#: Outcome result of download operation: SentinelOrbitFile
 EOFDownloadOutcome = DownloadOutcome[SentinelOrbitFile]
+
+#: Outcome result for searched EOF files: Dict of {relorb -> File}
 EOFOutcome         = DownloadOutcome[Dict[int, SentinelOrbitFile]]
 
 
@@ -78,15 +83,6 @@ class EOFConfiguration(Protocol):
     download          : bool
 
 
-class ProviderKind(Enum):
-    """
-    List of EOF file providers
-    """
-
-    COP_DATASPACE = 1
-    EARTHDATA     = 2
-
-
 class EOFFileManager:
     """
     EOF files manager.
@@ -99,7 +95,7 @@ class EOFFileManager:
     """
 
     # TODO: Don't depend on Configuration
-    def __init__(self, cfg: EOFConfiguration, dag: Optional[EODataAccessGateway]):
+    def __init__(self, cfg: EOFConfiguration, dag: EODataAccessGateway):
         """
         constructor
         """
@@ -109,35 +105,18 @@ class EOFFileManager:
         self.__last_date     = parse(cfg.last_date) + timedelta(days=1) - timedelta(seconds=1)
         self.__dest_dir      = cfg.extra_directories['eof_dir']
         self.__missions      = cfg.platform_list
-        self.__build_options : Dict[ProviderKind, Dict] = {
-                ProviderKind.COP_DATASPACE : {
-                    "class":   DataspaceProvider,
-                    "options": {"dag": dag},
-                },
-                ProviderKind.EARTHDATA     : {
-                    "class": ASFProvider,
-                    "options": {},
-                },
-        }
+        self.__dl_wait       = getattr(cfg, 'dl_wait',    EODAG_DEFAULT_DOWNLOAD_WAIT)
+        self.__dl_timeout    = getattr(cfg, 'dl_timeout', EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
 
-    def add_extra_build_option(self, provider: ProviderKind, **kwargs):
-        """
-        Permits to tune construction parameters passed to the :class:`Provider` instances.
-
-        Typically, it can be used to set `cache_dir` when building :class:`ASFProvider`
-        """
-        self.__build_options[provider]["options"].update(**kwargs)
-
-    def _instanciate_provider(self, provider: ProviderKind) -> Provider:
+    def _instanciate_provider(self) -> Provider:
         """
         Internal method that do instantiate an EOF provider.
         """
-        provider_data = self.__build_options[provider]
-        return provider_data["class"](**provider_data["options"])
+        return EodagProvider(dag=self.__dag, dl_wait=self.__dl_wait, dl_timeout=self.__dl_timeout)
 
     def _ensure_workspaces_exist(self) -> None:
         """
-        Makes sure the directories used for :
+        Makes sure the directories used for:
         - eof files
         all exist
         """
@@ -146,9 +125,9 @@ class EOFFileManager:
                 os.makedirs(path, exist_ok=True)
 
     def do_download_eof_files(
-            self,
-            missions  : Iterable[str] = (),
-            dryrun    : bool          = False,
+        self,
+        missions : Collection[str] = (),
+        dryrun   : bool            = False,
     ) -> List[EOFDownloadOutcome]:
         """
         Raw function to search and download remote EOF precise orbit files, independently of the
@@ -172,38 +151,31 @@ class EOFFileManager:
         request = f"between {self.__first_date} and {self.__last_date}"
         errors : List[EOFDownloadOutcome] = []
 
-        provider_kinds = [
-            p
-            for p in ProviderKind
-            if self.__dag and self.__build_options[p]["class"].is_configured(self.__dag)
-        ]
-        if len(provider_kinds) == 0:
+        if not EodagProvider.is_configured(self.__dag):
             logger.warning("No data provider has been configured for EOF files")
             return [EOFDownloadOutcome(RuntimeError(f"No data provider has been configured for EOF files {request}"))]
         logger.debug(
-                "EOF files will be searched on %s between %s and %s",
-                " and ".join((str(p) for p in provider_kinds)),
-                self.__first_date,
-                self.__last_date,
+            "EOF files will be searched between %s and %s",
+            self.__first_date,
+            self.__last_date,
         )
         missions = missions or self.__missions
-        for provider_kind in provider_kinds:
-            try:
-                provider = self._instanciate_provider(provider_kind)
-                eofs = provider.search(self.__first_date, self.__last_date, missions)
-                files = provider.download(eofs, self.__dest_dir)
-                return [EOFDownloadOutcome(SentinelOrbitFile(f)) for f in files]
-            except BaseException as e:  # pylint: disable=broad-except
-                logger.warning(e, exc_info=False)
-                # logger.debug(e, exc_info=True)
-                errors.append(EOFDownloadOutcome(e))
+        try:
+            provider = self._instanciate_provider()
+            eofs = provider.search(self.__first_date, self.__last_date, missions)
+            files = provider.download(list(eofs), self.__dest_dir)
+            return [EOFDownloadOutcome(SentinelOrbitFile(f.value())) for f in files]
+        except BaseException as e:  # pylint: disable=broad-except
+            logger.warning(e, exc_info=False)
+            # logger.debug(e, exc_info=True)
+            errors.append(EOFDownloadOutcome(e))
         assert len(errors) > 0, "This situation shouldn't happen: either we return a result, or an exception has been caught and converted..."
         return errors
 
     def _search_on_disk(
         self,
         relative_orbits: List[int],
-        missions       : Iterable[str],
+        missions       : Collection[str],
         first_date     : datetime,
         last_date      : datetime,
     ) -> Tuple[Dict[int, SentinelOrbitFile], Iterable[int], Optional[bool]]:
@@ -245,7 +217,7 @@ class EOFFileManager:
     def _fetch_eof_files(  # pylint: disable=too-many-arguments
         self,
         relative_orbits   : List[int],
-        missions          : Iterable[str],
+        missions          : Collection[str],
         known_obt2eof_map : Dict[int, SentinelOrbitFile],
         first_date        : datetime,
         last_date         : datetime,
@@ -286,7 +258,7 @@ class EOFFileManager:
                 known_obt2eof_map,
             )
 
-        # Convert errors from EOFDownloadOutcome to EOFOutcome
+        # Convert errors from EOFDownloadOutcome0 to EOFOutcome
         errors : List[EOFOutcome] = [EOFOutcome(e.error()) for e in eof_errors]
 
         # # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
@@ -300,13 +272,13 @@ class EOFFileManager:
         return obt2eof_map, missing_orbits, errors
 
     def search_for(  # pylint: disable=too-many-arguments
-            self,
-            relative_orbits: List[int],
-            *,
-            missions       : Iterable[str] = (),
-            first_date     : Optional[datetime] = None,
-            last_date      : Optional[datetime] = None,
-            dryrun         : bool          = False,
+        self,
+        relative_orbits: List[int],
+        *,
+        missions       : Collection[str]    = (),
+        first_date     : Optional[datetime] = None,
+        last_date      : Optional[datetime] = None,
+        dryrun         : bool               = False,
     ) -> List[EOFOutcome]:
         """
         Searchs for the precise orbit files within the time range that contain the requested orbits.
@@ -332,15 +304,22 @@ class EOFFileManager:
 
         # 2. if eof files appear to be missing, download files in the time range for each mission
         # unless the time period is fully covered
-        if self.__cfg.download and missing_orbits:
+        extra_log = ''
+        if missing_orbits:
             if period_is_fully_covered:
                 logger.info(
-                    "Time period [%s..%s] is fully covered by cached EOF files on disk. No download attempt is made for the missing orbits %s",
+                    "Time period [%s..%s] is fully covered by cached EOF files on disk. "
+                    "No download attempt is made for the missing orbits %s",
                     first_date, last_date, missing_orbits
                 )
-            else:
+            elif self.__cfg.download:
                 obt2eof_map, missing_orbits, eof_errors = self._fetch_eof_files(relative_orbits, missions, obt2eof_map, first_date, last_date, dryrun)
                 res = eof_errors
+            else:
+                logger.warning(
+                    "No EOF files found for the requested time period and orbits, "
+                    "but no download attempt will be made as it has been disabled per configuration.")
+                extra_log = ", nor download,"
 
         # 3. Analyse EOF product quality
         analyse_obt2eof_map_quality_according_to_request(obt2eof_map, first_date, last_date, missions or ALL_MISSIONS,)
@@ -351,7 +330,7 @@ class EOFFileManager:
             for relorb, prod in obt2eof_map.items()
         ])
         res.extend([
-            EOFOutcome(RuntimeError(f"Cannot find precise orbit file for orbit {ro:>03d} between {first_date} and {last_date}"))
+            EOFOutcome(RuntimeError(f"Cannot find{extra_log} precise orbit file for orbit {ro:>03d} between {first_date} and {last_date}"))
             for ro in missing_orbits
         ])
         return res
@@ -363,8 +342,8 @@ class EOFFileManager:
         last_date  : datetime,
     ) -> bool:
         """
-        Returns whether the request time range is fully contained by the union of the
-        time spans of all the EOF files.
+        Returns whether the request time range is fully contained by the union of the time spans of
+        all the EOF files.
         """
         tgt_interval = closed_interval(first_date, last_date)
         cumulated_interval = empty_interval()
@@ -382,6 +361,6 @@ def to_interval(eof_file: SentinelOrbitFile) -> Interval:
     Helper function that returns the time interval associated to a EOF file.
     """
     return closed_interval(
-            eof_file.start_time,
-            eof_file.stop_time,
+        eof_file.start_time,
+        eof_file.stop_time,
     )

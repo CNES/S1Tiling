@@ -50,7 +50,11 @@
 #   - 2020-01-02  : 091..107
 #   - 2020-01-03  : 106..121
 
+from collections.abc import Generator
+from contextlib import suppress
 from datetime import datetime, timedelta
+from math import prod
+from urllib.parse import parse_qs, urlencode, urlparse
 from dateutil.parser import parse
 import json
 import logging
@@ -62,28 +66,29 @@ import pytest
 from pytest_recording._vcr import use_cassette
 from _pytest.fixtures import SubRequest
 import pprint
+from unittest import mock
 
 from eodag.api.core import EODataAccessGateway
-from eof.client import Filename
 
-from s1tiling.libs.orbit._providers   import ASFProvider, DataspaceProvider
-from s1tiling.libs.orbit._manager     import EOFFileManager, ProviderKind
+from s1tiling.libs.orbit._providers   import EodagProvider
+from s1tiling.libs.orbit._manager     import EOFFileManager
 from s1tiling.libs.orbit._conversions import ORBIT_CONVERTERS
 from s1tiling.libs.orbit._file        import (
-        SentinelOrbitFile,
-        extract_min_max_abs_orbit_numbers,
-        filter_eof_files_according_to_orbit_and_mission,
-        filter_intersecting_eof_file_list,
-        filter_uniq_eofs,
-        glob_eof_files,
-        keep_one_eof_per_orbit,
-        orbit_range,
+    SentinelOrbitFile,
+    extract_min_max_abs_orbit_numbers,
+    filter_eof_files_according_to_orbit_and_mission,
+    filter_intersecting_eof_file_list,
+    filter_uniq_eofs,
+    glob_eof_files,
+    keep_one_eof_per_orbit,
+    orbit_range,
 )
+from s1tiling.libs.utils.path import AnyPath
 
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("vcr").setLevel(logging.WARNING)
-logging.getLogger("sentineleof").setLevel(logging.WARNING)
-logging.getLogger("eodag").setLevel(logging.DEBUG)
+logging.getLogger("eodag").setLevel(logging.WARNING)
+logging.getLogger("http.cookiejar").setLevel(logging.WARNING)
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -100,14 +105,20 @@ def filter_response(response):
     # Scrub access_token and refresh_token from Copernicus Dataspace
     if "body" in response and "string" in response["body"]:
         body_string = response["body"]["string"]
-        try:
+        with suppress(json.decoder.JSONDecodeError):
             decoded_body = json.loads(body_string)
             for key in ("access_token", "refresh_token"):
                 if key in decoded_body:
                     decoded_body[key] = f"REDACTED_{key}"
             response["body"]["string"] = bytes(json.dumps(decoded_body), 'utf8')
-        except json.decoder.JSONDecodeError:
-            pass
+    if "Location" in response["headers"]:
+        location_string = response["headers"]["Location"][0]
+        with suppress(json.decoder.JSONDecodeError):
+            parsed_location = urlparse(location_string)
+            query = parse_qs(parsed_location.query)
+            query["token"] = ["REDACTED_token"]
+            url = parsed_location._replace(query=urlencode(query, doseq=True)).geturl()
+            response["headers"]["Location"] = [url]
     return response
 
 
@@ -117,10 +128,11 @@ def vcr_config():
     Tweak the cassette recorder to remove secrets from queries and responses
     """
     return {
-            "filter_headers"             : ["authorization", "Cookie"],
-            "filter_query_parameters"    : ["username", "password", "totp"],
-            "filter_post_data_parameters": ["username", "password", "totp"],
-            "before_record_response"     : [filter_response],
+        "filter_headers"             : ["authorization", "Cookie"],
+        "filter_query_parameters"    : ["username", "password", "totp", "token"],
+        "filter_post_data_parameters": ["username", "password", "totp"],
+        "before_record_response"     : [filter_response],
+        "allow_playback_repeats"     : True,
     }
 
 
@@ -140,27 +152,34 @@ def vcr_cassette_dir(request: SubRequest) -> str:
     return os.path.join(baseline, "cassettes", module.purebasename)
 
 
-@pytest.fixture(scope="module")
-def cop_access_token(
-        # request: SubRequest,
-        vcr_cassette_dir: str,
-        record_mode: str,
-        vcr_config: dict,
-        pytestconfig: pytest.Config,
-        module_mocker,
-):
+def is_replaying_cop_access_token(vcr_cassette_dir: str) -> bool:
+    # Let's assume that replaying <=> the token file exists.
+    cop_access_token_k7 = os.path.join(vcr_cassette_dir, "cop_access_token.yaml")
+    logging.debug(f"REPLAY? {cop_access_token_k7=!r} {os.path.exists(cop_access_token_k7)=}")
+    return os.path.exists(cop_access_token_k7)
+
+
+# @pytest.fixture(scope="module")
+@pytest.fixture
+def eodag_provider(
+    # request: SubRequest,
+    vcr_cassette_dir: str,
+    record_mode: str,
+    vcr_config: dict,
+    pytestconfig: pytest.Config,
+    module_mocker,
+    eodag_whitelist,
+) -> EodagProvider:
     # Hook used to generate cassettes with Copernicus when 2FA is used
-    # In that case set $EOF_CDSE_2FA_TOKEN and $NETRC before calling pytest, e.g.:
-    # $> EOF_CDSE_2FA_TOKEN=999999 NETRC=~/.config/.netrc pytest  -vvv  --log-cli-level=DEBUG -o log_cli=true --capture=no --durations=0 --record-mode=once  eof/tests/test_eof.py 2>&1  | less -R
+    # In that case set $EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP before calling pytest, e.g.:
+    # $> EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP=999999 pytest  -vvv  --log-cli-level=DEBUG -o log_cli=true --capture=no --durations=0 --record-mode=once  eof/tests/test_eof.py 2>&1  | less -R
 
     # Since eodag v3, access token are validated, and working around the extra security in cleansed
     # cassettes is quite difficult and annoying => Let's mock the validation function instead, but
     # only in replay cases.
     # We can assume that when the cassette file exists, then the access token request is already
     # stored.
-    cop_access_token_k7 = os.path.join(vcr_cassette_dir, "cop_access_token.yaml")
-    logging.debug(f"REPLAY? {cop_access_token_k7=!r} {os.path.exists(cop_access_token_k7)=}")
-    if os.path.exists(cop_access_token_k7):
+    if is_replaying_cop_access_token(vcr_cassette_dir):
         def no_op(slf):
             logging.info("Replaying K7, disabling cop_access_token verification!")
             slf.access_token = "REDACTED_access_token"
@@ -168,32 +187,61 @@ def cop_access_token(
         module_mocker.patch("eodag.plugins.authentication.keycloak.KeycloakOIDCPasswordAuth._get_access_token", no_op)
     with use_cassette('cop_access_token', vcr_cassette_dir, record_mode, [], vcr_config, pytestconfig):
         dag = EODataAccessGateway()
-        provider = DataspaceProvider(dag)
-        token = provider.get_token()
-        assert token, "Invalid (empty) copernicus datasapce access token"
-        return token
+        provider = EodagProvider(dag)
+        return provider
 
 
 # =====[ Global Fixtures
 @pytest.fixture
-def eodag_config(request) -> Optional[str]:
+def eodag_config(request, vcr_cassette_dir: str) -> Optional[str]:
     # This fixture permits to configure the returned result for eodag_config name
-    return getattr(request, 'param', None)
+    config_file = getattr(request, 'param', None)
+    if config_file:
+        logging.debug("Using specified eodag.yml: %r", config_file)
+        return config_file
+    if is_replaying_cop_access_token(vcr_cassette_dir):
+        logging.debug("Using redacted eodag.yml file for replay: %r", DUMMY_EODAG)
+        return DUMMY_EODAG
+    logging.debug("Using actual eodag.yml file, if any")
+    return None  # Using actual configuration file: this mode will be use to regenerate cassettes
+
 
 @pytest.fixture
-def dag(eodag_config: Optional[str]):
+def eodag_whitelist(eodag_config: Optional[str]) -> Generator:
+    # This fixture sets EODAG_PROVIDERS_WHITELIST appropriately for the duration of the test
+    # It's almost redundant to eodag_config. Unfortunately, we cannot say "use only the providers
+    # declared in the eodag.yml config file", hence this "duplication".
+    if eodag_config == NO_EODAG:
+        whitelist = ""
+    else:
+        whitelist = "cop_dataspace"
+    with mock.patch.dict(os.environ, {"EODAG_PROVIDERS_WHITELIST": whitelist}):
+        yield
+
+
+@pytest.fixture
+def dag(eodag_config: Optional[str], eodag_whitelist, request, record_mode: str) -> EODataAccessGateway:
     # logging.debug("dag(%s)", eodag_config)
     res = EODataAccessGateway(eodag_config)
-    # logging.debug("=> dag                  = %s", res)
+    logging.debug("==========[ %s ]==================================================", request.node.originalname)
+    logging.debug("=> Exact test            = %s", request.node.name)
+    # logging.debug("=> record_mode           = %s", record_mode)
+    # logging.debug("=> dag                   = %s <-- %s", res, eodag_config)
+    provider_config = getattr(dag, 'providers_config', {})
+    if provider_config:
+        logging.debug("=> username?             = %s", getattr(providers_config["cop_dataspace"].auth, 'credentials', {})).get("username", "???")
+    else:
+        logging.debug("=> cop_dataspace UNKONWN")
     # logging.debug("=> dag._plugins_manager = %s", res._plugins_manager)
 
     # Clean any cached token information
     # | I'm not sure why/how several distinct (they have different ids) instances of
     # | plugins_manager.get_auth_plugin('cop_dataspace') may share a same token_info instance
     # | (they all have the same id)
-    search_plugins = res._plugins_manager.get_search_plugins(provider='cop_dataspace')
-    if search_plugins:
-        res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
+    # search_plugins = res._plugins_manager.get_search_plugins(provider='cop_dataspace')
+    # if search_plugins:
+    #     logging.debug("=> token                 = %s", res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info)
+    #     res._plugins_manager.get_auth_plugin(next(search_plugins)).token_info = {}
     return res
 
 
@@ -203,42 +251,36 @@ DT2 = datetime(2020, 1, 2, 23, 59, 59)   # 00:00:00
 EXPECTED_NB = 4  # 1th, 2nd + 2 extra days before and after
 
 
-@pytest.mark.vcr
-def test_cop_dataspace(dag, tmp_path_factory, cop_access_token):
-    # dag.providers_config["cop_dataspace"].auth.credentials["totp"] = '999999'
-    # EODAG__COP_DATASPACE__AUTH__CREDENTIALS__TOTP
-    provider = DataspaceProvider(dag, access_token=cop_access_token)
-    eofs = provider.search(DT1, DT2, ("S1A",))
+# @pytest.mark.vcr
+@pytest.mark.vcr(
+    "cop_access_token.yaml", "test_cop_dataspace_eodag.yaml",
+)
+def test_cop_dataspace_eodag(
+    dag: EODataAccessGateway,
+    tmp_path_factory,
+    eodag_provider: EodagProvider,
+):
+    assert eodag_provider.is_configured(dag)
+    eofs = eodag_provider.search(DT1, DT2, ("S1A",))
     dest = tmp_path_factory.mktemp("s1tiling-cdse")
-    files = provider.download(eofs, dest)
+    files = eodag_provider.download(list(eofs), dest)
     assert len(files) == EXPECTED_NB
 
     # Register as well the request used in test_manager_eof_retrieval_edge_tests
-    eofs = provider.search(DT1 - 2 * K_1D, DT2 - K_1D, ("S1A",))
-    files = provider.download(eofs, dest)
+    eofs = eodag_provider.search(DT1 - 2 * K_1D, DT2 - K_1D, ("S1A",))
+    files = eodag_provider.download(list(eofs), dest)
     assert len(files) == EXPECTED_NB + 1
-
-
-@pytest.mark.vcr
-def test_earthdata(tmp_path_factory, baseline_dir):
-    assert os.path.exists(baseline_dir)
-    assert os.path.exists(os.path.join(baseline_dir, 'cassettes'))
-    provider = ASFProvider(cache_dir=baseline_dir)
-    eofs = provider.search(DT1, DT2, ("S1A",))
-    dest = tmp_path_factory.mktemp("s1tiling-asf")
-    files = provider.download(eofs, dest)
-    assert len(files) == EXPECTED_NB
 
 
 # =====[ Tests through public interface
 class MockConfiguration:
     def __init__(
-            self,
-            first_date    : str,
-            last_date     : str,
-            eof_directory : Filename,
-            platform_list : List[str],
-            eodag_config  : Optional[str],
+        self,
+        first_date    : str,
+        last_date     : str,
+        eof_directory : AnyPath,
+        platform_list : List[str],
+        eodag_config  : Optional[str],
     ):
         self.first_date    = first_date
         self.last_date     = last_date
@@ -272,69 +314,62 @@ def configuration(
     return make_configuration(tmp_path_factory, eodag_config)
 
 # cassettes names needs to be filenames; relative filenames are OK; => extension are required!!
-NO_EODAG = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
-NO_NETRC = os.path.join(DATA_DIR, 'dummy-empty-netrc')
+NO_EODAG    = os.path.join(DATA_DIR, 'dummy-empty-eodag.yml')
+DUMMY_EODAG = os.path.join(DATA_DIR, 'dummy-redacted-eodag.yml')
+
+logging.debug("eodag config file: %s", NO_EODAG)
+assert os.path.isfile(NO_EODAG)
 
 
 @pytest.mark.vcr(
-        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+    "cop_access_token.yaml", "test_cop_dataspace_eodag.yaml",
 )
 @pytest.mark.parametrize(
-        "eodag_config,netrc",
-        [
-            # (None,     None),
-            (None,     NO_NETRC),
-            # (NO_EODAG, None),
-        ],
-        indirect=["eodag_config"],
+    "eodag_config",
+    [
+        (None),
+    ],
+    indirect=["eodag_config"],
 )
-def test_manager_with_provider(eodag_config, netrc, configuration, dag, baseline_dir):
+def test_manager_with_provider(eodag_config, configuration, dag, baseline_dir, eodag_provider):
     assert os.path.exists(baseline_dir)
     assert os.path.exists(os.path.join(baseline_dir, 'cassettes'))
-    logging.debug('test_manager_with_provider(%s, %s)', eodag_config, netrc)
+    logging.debug('test_manager_with_provider(%s)', eodag_config)
     # dummy-empty => Copernicus not configured
     # Otherwise, we expect the eodag.yaml config file of testing-user is configured for Copernicus Dataspace.
-    is_configured_for_dataspace = eodag_config is None
+    is_configured_for_dataspace = eodag_config != NO_EODAG
 
-    assert is_configured_for_dataspace == DataspaceProvider.is_configured(dag)
+    assert is_configured_for_dataspace == EodagProvider.is_configured(dag)
+    assert is_configured_for_dataspace
+    assert eodag_provider.is_configured(dag)
 
-    with pytest.MonkeyPatch.context() as mp:
-        if netrc is not None:
-            mp.setenv('NETRC', netrc)
-        assert (not netrc) or os.getenv('NETRC') == netrc
-        is_configured_for_earthdata = netrc is None
-        assert is_configured_for_earthdata == ASFProvider.is_configured(dag)
-        assert is_configured_for_dataspace or is_configured_for_earthdata
-
-        manager = EOFFileManager(configuration, dag)
-        manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
-        res = manager.do_download_eof_files()
-        assert len(res) == EXPECTED_NB
+    manager = EOFFileManager(configuration, dag)
+    res = manager.do_download_eof_files()
+    assert len(res) == EXPECTED_NB
 
 
+# @pytest.mark.vcr(
+#     "cop_access_token.yaml",
+# )
 @pytest.mark.parametrize(
-        "eodag_config,netrc",
-        [
-            (NO_EODAG, NO_NETRC),
-        ],
-        indirect=["eodag_config"],
+    "eodag_config",
+    [
+        (NO_EODAG),
+    ],
+    indirect=["eodag_config"],
 )
-def test_manager_no_provider(eodag_config, netrc, configuration, dag):
-    logging.debug('test_manager_no_provider(%s, %s)', eodag_config, netrc)
+def test_manager_no_provider(eodag_config, eodag_whitelist, configuration, dag):
+    logging.debug('test_manager_no_provider(%s)', eodag_config)
     # dummy-empty => Copernicus not configured
     # Otherwise, we expect the eodag.yaml config file of testing-user is configured for Copernicus Dataspace.
+    assert os.getenv('EODAG_PROVIDERS_WHITELIST', None) == ""
 
-    assert not DataspaceProvider.is_configured(dag)
+    assert not EodagProvider.is_configured(dag)
 
-    with pytest.MonkeyPatch.context() as mp:
-        if netrc is not None:
-            mp.setenv('NETRC', netrc)
-        assert os.getenv('NETRC') == netrc
-        assert not ASFProvider.is_configured(dag)
-        manager = EOFFileManager(configuration, dag)
-        res = manager.do_download_eof_files()
-        assert len(res) == 1
-        assert not res[0].has_value()
+    manager = EOFFileManager(configuration, dag)
+    res = manager.do_download_eof_files()
+    assert len(res) == 1
+    assert not res[0].has_value()
 
 
 # =====[ Tests orbit conversions
@@ -361,20 +396,20 @@ def eof_id_to_file(dirname: Path, eof_id: str) -> Path:
 
 
 @pytest.mark.parametrize(
-        "eof_id,expected_abs_min,expected_abs_max,expected_rel_min,expected_rel_max",
-        [
-            ('20231107T080717_V20231017T225942_20231019T005942', 50811, 50827, 164,   5),
-            ('20231127T070702_V20231106T225942_20231108T005942', 51103, 51118, 106, 121),
-            ('20231128T070717_V20231107T225942_20231109T005942', 51117, 51133, 120, 136),
-            ('20231207T070724_V20231116T225942_20231118T005942', 51248, 51264,  76,  92),
-            ('20231208T070704_V20231117T225942_20231119T005942', 51263, 51279,  91, 107),
-        ],
+    "eof_id,expected_abs_min,expected_abs_max,expected_rel_min,expected_rel_max",
+    [
+        ('20231107T080717_V20231017T225942_20231019T005942', 50811, 50827, 164,   5),
+        ('20231127T070702_V20231106T225942_20231108T005942', 51103, 51118, 106, 121),
+        ('20231128T070717_V20231107T225942_20231109T005942', 51117, 51133, 120, 136),
+        ('20231207T070724_V20231116T225942_20231118T005942', 51248, 51264,  76,  92),
+        ('20231208T070704_V20231117T225942_20231119T005942', 51263, 51279,  91, 107),
+    ],
 )
 def test_min_max_orbits(
-        eof_id: str,
-        expected_abs_min: int, expected_abs_max: int,
-        expected_rel_min: int, expected_rel_max: int,
-        baseline_dir: Path
+    eof_id: str,
+    expected_abs_min: int, expected_abs_max: int,
+    expected_rel_min: int, expected_rel_max: int,
+    baseline_dir: Path
 ):
     full_path = eof_id_to_file(baseline_dir / "eofs", eof_id)
     abs_min, abs_max = extract_min_max_abs_orbit_numbers(full_path)
@@ -420,19 +455,19 @@ def prepare_tmp_eof_dir_from_ids(eof_baseline_dir, tmp_eof_dir, eof_ids):
 
 
 @pytest.mark.parametrize(
-        "eof_ids",
-        [[
-            '20231107T080717_V20231017T225942_20231019T005942',
-            '20231127T070702_V20231106T225942_20231108T005942',
-            '20231128T070717_V20231107T225942_20231109T005942',
-            '20231207T070724_V20231116T225942_20231118T005942',
-            '20231208T070704_V20231117T225942_20231119T005942',
-        ]],
+    "eof_ids",
+    [[
+        '20231107T080717_V20231017T225942_20231019T005942',
+        '20231127T070702_V20231106T225942_20231108T005942',
+        '20231128T070717_V20231107T225942_20231109T005942',
+        '20231207T070724_V20231116T225942_20231118T005942',
+        '20231208T070704_V20231117T225942_20231119T005942',
+    ]],
 )
 def test_manager_dir_analysis_simple_filter(
-        eof_ids         : List[str],
-        eof_baseline_dir: Path,
-        tmp_eof_dir     : Path,
+    eof_ids         : List[str],
+    eof_baseline_dir: Path,
+    tmp_eof_dir     : Path,
 ):
     assert len(eof_ids) == 5
     orig_eof_files = glob_eof_files(eof_baseline_dir)
@@ -462,7 +497,7 @@ def test_manager_dir_analysis_simple_filter(
             assert len(filtered_eofs) == 1
 
             assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
-                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+                f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
 
     dt1 = datetime(2023, 11, 1)   # 00:00:00
@@ -476,27 +511,27 @@ def test_manager_dir_analysis_simple_filter(
             filtered_eofs = filter_eof_files_according_to_orbit_and_mission(eof_files, [orbit], 0)
 
             assert eof_file in [eof[orbit] for eof in filtered_eofs if orbit in eof], (
-                    f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
+                f"{eof_file.first_rel_orbit} <= {orbit} <= {eof_file.last_rel_orbit} failed for {eof_file}"
             )
             uniq_eofs = keep_one_eof_per_orbit(filtered_eofs, dt1, dt2, ("S1A", "S1B"))
             assert len(uniq_eofs) == 1
 
 
 @pytest.mark.parametrize(
-        "eof_ids",
-        [[
-            '20231107T080717_V20231017T225942_20231019T005942',
-            '20231127T070702_V20231106T225942_20231108T005942',
-            '20231128T070717_V20231107T225942_20231109T005942',
-            '20231207T070724_V20231116T225942_20231118T005942',
-            '20231208T070704_V20231117T225942_20231119T005942',
-            '20210318T180016_V20201204T225942_20201206T005942',
-        ]],
+    "eof_ids",
+    [[
+        '20231107T080717_V20231017T225942_20231019T005942',
+        '20231127T070702_V20231106T225942_20231108T005942',
+        '20231128T070717_V20231107T225942_20231109T005942',
+        '20231207T070724_V20231116T225942_20231118T005942',
+        '20231208T070704_V20231117T225942_20231119T005942',
+        '20210318T180016_V20201204T225942_20201206T005942',
+    ]],
 )
 def test_manager_dir_analysis_actual_filter(
-        eof_ids         : List[str],
-        eof_baseline_dir: Path,
-        tmp_eof_dir     : Path,
+    eof_ids         : List[str],
+    eof_baseline_dir: Path,
+    tmp_eof_dir     : Path,
 ):
     assert len(eof_ids) == 6
     orig_eof_files = glob_eof_files(eof_baseline_dir)
@@ -570,13 +605,13 @@ def test_manager_dir_analysis_actual_filter(
 
 
 def test_filter_orbits_on_the_periphery(
-        baseline_dir: Path,
+    baseline_dir: Path,
 ):
     # When two EOF files follow each others, they should share two orbits.
     # > Makes sure we obtain only one, and the right one when requesting orbits on the periphery
     eof_ids = [
-            '20231127T070702_V20231106T225942_20231108T005942',
-            '20231128T070717_V20231107T225942_20231109T005942',
+        '20231127T070702_V20231106T225942_20231108T005942',
+        '20231128T070717_V20231107T225942_20231109T005942',
     ]
     eof_baseline_dir = baseline_dir / "eofs"
     eof_files = [SentinelOrbitFile(eof_id_to_file(eof_baseline_dir, eof_id)) for eof_id in eof_ids]
@@ -608,21 +643,24 @@ def test_filter_orbits_on_the_periphery(
     assert files2[0][second_rel_obt_of_2nd_eof] is eof_files[1]
 
 
+@pytest.mark.vcr(
+    "cop_access_token.yaml",
+)
 @pytest.mark.parametrize(
-        "eof_ids",
-        [[
-            '20231107T080717_V20231017T225942_20231019T005942',
-            '20231127T070702_V20231106T225942_20231108T005942',
-            '20231128T070717_V20231107T225942_20231109T005942',
-            '20231207T070724_V20231116T225942_20231118T005942',
-            '20231208T070704_V20231117T225942_20231119T005942',
-        ]],
+    "eof_ids",
+    [[
+        '20231107T080717_V20231017T225942_20231019T005942',
+        '20231127T070702_V20231106T225942_20231108T005942',
+        '20231128T070717_V20231107T225942_20231109T005942',
+        '20231207T070724_V20231116T225942_20231118T005942',
+        '20231208T070704_V20231117T225942_20231119T005942',
+    ]],
 )
 def test_manager_analysis_of_cache(
-        eof_ids         : List[str],
-        eof_baseline_dir: Path,
-        tmp_eof_dir     : Path,
-        dag,
+    eof_ids         : List[str],
+    eof_baseline_dir: Path,
+    tmp_eof_dir     : Path,
+    dag,
 ):
     assert len(eof_ids) == 5
     orig_eof_files = glob_eof_files(eof_baseline_dir)
@@ -638,27 +676,27 @@ def test_manager_analysis_of_cache(
 
     # Wider range, but we're looking for files already in cache
     cfg = MockConfiguration(
-            "2023-11-01", "2023-11-10",
-            tmp_eof_dir,
-            [],
-            None,
+        "2023-11-01", "2023-11-10",
+        tmp_eof_dir,
+        [],
+        None,
     )
     eof_manager = EOFFileManager(cfg, dag)
 
     obt_file_expectations = [
-            (118, 1),
-            (120, 1),
-            (122, 2),
-            (130, 2),
+        (118, 1),
+        (120, 1),
+        (122, 2),
+        (130, 2),
     ]
     for obt, file_id in obt_file_expectations:
         files_found = eof_manager.search_for([obt])
         assert len(files_found) == 1
         assert files_found[0].has_value()
         obt_found, eof_found = list(files_found[0].value().items())[0]
-        # file_found    : Filename = files[0].value()
-        file_found    : Filename = eof_found.filename
-        file_expected : Filename = eof_files[file_id].filename
+        # file_found    : AnyPath = files[0].value()
+        file_found    : AnyPath = eof_found.filename
+        file_expected : AnyPath = eof_files[file_id].filename
         logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
         logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
         assert file_found == file_expected, f"Orbit {obt} not found in #{file_id} -> {files_found[0]!r}"
@@ -667,25 +705,23 @@ def test_manager_analysis_of_cache(
 
 
 @pytest.mark.vcr(
-        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+    "cop_access_token.yaml", "test_cop_dataspace_eodag.yaml",
 )
 @pytest.mark.parametrize(
-        "eof_ids",
-        [[
-            '20210315T155112_V20191230T225942_20200101T005942',
-            '20210316T161714_V20191231T225942_20200102T005942',
-            '20210316T184157_V20200101T225942_20200103T005942',
-            '20210316T190114_V20200102T225942_20200104T005942',
-        ]],
+    "eof_ids",
+    [[
+        '20210315T155112_V20191230T225942_20200101T005942',
+        '20210316T161714_V20191231T225942_20200102T005942',
+        '20210316T184157_V20200101T225942_20200103T005942',
+        '20210316T190114_V20200102T225942_20200104T005942',
+    ]],
 )
 def test_manager_eof_retrieval(
-        eof_ids         : List[str],
-        baseline_dir: Path,
-        eof_baseline_dir: Path,
-        configuration,
-        dag,
+    eof_ids         : List[str],
+    configuration,
+    dag,
 ):
-    assert configuration.eodag_config is None
+    assert configuration.eodag_config != NO_EODAG
     assert len(eof_ids) == 4
 
     tmp_eof_dir = configuration.extra_directories['eof_dir']
@@ -693,18 +729,17 @@ def test_manager_eof_retrieval(
     assert len(eof_files) == 0, "Cache dir should be empty when test starts"
 
     eof_manager = EOFFileManager(configuration, dag)
-    eof_manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
 
     obt_file_expectations = [
-            ( 65, 0),
-            ( 76, 0),
-            ( 78, 1),
-            ( 91, 1),
-            ( 92, 2),
-            (106, 2),
-            (107, 3),
-            (110, 3),
-            (121, None)
+        ( 65, 0),
+        ( 76, 0),
+        ( 78, 1),
+        ( 91, 1),
+        ( 92, 2),
+        (106, 2),
+        (107, 3),
+        (110, 3),
+        (121, None)
     ]
     for obt, file_id in obt_file_expectations:
         files_found = eof_manager.search_for([obt])
@@ -714,9 +749,9 @@ def test_manager_eof_retrieval(
             assert len(files_found) >= 1
             assert files_found[0].has_value()
             obt_found, eof_found = list(files_found[0].value().items())[0]
-            # file_found    : Filename = files_found[0].value()
-            file_found    : Filename = eof_found.filename
-            file_expected : Filename = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
+            # file_found    : AnyPath = files_found[0].value()
+            file_found    : AnyPath = eof_found.filename
+            file_expected : AnyPath = SentinelOrbitFile(eof_id_to_file(tmp_eof_dir, eof_ids[file_id])).filename
             logging.debug(f"{file_found=}")
             logging.debug(f"{type(file_found)=}    ; {file_found=!r}")
             logging.debug(f"{type(file_expected)=} ; {file_expected=!r}")
@@ -729,91 +764,84 @@ def test_manager_eof_retrieval(
 
 
 @pytest.mark.vcr(
-        "cop_access_token.yaml", "test_cop_dataspace.yaml", "test_earthdata.yaml",
+    "cop_access_token.yaml", "test_cop_dataspace_eodag.yaml",
 )
 @pytest.mark.parametrize(
-        "eodag_config,netrc,obt_list,start,stop,expected_found,expected_in_range",
-        [
-            # Checks on disk
-            # - 80 & 100 are covered once
-            (NO_EODAG, NO_NETRC, [80],      "2023-11-17", "2023-11-19", True, True),
-            (NO_EODAG, NO_NETRC, [80, 100], "2023-11-17", "2023-11-19", True, True),
-            # - 130 is covered twice on disk
-            (NO_EODAG, NO_NETRC, [130],     "2023-11-07", "2023-11-09", True, True),
-            (NO_EODAG, NO_NETRC, [130],     "2020-12-05", "2020-12-06", True, True),
+    "eodag_config,obt_list,start,stop,expected_found,expected_in_range",
+    [
+        # Checks on disk
+        # - 80 & 100 are covered once
+        (NO_EODAG, [80],      "2023-11-17", "2023-11-19", True, True),
+        (NO_EODAG, [80, 100], "2023-11-17", "2023-11-19", True, True),
+        # - 130 is covered twice on disk
+        (NO_EODAG, [130],     "2023-11-07", "2023-11-09", True, True),
+        (NO_EODAG, [130],     "2020-12-05", "2020-12-06", True, True),
 
-            # Stuff on disk, not in time range
-            (NO_EODAG, NO_NETRC, [4],       "2023-11-16", "2023-11-16", True, False),
-            (None,     NO_NETRC, [4],       "2023-11-16", "2023-11-16", True, False),
+        # Stuff on disk, not in time range
+        (NO_EODAG, [4],       "2023-11-16", "2023-11-16", True, False),
+        (None,     [4],       "2023-11-16", "2023-11-16", True, False),
 
-            # Pure download
-            (NO_EODAG, NO_NETRC, [70],      "2019-12-30", "2020-01-01", False, None),  # no provider, no DL
-            (None,     NO_NETRC, [70],      "2019-12-30", "2020-01-01", True, True),  # do DL
+        # Pure download
+        (NO_EODAG, [70],      "2019-12-30", "2020-01-01", False, None),  # no provider, no DL
+        (None,     [70],      "2019-12-30", "2020-01-01", True, True),  # do DL
 
-            # Stuff on disk, on cassette, but found on disk
-            (NO_EODAG, NO_NETRC, [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
-            (None,     NO_NETRC, [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
-            (None,     NO_NETRC, [70, 80],  "2019-12-30", "2020-01-01", True, True),  # become in range thanks to DL
+        # Stuff on disk, on cassette, but found on disk
+        (NO_EODAG, [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
+        (None,     [80],      "2019-12-30", "2020-01-01", True, False),  # on disk, not in range
+        (None,     [70, 80],  "2019-12-30", "2020-01-01", True, True),  # become in range thanks to DL
 
-            # Orbits not in the time ranges required
-            # - EOF in time range on disk
-            (NO_EODAG, NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None),
-            (None,     NO_NETRC, [150],      "2023-11-17", "2023-11-19", False, None), # don't try to DL; would need some mocking to know whether download attempts were made...
-            # - EOF not in time range on disk, but K7 yes
-            (None,     NO_NETRC, [150],      "2019-12-30", "2020-01-01", False, None),  # do DL, but mocking required to test..
-            # TODO: test hybrid sitution with stuff found, and stuff can cannot be found...
-        ],
-        indirect=["eodag_config"],
+        # Orbits not in the time ranges required
+        # - EOF in time range on disk
+        (NO_EODAG, [150],      "2023-11-17", "2023-11-19", False, None),
+        (None,     [150],      "2023-11-17", "2023-11-19", False, None), # don't try to DL; would need some mocking to know whether download attempts were made...
+        # - EOF not in time range on disk, but K7 yes
+        (None,     [150],      "2019-12-30", "2020-01-01", False, None),  # do DL, but mocking required to test..
+        # TODO: test hybrid sitution with stuff found, and stuff can cannot be found...
+    ],
+    indirect=["eodag_config"],
 )
 def test_manager_eof_retrieval_edge_tests(
-        baseline_dir: Path,
-        eof_baseline_dir: Path,
-        dag,
-        tmp_path_factory,
-        # test fixture-parameters
-        eodag_config,
-        netrc,
-        obt_list: List[int],
-        start: str,
-        stop: str,
-        expected_found: bool,
-        expected_in_range: Optional[bool],
+    eof_baseline_dir: Path,
+    dag,
+    tmp_path_factory,
+    # test fixture-parameters
+    eodag_config,
+    obt_list: List[int],
+    start: str,
+    stop: str,
+    expected_found: bool,
+    expected_in_range: Optional[bool],
 ):
-
     # Checks on disk
     logging.debug(f"Testing EDGE {obt_list=} {start=} {stop=}")
-    with pytest.MonkeyPatch.context() as mp:
-        if netrc is not None:
-            mp.setenv('NETRC', netrc)
-        assert os.getenv('NETRC') == netrc
-        config = make_configuration(tmp_path_factory, eodag_config, start, stop)
-        eof_manager = EOFFileManager(config, dag)
-        eof_manager.add_extra_build_option(ProviderKind.EARTHDATA, cache_dir=baseline_dir)
 
-        baseline_eof_files = glob_eof_files(eof_baseline_dir)
-        tmp_eof_dir = config.extra_directories['eof_dir']
-        prepare_tmp_eof_dir_from_files(baseline_eof_files, tmp_eof_dir)
+    config = make_configuration(tmp_path_factory, eodag_config, start, stop)
+    eof_manager = EOFFileManager(config, dag)
 
-        start_time = parse(start)
-        stop_time = parse(stop)
-        # obt_list = [80]
-        search_results = eof_manager.search_for(obt_list, first_date=start_time, last_date=stop_time)
-        assert len(search_results) == len(obt_list), f"Expected {len(obt_list)} EOF in {start}..{stop} for {obt_list}, got: {search_results}"
-        for result in search_results:
-            if expected_found:
-                assert result
-                result_info = result.value()
-                assert len(result_info.keys()) == 1
-                obt = list(result_info.keys())[0]
-                assert obt in obt_list
-                obt_list.remove(obt)
-                product = result_info[obt]
-                assert product.has_relative_orbit(obt)
-                if expected_in_range:
-                    assert product.start_time <= stop_time + K_1D
-                    assert start_time         <= product.stop_time
-                else:
-                    assert not (product.start_time <= stop_time + K_1D and
-                                start_time         <= product.stop_time)
+    baseline_eof_files = glob_eof_files(eof_baseline_dir)
+    tmp_eof_dir = config.extra_directories['eof_dir']
+    prepare_tmp_eof_dir_from_files(baseline_eof_files, tmp_eof_dir)
+
+    start_time = parse(start)
+    stop_time = parse(stop)
+    # obt_list = [80]
+    search_results = eof_manager.search_for(obt_list, first_date=start_time, last_date=stop_time)
+    assert len(search_results) == len(obt_list), f"Expected {len(obt_list)} EOF in {start}..{stop} for {obt_list}, got: {search_results}"
+    for result in search_results:
+        if expected_found:
+            assert result
+            result_info = result.value()
+            assert len(result_info.keys()) == 1
+            obt = list(result_info.keys())[0]
+            assert obt in obt_list
+            obt_list.remove(obt)
+            product = result_info[obt]
+            assert product.has_relative_orbit(obt)
+            if expected_in_range:
+                assert product.start_time <= stop_time + K_1D
+                assert start_time         <= product.stop_time
             else:
-                assert not result
+                assert not (product.start_time <= stop_time + K_1D and
+                            start_time         <= product.stop_time)
+        else:
+            assert not result

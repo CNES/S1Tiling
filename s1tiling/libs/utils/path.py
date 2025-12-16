@@ -42,7 +42,7 @@ from typing import List, Sequence, Union
 
 
 
-AnyPath = os.PathLike | str | bytes
+AnyPath = os.PathLike | str
 
 
 logger = logging.getLogger("s1tiling.utils.path")

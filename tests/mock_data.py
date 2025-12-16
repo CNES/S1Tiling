@@ -31,7 +31,7 @@
 
 import logging
 import re
-from typing import Callable, Dict, List, Union, Tuple
+from typing import Callable, Dict, List, Union, Tuple, cast
 import os
 
 import numpy as np
@@ -42,6 +42,7 @@ from s1tiling.libs.utils.formatters import ExtendedFormatter
 
 # from .mock_otb import compute_coverage
 
+ORIGIN_T = tuple[tuple[float,float], tuple[float,float], tuple[float,float], tuple[float,float], tuple[float,float]]
 
 k_calib_convert = {'_normlim' : '_tmpbeta', '_gamma_naught_rtc' : '_tmpsigma'}
 
@@ -502,10 +503,10 @@ class FileDB:
         idx = id if isinstance(id, int) else self._find_annotation(id)
         file = self.FILES[idx]
         return (
-                to_datetime(file['start_time']),
-                to_datetime(file['stop_time' ]),
-                to_datetime(file['orbit_start']),
-                to_datetime(file['orbit_stop'])
+                to_datetime(cast(str, file['start_time'])),
+                to_datetime(cast(str, file['stop_time' ])),
+                to_datetime(cast(str, file['orbit_start'])),
+                to_datetime(cast(str, file['orbit_stop']))
         )
 
     def product_name(self, idx) -> str:
@@ -575,8 +576,8 @@ class FileDB:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        origin  = self.FILES[idx]['polygon'][1:]
-        srsname = self.FILES[idx]['srsname']
+        origin  = cast(ORIGIN_T, self.FILES[idx]['polygon'])[1:]
+        srsname = cast(str, self.FILES[idx]['srsname'])
         logging.debug('  mock.get_origin(%s) -> %s', self.FILES[idx]['s1dir'], origin)
         return *origin, srsname
 
@@ -584,35 +585,35 @@ class FileDB:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        dir = self.FILES[idx]['orbit_direction']
+        dir = cast(str, self.FILES[idx]['orbit_direction'])
         return dir
 
     def get_start_time(self, id) -> str:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        dir = self.FILES[idx]['start_time']
+        dir = cast(str, self.FILES[idx]['start_time'])
         return dir
 
     def get_stop_time(self, id) -> str:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        dir = self.FILES[idx]['stop_time']
+        dir = cast(str, self.FILES[idx]['stop_time'])
         return dir
 
     def get_absolute_orbit(self, id) -> int:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        rel = self.FILES[idx]['absolute_orbit']
+        rel = cast(int, self.FILES[idx]['absolute_orbit'])
         return rel
 
     def get_relative_orbit(self, id) -> int:
         # str => id == manifest_path
         idx = id if isinstance(id, int) else self._find_image(id)
         assert idx < len(self.FILES)
-        rel = self.FILES[idx]['relative_orbit']
+        rel = cast(int, self.FILES[idx]['relative_orbit'])
         return rel
 
     def get_orbit_information(self, id) -> Dict:
@@ -844,10 +845,10 @@ class FileDB:
         return f'{self.__eof_dir}/{self.TILE_DATA[self.__tile]["eof"]}'
 
     def relorb_for_s2(self) -> int:
-        return self.TILE_DATA[self.__tile]["relorb"]
+        return cast(int, self.TILE_DATA[self.__tile]["relorb"])
 
-    def dems_on_s2(self) -> List[str]:
-        return sorted(self.TILE_DATA[self.__tile]['dems'])
+    def dems_on_s2(self) -> list[str]:
+        return sorted(cast(list[str], self.TILE_DATA[self.__tile]['dems']))
 
     def vrtfile_on_s2(self, tmp: bool) -> str:
         dir = f'{self.__tmp_dir}/TMP_DEM'  # TODO: don't hardcode tmpdemdir

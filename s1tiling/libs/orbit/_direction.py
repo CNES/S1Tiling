@@ -91,18 +91,18 @@ class Direction(Enum):
         """
         Factory method
 
-        Direction.create(Direction.ASC)
-        <Direction.ASC: 1>
-        Direction.create(Direction.DES)
-        <Direction.DES: 2>
-        Direction.create("ASC")
-        <Direction.ASC: 1>
-        Direction.create("DES")
-        <Direction.DES: 2>
-        Direction.create("ascending")
-        <Direction.ASC: 1>
-        Direction.create("descending")
-        <Direction.DES: 2>
+        >>> Direction.create(Direction.ASC)
+        <Direction.ASC: 'ascending'>
+        >>> Direction.create(Direction.DES)
+        <Direction.DES: 'descending'>
+        >>> Direction.create("ASC")
+        <Direction.ASC: 'ascending'>
+        >>> Direction.create("DES")
+        <Direction.DES: 'descending'>
+        >>> Direction.create("ascending")
+        <Direction.ASC: 'ascending'>
+        >>> Direction.create("descending")
+        <Direction.DES: 'descending'>
         """
         if isinstance(value, cls):
             return value

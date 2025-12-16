@@ -24,6 +24,13 @@ v1.3.0 Improvements
 - Project packaging is migrated to :file:`pyproject.toml`
   (`#198 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/198>`_).
 
+v1.3.0 Breaking changes
++++++++++++++++++++++++
+
+- From now on, precise orbit files can only be fetched from ``cop_dataspace``
+  and other providers supported by EODAG
+  (`#197 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/197>`_).
+
 
 Release notes
 =============

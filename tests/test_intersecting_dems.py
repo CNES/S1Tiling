@@ -342,7 +342,7 @@ def test_search_mgrs_in_dems_quadtree_rbtree(reference_s2_to_dem_map: Dict[str, 
 
         referenced_dem_footprints[i] = dem_information[dem_tile_name]
 
-    dem_tiles = {}
+    dem_tiles : dict[str, dict[str, Any]] = {}
     for tile_name, mgrs_footprint in mgrs_footprints.items():
         dem_tiles[tile_name] = {}
         mgrs_area = mgrs_footprint.GetArea()

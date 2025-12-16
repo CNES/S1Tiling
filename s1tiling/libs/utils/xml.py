@@ -32,6 +32,8 @@
 
 """ This module contains various utility functions related to xml library"""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import Optional, TypeVar, Union
 import xml.etree.ElementTree as ET
@@ -41,7 +43,7 @@ from .path import AnyPath
 T = TypeVar('T')
 
 
-def parse(filename: AnyPath) -> ET.ElementTree:
+def parse(filename: AnyPath) -> ET.ElementTree[ET.Element[str]]:
     """
     Returns root of XML document.
     """
@@ -49,12 +51,12 @@ def parse(filename: AnyPath) -> ET.ElementTree:
 
 
 def find(
-    element: Union[ET.Element, ET.ElementTree],
+    element: Union[ET.Element[str], ET.ElementTree[ET.Element[str]]],
     key    : str,
     context: AnyPath,
     keytext: Optional[str] = None,
     **kwargs
-) -> ET.Element:
+) -> ET.Element[str]:
     """
     Helper function that finds an XML tag within a node.
 
@@ -74,7 +76,7 @@ def find(
 
 
 def find_text(
-    element: Union[ET.Element, ET.ElementTree],
+    element: Union[ET.Element[str], ET.ElementTree[ET.Element[str]]],
     key    : str,
     context: AnyPath,
     keytext: Optional[str] = None,
@@ -102,7 +104,7 @@ def find_text(
 
 def find_as(
     to     : Callable[[str], T],
-    element: Union[ET.Element, ET.ElementTree],
+    element: Union[ET.Element[str], ET.ElementTree[ET.Element[str]]],
     key    : str,
     context: AnyPath,
     keytext: Optional[str] = None,

@@ -69,7 +69,5 @@ setup(
         "pyyaml>=5.1",
         "rtree",
         # Any way to require OTB ?
-        # "sentineleof>0.10.0",
-        "sentineleof @ git+https://github.com/LucHermitte/sentineleof.git@factorize-client-interface",
     ] + extra_packages,
 )

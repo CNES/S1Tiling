@@ -33,11 +33,11 @@ from datetime import datetime, timedelta
 import fnmatch
 import logging
 import os
+import re
 # from pathlib import Path
-from typing import Callable, Dict, List, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Sequence, Set, Tuple, cast
 from eodag.api.search_result import SearchResult
 
-from eof.products import re
 from shapely import geometry
 
 import pytest
@@ -205,7 +205,7 @@ def image_list():
 
 @pytest.fixture
 def downloads() -> list[S1DownloadOutcome]:
-    dn = []
+    dn : list[S1DownloadOutcome] = []
     return dn
 
 @pytest.fixture
@@ -554,7 +554,7 @@ def when_searching_VH(configuration, image_list) -> None:
 # ----------------------------------------------------------------------
 # When / download scenarios
 
-def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, logging, product) -> S1DownloadOutcome:
+def mock_download_one_product(dag, raw_directory, dl_wait, dl_timeout, logging, sanatize, product) -> S1DownloadOutcome:
     logging.debug('mock: download1 -> %s', product)
     return S1DownloadOutcome(product, product)
 
@@ -632,23 +632,23 @@ def then_all_are_requested_for_download(downloads, configuration) -> None:
 
 @pytest.fixture
 def dl_successes():
-    l = []
-    return l
+    successes = []
+    return successes
 
 @pytest.fixture
-def dl_failures() -> List[S1DownloadOutcome]:
-    l = []
-    return l
+def dl_failures() -> list[S1DownloadOutcome]:
+    failures : list[S1DownloadOutcome] = []
+    return failures
 
 @pytest.fixture
 def dl_kepts() -> Sequence[FileProductInformation]:
-    l = []
-    return l
+    kept : Sequence[FileProductInformation] = []
+    return kept
 
 @pytest.fixture
-def dl_skip() -> List[str]:
-    l = []
-    return l
+def dl_skip() -> list[str]:
+    skip : list[str] = []
+    return skip
 
 @given(parsers.parse('S1 product {idx} has been downloaded'))
 def given_S1_product_idx_has_been_downloaded(dl_successes, known_files, known_dirs, idx) -> None:
@@ -904,8 +904,8 @@ def given_retroactive_set_time_range_from_inputs(
     actual_products = [
         file_db._find_image(product) for product in known_remote_s1
     ]
-    first_start_time = min([to_datetime(file_db.FILES[idx]['start_time']) for idx in actual_products])
-    last_stop_time   = max([to_datetime(file_db.FILES[idx]['stop_time'])  for idx in actual_products])
+    first_start_time = min([to_datetime(cast(str, file_db.FILES[idx]['start_time'])) for idx in actual_products])
+    last_stop_time   = max([to_datetime(cast(str, file_db.FILES[idx]['stop_time']))  for idx in actual_products])
     configuration.first_date = (first_start_time - timedelta(1)).strftime('%Y-%m-%d')
     configuration.last_date  = (last_stop_time   + timedelta(1)).strftime('%Y-%m-%d')
     logging.debug("Request time range forged to %s .. %s (from known remote S1 products)", configuration.first_date, configuration.last_date)

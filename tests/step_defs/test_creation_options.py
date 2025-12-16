@@ -32,7 +32,7 @@
 
 """BDD tests for creation_options"""
 
-from typing import Dict
+from typing import Any, Dict
 import logging
 import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
@@ -59,7 +59,7 @@ scenarios(
 
 @pytest.fixture
 def defaults() -> Dict:
-    res = {}
+    res : Dict[str, Any] = {}
     return res
 
 ## def _analyse_creation_option(
