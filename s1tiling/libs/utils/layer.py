@@ -69,7 +69,7 @@ def filter_existing_tiles(mgrs_grid_name: AnyPath, tile_names: List[str]) -> Lis
     :param mgrs_grid_name: MGRS grid database
     :param tile_names:     List of tile names to sanitize
 
-    :return: list of all tile names that exist in MGRS grid database.
+    :return: a sorted list of all tile names that exist in MGRS grid database.
     """
     valid_tiles = set()
 
@@ -80,11 +80,11 @@ def filter_existing_tiles(mgrs_grid_name: AnyPath, tile_names: List[str]) -> Lis
         if (tile_name := current_tile.GetField('NAME')) in tile_names:
             valid_tiles.add(tile_name)
 
-    unknown_tiles = set(tile_names) - valid_tiles
+    unknown_tiles = sorted(set(tile_names) - valid_tiles)
     for tile_name in unknown_tiles:
         logger.warning("Tile '%s' does not exist, skipping ...", tile_name)
 
-    return list(valid_tiles)
+    return sorted(valid_tiles)
 
 
 def polygon2extent(polygon: Polygon) -> Dict[str, float]:
