@@ -1080,7 +1080,7 @@ class S1FileManager:
         by available S1 products.
 
         Returns:
-           The list of MGRS tiles identifiers covered by product as string
+           The sorted list of MGRS tiles identifiers covered by product as string
         """
         tiles = []
 
@@ -1099,7 +1099,7 @@ class S1FileManager:
                     tile_name = current_tile.GetField('NAME')
                     if tile_name not in tiles:
                         tiles.append(tile_name)
-        return tiles
+        return sorted(tiles)
 
     def is_product_in_time_range(self, product : str) -> bool:
         """

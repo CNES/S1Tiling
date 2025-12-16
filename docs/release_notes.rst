@@ -23,6 +23,8 @@ v1.3.0 Improvements
   (`#201 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/201>`_).
 - Project packaging is migrated to :file:`pyproject.toml`
   (`#198 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/198>`_).
+- Make sure tiles are always processed in the same order
+  (`#206 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/206>`_).
 
 v1.3.0 Breaking changes
 +++++++++++++++++++++++

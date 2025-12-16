@@ -162,6 +162,8 @@ def main_output_name_formats(configuration: Configuration) -> List[Tuple[str,str
 def extract_tiles_to_process(cfg: Configuration, s1_file_manager: Optional[S1FileManager]) -> List[str]:
     """
     Deduce from the configuration all the tiles that need to be processed.
+
+    :return: the sorted list of all the tile names to process
     """
     logger.info('Requested tiles: %s', cfg.tile_list)
 
