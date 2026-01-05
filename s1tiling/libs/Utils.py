@@ -85,7 +85,7 @@ class Layer:
         self.__driver      = ogr.GetDriverByName(driver_name)
         self.__data_source = self.__driver.Open(self.__grid, 0)
         if not self.__data_source:
-            raise RuntimeError(f"Cannot open {str(grid)!r} with {str(driver_name)!r} driver")
+            raise RuntimeError(f"Cannot open '{grid!s}' with '{driver_name!s}' driver")
         self.__layer       = self.__data_source.GetLayer()
 
     def __iter__(self) -> Iterator[ogr.Feature]:
@@ -120,6 +120,10 @@ def gdal_open(path: AnyPath, access):
 
     Note: GDAL 3.8 :class:`gdal.Dataset` already behaves as a `Context Manager`.
     """
+    # if File cannot be written and `gdal.GA_Update` access is required, gdal.open() will return
+    # None and write non-contextualized error message.
+    if access == gdal.GA_Update and not os.access(path, os.W_OK):
+        raise PermissionError(f"Cannot open {path} for modification")
     ds = gdal.Open(path, access)
     if hasattr(gdal.Dataset, '__enter__'):
         return ds
@@ -144,23 +148,32 @@ class DatasetManager:
 def fetch_nodata_value(
     inputpath: AnyPath,
     is_running_dry: bool,
-    default_value: Union[int,float,str],
+    default_value: int|float|str,
     band_nr: int = 1
-) -> Union[int,float,str]:
+) -> int|float|str:
     """
-    Extract no-data value set in input image.
+    Extract the no-data value recorded in the input image.
+
+    :param inputpath:      name of the file to patch
+    :param is_running_dry: to inhibit execution in dry-run mode
+    :param default_value:  default nodata value returned if none is recorded in the file
+    :param band_nr:        target band number
+
+    :raise PermissionError: If the file cannot be opened
+    :raise RuntimeError:    If no band of the number ``band_nr`` exists
     """
     logger.debug("Fetch No-data value from '%s'", inputpath)
     if not is_running_dry:
-        with gdal_open(as_path(inputpath), gdal.GA_ReadOnly) as ds:
-            if not ds:
-                raise RuntimeError(f"Cannot open file '{inputpath!s}' to collect no-data value.")
-            band = ds.GetRasterBand(band_nr)
-            if not band:
-                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath!s}' to collect no-data value.")
-            nodata = band.GetNoDataValue()
-            assert nodata is None or isinstance(nodata, (int, float, str))
-            return nodata if nodata is not None else default_value
+        try:
+            with gdal_open(inputpath, gdal.GA_ReadOnly) as ds:
+                band = ds.GetRasterBand(band_nr)
+                if not band:
+                    raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath!s}' to collect no-data value.")
+                nodata = band.GetNoDataValue()
+                assert nodata is None or isinstance(nodata, (int, float, str))
+                return nodata if nodata is not None else default_value
+        except PermissionError as e:
+            raise PermissionError(f"Cannot open file '{inputpath!s}' to collect no-data value.") from e
     else:
         return default_value
 
@@ -168,22 +181,31 @@ def fetch_nodata_value(
 def set_nodata_value(
     inputpath: AnyPath,
     is_running_dry: bool,
-    value: Union[int,float,str],
+    value: int|float|str,
     band_nr: int = 1
 ) -> None:
     """
-    Set no data value
+    Set no data value.
+
+    :param inputpath:      name of the file to patch
+    :param is_running_dry: to inhibit execution in dry-run mode
+    :param value:          new no-data value
+    :param band_nr:        target band number
+
+    :raise PermissionError: If the file cannot be written to
+    :raise RuntimeError:    If no band of the number ``band_nr`` exists
     """
     logger.debug("Set No-data value to %s in '%s'", value, inputpath)
     if is_running_dry:
         return
-    with gdal_open(as_path(inputpath), gdal.GA_Update) as ds:
-        if not ds:
-            raise RuntimeError(f"Cannot open file {inputpath!r} to set no-data value.")
-        band = ds.GetRasterBand(band_nr)
-        if not band:
-            raise RuntimeError(f"Cannot open access band {band_nr} in file {inputpath!r} to set no-data value.")
-        band.SetNoDataValue(value)
+    try:
+        with gdal_open(inputpath, gdal.GA_Update) as ds:
+            band = ds.GetRasterBand(band_nr)
+            if not band:
+                raise RuntimeError(f"Cannot open access band {band_nr} in file '{inputpath!s}' to set no-data value to '{value}'.")
+            band.SetNoDataValue(value)
+    except PermissionError as e:
+        raise PermissionError(f"Cannot open file '{inputpath!s}' to set no-data value to '{value}'.") from e
 
 
 def test_nodata_for_bandmath(nodata, bandname):
@@ -233,7 +255,7 @@ def get_orbit_information(manifest: AnyPath) -> Dict:
         - relative orbit number
         - orbit direction
     """
-    ctx_manifest = f"manifest {manifest!r}"
+    ctx_manifest = f"manifest '{manifest!s}'"
     prefix_map = {"safe": SAFE, "s1": S1}
     root = parse(manifest)
     node_orbit = find(
@@ -247,7 +269,7 @@ def get_orbit_information(manifest: AnyPath) -> Dict:
     orbit_direction = find_text(node_orbit, 'safe:extension/s1:orbitProperties/s1:pass', ctx_manifest, 'orbit direction', namespaces=prefix_map)
     k_direction_map = {"DESCENDING": "DES", "ASCENDING": "ASC"}
     if orbit_direction not in k_direction_map:
-        raise RuntimeError(f"Invalid Orbit Direction ({orbit_direction!r}) found in {manifest!r}")
+        raise RuntimeError(f"Invalid Orbit Direction ('{orbit_direction}') found in '{manifest!s}'")
     return {
         'absolute_orbit' : absolute_orbit,
         'relative_orbit' : relative_orbit,
@@ -271,7 +293,7 @@ def get_origin(
     node_footprint = find(
         root,
         "metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint",
-        f"manifest {manifest!r}",
+        f"manifest '{manifest!s}'",
         "coordinates",
         namespaces=prefix_map)
     srsName = node_footprint.attrib['srsName']
@@ -279,7 +301,7 @@ def get_origin(
 
     coord_text = node_footprint.findtext('{http://www.opengis.net/gml}coordinates')
     if coord_text is None:
-        raise RuntimeError(f"Cannot find coordinates in manifest {manifest!r}")
+        raise RuntimeError(f"Cannot find coordinates in manifest '{manifest!s}'")
 
     assert coord_text
     coord = [(float(val.replace("\n", "").split(",")[0]),
@@ -342,7 +364,7 @@ def get_s1image_poly(s1image: AnyPath) -> ogr.Geometry:
     manifest = as_path(s1image).parents[1] / 'manifest.safe'
 
     logger.debug("Manifest: %s", manifest)
-    assert manifest.exists(), f"Manifest {manifest!r} doesn't exist!"
+    assert manifest.exists(), f"Manifest '{manifest!s}' doesn't exist!"
     poly = get_shape(manifest)
     return poly
 
@@ -354,7 +376,7 @@ def get_s1image_orbit_time_range(
     Returns the start and stop time of the orbit information contained in the S1 product.
     """
     if not os.path.isfile(annotation_file):
-        raise RuntimeError(f"{annotation_file!r} is not a valid file")
+        raise RuntimeError(f"'{annotation_file!s}' is not a valid file")
     root = parse(annotation_file)
     # Start/Stop times
     header = find(root, 'adsHeader', annotation_file)
@@ -536,7 +558,7 @@ def get_orbit_direction(manifest: AnyPath) -> Literal['DES', 'ASC']:
                     return "DES"
                 if "ASCENDING" in line:
                     return "ASC"
-        raise RuntimeError(f"Orbit Direction not found in {manifest!r}")
+        raise RuntimeError(f"Orbit Direction not found in '{manifest!s}'")
 
 
 def convert_coord(
