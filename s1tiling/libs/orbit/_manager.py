@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2024 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -43,7 +43,8 @@ from eodag.api.core import EODataAccessGateway
 from portion import Interval, closed as closed_interval
 from portion import empty as empty_interval
 
-from ..utils.eodag        import (
+from ..utils.FileManager import FileManager
+from ..utils.eodag       import (
     EODAG_DEFAULT_DOWNLOAD_TIMEOUT, EODAG_DEFAULT_DOWNLOAD_WAIT,
 )
 from ._file      import (
@@ -83,7 +84,7 @@ class EOFConfiguration(Protocol):
     download          : bool
 
 
-class EOFFileManager:
+class EOFFileManager(FileManager[EOFOutcome]):
     """
     EOF files manager.
 
@@ -95,10 +96,11 @@ class EOFFileManager:
     """
 
     # TODO: Don't depend on Configuration
-    def __init__(self, cfg: EOFConfiguration, dag: EODataAccessGateway):
+    def __init__(self, cfg: EOFConfiguration, dag: Optional[EODataAccessGateway]):
         """
         constructor
         """
+        super().__init__()
         self.__cfg           = cfg
         self.__dag           = dag
         self.__first_date    = parse(cfg.first_date)
@@ -107,11 +109,13 @@ class EOFFileManager:
         self.__missions      = cfg.platform_list
         self.__dl_wait       = getattr(cfg, 'dl_wait',    EODAG_DEFAULT_DOWNLOAD_WAIT)
         self.__dl_timeout    = getattr(cfg, 'dl_timeout', EODAG_DEFAULT_DOWNLOAD_TIMEOUT)
+        assert cfg.download == (self.__dag is not None), f"EODAG object {dag=} expected when downloading is required {cfg.download=}"
 
     def _instanciate_provider(self) -> Provider:
         """
         Internal method that do instantiate an EOF provider.
         """
+        assert self.__dag
         return EodagProvider(dag=self.__dag, dl_wait=self.__dl_wait, dl_timeout=self.__dl_timeout)
 
     def _ensure_workspaces_exist(self) -> None:
@@ -145,6 +149,7 @@ class EOFFileManager:
             logger.info("Using EOF files already downloaded, as per configuration request")
             # TODO: Should do a glob/ls
             return []
+        assert self.__dag
 
         self._ensure_workspaces_exist()
 
@@ -169,6 +174,7 @@ class EOFFileManager:
             logger.warning(e, exc_info=False)
             # logger.debug(e, exc_info=True)
             errors.append(EOFDownloadOutcome(e))
+            self._inc_search_failures()
         assert len(errors) > 0, "This situation shouldn't happen: either we return a result, or an exception has been caught and converted..."
         return errors
 
@@ -260,6 +266,7 @@ class EOFFileManager:
 
         # Convert errors from EOFDownloadOutcome0 to EOFOutcome
         errors : List[EOFOutcome] = [EOFOutcome(e.error()) for e in eof_errors]
+        self._register_download_failures(errors)
 
         # # @post: for each EOF file detected, build a dict of min-max abs- and/or rel- orbit numbers
         # if len(obt2eof_map) == 0:
