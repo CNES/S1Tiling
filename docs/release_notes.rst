@@ -28,6 +28,8 @@ v1.3.0 Improvements
 - Improve the error message when attempting to patch the no-data value of a
   read-only geoid file, when DEM and Geoid are symlinked
   (`#213 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/213>`_).
+- S1 products are no longer scanned in LIA and IA scenarios
+  (`#212 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/212>`_).
 
 v1.3.0 Breaking changes
 +++++++++++++++++++++++
