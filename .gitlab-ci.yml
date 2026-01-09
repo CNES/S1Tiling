@@ -1,7 +1,7 @@
 # =========================================================================
 #   Program:   S1Processor
 #
-#   Copyright 2017-2025 (c) CNES. All rights reserved.
+#   Copyright 2017-2026 (c) CNES. All rights reserved.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -44,7 +44,7 @@ variables:
     # PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     # See Issue#86: https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/86
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: 0
-    S1TD_VERSION: "1.4.15"  # S1Tiling Dockers version
+    S1TD_VERSION: "1.4.16"  # S1Tiling Dockers version
     OTB9_VERSION: "9.1.1"
     OS: "ubuntu"
 
@@ -198,7 +198,7 @@ pypi9:
       - python3 -m pip install --upgrade twine
       - ls dist/
       - echo python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
-      # TODO: test the variables and the files exist!
+      # TODO: test files exist!
       - python3 -m twine upload --repository pypi dist/s1tiling-*.tar.gz
     dependencies:
       - package9
