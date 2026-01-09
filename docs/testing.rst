@@ -17,6 +17,32 @@ meant to be run on an on-demand basis.
 At this moment we only have a single end-to-end test on S2 33NWB tile on S1
 images acquired in January 2020.
 
+.. _install-test:
+
+Installation
+------------
+
+In order to install all the packets required to execute tests, the installation
+shall request the ``dev`` extra dependencies:
+
+.. code:: bash
+
+   cd s1tiling-sources-directory
+   pip install -e .[dev]
+
+Also, the tests depend on VCR cassettes to replay network IO. Currently, this
+Python project has a bug and requires patching: `[VCRpy#956]
+<https://github.com/kevin1024/vcrpy/issues/956>`_. To do so, once S1Tiling
+environment has been installed and activated, the patch can be applied with:
+
+.. code:: bash
+
+    (cd /tmp && wget https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling-dockers/-/raw/master/scripts/vcrpy-956.patch)
+    cd "$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib')+'/..')")"
+    patch -p1 < /tmp/vcrpy-956.patch
+    cd -
+
+
 .. _baseline:
 
 The baseline
@@ -48,7 +74,7 @@ There are two ways to obtain the baseline:
 - Or you'll need to first establish the baseline from a version of S1Tiliing
   known to work correctly, before introducing any change.
 
-  Organise the :ref:`S1 images <paths.s1_images>` downloaded into a directory
+  Organize the :ref:`S1 images <paths.s1_images>` downloaded into a directory
   named :file:`inputs` and the results into a directory named :file:`expected`.
 
 
@@ -63,9 +89,9 @@ I usually execute the tests with:
 
 .. code:: bash
 
-    SRTM_DIR=/path/to/MNT/SRTM_30_hgt pytest --cov=s1tiling --baselinedir=/path/to/tests/20200306-NR/baseline/ \
-         -k 'not execute_OTB' -vvv --log-cli-level=DEBUG -o log_cli=true --capture=no --junitxml=report.xml \
-         --ram 2048 2>&1 | less -R
+    $ SRTM_DIR=/path/to/MNT/SRTM_30_hgt pytest --cov=s1tiling --baselinedir=/path/to/tests/20200306-NR/baseline/ \
+    -k 'not slow' -vvv --log-cli-level=DEBUG -o log_cli=true --capture=no --junitxml=report.xml \
+    --ram 2048 --durations=0 -s --record-mode=once 2>&1 | less -R
 
 You can see all the supported options with:
 

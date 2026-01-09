@@ -168,8 +168,8 @@ Here is a short list of the actions to do for each new release.
            python3 -m twine upload --repository pypi dist/S1Tiling-${version}*
 
 11. For major and minor versions, create a branch named after this version. It
-   will help to track issues patching of that version independently of work
-   done on the next version, tracked in ``develop``.
+    will help to track issues patching of that version independently of work
+    done on the next version, tracked in ``develop``.
 
    .. code::
 
@@ -177,8 +177,8 @@ Here is a short list of the actions to do for each new release.
        git push --set-upstream origin release-${version}
 
 12. Go to `github mirror <https://github.com/CNES/S1Tiling>`_, once the
-   repository has been mirrored, to create a new release. This will
-   automatically generate a new DOI on zenodo.
+    repository has been mirrored, to create a new release. This will
+    automatically generate a new DOI on zenodo.
 
 13. Go to the new `zenodo release <https://doi.org/10.5281/zenodo.17237358>`_
     and update project metadata that cannot be set in :file:`CITATION.cff`

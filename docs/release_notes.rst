@@ -14,8 +14,6 @@ Version 1.3.0
 The main features of this version are mainly related to performances
 optimizations, and the quality of diagnosed errors.
 
-- TBC
-
 v1.3.0 Improvements
 +++++++++++++++++++
 
