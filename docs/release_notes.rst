@@ -11,7 +11,8 @@ Release notes
 Version 1.3.0
 -------------
 
-The main features of this version are:
+The main features of this version are mainly related to performances
+optimizations, and the quality of diagnosed errors.
 
 - TBC
 
@@ -46,6 +47,8 @@ v1.3.0 Bugs fixed
 - Report (and don't crash) when no image with the expected polarities in found
   in time compatible S1 products
   (`#208 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/208>`_).
+- Fix crash on time-out during download
+  (`#214 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/214>`_).
 
 
 Release notes
