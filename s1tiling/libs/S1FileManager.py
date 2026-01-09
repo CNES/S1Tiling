@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -47,7 +47,6 @@ from requests.exceptions     import ReadTimeout
 from eodag.api.core          import EODataAccessGateway
 from eodag.api.product       import EOProduct
 from eodag.api.search_result import SearchResult
-from eodag.utils.exceptions  import NotAvailableError, TimeOutError
 from eodag.utils.logging     import setup_logging
 
 
@@ -59,6 +58,7 @@ from .utils.eodag        import (
     EODAG_DEFAULT_SEARCH_MAX_RETRIES,
     download_and_extract_products,
 )
+from .utils.FileManager  import FileManager
 from .Utils              import (
     Layer,
     extract_product_start_time,
@@ -385,7 +385,7 @@ def sanatize_S1_product(
     return None
 
 
-class S1FileManager:
+class S1FileManager(FileManager[S1DownloadOutcome]):
     """
     Class to manage processed files (downloads, checks)
 
@@ -402,6 +402,7 @@ class S1FileManager:
     tiff_pattern     = "measurement/*.tiff"
 
     def __init__(self, cfg: S1FileManagerConfiguration, dag: Optional[EODataAccessGateway]) -> None:
+        super().__init__()
         # Configuration
         self.cfg              = cfg
         self.__searched_items_per_page = getattr(cfg, 'searched_items_per_page', EODAG_DEFAULT_SEARCH_ITEMS_PER_PAGE)
@@ -413,8 +414,6 @@ class S1FileManager:
         self.nb_images        = 0
 
         # Failures related to download (e.g. missing products)
-        self.__search_failures                = 0
-        self.__download_failures              : List[S1DownloadOutcome]            = []
         self.__failed_S1_downloads_by_S2_uid  : Dict[str, List[S1DownloadOutcome]] = {}  # by S2 unique id: date + rel_orbit
         self.__skipped_S2_products            : List[str]                          = []
 
@@ -450,22 +449,6 @@ class S1FileManager:
         download failure of a S1 product.
         """
         return self.__skipped_S2_products
-
-    def get_search_failures(self) -> int:
-        """Returns the number of times querying matching products failed"""
-        return self.__search_failures
-
-    def get_download_failures(self) -> List[S1DownloadOutcome]:
-        """
-        Returns the list of download failures as a list of :class:S1DownloadOutcome`
-        """
-        return self.__download_failures
-
-    def get_download_timeouts(self) -> List[S1DownloadOutcome]:
-        """
-        Returns the list of download timeours as a list of :class:S1DownloadOutcome`
-        """
-        return list(filter(lambda f: isinstance(f.error(), (NotAvailableError, TimeOutError)), self.__download_failures))
 
     def _ensure_workspaces_exist(self) -> None:
         """
@@ -706,7 +689,7 @@ class S1FileManager:
                 dryrun=dryrun,
             )
         except Exception as e:
-            self.__search_failures += 1
+            self._inc_search_failures()
             raise RuntimeError(f"Cannot request products for tile {tile_name} on data provider: {e}") from e
 
         products = self._filter_products_to_download(
@@ -822,7 +805,7 @@ class S1FileManager:
             else:
                 self.__failed_S1_downloads_by_S2_uid[key] = [fp]
             logger.debug('  -> Register product to ignore: %s --> %s', key, self.__failed_S1_downloads_by_S2_uid[key])
-        self.__download_failures.extend(failed_products)
+        self._register_download_failures(failed_products)
 
     def _refresh_s1_product_list(self, new_products: Optional[List[EOProduct]] = None) -> None:
         """

@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -44,8 +44,6 @@ from distributed.scheduler import KilledWorker
 from dask.distributed import Client
 from eodag.api.core import EODataAccessGateway
 
-from s1tiling.libs.otbwrappers.gamma_area import NaNifyNoData, ProjectGeoidToDEM
-
 from .S1DateAcquisition import S1DateAcquisition
 from .S1FileManager import (
     S1FileManager,
@@ -70,6 +68,7 @@ from .configuration import (
     fname_fmt_gamma_area_product,
     fname_fmt_lia_corrected,
 )
+from .utils.FileManager import FileManager
 from .otbpipeline import (
     FirstStep,
     PipelineDescription,
@@ -119,6 +118,8 @@ from .otbwrappers import (
     ConcatenateGAMMA_AREA,
     SelectGammaNaughtAreaBestCoverage,
     ApplyGammaNaughtRTCCalibration,
+    NaNifyNoData,
+    ProjectGeoidToDEM,
     # Filter Step Factories
     SpatialDespeckle,
 )
@@ -134,6 +135,7 @@ from .workspace import DEMWorkspace, WorkspaceKinds, ensure_tiled_workspaces_exi
 
 
 IntersectingS1FilesOutcome = Outcome[List[Dict]]
+FileManagerBuilder         = Callable[[Configuration, Optional[EODataAccessGateway]], FileManager]
 
 
 logger = logging.getLogger('s1tiling.api')
@@ -385,6 +387,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     debug_otb              : bool = False,
     watch_ram              : bool = False,
     debug_tasks            : bool = False,
+    file_manager_builders  : Optional[dict[str, FileManagerBuilder]] = None,
 ) -> exits.Situation:
     """
     Internal function for executing pipelines.
@@ -392,10 +395,10 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     """
     config: Configuration  = read_config(config_opt, extra_config_checks)
     extra_opts = {
-            "dl_wait"                : dl_wait,
-            "dl_timeout"             : dl_timeout,
-            "searched_items_per_page": searched_items_per_page,
-            "nb_max_search_retries"  : nb_max_search_retries,
+        "dl_wait"                : dl_wait,
+        "dl_timeout"             : dl_timeout,
+        "searched_items_per_page": searched_items_per_page,
+        "nb_max_search_retries"  : nb_max_search_retries,
     }
     _extend_config(config, extra_opts, overwrite=False)
 
@@ -409,10 +412,20 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
     os.environ["OTB_GEOID_FILE"] = config.GeoidFile
 
     dag = eodag.create(config)
-    s1_file_manager = S1FileManager(config, dag)
+    file_manager_builders = file_manager_builders or {}
+    file_managers = {}
+    for key, fmb in file_manager_builders.items():
+        file_managers[f"{key}_file_manager"] = fmb(config, dag)
+
+    # Special case for the S1 File Manager
+    s1_file_manager = cast(S1FileManager, file_managers.get('s1_file_manager', None))
+    # -> sometimes the tile list shall be deduced from the S1 files found on disk
     tiles_to_process = extract_tiles_to_process(config, s1_file_manager)
     nb_tiles = len(tiles_to_process)
-    logger.info("%s images to process on %s tiles: %s", s1_file_manager.nb_images, nb_tiles, tiles_to_process)
+    if s1_file_manager:
+        logger.info("%s images to process on %s tiles: %s", s1_file_manager.nb_images, nb_tiles, tiles_to_process)
+    else:
+        logger.info("%s tiles to process: %s", nb_tiles, tiles_to_process)
 
     if nb_tiles == 0:
         raise exceptions.NoS2TileError()
@@ -430,13 +443,11 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
 
         # Used by eof
         pipelines.register_extra_parameters_for_input_factories(
-                dag=dag,
-                s1_file_manager=s1_file_manager,
-                dryrun=dryrun,
-                # tile_name will be done in process_one_tile
+            **file_managers,  # names are: "{key}_file_manager"
+            dryrun=dryrun,
+            # tile_name will be done in process_one_tile
         )
 
-        log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
         results = []
         with DaskContext(config, debug_otb) as dask_client:
             for idx, tile_it in enumerate(tiles_to_process):
@@ -456,7 +467,7 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
 
         nb_errors_detected = sum(not bool(res) for res in results)
 
-        skipped_for_download_failures = s1_file_manager.get_skipped_S2_products()
+        skipped_for_download_failures = s1_file_manager.get_skipped_S2_products() if s1_file_manager else []
         results.extend(skipped_for_download_failures)
 
         logger.debug('#############################################################################')
@@ -467,19 +478,25 @@ def do_process_with_pipeline(  # pylint: disable=too-many-arguments, too-many-lo
             logger.info('Execution report: no error detected')
 
         if results:
+            log_level : Callable[[Any], int] = lambda res: logging.INFO if bool(res) else logging.WARNING
             for res in results:
                 logger.log(log_level(res), ' - %s', res)
         else:
             logger.info(' -> Nothing has been executed')
 
-        search_failures   = s1_file_manager.get_search_failures()
-        download_failures = s1_file_manager.get_download_failures()
-        download_timeouts = s1_file_manager.get_download_timeouts()
+        search_failures   = 0
+        download_failures = []
+        download_timeouts = []
+        for fm in file_managers.values():
+            search_failures   += fm.get_search_failures()
+            download_failures .extend(fm.get_download_failures())
+            download_timeouts .extend(fm.get_download_timeouts())
+
         return exits.Situation(
             nb_computation_errors=nb_errors_detected - search_failures,
             nb_search_failures=search_failures,
             nb_download_failures=len(download_failures),
-            nb_download_timeouts=len(download_timeouts)
+            nb_download_timeouts=len(download_timeouts),
         )
 
 
@@ -777,9 +794,9 @@ def tilename_first_inputs_factory(
 
 
 def eof_first_inputs_factory(
-    tile_name    : str,
-    configuration: Configuration,
-    dag          : EODataAccessGateway,
+    tile_name        : str,
+    configuration    : Configuration,
+    eof_file_manager : EOFFileManager,
     **kwargs,  # pylint: disable=unused-argument
 ) -> List[Outcome[FirstStep]]:
     """
@@ -794,8 +811,7 @@ def eof_first_inputs_factory(
     assert len(configuration.relative_orbit_list) >= 1
     relative_orbits = configuration.relative_orbit_list
     logger.debug("Configure EOF inputs for tile %s, orbit %s", tile_name, relative_orbits)
-    eof_manager = EOFFileManager(configuration, dag)
-    eof_founds = eof_manager.search_for(relative_orbits)
+    eof_founds = eof_file_manager.search_for(relative_orbits)
     assert len(eof_founds) > 0
     if not eof_founds[0]:
         error = eof_founds[0].error()
@@ -1114,6 +1130,7 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
         debug_caches=debug_caches,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'s1': S1FileManager},
     )
 
 
@@ -1200,6 +1217,7 @@ def s1_process_lia_v0(  # pylint: disable=too-many-arguments
         debug_otb=debug_otb,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'s1': S1FileManager},
     )
 
 
@@ -1290,6 +1308,7 @@ def s1_process_lia_v1_1(  # pylint: disable=too-many-arguments
         debug_otb=debug_otb,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'s1': S1FileManager},
     )
 
 
@@ -1351,6 +1370,7 @@ def s1_process_lia_v1_2(  # pylint: disable=too-many-arguments
         debug_otb=debug_otb,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'eof': EOFFileManager},
     )
 
 
@@ -1414,6 +1434,7 @@ def s1_process_ia(  # pylint: disable=too-many-arguments
         debug_otb=debug_otb,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'eof': EOFFileManager},
     )
 
 
@@ -1495,4 +1516,5 @@ def s1_process_gamma_area(  # pylint: disable=too-many-arguments
         debug_otb=debug_otb,
         watch_ram=watch_ram,
         debug_tasks=debug_tasks,
+        file_manager_builders={'s1': S1FileManager},
     )
