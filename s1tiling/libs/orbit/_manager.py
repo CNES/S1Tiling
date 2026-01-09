@@ -169,7 +169,8 @@ class EOFFileManager(FileManager[EOFOutcome]):
             provider = self._instanciate_provider()
             eofs = provider.search(self.__first_date, self.__last_date, missions)
             files = provider.download(list(eofs), self.__dest_dir)
-            return [EOFDownloadOutcome(SentinelOrbitFile(f.value())) for f in files]
+            return [EOFDownloadOutcome(SentinelOrbitFile(f.value())) if f else EOFDownloadOutcome(f.error())
+                    for f in files]
         except BaseException as e:  # pylint: disable=broad-except
             logger.warning(e, exc_info=False)
             # logger.debug(e, exc_info=True)

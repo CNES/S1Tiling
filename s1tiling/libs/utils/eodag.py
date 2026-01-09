@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -287,7 +287,7 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
 
     logger.info("Starting download of %d products...", nb_products)
     while len(indexed_products) > 0:
-        products_in_timeout : List[ProductDownloadOutcome] = []
+        products_in_timeout : List[Tuple[int, ProductDownloadOutcome]] = []
         nb_successes_since_timeout = 0
         for idx, product in indexed_products:
             # logger.info("Starting download of product #%d/%d: %s...", idx, nb_products, product)
@@ -307,19 +307,19 @@ def download_and_extract_products_sequential(  # pylint: disable=too-many-argume
                     # Harmonize the exception type for all cases of download timeouts
                     # NB: Here we know that timeout is one of the possible timeout exception type
                     result.change_error(_as_timeout(cast(Exception, timeout)))
-                    products_in_timeout.append(result)
+                    products_in_timeout.append((idx, result))
                     assert isinstance(result.error(), TimeOutError)
                 else:
                     paths.append(result)
-        indexed_products = []
+        indexed_products.clear()
         if nb_successes_since_timeout > nb_procs:
-            indexed_products = [r.related_product() for r in products_in_timeout]
+            indexed_products = [(idx, r.related_product()) for idx, r in products_in_timeout]
             logger.info("Attempting to download again %d products on timeout...", len(indexed_products))
         elif len(products_in_timeout) > 0:
             logger.warning("No successful download since the first timeout observed => abort download")
-            for pit in products_in_timeout:
+            for _, pit in products_in_timeout:
                 assert isinstance(pit.error(), TimeOutError)
-            paths.extend(products_in_timeout)
+            paths.extend((p for _, p in products_in_timeout))
 
     # paths returns the list of .SAFE directories
     return paths
