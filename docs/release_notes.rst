@@ -47,6 +47,8 @@ v1.3.0 Bugs fixed
   (`#208 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/208>`_).
 - Fix crash on time-out during download
   (`#214 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/214>`_).
+- Bug in computing orbit direction
+  (`LIA#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/issues/25>`_).
 
 
 Release notes
