@@ -292,7 +292,7 @@ class Configuration():
         """
         self.GeoidFile                         = 'mygeoid.gtx'  # mocked for check in ortho
         self.calibration_type                  = 'sigma'
-        self.output_grid                       = str(resource_dir/'shapefile/Features.shp')
+        self.output_grid                       = str(resource_dir/'shapefile/MGRS.gpkg')
         self.grid_spacing                      = 40
         self.interpolation_method              = 'nn'
         self.out_spatial_res                   = 10

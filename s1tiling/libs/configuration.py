@@ -515,7 +515,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         # - - - - - - - - - -[ Tiles
         #: Path to the tiles shape definition. See :ref:`[Processing.tiles_shapefile] <Processing.tiles_shapefile>`
-        self.output_grid :str          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/Features.shp'))
+        self.output_grid :str          = accessor.get('Processing', 'tiles_shapefile', fallback=str(resource_dir / 'shapefile/MGRS.gpkg'))
         if not os.path.isfile(self.output_grid):
             accessor.throw(f"output_grid={self.output_grid} is not a valid path")
 
