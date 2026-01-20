@@ -51,9 +51,6 @@ v1.3.0 Bugs fixed
   (`LIA#25 <https://gitlab.orfeo-toolbox.org/s1-tiling/normlim_sigma0/-/issues/25>`_).
 
 
-Release notes
-=============
-
 Version 1.2.0
 -------------
 
