@@ -29,6 +29,9 @@ v1.3.0 Improvements
   (`#213 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/213>`_).
 - S1 products are no longer scanned in LIA and IA scenarios
   (`#212 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/212>`_).
+- MGRS tile database has been converted to a GPKG file. :file:`Features.shp`
+  becomes deprecated: It will be removed from ulterior versions of S1Tiling
+  (`#211 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/211>`_).
 
 v1.3.0 Breaking changes
 +++++++++++++++++++++++

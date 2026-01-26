@@ -364,7 +364,7 @@ You can use this :download:`this template
       .. _Processing.tiles_shapefile:
   * - ``tiles_shapefile``
     - Path and filename of the tile shape definition (ESRI Shapefile). If left
-      unspecified, it'll point automatically to the `Features.shp` shapefile
+      unspecified, it'll point automatically to the `MGRS.gpkg` shapefile
       resource shipped with S1 Tiling.
 
       .. _Processing.orthorectification_gridspacing:
