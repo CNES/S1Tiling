@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -66,9 +66,9 @@ def does_sin_lia_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta) ->
     Tells whether a given ComputeGroundAndSatPositionsOnDEM input is compatible
     with the the current S2 tile.
 
-    ``tile_name``, ``flying_unit_code`` and ``orbit`` have to be identical.
+    ``flying_unit_code`` and ``orbit`` have to be identical.
     """
-    fields = ['flying_unit_code', 'tile_name', 'orbit']
+    fields = ['tile_name', 'orbit']
     # logger.debug("checking %s among %s VS %s", fields, input_meta, output_meta)
     return all(str(input_meta[k]) == str(output_meta[k]) for k in fields)
 
@@ -78,9 +78,9 @@ def does_gamma_area_match_s2_tile_for_orbit(output_meta: Meta, input_meta: Meta)
     Tells whether a given ComputeGroundAndSatPositionsOnDEM input is compatible
     with the the current S2 tile.
 
-    ``tile_name`` has to be identical.
+    ``tile_name``, ``orbit_direction`` and ``orbit`` have to be identical.
     """
-    fields = ['flying_unit_code', 'tile_name', 'orbit_direction', 'orbit']
+    fields = ['tile_name', 'orbit_direction', 'orbit']
     return all(input_meta[k] == output_meta[k] for k in fields)
 
 
