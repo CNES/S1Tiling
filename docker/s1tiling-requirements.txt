@@ -14,3 +14,4 @@ objgraph
 portion
 pympler
 pyyaml
+rtree
