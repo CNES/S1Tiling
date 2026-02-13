@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -667,7 +667,7 @@ class Concatenate(_ConcatenatorFactory):
     - output filename
     """
 
-    __RE_ACQ_STAMPS = re.compile(r'{acquisition_stamp}|{acquisition_start}')
+    __RE_ACQ_STAMPS = re.compile(r'{(acquisition_stamp|acquisition_start)(![ul])?(:\d+)?}')
 
     def __init__(self, cfg: Configuration) -> None:
         # TODO: factorise this recurring test!
@@ -680,7 +680,7 @@ class Concatenate(_ConcatenatorFactory):
             gen_output_dir = None  # use gen_tmp_dir
         fname_fmt = fname_fmt_concatenation(cfg)
         # logger.debug('but ultimatelly fname_fmt is "%s" --> %s', fname_fmt, cfg.fname_fmt)
-        self.__tname_fmt = re.sub(self.__RE_ACQ_STAMPS, '{acquisition_day}', fname_fmt)
+        self.__tname_fmt = re.sub(self.__RE_ACQ_STAMPS, r'{acquisition_day\2\3}', fname_fmt)
 
         super().__init__(
             cfg,

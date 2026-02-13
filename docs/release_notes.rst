@@ -8,6 +8,17 @@
 Release notes
 =============
 
+Version 1.3.1
+-------------
+
+v1.3.1 Bugs fixed
++++++++++++++++++
+
+- :samp:`{{acquisition_start!u}}` (from theia typical filenames) wasn't
+  correctly handled in :ref:`[Processing].fname_fmt.concatenation
+  <Processing.fname_fmt.concatenation>`
+  (`#219 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/219>`_).
+
 Version 1.3.0
 -------------
 

@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -232,6 +232,8 @@ class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):
     """
     StepFactory dedicated to concatenate half-maps of orthorectified LIA or γ area products.
     """
+    RE_TIMESTAMP = re.compile(r'txxxxxx|t\d+', re.IGNORECASE)
+
     def __init__(
         self,
         cfg: Configuration,
@@ -268,6 +270,7 @@ class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):
         imd['DEM_INFO']  = self.__dem_info
         imd['DEM_LIST']  = ""  # Clear DEM_LIST information (a merge of 2 lists should be done actually)
 
+
     def update_out_filename(self, meta: Meta, with_task_info: TaskInputInfo) -> None:
         """
         Unlike usual :class:`Concatenate`, the output filename will always ends in "txxxxxx".
@@ -278,13 +281,13 @@ class _ConcatenatorFactoryForMaps(_ConcatenatorFactory):
         TODO: Find a better name for the hook as it handles two different services.
         """
         inputs = with_task_info.inputs['in']
-        dates = {re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) for inp in inputs}
+        dates = {re.sub(self.RE_TIMESTAMP, '', inp['acquisition_time']) for inp in inputs}
         assert len(dates) == 1, f"All concatenated files shall have the same date instead of {dates}"
         date = min(dates)
         logger.debug('[%s] at %s:', self.name, date)
         coverage = 0.
         for inp in inputs:
-            if re.sub(r'txxxxxx|t\d+', '', inp['acquisition_time']) == date:
+            if re.sub(self.RE_TIMESTAMP, '', inp['acquisition_time']) == date:
                 s1_cov = inp['tile_coverage']
                 coverage += s1_cov
                 logger.debug(' - %s => %s%% coverage', inp['basename'], s1_cov)
