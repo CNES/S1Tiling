@@ -87,6 +87,7 @@ from .otbwrappers import (
     Concatenate,
     BuildBorderMask,
     SmoothBorderMask,
+    GenerateQuickLook,
     # LIA related Step Factories
     AgglomerateDEMOnS2,
     ProjectDEMToS2Tile,
@@ -1098,6 +1099,13 @@ def s1_process(  # pylint: disable=too-many-arguments, too-many-locals
                 [BuildBorderMask, SmoothBorderMask], 'GenerateMask',
                 product_required=True, inputs={'in': last_product_S2})
             required_workspaces.append(WorkspaceKinds.MASK)
+
+        # Quicklook
+        if config.generate_quicklook:
+            pipelines.register_pipeline(
+                [GenerateQuickLook], 'GenerateQuickLook',
+                product_required=True, inputs={'in': last_product_S2})
+            required_workspaces.append(WorkspaceKinds.QUICKLOOK)
 
         # Despeckle in non-inmemory case
         if config.filter:
