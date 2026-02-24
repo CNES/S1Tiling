@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -458,10 +458,12 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
     # ----------------------------------------------------------------------
     def __init_quicklook(self, accessor: _ConfigAccessor) -> None:
-        #: Shall we generate quicklook products? :ref:`[Quicklook.generate] <Mask.generate>`
-        self.generate_quicklook = accessor.getboolean('Quicklook', 'generate')
+        #: Shall we generate quicklook products? :ref:`[Quicklook.generate] <Quicklook.generate>`
+        self.generate_quicklook = accessor.getboolean('Quicklook', 'generate', fallback=False)
 
-        self.quicklook_ratio = accessor.getfloat('Quicklook', 'ratio', fallback=5)
+        #: Scaling factor on size :ref:`[Quicklook.ratio] <Quicklook.ratio>`
+        self.quicklook_ratio = accessor.getint('Quicklook', 'ratio', fallback=5)
+        #: Maximum pixel value used for color scaling  :ref:`[Quicklook.scale_vh] <Quicklook.scale_vh>`
         self.quicklook_scales = {
             'vh': accessor.getfloat('Quicklook', 'scale_vh', fallback=0.05),
             'vv': accessor.getfloat('Quicklook', 'scale_vv', fallback=0.5),

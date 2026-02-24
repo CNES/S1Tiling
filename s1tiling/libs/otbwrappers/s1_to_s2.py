@@ -33,7 +33,7 @@ This modules defines the specialized Python wrappers for the OTB Applications us
 the pipeline for S1Tiling needs.
 """
 
-import itertools
+from fractions import Fraction
 import logging
 import os
 import re
@@ -55,8 +55,8 @@ from ..meta import (
     tmp_filename,
 )
 from ..steps import (
-    ExeParameters,
-    ExecutableStepFactory,
+    AnyParameters,
+    AnyProducerStepFactory,
     FirstStep,
     InputList,
     MergeStep,
@@ -890,7 +890,7 @@ class SmoothBorderMask(OTBStepFactory):
 
 # ----------------------------------------------------------------------
 # Quicklook related applications
-class GenerateQuickLook(ExecutableStepFactory):
+class GenerateQuickLook(AnyProducerStepFactory):
     """
     Factory that prepares the step that produces quicklook images on top of calibrated S2 products
     as described in :ref:`Quicklook production <quicklook>` documentation.
@@ -915,7 +915,7 @@ class GenerateQuickLook(ExecutableStepFactory):
         dname_fmt = dname_fmt_quicklook(cfg)
         super().__init__(
             cfg,
-            exename='gdal_translate',
+            action=GenerateQuickLook.generate,
             name='GenerateQuickLook',
             gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
             gen_output_dir=dname_fmt,
@@ -925,24 +925,27 @@ class GenerateQuickLook(ExecutableStepFactory):
         self.__ratio  = cfg.quicklook_ratio
         self.__scales = cfg.quicklook_scales
 
-        # TODO: shall we update SPATIAL_RESOLUTION to multiply by ratio?
-
     def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
         """
         Disable image metadata update.
 
         Indedd, quicklook images are expected to be in .jpg, which is a format that doesn't support
-        metadata update. Fortunately :external:std:doc:`gdal_translate
-        <programs/gdal_translate>` has a ``-mo`` options
+        metadata update. Fortunately :external:std:doc:`gdal_translate <programs/gdal_translate>`
+        has a ``-mo`` options
         """
         super().update_image_metadata(meta, all_inputs)
         assert 'image_metadata' in meta
         imd = meta.pop('image_metadata', {})
         imd['IMAGE_TYPE'] = 'QUICKLOOK'
-        meta['gdalified_image_metadata'] = imd
-        return
 
-    def parameters(self, meta: Meta) -> ExeParameters:
+        # TODO:
+        # - shall we update SPATIAL_RESOLUTION to multiply by ratio?
+        # - add ORIGINAL_SIZE, ORIGINAL_DIMENSION?
+        imd['QUICKLOOK_SCALE'] = "{}/{}".format(*Fraction(self.__ratio, 100).as_integer_ratio())
+        imd['QUICKLOOK_PIXEL_RANGE'] = f"0 .. {self.__scales.get(meta['polarisation'], 1)}"
+        meta['gdalified_image_metadata'] = imd
+
+    def parameters(self, meta: Meta) -> AnyParameters:
         """
         Returns the parameters to use with :external:std:doc:`gdal_translate
         <programs/gdal_translate>` to generate the quicklook image.
@@ -950,19 +953,27 @@ class GenerateQuickLook(ExecutableStepFactory):
         image       = in_filename(meta)
 
         img_meta = meta.get('gdalified_image_metadata', {})
-        metadata = list(itertools.chain.from_iterable(['-mo', f"{k}={v}"] for k,v in img_meta.items()))
 
-        parameters = [
-            # "-wm", str(self.ram_per_process*1024*1024),  # There is no RAM parameter :(
-            "-outsize", f"{self.__ratio}%", f"{self.__ratio}%",
-            "-ot", "Byte",
-            "-scale", "0", f"{self.__scales.get(meta['polarisation'], 1)}",
-            *metadata,
-            # "-co", "COPY_SRC_MDD=YES",
-            image,
-            tmp_filename(meta),
-        ]
+        parameters = {
+            "destName": tmp_filename(meta),
+            "srcDS": image,
+            "outputType": gdal.GDT_Byte,
+            "metadataOptions" : [
+                f"{k}={v}" for k,v in img_meta.items()
+            ],
+            "widthPct": self.__ratio,
+            "heightPct": self.__ratio,
+            "scaleParams": [["0", f"{self.__scales.get(meta['polarisation'], 1)}"]],
+        }
         return parameters
+
+    @staticmethod
+    def generate(parameters, dryrun:bool) -> None:
+        """
+        Do call :external:std:doc:`gdal_translate <programs/gdal_translate>`.
+        """
+        logger.info("gdal.Translate(%s)", parameters)
+        gdal.Translate(**parameters)
 
 
 # ----------------------------------------------------------------------

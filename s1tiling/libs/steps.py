@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -33,7 +33,6 @@ This module defines roots steps upon which all are defined
 """
 
 import os
-import shutil
 import re
 import datetime
 from abc import ABC, abstractmethod
@@ -41,7 +40,7 @@ import fnmatch
 import logging
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, List, NoReturn, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Set, Tuple, Union
 
 from osgeo import gdal
 import otbApplication as otb
@@ -74,6 +73,7 @@ re_any_ext = re.compile(r'\.[^.]+$')  # Match any kind of file extension
 InputList     = List[Dict[str, "AbstractStep"]]
 OTBParameters = Dict[str, Union[str, int, float, bool, List[str]]]
 ExeParameters = List[str]
+AnyParameters = List[str] | Dict[str, Any]
 
 
 # Disable the log warning about exception and GDAL.
@@ -151,13 +151,17 @@ def commit_execution(tmp_fn, out_fn) -> None:
         for t, o in zip(tmp_fn, out_fn):
             commit_execution(t, o)
         return
-    logger.debug('Renaming: mv %s %s', tmp_fn, out_fn)
-    shutil.move(tmp_fn, out_fn)
+    Utils.rename(tmp_fn, out_fn)
     tmp_geom = re.sub(re_tiff, '.geom', tmp_fn)
     if os.path.isfile(tmp_geom):
         out_geom = re.sub(re_tiff, '.geom', out_fn)
-        logger.debug('Renaming: mv %s %s', tmp_geom, out_geom)
-        shutil.move(tmp_geom, out_geom)
+        Utils.rename(tmp_geom, out_geom)
+
+    tmp_aux_data = f"{tmp_fn}.aux.xml"  # likely to be produced with some fileformats like .jpeg
+    if os.path.isfile(tmp_aux_data):
+        out_aux_data = f"{out_fn}.aux.xml"
+        Utils.rename(tmp_aux_data, out_aux_data)
+
     logger.debug('-> %s renamed as %s', tmp_fn, out_fn)
     assert not os.path.isfile(tmp_fn)
     assert os.path.isfile(out_fn)
@@ -1071,7 +1075,7 @@ class _FileProducingStepFactory(StepFactory):
         else:
             return [add_tmp(fn) for fn in filename]
 
-    def parameters(self, meta: Meta) -> Union[ExeParameters, OTBParameters]:
+    def parameters(self, meta: Meta) -> Union[ExeParameters, OTBParameters, AnyParameters]:
         """
         Most steps that produce files will expect parameters.
 
