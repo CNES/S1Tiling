@@ -47,6 +47,7 @@ from .s1_to_s2 import (
     BuildBorderMask,
     SmoothBorderMask,
     SpatialDespeckle,
+    GenerateQuickLook,
 )
 
 from .lia import (
@@ -102,6 +103,7 @@ __all__ = [
     "BuildBorderMask",
     "SmoothBorderMask",
     "SpatialDespeckle",
+    'GenerateQuickLook',
     "filter_LIA",
     "AgglomerateDEMOnS2",
     "ProjectDEMToS2Tile",

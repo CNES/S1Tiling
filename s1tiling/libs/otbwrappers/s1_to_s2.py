@@ -33,6 +33,7 @@ This modules defines the specialized Python wrappers for the OTB Applications us
 the pipeline for S1Tiling needs.
 """
 
+from fractions import Fraction
 import logging
 import os
 import re
@@ -51,8 +52,11 @@ from ..meta import (
     get_task_name,
     in_filename,
     out_filename,
+    tmp_filename,
 )
 from ..steps import (
+    AnyParameters,
+    AnyProducerStepFactory,
     FirstStep,
     InputList,
     MergeStep,
@@ -76,6 +80,7 @@ from ..              import Utils
 from ..configuration import (
     Configuration,
     dname_fmt_mask,
+    dname_fmt_quicklook,
     dname_fmt_tiled,
     dname_fmt_filtered,
     extended_filename_filtered,
@@ -84,6 +89,7 @@ from ..configuration import (
     extended_filename_tiled,
     fname_fmt_concatenation,
     fname_fmt_filtered,
+    fname_fmt_quicklook,
 )
 from ..configuration import pixel_type as cfg_pixel_type  # avoid name hiding
 from ._applications import (
@@ -291,32 +297,31 @@ class AnalyseBorders(StepFactory):
 
         # Since 2.9 version of IPF S1, range borders are correctly generated
         # see: https://sentinels.copernicus.eu/documents/247904/2142675/Sentinel-1-masking-no-value-pixels-grd-products-note.pdf/32f11e6f-68b1-4f0a-869b-8d09f80e6788?t=1518545526000
-        ds_reader = gdal.Open(meta['out_filename'], gdal.GA_ReadOnly)
-        tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')  # Ex: Sentinel-1 IPF 003.10
+        logger.debug("out_filename -> type=%s  value=%s", type(meta['out_filename']), meta['out_filename'])
+        with Utils.gdal_open(meta['out_filename'], gdal.GA_ReadOnly) as ds_reader:
+            tifftag_software = ds_reader.GetMetadataItem('TIFFTAG_SOFTWARE')  # Ex: Sentinel-1 IPF 003.10
 
-        # Starting from IPF 2.90+, no margin correction is done on the sides.
-        # With prior versions, the cut margin (right and left) is done.
+            # Starting from IPF 2.90+, no margin correction is done on the sides.
+            # With prior versions, the cut margin (right and left) is done.
 
-        ipf_version = extract_IPF_version(tifftag_software)
-        if version.parse(ipf_version) >= version.parse('2.90'):
-            cut_overlap_range = 0
+            ipf_version = extract_IPF_version(tifftag_software)
+            if version.parse(ipf_version) >= version.parse('2.90'):
+                cut_overlap_range = 0
 
-        if self.__override_azimuth_cut_threshold_to is None:
-            xsize = ds_reader.RasterXSize
-            ysize = ds_reader.RasterYSize
-            north = ds_reader.ReadAsArray(0, 100, xsize, 1)
-            south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
-            crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
-            crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
-            del south
-            del north
-            south = None
-            north = None
-        else:
-            crop1 = self.__override_azimuth_cut_threshold_to
-            crop2 = self.__override_azimuth_cut_threshold_to
-
-        del ds_reader
+            if self.__override_azimuth_cut_threshold_to is None:
+                xsize = ds_reader.RasterXSize
+                ysize = ds_reader.RasterYSize
+                north = ds_reader.ReadAsArray(0, 100, xsize, 1)
+                south = ds_reader.ReadAsArray(0, ysize - 100, xsize, 1)
+                crop1 = has_too_many_NoData(north, thr_nan_for_cropping, 0)
+                crop2 = has_too_many_NoData(south, thr_nan_for_cropping, 0)
+                del south
+                del north
+                south = None
+                north = None
+            else:
+                crop1 = self.__override_azimuth_cut_threshold_to
+                crop2 = self.__override_azimuth_cut_threshold_to
 
         logger.debug("   => need to crop north: %s", crop1)
         logger.debug("   => need to crop south: %s", crop2)
@@ -881,6 +886,94 @@ class SmoothBorderMask(OTBStepFactory):
             'yradius'      : 5,
             'filter'       : 'opening'
         }
+
+
+# ----------------------------------------------------------------------
+# Quicklook related applications
+class GenerateQuickLook(AnyProducerStepFactory):
+    """
+    Factory that prepares the step that produces quicklook images on top of calibrated S2 products
+    as described in :ref:`Quicklook production <quicklook>` documentation.
+
+    It requires the following information from the configuration object:
+
+    - `ram_per_process`
+    - `fname_fmt_quicklook`
+    - `dname_fmt_quicklook`
+    - `quicklook_ratio`
+    - `quicklook_scales`
+
+    It requires the following information from the metadata dictionary
+
+    - input filename
+    - output filename
+    - the keys used to generate the filename: `flying_unit_code`, `tile_name`, `orbit_direction`,
+      `orbit`, `calibration_type`, `acquisition_stamp`, `polarisation`…
+    """
+    def __init__(self, cfg: Configuration) -> None:
+        fname_fmt = fname_fmt_quicklook(cfg)
+        dname_fmt = dname_fmt_quicklook(cfg)
+        super().__init__(
+            cfg,
+            action=GenerateQuickLook.generate,
+            name='GenerateQuickLook',
+            gen_tmp_dir=os.path.join(cfg.tmpdir, 'S2', '{tile_name}'),
+            gen_output_dir=dname_fmt,
+            gen_output_filename=TemplateOutputFilenameGenerator(fname_fmt),
+            image_description='Quicklook of Sentinel-{flying_unit_code_short} IW GRD S2 tile',
+        )
+        self.__ratio  = cfg.quicklook_ratio
+        self.__scales = cfg.quicklook_scales
+
+    def update_image_metadata(self, meta: Meta, all_inputs: InputList) -> None:
+        """
+        Disable image metadata update.
+
+        Indedd, quicklook images are expected to be in .jpg, which is a format that doesn't support
+        metadata update. Fortunately :external:std:doc:`gdal_translate <programs/gdal_translate>`
+        has a ``-mo`` options
+        """
+        super().update_image_metadata(meta, all_inputs)
+        assert 'image_metadata' in meta
+        imd = meta.pop('image_metadata', {})
+        imd['IMAGE_TYPE'] = 'QUICKLOOK'
+
+        # TODO:
+        # - shall we update SPATIAL_RESOLUTION to multiply by ratio?
+        # - add ORIGINAL_SIZE, ORIGINAL_DIMENSION?
+        imd['QUICKLOOK_SCALE'] = "{}/{}".format(*Fraction(self.__ratio, 100).as_integer_ratio())
+        imd['QUICKLOOK_PIXEL_RANGE'] = f"0 .. {self.__scales.get(meta['polarisation'], 1)}"
+        meta['gdalified_image_metadata'] = imd
+
+    def parameters(self, meta: Meta) -> AnyParameters:
+        """
+        Returns the parameters to use with :external:std:doc:`gdal_translate
+        <programs/gdal_translate>` to generate the quicklook image.
+        """
+        image       = in_filename(meta)
+
+        img_meta = meta.get('gdalified_image_metadata', {})
+
+        parameters = {
+            "destName": tmp_filename(meta),
+            "srcDS": image,
+            "outputType": gdal.GDT_Byte,
+            "metadataOptions" : [
+                f"{k}={v}" for k,v in img_meta.items()
+            ],
+            "widthPct": self.__ratio,
+            "heightPct": self.__ratio,
+            "scaleParams": [["0", f"{self.__scales.get(meta['polarisation'], 1)}"]],
+        }
+        return parameters
+
+    @staticmethod
+    def generate(parameters, dryrun:bool) -> None:
+        """
+        Do call :external:std:doc:`gdal_translate <programs/gdal_translate>`.
+        """
+        logger.info("gdal.Translate(%s)", parameters)
+        gdal.Translate(**parameters)
 
 
 # ----------------------------------------------------------------------

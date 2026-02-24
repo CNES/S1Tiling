@@ -4,7 +4,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #   Copyright 2022-2024 (c) CS GROUP France.
 #
 #   This file is part of S1Tiling project
@@ -318,6 +318,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.__init_data_source(accessor)
         self.__init_mask(accessor)
         self.__init_processing(accessor)
+        self.__init_quicklook(accessor)
         self.__init_filtering(accessor)
         self.__init_fname_fmt(accessor)
         self.__init_dname_fmt(accessor)
@@ -452,6 +453,21 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     def __init_mask(self, accessor: _ConfigAccessor) -> None:
         #: Shall we generate mask products? :ref:`[Mask.generate_border_mask] <Mask.generate_border_mask>`
         self.mask_cond = accessor.getboolean('Mask', 'generate_border_mask')
+
+    # ----------------------------------------------------------------------
+    def __init_quicklook(self, accessor: _ConfigAccessor) -> None:
+        #: Shall we generate quicklook products? :ref:`[Quicklook.generate] <Quicklook.generate>`
+        self.generate_quicklook = accessor.getboolean('Quicklook', 'generate', fallback=False)
+
+        #: Scaling factor on size :ref:`[Quicklook.ratio] <Quicklook.ratio>`
+        self.quicklook_ratio = accessor.getint('Quicklook', 'ratio', fallback=5)
+        #: Maximum pixel value used for color scaling  :ref:`[Quicklook.scales] <Quicklook.scales>`
+        self.quicklook_scales = {
+            'vh': accessor.getfloat('Quicklook', 'scale_vh', fallback=0.05),
+            'vv': accessor.getfloat('Quicklook', 'scale_vv', fallback=0.5),
+            'hh': accessor.getfloat('Quicklook', 'scale_hh', fallback=0.5),  # TODO: use a better threshold
+            'hv': accessor.getfloat('Quicklook', 'scale_hv', fallback=0.5),  # TODO: use a better threshold
+        }
 
     # ----------------------------------------------------------------------
     def __init_processing(self, accessor: _ConfigAccessor) -> None:
@@ -603,7 +619,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         # Permit to override default file name formats
         fname_fmt_keys = [
             # - public files
-            'concatenation', 'filtered',
+            'concatenation', 'filtered', 'quicklook',
             'lia_product', 'ia_product', 's2_lia_corrected',
             'gamma_area_product', 's2_gamma_area_corrected',
             # - internal S1 -> S2 files
@@ -633,7 +649,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     def __init_dname_fmt(self, accessor: _ConfigAccessor) -> None:
         # Permit to override default file name formats
         dname_fmt_keys = [
-            'tiled', 'filtered', 'mask',
+            'tiled', 'filtered', 'mask', 'quicklook',
             'lia_product', 'ia_product',
             's1_lia',  's1_sin_lia',
             'gamma_area_product',
@@ -760,6 +776,16 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         logging.info("[Mask]")
         logging.info("- generate_border_mask                        : %s",   self.mask_cond)
+
+        logging.info("[Quicklook]")
+        logging.info("- generate_quicklook                          : %s",   self.generate_quicklook)
+        if self.generate_quicklook:
+            logging.info("- ratio                                       : %s",   self.quicklook_ratio)
+            logging.info("- scale VV                                    : %s",   self.quicklook_scales['vv'])
+            logging.info("- scale VH                                    : %s",   self.quicklook_scales['vh'])
+            logging.info("- scale HV                                    : %s",   self.quicklook_scales['hv'])
+            logging.info("- scale HH                                    : %s",   self.quicklook_scales['hh'])
+
         logging.info("[Filter]")
         logging.info("- Speckle filtering method                    : %s",   self.filter or "none")
         if self.filter:
@@ -902,6 +928,8 @@ DEFAULT_FNAME_FMTS = {
     'filtered'            : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_filtered.tif',
     'filtered_calib'      : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_{calibration_type}_filtered.tif',
 
+    'quicklook'           : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_quicklook.jpg',
+
     'ia_product'          : '{IA_kind}_{tile_name}_{orbit}.tif',
     'lia_product'         : '{LIA_kind}_{tile_name}_{orbit}.tif',
     'lia_corrected'       : '{flying_unit_code}_{tile_name}_{polarisation}_{orbit_direction}_{orbit}_{acquisition_stamp}_NormLim.tif',
@@ -948,7 +976,7 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.s2_lia_corrected`` actual value, or its
+    Helper function that returns the ``Processing.fname_fmt.s2_lia_corrected`` actual value, or its
     default value.
     """
     fname_fmt = DEFAULT_FNAME_FMTS['lia_corrected']
@@ -957,7 +985,7 @@ def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.gamma_area_product`` actual value,
+    Helper function that returns the ``Processing.fname_fmt.gamma_area_product`` actual value,
     or its default value.
     """
     # fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
@@ -967,16 +995,25 @@ def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.s2_gamma_area_corrected`` actual value,
+    Helper function that returns the ``Processing.fname_fmt.s2_gamma_area_corrected`` actual value,
     or its default value.
     """
     fname_fmt = DEFAULT_FNAME_FMTS['gamma_area_corrected']
     return cfg.fname_fmt.get('s2_gamma_area_corrected', fname_fmt)
 
 
+def fname_fmt_quicklook(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.fname_fmt.quicklook`` actual value, or its default
+    value.
+    """
+    fname_fmt = DEFAULT_FNAME_FMTS['quicklook']
+    return cfg.fname_fmt.get('quicklook', fname_fmt)
+
+
 def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.tiled`` actual
+    Helper function that returns the ``Processing.dname_fmt.tiled`` actual
     value, or its default value.
     """
     return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
@@ -984,7 +1021,7 @@ def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.mask`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.mask`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
@@ -992,7 +1029,7 @@ def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.filtered`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.filtered`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
@@ -1000,7 +1037,7 @@ def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.lia_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.lia_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
@@ -1008,7 +1045,7 @@ def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.gamma_area_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.gamma_area_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('gamma_area_product', '{gamma_area_dir}')
@@ -1016,7 +1053,7 @@ def dname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.ia_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.ia_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('ia_product', '{ia_dir}')
@@ -1024,10 +1061,18 @@ def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.eof_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.eof_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('eof_product', '{eof_dir}')
+
+
+def dname_fmt_quicklook(cfg: NameFormattingConfiguration) -> str:
+    """
+    Helper function that returns the ``Processing.dname_fmt.quicklook`` actual value,
+    or its default value.
+    """
+    return cfg.dname_fmt.get('quicklook', '{out_dir}/_QL')
 
 
 # ================================================================================

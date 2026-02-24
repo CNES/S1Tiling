@@ -164,6 +164,7 @@ ultimate_replacements = {
     "{DOCKER_VERSION}"                 : docker_version,
     "{LMOD_VERSION}"                   : lmod_version,
     "{fname_fmt_concatenation}"        : as_sample_mustache(fname_fmt['concatenation']),
+    "{fname_fmt_quicklook}"            : as_sample_mustache(fname_fmt['quicklook']),
 
     "{fname_fmt_filtered}"             : as_sample_mustache(fname_fmt['filtered']),
     "{fname_fmt_filtered_calib}"       : as_sample_mustache(fname_fmt['filtered_calib']),

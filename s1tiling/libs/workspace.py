@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -43,7 +43,7 @@ from typing import Dict, List, Optional, Protocol, Tuple, Union
 
 from . import exceptions
 from .configuration import (
-    Configuration, dname_fmt_filtered, dname_fmt_gamma_area_product, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_tiled
+    Configuration, dname_fmt_filtered, dname_fmt_gamma_area_product, dname_fmt_ia_product, dname_fmt_lia_product, dname_fmt_mask, dname_fmt_quicklook, dname_fmt_tiled
 )
 from .Utils     import fetch_nodata_value, set_nodata_value
 from .utils.dem import check_dem_coverage
@@ -236,6 +236,7 @@ class WorkspaceKinds(Enum):
     MASK       = 4
     GAMMA_AREA = 5
     IA         = 6
+    QUICKLOOK  = 7
 
 
 def ensure_tiled_workspaces_exist(
@@ -286,4 +287,8 @@ def ensure_tiled_workspaces_exist(
 
     if WorkspaceKinds.GAMMA_AREA in required_workspaces:
         wdir = dname_fmt_gamma_area_product(cfg).format(**directories, tile_name=tile_name)
+        os.makedirs(wdir, exist_ok=True)
+
+    if WorkspaceKinds.QUICKLOOK in required_workspaces:
+        wdir = dname_fmt_quicklook(cfg).format(**directories, tile_name=tile_name)
         os.makedirs(wdir, exist_ok=True)
