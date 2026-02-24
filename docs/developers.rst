@@ -307,6 +307,7 @@ Main processings
    s1tiling.libs.otbwrappers.Concatenate
    s1tiling.libs.otbwrappers.BuildBorderMask
    s1tiling.libs.otbwrappers.SmoothBorderMask
+   s1tiling.libs.otbwrappers.GenerateQuickLook
    s1tiling.libs.otbwrappers.SpatialDespeckle
 
 Processings for advanced calibration

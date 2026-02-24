@@ -281,6 +281,39 @@ You can use this :download:`this template
       Valid values are ``True`` or ``False``.
 
 
+.. _Quicklook:
+
+``[Quicklook]`` section
++++++++++++++++++++++++
+
+.. list-table::
+  :widths: auto
+  :header-rows: 1
+  :stub-columns: 1
+
+  * - Option
+    - Description
+
+      .. _Quicklook.generate:
+  * - ``generate``
+    - Enable the generation of :ref:`quicklook files <quicklook-files>` for the
+      S2-aligned image files produced. |br|
+      Valid values are ``True`` or ``False``.
+
+      The files will be produced in :ref:`[Processing].dname_fmt.quicklook
+      <Processing.dname_fmt.quicklook>` directory.
+
+      .. _Quicklook.ratio:
+  * - ``ratio``
+    - Scaling factor on the image dimensions. A percentage is expected. |br|
+      Default value: "5".
+
+      .. _Quicklook.scales:
+  * - ``scale_vv``, ``scale_vh``, ``scale_hv``, ``scale_hh``
+    - Maximum pixel values used ro render gray colour scaling |br|
+      Default values: 0.5, 0.05, 0.5, 0.5
+
+
 .. _Processing:
 
 ``[Processing]`` section
@@ -642,6 +675,7 @@ You can use this :download:`this template
             .. code:: ini
 
                 fname_fmt.concatenation : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}.tif
+                fname_fmt.quicklook     : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}_QCK_ALL.jpg
                 fname_fmt.filtered      : {flying_unit_code!u}_L1ORT_{tile_name}_{polarisation!u}_{calibration_type!u:.3}_{orbit_direction}_{orbit}_{acquisition_start}_filtered_{filter_method!u:.3}.tif
 
       .. _Processing.fname_fmt.concatenation:
@@ -650,6 +684,11 @@ You can use this :download:`this template
       for β°, σ° and γ° calibrations.
 
       Default value: {fname_fmt_concatenation}
+
+  * - ``fname_fmt.quicklook``
+    - File format pattern for :ref:`quicklook files <quicklook-files>`.
+
+      Default value: {fname_fmt_quicklook}
 
       .. _Processing.fname_fmt.lia_corrected:
   * - ``fname_fmt.s2_lia_corrected``
@@ -750,6 +789,11 @@ You can use this :download:`this template
         * - :ref:`Masks <mask-files>`
           - ``.mask``
           - :samp:`{{out_dir}}/{{tile_name}}`
+
+            .. _Processing.dname_fmt.quicklook:
+        * - :ref:`Quicklook files <quicklook-files>`
+          - ``.quicklook``
+          - :samp:`{{out_dir}}/_QL`
 
             .. _Processing.dname_fmt.ia_product:
         * - :ref:`degree(IA), cos(IA), sin(IA) and tan(IA) <ia-files>`

@@ -129,6 +129,51 @@ Orthorectified S2 tiles
       * - ``TIFFTAG_SOFTWARE``
         - :samp:`S1 Tiling v{{version}}` -- |version| currently
 
+
+.. _quicklook-files:
+.. index:: Quicklook files
+
+Quicklook files
++++++++++++++++
+
+:Content: Quicklook images of the associated :ref:`the S2 tiles <full-S2-tiles>`
+
+:Footprint: Sentinel-2 MGRS tile.
+
+:Directory:  :ref:`%(output) <paths.output>`:samp:`/_QL/` by default
+
+:Directory format: :samp:`{{out_dir}}/_QL`, see
+                   :ref:`[Processing].dname_fmt.quicklook
+                   <Processing.dname_fmt.quicklook>`
+
+:File name: the same as the one from :ref:`the S2 tiles <full-S2-tiles>`, with
+            :file:`_quicklook.jpg` instead of :file:`.tif` extension.
+
+:Product encoding: defaults to Byte JPEG
+
+:Metadata: This file contains the same metadata as the one from :ref:`the S2 tile product <full-S2-tiles>` it has been generated from, with the following differences:
+
+    .. list-table::
+      :widths: auto
+      :header-rows: 1
+      :stub-columns: 1
+
+      * - Metadata
+        - Value
+
+      * - ``IMAGE_TYPE``
+        - :samp:`QUICKLOOK`
+      * - ``QUICKLOOK_SCALE``
+        - the dimension scaling factor: :ref:`[Quicklook].ratio
+          <Quicklook.ratio>`
+      * - ``QUICKLOOK_PIXEL_RANGE``
+        - :samp:`0 .. {{threshold}}` where threshold is the maximum pixel
+          value used to render gray colour scaling: :ref:`[Quicklook].scales
+          <Quicklook.scales>`
+      * - ``TIFFTAG_IMAGEDESCRIPTION``
+        - :samp:`Quicklook of Sentinel-1{{A|B|C}} IW GRD on S2 tile`
+
+
 .. _mask-files:
 .. index:: Mask files
 

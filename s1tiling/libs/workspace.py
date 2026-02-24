@@ -5,7 +5,7 @@
 #   Program:   S1Processor
 #
 #   All rights reserved.
-#   Copyright 2017-2025 (c) CNES.
+#   Copyright 2017-2026 (c) CNES.
 #
 #   This file is part of S1Tiling project
 #       https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling
@@ -259,7 +259,6 @@ def ensure_tiled_workspaces_exist(
         'lia_dir'        : cfg.extra_directories['lia_dir'],
         'ia_dir'         : cfg.extra_directories['ia_dir'],
         'gamma_area_dir' : cfg.extra_directories['gamma_area_dir'],
-        'quicklook_dir'  : cfg.extra_directories['quicklook_dir'],
     }
 
     working_directory = os.path.join(cfg.tmpdir, 'S2', tile_name)

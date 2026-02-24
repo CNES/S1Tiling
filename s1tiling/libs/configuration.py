@@ -363,8 +363,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         self.extra_directories['ia_dir']         = accessor.get('Paths', 'ia', fallback=os.path.join(self.output_preprocess, '_IA'))
         #: Destination directory where GAMMA_AREA maps products are generated:  :ref:`[PATHS.gamma_area] <paths.gamma_area>`
         self.extra_directories['gamma_area_dir'] = accessor.get('Paths', 'gamma_area', fallback=os.path.join(self.output_preprocess, '_GAMMA_AREA'))
-        #: Destination directory where quicklooks are generated:  :ref:`[PATHS.quicklook] <paths.quicklook>`
-        self.extra_directories['quicklook_dir'] = accessor.get('Paths', 'quicklook', fallback=os.path.join(self.output_preprocess, '_QL'))
         #: Where S1 images are downloaded: See :ref:`[PATHS.s1_images] <paths.s1_images>`!
         self.raw_directory           = accessor.get('Paths', 's1_images')
         #: Directory where Precise Orbit EOF files are downloaded:  :ref:`[PATHS.eof] <paths.eof>`
@@ -463,7 +461,7 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
         #: Scaling factor on size :ref:`[Quicklook.ratio] <Quicklook.ratio>`
         self.quicklook_ratio = accessor.getint('Quicklook', 'ratio', fallback=5)
-        #: Maximum pixel value used for color scaling  :ref:`[Quicklook.scale_vh] <Quicklook.scale_vh>`
+        #: Maximum pixel value used for color scaling  :ref:`[Quicklook.scales] <Quicklook.scales>`
         self.quicklook_scales = {
             'vh': accessor.getfloat('Quicklook', 'scale_vh', fallback=0.05),
             'vv': accessor.getfloat('Quicklook', 'scale_vv', fallback=0.5),
@@ -978,7 +976,7 @@ def fname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.s2_lia_corrected`` actual value, or its
+    Helper function that returns the ``Processing.fname_fmt.s2_lia_corrected`` actual value, or its
     default value.
     """
     fname_fmt = DEFAULT_FNAME_FMTS['lia_corrected']
@@ -987,7 +985,7 @@ def fname_fmt_lia_corrected(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.gamma_area_product`` actual value,
+    Helper function that returns the ``Processing.fname_fmt.gamma_area_product`` actual value,
     or its default value.
     """
     # fname_fmt = 'GAMMA_AREA_{flying_unit_code}_{tile_name}_{orbit_direction}_{orbit}.tif'
@@ -997,7 +995,7 @@ def fname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.s2_gamma_area_corrected`` actual value,
+    Helper function that returns the ``Processing.fname_fmt.s2_gamma_area_corrected`` actual value,
     or its default value.
     """
     fname_fmt = DEFAULT_FNAME_FMTS['gamma_area_corrected']
@@ -1006,7 +1004,7 @@ def fname_fmt_gamma_area_corrected(cfg: NameFormattingConfiguration) -> str:
 
 def fname_fmt_quicklook(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.fname.quicklook`` actual value, or its default
+    Helper function that returns the ``Processing.fname_fmt.quicklook`` actual value, or its default
     value.
     """
     fname_fmt = DEFAULT_FNAME_FMTS['quicklook']
@@ -1015,7 +1013,7 @@ def fname_fmt_quicklook(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.tiled`` actual
+    Helper function that returns the ``Processing.dname_fmt.tiled`` actual
     value, or its default value.
     """
     return cfg.dname_fmt.get('tiled', '{out_dir}/{tile_name}')
@@ -1023,7 +1021,7 @@ def dname_fmt_tiled(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.mask`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.mask`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('mask', '{out_dir}/{tile_name}')
@@ -1031,7 +1029,7 @@ def dname_fmt_mask(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.filtered`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.filtered`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('filtered', '{out_dir}/filtered/{tile_name}')
@@ -1039,7 +1037,7 @@ def dname_fmt_filtered(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.lia_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.lia_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('lia_product', '{lia_dir}')
@@ -1047,7 +1045,7 @@ def dname_fmt_lia_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.gamma_area_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.gamma_area_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('gamma_area_product', '{gamma_area_dir}')
@@ -1055,7 +1053,7 @@ def dname_fmt_gamma_area_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.ia_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.ia_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('ia_product', '{ia_dir}')
@@ -1063,7 +1061,7 @@ def dname_fmt_ia_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.eof_product`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.eof_product`` actual value,
     or its default value.
     """
     return cfg.dname_fmt.get('eof_product', '{eof_dir}')
@@ -1071,10 +1069,10 @@ def dname_fmt_eof_product(cfg: NameFormattingConfiguration) -> str:
 
 def dname_fmt_quicklook(cfg: NameFormattingConfiguration) -> str:
     """
-    Helper function that returns the ``Processing.dname.quicklook`` actual value,
+    Helper function that returns the ``Processing.dname_fmt.quicklook`` actual value,
     or its default value.
     """
-    return cfg.dname_fmt.get('quicklook', '{quicklook_dir}')
+    return cfg.dname_fmt.get('quicklook', '{out_dir}/_QL')
 
 
 # ================================================================================

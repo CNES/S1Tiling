@@ -40,7 +40,9 @@ For each S2 tile,
    3. It :ref:`filters <filter-proc>` the orthorectified images to reduce the
       speckle, :ref:`if requested <Filtering.filter>`.
    4. It :ref:`builds masks <mask_generation-proc>`, :ref:`if requested
-      <Mask.generate_border_mask>`.
+      <Mask.generate_border_mask>`,
+   5. It :ref:`generate quicklook files <quicklook_generation-proc>`, :ref:`if
+      requested <Quicklook.generate>`.
 
 
 .. index:: parallelization
@@ -343,6 +345,20 @@ The actual generation is done in two steps:
 2. :external+OTB:std:doc:`OTB BinaryMorphologicalOperation application
    <Applications/app_BinaryMorphologicalOperation>` is used to smooth border
    masks with a ball of 5×5 radius used for *opening*.
+
+
+.. _quicklook_generation-proc:
+.. index:: Quicklook generation
+
+Quicklook generation
+++++++++++++++++++++
+
+:Inputs:          :ref:`final S2 tiles <full-S2-tiles>`
+:Output:          :ref:`quicklook images <quicklook-files>`
+:Function:        :func:`osgeo.gdal.Translate`
+:StepFactories:   :class:`s1tiling.libs.otbwrappers.GenerateQuickLook`
+
+Quicklook images are generated from the :ref:`final S2 tiles <full-S2-tiles>`.
 
 
 .. _data-caches:

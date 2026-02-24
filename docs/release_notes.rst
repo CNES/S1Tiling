@@ -8,6 +8,16 @@
 Release notes
 =============
 
+Version 1.4.0
+-------------
+
+v1.4.0 Improvements
++++++++++++++++++++
+
+- Quicklook images can now be generated
+  (`#221 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/221>`_).
+
+
 Version 1.3.1
 -------------
 
