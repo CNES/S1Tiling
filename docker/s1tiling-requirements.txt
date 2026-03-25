@@ -7,7 +7,7 @@
 # created.
 click
 dask[distributed]
-eodag
+eodag<4
 graphviz
 numpy<2
 objgraph
@@ -15,3 +15,6 @@ portion
 pympler
 pyyaml
 rtree
+# Temporary workaround: https://github.com/h2non/jsonpath-ng/issues/216
+# TODO: remove in s1tiling 2.0
+jsonpath-ng<1.8
