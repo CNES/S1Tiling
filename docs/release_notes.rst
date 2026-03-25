@@ -8,6 +8,15 @@
 Release notes
 =============
 
+Version 1.4.1
+-------------
+
+v1.4.1 Bugs fixed
++++++++++++++++++
+
+- Temporarily restrict eodag dependency to eodag 3.x in S1Tiling docker
+  (`#224 <https://gitlab.orfeo-toolbox.org/s1-tiling/s1tiling/-/issues/224>`_).
+
 Version 1.4.0
 -------------
 
